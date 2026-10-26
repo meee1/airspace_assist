@@ -27,6 +27,11 @@ The map sits under the frequencies. Use − and + to zoom (2.5 to 80 NM) and the
 - Each step is labelled chart-style: class, then upper over lower limit.
 - Area frequency boundaries are dotted green, with the frequency inside each area.
 - The airspace you're in at your altitude is shaded.
+- **CTAF layer:** the CTAF button turns it on and off.
+  - Each aerodrome gets a 10 NM area (the AIP CTAF call distance), along with any DAH broadcast areas.
+  - Areas on the same frequency merge into one translucent shape with one outline and one colour.
+  - Frequencies in view never share a colour. The AIP default 126.7 is drawn in neutral grey so specific CTAFs stand out.
+  - The legend lists the frequencies in view, and each aerodrome's frequency is printed beside it.
 - The map only shows airspace starting below FL125, or below 5,000 ft above you, so the high-level steps don't clutter it.
 
 ## Terrain (SRTM)

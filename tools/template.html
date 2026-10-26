@@ -112,6 +112,28 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 
 .sim{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .sim-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sim-toggle{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:0;padding:4px 0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.sim-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+[hidden]{display:none!important}
+.sim-sum{flex:1;min-width:0;font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#simOff .short,.simbadge .short{display:none}
+.sim.collapsed .simbadge .full,.sim.collapsed #simOff .full{display:none} .sim.collapsed .simbadge .short,.sim.collapsed #simOff .short{display:inline}
+.sim.collapsed .simbadge{font-size:11px}
+.sim.collapsed{padding:2px 8px;border-radius:6px;border-left-width:3px}
+.sim.collapsed .sim-toggle{padding:2px 0;gap:6px}
+.sim.collapsed #simOff{padding:2px 6px!important;font-size:10px!important;border-radius:5px}
+.sim.collapsed .sim-sum{font-size:11px}
+.sim.collapsed .fold-i{width:14px;height:14px}
+.sim-body{display:flex;flex-direction:column;gap:10px}
+.fold-i{flex:none;width:18px;height:18px;position:relative}
+.fold-i::before{content:"";position:absolute;left:5px;top:3px;width:7px;height:7px;border-right:2px solid var(--dim);border-bottom:2px solid var(--dim);transform:rotate(45deg);transition:transform .15s}
+[aria-expanded="false"] .fold-i::before, details.fold:not([open]) .fold-i::before{transform:rotate(-45deg);left:3px;top:5px}
+details.fold>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary>span:first-child{flex:1;min-width:0}
+details.fold:not([open]){padding:3px 8px;font-size:11px;border-radius:6px;border-left-width:3px}
+details.fold:not([open]) .fold-i{width:14px;height:14px}
+.fold-body{margin-top:6px}
 .sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .sim label{display:flex;flex-direction:column;gap:4px;min-width:0}
 .sim input{font:500 16px/1.2 var(--f-mono);padding:9px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);width:100%;min-width:0}
@@ -152,7 +174,10 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 #map{width:100%;height:min(86vw,340px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation}
 .mapctl{display:flex;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 12px;font-size:14px}
-.mapctl #mapUp{margin-left:auto;font-size:12px}
+.mapctl #mapUp{font-size:12px}
+.mapctl #mapCtaf{margin-left:auto;font-size:12px}
+.ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
+.dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
 .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--dim)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
@@ -184,7 +209,10 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
     <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
   </div>
 
-  <div class="notice warn" id="effBanner" hidden></div>
+  <details class="notice warn fold" id="effBanner" hidden>
+    <summary><span id="effHead"></span><span class="fold-i" aria-hidden="true"></span></summary>
+    <div id="effBody" class="fold-body"></div>
+  </details>
 
   <div class="notice" id="startBox">
     <div style="margin-bottom:8px">Uses your GPS position (and compass when stationary) to find the closest aerodrome and the area frequency for where you are.</div>
@@ -192,7 +220,11 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
   </div>
 
   <section class="sim" id="simBox" hidden>
-    <div class="sim-h"><span class="lbl simbadge">Simulated position</span><button class="btn" id="simOff" style="padding:6px 8px;font-size:11px">Use real GPS</button></div>
+    <div class="sim-h">
+      <button class="sim-toggle" id="simToggle" aria-expanded="true" aria-controls="simBody"><span class="lbl simbadge"><span class="full">Simulated position</span><span class="short">SIM</span></span><span class="sim-sum mono" id="simSum" hidden></span><span class="fold-i" aria-hidden="true"></span></button>
+      <button class="btn" id="simOff" style="padding:6px 8px;font-size:11px"><span class="full">Use real GPS</span><span class="short">GPS</span></button>
+    </div>
+    <div id="simBody" class="sim-body">
     <label for="simPos"><span class="lbl">Position</span>
       <input id="simPos" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="-38.04, 144.47  ·  38 02 22S 144 28 10E  ·  YMAV"></label>
     <div class="sim-grid">
@@ -203,6 +235,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
     <div class="ctl"><button class="btn primary" id="simGo">Set position</button><button class="btn" id="simFly" aria-pressed="false">Fly</button></div>
     <div class="err" id="simErr" hidden></div>
     <div class="hint">Decimal degrees, DMS, or an ICAO code. Fly moves you along the track at the set ground speed. Tap an aerodrome in Nearby to select it.</div>
+    </div>
   </section>
 
   <section class="ad" id="adCard" aria-live="polite">
@@ -243,8 +276,10 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
         <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
         <span class="lbl mono" id="mapRng">10 NM</span>
         <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
+        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
         <button class="btn" id="mapUp">Track up</button>
       </div>
+      <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
     </div>
   </section>
@@ -437,7 +472,25 @@ function terrainFt(la,lo){ // max of the 4 surrounding 30" posts, feet; null = u
 function terPrefetch(la,lo){ if(!TER.ok) return; for(let a=-2;a<=2;a++) for(let b=-2;b<=2;b++){ const n=tName(Math.floor(la)+a,Math.floor(lo)+b); if(TER.have.has(n)&&!TER.tiles.has(n)) terLoad(n); } }
 
 /* ---------- map ---------- */
-const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk')};
+const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false)};
+const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
+const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
+let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
+function ctafAssign(freqs){  // stable hash slot, bumped to a free slot so frequencies in view never share a colour
+  const next=new Map(), used=new Set();
+  for(const f of freqs){ if(f==='126.7') continue; if(ctafPal.has(f)&&!used.has(ctafPal.get(f))){ next.set(f,ctafPal.get(f)); used.add(ctafPal.get(f)); } }
+  for(const f of freqs){ if(f==='126.7'||next.has(f)) continue;
+    let k=Math.round(parseFloat(f)*1000/5)%CTAF_HUES.length; for(let i=0;i<CTAF_HUES.length&&used.has(k);i++) k=(k+1)%CTAF_HUES.length;
+    next.set(f,k); used.add(k); }
+  ctafPal=next;
+}
+function ctafColour(f){
+  const dark=getComputedStyle(document.documentElement).colorScheme.includes('dark');
+  if(f==='126.7') return dark?'hsl(210 12% 62%)':'hsl(210 12% 45%)';   // AIP default: neutral so specific CTAFs stand out
+  const h=CTAF_HUES[ctafPal.get(f)??0];
+  return `hsl(${h} ${dark?80:72}% ${dark?62:42}%)`;
+}
+let ctafOff=null;
 function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function clipRect(pts,W,H){ // Sutherland-Hodgman against [0,W]x[0,H]
   const edges=[[p=>p[0]>=0,(a,b)=>{const t=(0-a[0])/(b[0]-a[0]);return[0,a[1]+t*(b[1]-a[1])]}],
@@ -479,6 +532,39 @@ function drawMap(la,lo,h,pick,AS,altFt){
     }
     g.globalAlpha=1;
   }
+  // CTAF layer: 10 NM around each aerodrome (and DAH broadcast areas), merged per frequency, one colour each
+  const ctafAt=[];
+  if(MAP.ctaf){
+    const groups=new Map(); const add=(f,shape)=>{ if(!f) return; if(!groups.has(f)) groups.set(f,[]); groups.get(f).push(shape); };
+    const rr=reach+CTAF_NM/60;
+    for(const ad of DATA.ap){
+      if(ad.t==='H'&&!st.heli) continue; if(!st.all && ad.s!=='E' && ad.t!=='H') continue;
+      if(Math.abs(ad.la-la)>rr||Math.abs(ad.lo-lo)>rr/cosl) continue;
+      const ci=ctafInfo(ad); if(!ci.f) continue;
+      const [x,y]=P(ad.la,ad.lo); add(ci.f,{c:[x,y]}); ctafAt.push([ad,x,y,ci.f]);
+    }
+    for(const x of ASP) if(x.k==='BA' && x.f && bbHit(x.bb)) add(x.f,{p:x.p.map(q=>P(q[0],q[1]))});
+    ctafAssign([...groups.keys()]);
+    if(!ctafOff) ctafOff=document.createElement('canvas');
+    ctafOff.width=cv.width; ctafOff.height=cv.height; const o=ctafOff.getContext('2d');
+    const R_=CTAF_NM*sc, shapePath=sh=>{ o.beginPath(); if(sh.c) o.arc(sh.c[0],sh.c[1],R_,0,2*Math.PI); else { sh.p.forEach((q,i)=>i?o.lineTo(q[0],q[1]):o.moveTo(q[0],q[1])); o.closePath(); } };
+    const leg=[];
+    for(const [f,shapes] of groups){
+      const col=ctafColour(f); leg.push([f,col,shapes.length]);
+      o.setTransform(dpr,0,0,dpr,0,0); o.clearRect(0,0,W,Hh);
+      // union fill (drawn opaque, composited once with alpha so overlaps don't darken)
+      o.globalCompositeOperation='source-over'; o.fillStyle=col; for(const sh of shapes){ shapePath(sh); o.fill(); }
+      g.globalAlpha= f==='126.7'?.10:.22; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
+      // union outline: stroke every shape, then erase the interiors
+      o.clearRect(0,0,W,Hh); o.strokeStyle=col; o.lineWidth=2; for(const sh of shapes){ shapePath(sh); o.stroke(); }
+      o.globalCompositeOperation='destination-out'; for(const sh of shapes){ shapePath(sh); o.fill(); }
+      o.globalCompositeOperation='source-over';
+      g.globalAlpha=.85; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
+    }
+    leg.sort((a,b)=>(a[0]==='126.7')-(b[0]==='126.7')||b[2]-a[2]);
+    $('ctafLeg').innerHTML=leg.length? leg.map(([f,c])=>`<span><i class="dotc" style="background:${c}"></i>${f}</span>`).join('') : '<span>No CTAF aerodromes in view</span>';
+  }
+  $('ctafLeg').hidden=!MAP.ctaf;
   const ceil=Math.max(12500, altFt+5000);
   const vis=ASP.filter(x=>bbHit(x.bb) && x.k!=='EF' && x.k!=='A' && (x.k==='FIA' || (x.lok==='AGL'?x.lo:(x.lo||0))<ceil) && !((x.k==='R'||x.k==='Q') && (x.lo||0)>=10000));
   const order={FIA:0,E:1,C:2,A:2,D:3,CTR:4,Q:5,R:6};
@@ -536,6 +622,12 @@ function drawMap(la,lo,h,pick,AS,altFt){
     const sel=ad===pick.a;
     g.beginPath(); g.arc(x,y,sel?5:3,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.fill();
     if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+6,y+3); }
+  }
+  if(MAP.ctaf && MAP.range<=40){ // frequency under each aerodrome, in its group colour
+    g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='left';
+    for(const [ad,x,y,f] of ctafAt){ if(x<-10||y<-10||x>W+10||y>Hh+10) continue; if(f==='126.7' && MAP.range>10 && ad!==pick.a) continue;
+      const tw=g.measureText(f).width; g.globalAlpha=.85; g.fillStyle=C.bg; g.fillRect(x+5,y+5,tw+4,12); g.globalAlpha=1;
+      g.fillStyle=ctafColour(f); g.fillText(f,x+7,y+15); }
   }
   drawL.forEach(f=>f());
   // line to selected aerodrome
@@ -760,6 +852,8 @@ $('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) 
 const RANGES=[2.5,5,10,20,40,80];
 $('mapIn').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.max(0,(i<0?2:i)-1)]; ls.set('mapRange',MAP.range); render(); };
 $('mapOut').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.min(RANGES.length-1,(i<0?2:i)+1)]; ls.set('mapRange',MAP.range); render(); };
+$('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf); render(); };
+$('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
 $('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
 addEventListener('resize',()=>render());
 $('unpin').onclick=()=>{st.pin=null;render()};
@@ -907,7 +1001,7 @@ function simApply(){
   if(st.trk!=null && !(st.gs>5)) st.gs=Math.max(st.gs,0); // track shown via heading fallback below
   st.simHdg = st.trk; // used when GS is low
   ls.set('sim',{p:$('simPos').value,a:$('simAlt').value,t:$('simTrk').value,g:$('simGs').value});
-  simStatus(); render(); return true;
+  simStatus(); render(); simSummary(); return true;
 }
 function simStatus(){
   $('gpsDot').className='dot warn'; $('sAcc').textContent='SIM';
@@ -923,25 +1017,36 @@ function flyStep(){
   const l2=l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(p1),Math.cos(d)-Math.sin(p1)*Math.sin(p2));
   st.pos=[p2/R,l2/R];
   $('simPos').value=st.pos[0].toFixed(5)+', '+st.pos[1].toFixed(5);
-  render();
+  render(); simSummary();
 }
 function setFly(on){
   clearInterval(flyTimer); flyTimer=null; $('simFly').setAttribute('aria-pressed',on);
   if(on){ if(!simApply()){ $('simFly').setAttribute('aria-pressed',false); return; }
     if(st.trk==null||!st.gs){ $('simErr').textContent='Set a track and a ground speed to fly.'; $('simErr').hidden=false; $('simFly').setAttribute('aria-pressed',false); return; }
     flyLast=performance.now(); flyTimer=setInterval(flyStep,1000); }
+  simSummary();
 }
 function setSim(on){
   st.sim=on; $('simBox').hidden=!on; $('bSim').setAttribute('aria-pressed',on); ls.set('simOn',on);
   if(on){ $('startBox').hidden=true; const s=ls.get('sim',null);
     if(s){ $('simPos').value=s.p; $('simAlt').value=s.a; $('simTrk').value=s.t; $('simGs').value=s.g; }
     if(!$('simPos').value) $('simPos').value='YMAV';
-    simApply(); }
+    simApply(); simFold(ls.get('simOpen',true)); }
   else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null;
     $('sAcc').textContent='—'; $('gpsDot').className='dot'; $('sGs').textContent='—'; $('sAlt').textContent='—';
     $('adId').textContent='----'; $('adName').textContent='Waiting for position'; $('stack').innerHTML=''; $('list').innerHTML='';
     if(!watching) $('startBox').hidden=false; }
 }
+function simFold(open){ $('simBody').hidden=!open; $('simToggle').setAttribute('aria-expanded',open); $('simBox').classList.toggle('collapsed',!open); ls.set('simOpen',open); simSummary(); }
+function simSummary(){
+  if(!st.pos){ $('simSum').textContent=''; return; }
+  const fly=$('simFly').getAttribute('aria-pressed')==='true';
+  const p=$('simPos').value.trim(), short=/^[A-Z]{4}$/i.test(p)?p.toUpperCase():st.pos[0].toFixed(3)+', '+st.pos[1].toFixed(3);
+  const t=$('simTrk').value.trim();
+  $('simSum').hidden=!$('simBody').hidden;
+  $('simSum').textContent = $('simBody').hidden ? `${short} ${st.alt!=null?Math.round(st.alt)+'ft':'—'}${t?' '+String(Math.round(+t)%360).padStart(3,'0')+'°':''}${st.gs?' '+Math.round(st.gs)+'kt':''}${fly?' ▶':''}` : '';
+}
+$('simToggle').onclick=()=>simFold($('simBody').hidden);
 $('bSim').onclick=()=>setSim(!st.sim);
 $('simOff').onclick=()=>setSim(false);
 $('simGo').onclick=()=>{ setFly(false); simApply(); };
@@ -954,10 +1059,11 @@ setFoot();
   const eff=META.ersa||META.dah; if(!eff) return;
   const d=new Date(eff+' 00:00 UTC'); if(isNaN(d)) return;
   const now=new Date();
-  if(now<d){ const b=$('effBanner'); b.hidden=false;
-    b.innerHTML=`<b>AIP data effective ${eff}.</b> Until then the current ERSA and DAH apply, and some frequencies or steps here may not be in force yet.`; }
-  else if((now-d)/864e5>56){ const b=$('effBanner'); b.hidden=false;
-    b.innerHTML=`<b>AIP data from ${eff} may be out of date.</b> Rebuild with the current ERSA and DAH.`; }
+  const b=$('effBanner'), key='effOpen_'+eff;
+  const show=(head,body)=>{ b.hidden=false; $('effHead').innerHTML=head; $('effBody').textContent=body;
+    b.open=ls.get(key,true); b.addEventListener('toggle',()=>ls.set(key,b.open)); };
+  if(now<d) show(`<b>AIP data effective ${eff}</b>`,'Until then the current ERSA and DAH apply, and some frequencies or steps here may not be in force yet.');
+  else if((now-d)/864e5>56) show(`<b>AIP data from ${eff} may be out of date</b>`,'Rebuild with the current ERSA and DAH.');
 })();
 syncBtns();
 if(ls.get('started',false) && navigator.permissions){
