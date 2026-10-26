@@ -51,6 +51,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 /* status strip */
 .status{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .st.cls b{font-family:var(--f-label);font-size:19px;letter-spacing:.02em}
+.st.cls .cap+.cap{margin-top:2px}
 .st.cls .cap{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim)}
 .st{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:7px 8px;min-width:0}
 .st b{display:block;font:600 17px/1.15 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
@@ -218,7 +219,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
     <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
     <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
-    <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude, and the top of that band"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small></div>
+    <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
   </div>
 
   <details class="notice warn fold" id="effBanner" hidden>
@@ -825,6 +826,7 @@ function render(){
     $('sCls').style.color = k ? `var(--as-${k==='A'?'c':k.toLowerCase()})` : '';
     if(k==='G') $('sCls').style.color='var(--ink)';
     $('sCap').textContent = cur ? (cur.H>=60000?'to UNL':'cap '+limTxt(cur.H)) : '';
+    $('sLL').textContent = cur ? 'LL '+(cur.L<=0?'SFC':limTxt(cur.L)) : '';
     if(inP) $('sCap').textContent+=' · '+inP.n.split(' ')[0];
   }
   if(cur){
