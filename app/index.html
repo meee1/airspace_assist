@@ -196,6 +196,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .fr.ctl .k{color:var(--as-c)} .fr.prd .k{color:var(--as-r);font-size:13px}
 .vb.p span:nth-child(2){color:var(--as-r)}
 .rwbox{border-top:1px solid var(--rule);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+#fpProf{width:100%;height:180px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation;cursor:crosshair}
+.fp-pinfo{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.4} .fp-pinfo b{color:var(--ink);font-family:var(--f-mono);font-weight:600} .fp-pinfo .w{color:var(--warn)}
 #adMap{width:100%;height:200px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule)}
 .rwlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:4px 12px;min-width:0;font-size:12.5px}
 .rw{display:flex;gap:6px;align-items:baseline;white-space:nowrap;min-width:0}
@@ -295,9 +297,11 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="err" id="fpErr" hidden></div>
     <div id="fpBody" hidden>
       <div class="fp-next" id="fpNext"></div>
+      <div class="fp-prof"><canvas id="fpProf" aria-label="Flight plan elevation profile: terrain and controlled airspace along the route"></canvas>
+        <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
       <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button></div>
-      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. In simulation, Fly follows the route.</div>
+      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route.</div>
     </div>
   </section>
 
@@ -639,6 +643,108 @@ function fpAerodrome(la,lo){
   for(let j=i-1;j>=0;j--){ const pa=fpAd(P_[j]); if(pa){ const n=at(pa,'Flight plan · last aerodrome'); if(n.d<=5) return n; break; } }
   return null;
 }
+/* ---------- flight plan elevation profile (SRTM terrain + DAH airspace along the route) ---------- */
+let PROF=null, profSel=null;
+const PROF_TERR='#9c7a4a';
+function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),TER.ok,TER.tiles.size,Math.floor(Date.now()/60000)].join('|'); }
+function profBuild(){
+  const P_=FP.pts, cum=[0];
+  for(let k=1;k<P_.length;k++) cum.push(cum[k-1]+distBrg(P_[k-1].la,P_[k-1].lo,P_[k].la,P_[k].lo)[0]);
+  const total=cum[cum.length-1]||0, step=Math.max(0.2,total/500), S=[];
+  let missing=0;
+  for(let k=1;k<P_.length;k++){ const a=P_[k-1], b=P_[k], L=cum[k]-cum[k-1], n=Math.max(1,Math.ceil(L/step));
+    for(let j=(k===1?0:1);j<=n;j++){ const f=j/n, la=a.la+(b.la-a.la)*f, lo=a.lo+(b.lo-a.lo)*f;
+      const t=terrainFt(la,lo); if(t==null&&TER.ok) missing++;
+      const AS=airStack(la,lo,t||0);
+      S.push({x:cum[k-1]+L*f, leg:k, la, lo, t,
+        b:AS.bands.filter(x=>x.k!=='G').map(x=>({k:x.k==='CTR'?(x.ctrCls||'D'):x.k, L:x.L, H:x.H, n:x.n})),
+        p:AS.prd.map(x=>({k:x.k, L:x.L, H:x.H, n:x.n}))}); } }
+  // summary: highest terrain, lowest controlled-airspace base, and where terrain comes within 1,000 ft of that base
+  let hi=null, lo=null, tight=null;
+  for(const q of S){ const base=q.b.length?Math.min(...q.b.map(x=>x.L)):null; q.base=base;
+    if(q.t!=null && (!hi||q.t>hi.t)) hi=q;
+    if(base!=null && base>0 && (!lo||base<lo.base)) lo=q;
+    if(q.t!=null && base!=null && base>0 && base-q.t<1000 && (!tight||base-q.t<tight.base-tight.t)) tight=q; }
+  const zones=new Map(); for(const q of S) for(const a of q.b) if(a.L<=0 && !zones.has(a.n)) zones.set(a.n,{...a,x:q.x});
+  return {S,cum,total,missing,hi,lo,tight,zones:[...zones.values()]};
+}
+function profAlong(){ // your distance along the plan (projected onto the active leg)
+  if(!st.pos||!FP||!PROF) return null; const i=FP.i, P_=FP.pts;
+  if(i===0) return distBrg(st.pos[0],st.pos[1],P_[0].la,P_[0].lo)[0]<5? 0 : null;
+  const a=P_[i-1], b=P_[i], [dap]=distBrg(a.la,a.lo,st.pos[0],st.pos[1]), xt=xte(st.pos[0],st.pos[1],a,b);
+  if(Math.abs(xt)>5) return null;   // well off the route: don't pretend you're on the profile
+  const along=Math.sqrt(Math.max(0,dap*dap-xt*xt)), L=PROF.cum[i]-PROF.cum[i-1];
+  const bh=Math.abs(((distBrg(a.la,a.lo,st.pos[0],st.pos[1])[1]-distBrg(a.la,a.lo,b.la,b.lo)[1]+540)%360)-180)>90;
+  return PROF.cum[i-1]+Math.max(0,Math.min(L, bh?0:along));
+}
+function legName(k){ const P_=FP.pts; return `${P_[k-1].c||P_[k-1].n}→${P_[k].c||P_[k].n}`; }
+function drawProf(){
+  const cv=$('fpProf'); if(!FP||$('fpBody').hidden||FP.pts.length<2) return;
+  const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return;
+  const key=profKey(); if(!PROF||PROF.key!==key){ PROF=profBuild(); PROF.key=key; }
+  const pr=PROF, S=pr.S, dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const C={ink:cssv('--ink'),dim:cssv('--dim'),rule:cssv('--rule'),acc:cssv('--accent'),warn:cssv('--warn'),wp:cssv('--wp'),
+    C:cssv('--as-c'),A:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),R:cssv('--as-r'),Q:cssv('--as-q')};
+  const maxT=Math.max(0,...S.map(q=>q.t||0)), alt=st.alt;
+  let top=Math.max(maxT+1500, alt!=null?alt+1000:0, 3000);
+  if(pr.lo && pr.lo.base<12000) top=Math.max(top,pr.lo.base+1500);
+  top=Math.min(Math.ceil(top/1000)*1000, 15000);
+  const l=34, r=8, t=16, b=16, x=d=>l+(pr.total?d/pr.total:0)*(W-l-r), y=f=>t+(1-Math.min(f,top)/top)*(H-t-b);
+  // altitude grid
+  const gs=top>8000?2000:1000; g.font='10px '+cssv('--f-mono'); g.textBaseline='middle'; g.textAlign='right';
+  for(let f=0;f<=top;f+=gs){ g.strokeStyle=C.rule; g.lineWidth=1; g.beginPath(); g.moveTo(l,y(f)); g.lineTo(W-r,y(f)); g.stroke();
+    g.fillStyle=C.dim; g.fillText(f?(f>=1000?(f/1000)+'k':f):'0',l-4,y(f)); }
+  // controlled airspace and restricted/danger areas: one column per sample, base edge drawn solid
+  for(let i=0;i<S.length;i++){ const q=S[i], x0=x(i?(S[i-1].x+q.x)/2:q.x), x1=x(i<S.length-1?(q.x+S[i+1].x)/2:q.x), w=Math.max(1,x1-x0);
+    for(const a of q.b.concat(q.p)){ if(a.L>=top) continue; const c=C[a.k]||C.C;
+      g.globalAlpha=a.k==='R'||a.k==='Q'?.16:.13; g.fillStyle=c; g.fillRect(x0,y(a.H),w,y(a.L)-y(a.H));
+      g.globalAlpha=.9; g.fillRect(x0,y(a.L)-1,w,2); }
+    g.globalAlpha=1; }
+  // terrain
+  g.fillStyle=PROF_TERR; g.globalAlpha=.75; g.beginPath(); g.moveTo(x(0),y(0));
+  for(const q of S) g.lineTo(x(q.x),y(q.t||0)); g.lineTo(x(pr.total),y(0)); g.closePath(); g.fill(); g.globalAlpha=1;
+  // terrain within 1,000 ft of the airspace base: red under the base line
+  g.fillStyle=C.warn;
+  for(let i=0;i<S.length;i++){ const q=S[i]; if(q.t==null||q.base==null||q.base<=0||q.base-q.t>=1000) continue;
+    const x0=x(i?(S[i-1].x+q.x)/2:q.x), x1=x(i<S.length-1?(q.x+S[i+1].x)/2:q.x); g.fillRect(x0,y(q.base)-1.5,Math.max(1,x1-x0),3); }
+  // waypoints
+  const P_=FP.pts; g.textAlign='center'; g.textBaseline='alphabetic';
+  P_.forEach((p,k)=>{ const X=x(pr.cum[k]), on=k===FP.i; g.strokeStyle=on?C.wp:C.dim; g.globalAlpha=on?.9:.45; g.setLineDash([2,3]);
+    g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke(); g.setLineDash([]); g.globalAlpha=1; });
+  // labels: active waypoint first, then start and end, then the rest left to right, skipping any that would overlap
+  const order=[FP.i,0,P_.length-1,...P_.map((_,k)=>k)].filter((k,j,a)=>a.indexOf(k)===j), placed=[];
+  for(const k of order){ const p=P_[k], on=k===FP.i; g.font=(on?'600 ':'')+'10px '+cssv('--f-mono');
+    const lab=(p.c||p.n||'').slice(0,5), wdt=g.measureText(lab).width, LX=Math.min(W-r-wdt/2,Math.max(l+wdt/2,x(pr.cum[k])));
+    if(placed.some(q=>LX+wdt/2+4>q[0]&&LX-wdt/2-4<q[1])) continue; placed.push([LX-wdt/2,LX+wdt/2]);
+    g.fillStyle=on?C.wp:C.ink; g.fillText(lab,LX,t-4); }
+  g.font='10px '+cssv('--f-mono'); g.fillStyle=C.dim; g.textAlign='right'; g.fillText(Math.round(pr.total)+' NM',W-r,H-4);
+  g.textAlign='left'; g.fillText('ft AMSL',l+2,H-4);
+  // you: position along the plan and GPS altitude
+  const al=profAlong();
+  if(al!=null){ const X=x(al); g.strokeStyle=C.acc; g.lineWidth=2; g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke();
+    if(alt!=null){ g.fillStyle=C.acc; g.beginPath(); g.arc(X,y(alt),4.5,0,7); g.fill(); g.strokeStyle=C.ink; g.lineWidth=1; g.stroke(); } }
+  // tapped point
+  let sel=null;
+  if(profSel!=null){ sel=S.reduce((m,q)=>Math.abs(q.x-profSel)<Math.abs(m.x-profSel)?q:m,S[0]);
+    const X=x(sel.x); g.strokeStyle=C.ink; g.lineWidth=1; g.setLineDash([4,3]); g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke(); g.setLineDash([]); }
+  // text
+  const ft=v=>Math.round(v/10)*10, nm=v=>v<10?v.toFixed(1):Math.round(v);
+  let tx='';
+  if(sel){ const parts=sel.b.concat(sel.p).sort((a,c)=>a.L-c.L).map(a=>`${a.k==='R'?'R':a.k==='Q'?'Danger':a.k} ${limTxt(a.L)}–${limTxt(a.H)}`);
+    tx=`<b>${nm(sel.x)} NM</b> · ${esc(legName(sel.leg))} · terrain <b>${sel.t==null?'—':ft(sel.t).toLocaleString('en-AU')+' ft'}</b> · ${parts.length?'above: '+esc(parts.slice(0,4).join(', ')):'class G to the top of the chart'}<br>`; }
+  if(!TER.ok) tx+='<span class="w">SRTM terrain not installed: airspace only.</span> ';
+  else if(pr.missing) tx+=`Loading terrain… `;
+  if(pr.hi&&pr.hi.t!=null) tx+=`Highest terrain <b>${ft(pr.hi.t).toLocaleString('en-AU')} ft</b> at ${nm(pr.hi.x)} NM (${esc(legName(pr.hi.leg))}). `;
+  if(pr.lo) tx+=`Lowest controlled airspace <b>${limTxt(pr.lo.base)}</b> at ${nm(pr.lo.x)} NM. `;
+  if(pr.tight) tx+=`<span class="w">Terrain within ${ft(pr.tight.base-pr.tight.t).toLocaleString('en-AU')} ft of the ${limTxt(pr.tight.base)} base at ${nm(pr.tight.x)} NM (${esc(legName(pr.tight.leg))}).</span> `;
+  for(const z of pr.zones) tx+=`Crosses <b>${esc(titleCase(z.n))}</b>${/\(/.test(z.n)?"":" ("+z.k+")"} SFC–${limTxt(z.H)} at ${nm(z.x)} NM. `;
+  tx+='Colours as on the airspace map; red line: terrain within 1,000 ft of the base above it. Terrain is the highest SRTM point per 30″ cell; airspace is from the DAH along the straight legs. Tap for details.';
+  $('fpPInfo').innerHTML=tx;
+}
+$('fpProf').addEventListener('click',e=>{ if(!PROF) return; const cv=$('fpProf'), rc=cv.getBoundingClientRect(), l=34, r=8;
+  const d=(e.clientX-rc.left-l)/(rc.width-l-r)*PROF.total; profSel = profSel!=null&&Math.abs(profSel-d)<PROF.total/80 ? null : Math.max(0,Math.min(PROF.total,d)); drawProf(); });
 function renderFP(h,varE){
   $('fpBody').hidden=!FP||$('fpToggle').getAttribute('aria-expanded')==='false'; $('fpImport').textContent=FP?'New GPX':'Import GPX';
   if(!FP){ $('fpSum').textContent='none loaded'; return; }
@@ -650,6 +756,7 @@ function renderFP(h,varE){
   const legT = i>0 ? fmt3(distBrg(P_[i-1].la,P_[i-1].lo,nx.la,nx.lo)[1]-varE) : null;
   $('fpSum').textContent=`${FP.name} · ${i+1}/${P_.length}${nx?' → '+(nx.c||nx.n):''}`;
   $('fpNext').innerHTML=nx&&here?`<div><small>Next ${i+1}/${P_.length}</small><b>${esc(nx.c||nx.n)}</b></div><div><small>°M · NM</small><b>${fmt3(bNext-varE)} ${dNext<10?dNext.toFixed(1):Math.round(dNext)}</b></div><div><small>XTE</small><b>${xt==null?'—':Math.abs(xt).toFixed(1)+(Math.abs(xt)<0.05?'':xt>0?'R':'L')}</b></div><div><small>ETE</small><b>${ete(dNext)}</b></div><p class="fp-line">${legT?'Leg course '+legT+'°M · ':''}${rem<10?rem.toFixed(1):Math.round(rem)} NM to go${gs>20?' · total '+ete(rem):''}</p>`:'';
+  drawProf();
   $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null;
     return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span></li>`; }).join('');
 }
@@ -1186,7 +1293,13 @@ $('unpin').onclick=()=>{st.pin=null;render()};
 
 /* ---------- CTAF radio call guide ---------- */
 const PTS=['north','north-east','east','south-east','south','south-west','west','north-west'];
-function callName(n){ let t=n.includes('/')? n.split('/').pop() : n; t=t.replace(/\b(airport|aerodrome|airfield|international|regional|ala|heliport|hls)\b/gi,'').replace(/\s+/g,' ').trim(); return titleCase(t||n); }
+// CTAF/tower location name. ERSA's "CITY/AERODROME" usually means the aerodrome part is said (Melbourne/Moorabbin -> Moorabbin).
+// Local usage that differs, confirmed by a pilot who flies there, goes in CALL_AS.
+const CALL_AS={YBRS:'Barwon Heads'};   // ERSA "BARWON HEADS/GEELONG": local call is "Barwon Heads traffic"
+function callName(n,icao){ if(icao&&CALL_AS[icao]) return CALL_AS[icao];
+  const strip=x=>x.replace(/\b(airport|aerodrome|airfield|international|intl|regional|ala|heliport|hls)\b/gi,'').replace(/\s+/g,' ').trim();
+  const parts=n.split('/'); let t=strip(parts[parts.length-1]); if(!t && parts.length>1) t=strip(parts[0]);   // BROOME/INTL -> Broome
+  return titleCase(t||n); }
 function sayLevel(ft){ if(ft==null) return '<i>[level]</i>'; if(ft>10500) return 'flight level '+Math.round(ft/500)*5; const r=Math.max(100,Math.round(ft/100)*100); return r.toLocaleString('en-AU')+' feet'; }
 /* tower hours from ERSA "TWR HR" notes, evaluated in the aerodrome's local time */
 const DOW=['SUN','MON','TUE','WED','THU','FRI','SAT'];
@@ -1233,7 +1346,7 @@ function ersaProcHtml(a,heli){
   return out.join('');
 }
 function renderCalls(a,pick,varE){
-  const loc=callName(a.n), T=v=>esc(v), heli=$('cCat').value==='H';
+  const loc=callName(a.n,a.i), T=v=>esc(v), heli=$('cCat').value==='H';
   const typeRaw=$('cType').value.trim(), csRaw=$('cSign').value.trim();
   const type=typeRaw?T(typeRaw):'<i>[type]</i>', cs=csRaw?T(csRaw):'<i>[callsign]</i>';
   const fromBrg=norm(pick.b+180-varE), pt=PTS[Math.round(fromBrg/45)%8];

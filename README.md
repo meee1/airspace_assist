@@ -51,6 +51,15 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
 - **What it reads:** the route points (`rtept`). If the file has no route it uses the waypoints (`wpt`), then a track (`trkpt`, thinned to 60 points).
 - **AIP labels:** each point is matched against the AIP by name and position, e.g. "RLR VFR waypoint · Rosslynne Resv" or "YBSS Aerodrome · Bacchus Marsh". Unmatched points keep the description from the GPX, or show as a user point with the nearest VFR waypoint.
 - **Next waypoint:** a panel shows it with bearing °M, distance, cross-track error (L/R), ETE at your ground speed, leg course, and distance and time to go.
+- **Elevation profile:** under the next-waypoint panel, the whole route drawn side-on:
+  - **Terrain:** from the SRTM tiles, the highest point in each 30″ cell.
+  - **Controlled airspace and restricted/danger areas:** from the DAH, in the airspace map colours, with each base drawn as a solid line.
+  - **Waypoints:** dashed lines.
+  - **You:** your position and GPS altitude, shown while you're within 5 NM of the route.
+  - **Red line:** wherever terrain comes within 1,000 ft of the airspace base above it.
+  - **Summary:** the highest terrain, the lowest controlled-airspace base, any control zones from the surface you cross (shown as class G when ERSA says the tower is closed), and the tightest terrain-to-base gap.
+  - **Tap:** shows the distance, leg, terrain height and the airspace stack at that point.
+  - **Accuracy:** terrain is along straight legs, and the 30″ grid can miss a narrow peak or mast. It's for planning awareness, not obstacle clearance.
 - **Leg list:** each leg's course and distance. Tap a leg to make it active; Prev, Next, Reverse and Remove are below the list.
 - **Auto-advance:** the next waypoint moves on within 0.5 NM or once you've passed it, and it drives **Go to**.
 - **Aerodrome on screen:** with a plan loaded, the aerodrome card follows the plan instead of simply the closest:
