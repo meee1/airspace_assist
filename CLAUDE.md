@@ -2,9 +2,12 @@
 
 Phone web app for Australian VFR pilots, especially helicopters. It shows:
 - the closest aerodrome, with CTAF, ATIS/AWIS, tower and approach frequencies
-- a radio call guide that switches between CTAF and Class D procedures
-- the area frequency and airspace class for your position and altitude
-- a small airspace map with SRTM terrain
+- the aerodrome's runways (list plus a small to-scale diagram) and ERSA right-hand circuits
+- a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points
+- a CLASS status tile: the class at your position and altitude, its cap and LL
+- the area frequency and the airspace stack for your position and altitude
+- an airspace map with SRTM terrain, a CTAF layer, runways, VFR waypoints and navaids
+- Go to (bearing/distance to any point) and GPX flight plan import with leg navigation
 
 Live at https://meee1.github.io/airspace_assist/app/ (GitHub Pages, from `master`, repo `meee1/airspace_assist`).
 
@@ -35,8 +38,11 @@ app/                  published site (GitHub Pages serves this folder)
 tools/
   template.html       the app source (HTML/CSS/JS, single file); data injected at /*__DATA__*/
   build_data.py       builds data.json with source precedence (see its docstring)
-  ersa.py             parses ERSA FAC entries from `pdftotext -layout` text
-  dah.py, dah_text.py parse the DAH PDF (PyMuPDF, column-aware block order)
+  ersa.py             parses ERSA from `pdftotext -layout` text: FAC entries (COMM, TWR HR notes,
+                      procedures, runways from PHYSICAL CHARACTERISTICS, RH circuits), VFR waypoints
+                      (VFR-GEN), aerodrome navaid frequencies
+  dah.py, dah_text.py parse the DAH PDF (PyMuPDF, column-aware block order): airspace sections,
+                      runway thresholds (Section 18), navaids (21), IFR waypoints (22)
   openair.py          parses the XC Australia OpenAir file (fallback airspace)
   assemble.py         template.html + data.json -> dist/ (index.html, sw.js, manifest, icons)
   fetch_srtm.py       builds app/terrain from SRTM (download from AWS skadi, or --from-dir)
@@ -61,15 +67,32 @@ python3 assemble.py && cp dist/* ../app/
 - Needs `pip install pygeomag pillow pymupdf` and `pdftotext` (poppler).
 - **UI-only change:** edit `tools/template.html`, re-run `assemble.py` against the existing `data.json`, then copy `dist/*` to `app/`. Don't edit `app/index.html` directly; it's about 1.7 MB with the data inlined.
 - `data.json` keys:
-  - `ap`: aerodromes. Source codes `cS`/`aS`/`wS`/`xS` are `E`=ERSA, `X`=XC, `V`=VATPAC, `O`=OurAirports. Conflicts are in `cf`.
-  - `asp`: airspace, as `[cls, name, lo, loKind, hi, hiKind, freq, poly, extra]`.
+  - `ap`: aerodromes.
+    - Source codes `cS`/`aS`/`wS`/`xS` are `E`=ERSA, `X`=XC, `V`=VATPAC, `O`=OurAirports. Conflicts are in `cf`.
+    - ERSA extras: `st`/`utc` (state, UTC offset), `cnotes` (COMM notes incl. TWR HR), `proc` (procedure text), `keys` (CTR entry, circuit alt, reporting points, heli alt), `cct` (RH/LH circuits by runway end, with ERSA wording), `var`.
+    - `x` tower entries may carry `[…, 'East'|'West', evidence]` from ERSA procedure text.
+    - `rw`: `[end1, end2, lat1, lon1, lat2, lon2, lenM, surface, widthM, src, schematic]`. `src` is `DAH` (thresholds) or `ERSA`; schematic 1 = ERSA bearing, 2 = designator heading.
+    - `t: 'H'` marks hospital/heliport sites by name; they're hidden unless "Show heliports" is on.
+  - `asp`: airspace, as `[cls, name, lo, loKind, hi, hiKind, freq, poly, extra]`. Classes include `BA` (broadcast area), `FIA`, `EF` (class E frequency). `extra.u` lists ERSA controlling units; `extra.cc` is the CTR class.
+  - `vw`: VFR waypoints `[code, name, lat, lon]` (ERSA).
+  - `na`: navaids `[ident, type, name, lat, lon, freq]` (DAH + ERSA frequency).
+  - `iw`: IFR waypoints `[name, lat, lon]` (DAH). Used for search/simulation only.
   - `sec`/`bnd`: vatSys sectors.
   - `meta`: ERSA/DAH dates.
   - `var`: WMM variation grid.
+- Browser storage keys are all prefixed `rc_`:
+  - `fp`: flight plan
+  - `goto`
+  - `mapRange`, `mapUp`, `mapCtaf`
+  - `sim`, `simOn`, `simOpen`
+  - `effOpen_<date>`
+  - `cType`, `cSign`, `cCat`, `cMode`
 
 ## Test
 
-- Simulation without GPS: `app/index.html?sim=YMMB&alt=1000&trk=110&gs=0` (also lat,lon or DMS). Serve over http (`simulate.bat`) so terrain tiles load; `file://` can't fetch them.
+- Simulation without GPS: `app/index.html?sim=YMMB&alt=1000&trk=110&gs=0`. `sim=` also takes lat,lon, DMS, a VFR waypoint (`CARR`), a navaid (`AV`) or an IFR waypoint. Serve over http (`simulate.bat`) so terrain tiles load; `file://` can't fetch them.
+- In Playwright, `localStorage` on `file://` pages doesn't reliably survive a reload. Test persistence (flight plan, go-to, settings) over http (`python3 -m http.server` in `app/`).
+- Example GPX: an OzRunways export YBRS – NAV2 – YBSS – RLR – YRSY – WAN – YLIL – ACE – YMMB – CARR – YTYA – NAV1 – PIPS – YBRS. It has 14 `rtept`s with `name` + `desc` and comes to 173 NM. NAV1/NAV2 are user points.
 - Headless check used so far: Playwright (Chromium, iPhone 13 profile). Fix the clock to test tower hours, e.g. `page.clock.setFixedTime('2026-10-26T03:00:00Z')`.
 - Spot-check after any data change:
   - YMAV: Class D, Avalon Tower 120.1, E 133.55 above A025.
@@ -77,12 +100,16 @@ python3 assemble.py && cp dist/* ../app/
   - YBTH: CTAF 127.35, Melbourne Centre 135.25.
   - YLVB: not in ERSA, so AIP default 126.7.
   - Abrolhos: broadcast area 127.1.
+  - CLASS tile: near Avalon (-38.0,144.40) it reads D cap A025 LL SFC at 1,000 ft, E cap A045 LL A025 at 3,000 ft, and C cap FL180 LL A045 at 6,000 ft. Bathurst at 5,000 ft reads G cap A085 LL SFC.
+  - YMMB runways: 04/22, 13L/31R, 13R/31L, 17L/35R, 17R/35L from DAH thresholds. RH: 04, 31R, 13R, 35R, 17R (day).
+  - Simulating at CARR picks YMMB, not a hospital HLS.
 
 ## Gotchas
 
 - `fetch_srtm.py` arguments with negative numbers need `=`: `--around=-38.15,144.36,300`, `--bbox=-39.5,140.5,-33.5,150.5`.
 - Line endings: `fetch_srtm.bat` and the XC `.txt` show CRLF-only diffs from Linux/WSL shells. Don't commit those as changes.
-- Git push needs the owner's GitHub credentials. Push from Windows (terminal or GitHub Desktop).
+- Git push needs the owner's GitHub credentials. Commit from any shell, but push from Windows (cmd or GitHub Desktop). Check what's live with `git ls-remote origin master` and the `radio-au-<hash>` cache name in the served `sw.js`.
+- After copying files into the repo from another environment, compare checksums (`md5sum`) with the build. A copy has silently left a stale `app/index.html` once, and the live site shipped without the change. `app/index.html` and `tools/template.html` must come from the same build.
 - Airservices, xcaustralia.org and the SRTM hosts may be unreachable from sandboxed shells. The owner downloads the PDFs and runs `fetch_srtm.bat` locally.
 - `data/aip` holds Airservices copyright material (ERSA, DAH, VTC/VNC) in a public repo. Consider `.gitignore`-ing `data/`, since only the generated app is needed for Pages. Ask the owner before changing this.
 - The ERSA/DAH in use are effective **26 NOV 2026**. The app shows a red banner before that date and warns when the data is more than two cycles old.
