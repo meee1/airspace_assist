@@ -155,6 +155,10 @@ for s in ET.parse(f'{D}/vs_Sectors.xml').getroot().iter('Sector'):
         call = fn
     sectors.append(dict(k=kind, n=fn, cs=call, f=fq(s.get('Frequency')), v=vv))
 
+# heliports / hospital landing sites are hidden unless "Show heliports" is on
+for ap in airports.values():
+    if re.search(r'\b(HOSPITAL|HELIPORT|HLS|HELIPAD|HELICOPTER BASE|MEDICAL)\b', (ap.get('n') or '').upper()): ap['t'] = 'H'
+
 # ---------- source-tagged aerodrome fields ----------
 SRC_NAMES = {'E': 'ERSA', 'X': 'XC Australia', 'V': 'VATPAC', 'O': 'OurAirports'}
 for ap in airports.values():
@@ -201,6 +205,7 @@ if ARGS.xc:
 
 # ---------- ERSA (AIP) — first source for aerodromes and frequencies ----------
 ersa_idx = {}
+vfr_wp, ersa_nav = [], {}
 if ARGS.ersa:
     import ersa
     if ARGS.ersa.lower().endswith('.pdf'):
@@ -210,11 +215,14 @@ if ARGS.ersa:
     m = re.search(r'AIP Australia\s+(\d{1,2} [A-Z]{3} \d{4})\s+FAC', txt)
     meta['ersa'] = m.group(1) if m else ''
     E = ersa.parse(txt)
+    vfr_wp = ersa.vfr_waypoints(txt)
+    ersa_nav = ersa.navaids(txt)
     for icao, r in E.items():
         ap = airports.get(icao)
         if not ap:
             ap = airports[icao] = dict(i=icao)
         ap.update(n=r['n'], la=r['la'], lo=r['lo'], e=r['e'], s='E')
+        if re.search(r'\b(HOSPITAL|HELIPORT|HLS|HELIPAD|HELICOPTER BASE)\b', r['n']): ap['t'] = 'H'
         if r.get('cat'): ap['cat'] = r['cat']
         if r.get('ctaf'):
             conflict(ap, 'c', r['ctaf'], ap.get('c'), ap.get('cS'))
@@ -352,6 +360,26 @@ for icao, r in ersa_idx.items():
     if rws and ap: ap['rw'] = [[x['a'], x['b'], *x['p'], x['len'], x['s'], x['w'], x['src'], x.get('sch', 0)] for x in rws]
 print('runways', dict(nrw), 'aerodromes with runways', sum(1 for a in airports.values() if a.get('rw')))
 
+# ---------- navigation points: ERSA VFR waypoints, DAH navaids (+ ERSA frequencies), DAH IFR waypoints ----------
+nav_out, ifr_out = [], []
+if ARGS.dah:
+    for ident, typ, name, la, lo in dah.navaids(lines):
+        f = (ersa_nav.get((ident, typ)) or [None])[0]
+        nav_out.append([ident, typ, name, la, lo, f])
+    # merge co-located VOR + DME into VOR/DME
+    merged = {}
+    for n in nav_out:
+        k = n[0]; m = merged.get(k)
+        if m and abs(m[3] - n[3]) + abs(m[4] - n[4]) < 0.01 and {m[1], n[1]} <= {'VOR', 'DME', 'TAC'}:
+            if 'VOR' in (m[1], n[1]): m[1] = 'VOR/DME'; m[5] = m[5] if m[1] == 'VOR' else (n[5] if n[1] == 'VOR' else m[5])
+            if n[1] == 'VOR' and n[5]: m[5] = n[5]
+        else:
+            merged[k + str(len(merged))] = n if not m else n
+            if not m: merged[k] = merged.pop(k + str(len(merged) - 1))
+    nav_out = list(merged.values())
+    ifr_out = dah.ifr_waypoints(lines)
+print('VFR waypoints', len(vfr_wp), 'navaids', len(nav_out), 'IFR waypoints', len(ifr_out))
+
 import openair
 airspace = []
 src_air = dah_air if dah_air else xc_air
@@ -376,6 +404,9 @@ data = dict(
     bnd={k: bounds[k] for k in sorted(used_b)},
     asp=airspace,
     dah=meta.get('dah') or meta.get('xc', ''),
+    vw=[[c, n, la, lo] for c, n, s_, la, lo in vfr_wp],
+    na=nav_out,
+    iw=ifr_out,
 )
 json.dump(data, open(OUT, 'w'), separators=(',', ':'))
 A = data['ap']

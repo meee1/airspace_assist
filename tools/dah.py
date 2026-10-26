@@ -138,3 +138,29 @@ def thresholds(lines):
         la, lo = dms((m.group(4), m.group(5), m.group(6), m.group(7)))
         out.setdefault(name, []).append([m.group(3), float(m.group(2)), la, lo])
     return out
+
+
+def _section(lines, num, nxt):
+    i = max(k for k, l in enumerate(lines) if l.startswith(f'SECTION {num}'))
+    j = next((k for k in range(i + 1, len(lines)) if lines[k].startswith(f'SECTION {nxt}')), len(lines))
+    return [l.strip() for l in lines[i + 1:j] if l.strip()]
+
+def navaids(lines):
+    """SECTION 21 -> [[ident, type, name, lat, lon]] for VOR / NDB / DME / TAC"""
+    toks = [t for t in _section(lines, 21, 22) if t not in ('NAME', 'TYPE', 'IDENT', 'LOCATION')]
+    txt = '|' + '|'.join(toks)
+    out = []
+    for m in re.finditer(r'\|([A-Z][A-Z0-9 /\'().-]*?)\|(VOR|NDB|DME|TAC|VORTAC)\|([A-Z]{1,3})\|(\d{6}(?:\.\d+)?)([NS])\|(\d{7}(?:\.\d+)?)([EW])', txt):
+        la, lo = dms((m.group(4), m.group(5), m.group(6), m.group(7)))
+        out.append([m.group(3), m.group(2), m.group(1).strip(), round(la, 5), round(lo, 5)])
+    return out
+
+def ifr_waypoints(lines):
+    """SECTION 22 -> [[name, lat, lon]]"""
+    toks = [t for t in _section(lines, 22, 23) if t not in ('WAYPOINT', 'LOCATION')]
+    txt = '|' + '|'.join(toks)
+    out = []
+    for m in re.finditer(r'\|([A-Z0-9]{2,6})\|(\d{6}(?:\.\d+)?)([NS])\|(\d{7}(?:\.\d+)?)([EW])', txt):
+        la, lo = dms((m.group(2), m.group(3), m.group(4), m.group(5)))
+        out.append([m.group(1), round(la, 4), round(lo, 4)])
+    return out

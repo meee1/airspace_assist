@@ -165,3 +165,28 @@ if __name__ == '__main__':
     print(len(d))
     for i in sys.argv[2:]:
         print(i, json.dumps(d.get(i)))
+
+
+def vfr_waypoints(text):
+    """ERSA VFR-GEN 'VFR WAYPOINTS - ENCODED' -> [[code, name, state, lat, lon], ...]"""
+    mi = re.search(r'^VFR WAYPOINTS - ENCODED\s*$', text, re.M)
+    if not mi: return []
+    mj = re.compile(r'^VFR WAYPOINTS - DECODED\s*$', re.M).search(text, mi.end())
+    seg = text[mi.end():mj.start() if mj else None]
+    out, seen = [], set()
+    for m in re.finditer(r'^\s*([A-Z0-9][A-Z0-9 \'/().&-]*?)\s{2,}(NSW|VIC|QLD|SA|WA|TAS|NT|ACT|OTH)\s+([A-Z0-9]{2,5})\s+(\d{5,6})S\s+(\d{6,7})E', seg, re.M):
+        code = m.group(3)
+        if code in seen: continue
+        seen.add(code)
+        out.append([code, m.group(1).strip(), m.group(2), -round(dd(m.group(4), 2), 5), round(dd(m.group(5), 3), 5)])
+    return out
+
+def navaids(text):
+    """Aerodrome navaids from ERSA RADIO NAVIGATION lines -> {(ident, type): [freq, lat, lon]}"""
+    out = {}
+    for m in re.finditer(r'^\s*(VOR|NDB|DME|TAC)\s+([A-Z]{1,3})\s+([\d.]+)(?:/\s*\w+)?.*?(\d{5,6}(?:\.\d+)?)S\s+(\d{6,7}(?:\.\d+)?)E', text, re.M):
+        def c(v, w):
+            a, _, f = v.partition('.'); a = a.zfill(w + 4)
+            return int(a[:-4]) + int(a[-4:-2]) / 60 + float(a[-2:] + '.' + (f or '0')) / 3600
+        out.setdefault((m.group(2), m.group(1)), [m.group(3), -round(c(m.group(4), 2), 5), round(c(m.group(5), 3), 5)])
+    return out

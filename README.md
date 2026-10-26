@@ -14,7 +14,8 @@ The position field accepts:
 - decimal degrees: `-38.04, 144.47` (a missing minus is assumed south)
 - DMS: `38 02 22S 144 28 10E`
 - packed degrees and minutes: `3802.4S 14428.2E`
-- an ICAO code: `YMAV`
+- an aerodrome code: `YMAV`
+- a VFR waypoint (`CARR`), navaid ident (`AV`) or IFR waypoint, or a VFR waypoint name (`CARRUM`)
 
 **Fly** moves the position along the track at the ground speed, so you can watch the frequencies change as you go. URL form: `index.html?sim=YBTH&alt=3000&trk=320&gs=90`.
 
@@ -44,6 +45,25 @@ The aerodrome card shows a small runway diagram and a runway list.
   - For other aerodromes they're drawn from the ERSA bearing and length, or from the designator heading when ERSA gives no bearing. These are dashed and labelled "schematic".
   - Lengths, surface and width come from ERSA.
 - **Radio calls:** a Runway picker lists that aerodrome's runways (RH marked), and the calls use the one you pick instead of "runway [XX]".
+
+## Flight plan (GPX)
+Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. Tested with an OzRunways export: YBRS – NAV2 – YBSS – RLR – … – PIPS – YBRS, 14 points.
+- **What it reads:** the route points (`rtept`). If the file has no route it uses the waypoints (`wpt`), then a track (`trkpt`, thinned to 60 points).
+- **AIP labels:** each point is matched against the AIP by name and position, e.g. "RLR VFR waypoint · Rosslynne Resv" or "YBSS Aerodrome · Bacchus Marsh". Unmatched points keep the description from the GPX, or show as a user point with the nearest VFR waypoint.
+- **Next waypoint:** a panel shows it with bearing °M, distance, cross-track error (L/R), ETE at your ground speed, leg course, and distance and time to go.
+- **Leg list:** each leg's course and distance. Tap a leg to make it active; Prev, Next, Reverse and Remove are below the list.
+- **Auto-advance:** the next waypoint moves on within 0.5 NM or once you've passed it, and it drives **Go to**.
+- **Map:** the route is drawn in purple with waypoint labels, and the active waypoint is filled in.
+- **Simulation:** Fly steers along the route.
+- **Storage:** the plan is saved on the phone until you remove it or import another.
+
+## Navigation points
+- **Sources:** VFR waypoints (about 1,080) come from ERSA VFR-GEN. Navaids (VOR, NDB, DME, TACAN) come from DAH Section 21, with frequencies from the ERSA aerodrome entries. IFR waypoints (about 7,900) come from DAH Section 22 and are used for search and simulation only.
+- **Go to:** type a waypoint code, navaid ident, IFR waypoint or aerodrome code, or tap a point on the map. The bar shows bearing (°M), distance and an arrow, and the map draws a dotted line to it. It's remembered until you clear it.
+- **Map:** at 20 NM and closer, VFR waypoints are drawn as purple VTC-style diamonds with their codes. Navaids are drawn as VOR hexagons (boxed for VOR/DME) and dotted NDB circles, with the frequency shown at 10 NM and closer.
+- **Radio calls:**
+  - Position reports start with "over <waypoint>" when you're within 1.5 NM of a VFR waypoint, e.g. "over Carrum, 5 miles south".
+  - At tower aerodromes, the ERSA reporting points are shown as chips with full name, bearing and distance, nearest first. Tap a chip to go to it. The inbound call says "over Carrum" once you're within 3 NM of a reporting point.
 
 ## Terrain (SRTM)
 The app uses SRTM terrain for three things:
