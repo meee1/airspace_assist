@@ -120,3 +120,21 @@ def parse_limit(s):
     m = re.match(r'(\d+)', s)
     if m: return int(m.group(1)), 'AMSL'
     raise ValueError(s)
+
+
+def thresholds(lines):
+    """SECTION 18 certified aerodrome threshold data -> {AD NAME: [[rwy, brgT, lat, lon], ...]}"""
+    i = max(k for k, l in enumerate(lines) if l.startswith('SECTION 18'))
+    j = next((k for k in range(i + 1, len(lines)) if lines[k].startswith('SECTION 19')), len(lines))
+    keep = [l.strip() for l in lines[i + 1:j] if l.strip() not in ('AD', 'BRG(T)', 'RWY', 'LAT', 'LONG') and not l.startswith('SECTION')]
+    split = []
+    for l in keep:   # some rows put the name and bearing on one line: "MELBOURNE/AVALON 187.59"
+        m = re.match(r'^(.*[A-Z)/])\s+(\d{1,3}\.\d{2})$', l)
+        split += [m.group(1), m.group(2)] if m else [l]
+    txt = '|' + '|'.join(split)
+    out = {}
+    for m in re.finditer(r'\|([A-Z][A-Z /\'()-]*?(?:\|[A-Z][A-Z /\'()-]*?)?)\|(\d{1,3}\.\d{2})\|(\d{2}[LRC]?)\|(\d{6}(?:\.\d+)?)([NS])\|(\d{7}(?:\.\d+)?)([EW])', txt):
+        name = re.sub(r'\s*/\s*', '/', m.group(1).replace('|', ' ')).strip()
+        la, lo = dms((m.group(4), m.group(5), m.group(6), m.group(7)))
+        out.setdefault(name, []).append([m.group(3), float(m.group(2)), la, lo])
+    return out

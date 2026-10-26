@@ -32,7 +32,18 @@ The map sits under the frequencies. Use − and + to zoom (2.5 to 80 NM) and the
   - Areas on the same frequency merge into one translucent shape with one outline and one colour.
   - Frequencies in view never share a colour. The AIP default 126.7 is drawn in neutral grey so specific CTAFs stand out.
   - The legend lists the frequencies in view, and each aerodrome's frequency is printed beside it.
+- **Runways:** at 5 NM and closer, runways are drawn on the map; at 2.5 NM they're labelled with their designators.
 - The map only shows airspace starting below FL125, or below 5,000 ft above you, so the high-level steps don't clutter it.
+
+## Runways and aerodrome diagram
+The aerodrome card shows a small runway diagram and a runway list.
+- **Diagram:** runways are drawn to scale and labelled with their designators. You appear as an arrow, or on the edge of the diagram with your distance when you're further out, so you can see which side you're joining from. It follows the main map's track-up or north-up setting.
+- **List:** designator, length, surface and right-hand circuits, e.g. "17L/35R 1,341 m sealed 35R RH". Tap an RH tag for ERSA's conditions (Moorabbin's day and night circuit directions, for example). Other circuits are left-hand unless ERSA says otherwise.
+- **Sources, AIP first:**
+  - For 345 certified aerodromes, runway positions come from the DAH threshold table (Section 18).
+  - For other aerodromes they're drawn from the ERSA bearing and length, or from the designator heading when ERSA gives no bearing. These are dashed and labelled "schematic".
+  - Lengths, surface and width come from ERSA.
+- **Radio calls:** a Runway picker lists that aerodrome's runways (RH marked), and the calls use the one you pick instead of "runway [XX]".
 
 ## Terrain (SRTM)
 The app uses SRTM terrain for three things:

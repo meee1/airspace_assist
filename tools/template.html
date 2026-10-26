@@ -49,7 +49,10 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
 /* status strip */
-.status{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.status{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.st.cls b{font-family:var(--f-label);font-size:19px;letter-spacing:.02em}
+.st.cls .cap+.cap{margin-top:2px}
+.st.cls .cap{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim)}
 .st{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:7px 8px;min-width:0}
 .st b{display:block;font:600 17px/1.15 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
 .st small.agl{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);color:var(--accent);text-transform:none;letter-spacing:0}
@@ -148,7 +151,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .calls[open] summary::after{content:"–"}
 .calls summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .calls-at{font:600 13px/1 var(--f-label);letter-spacing:.06em;color:var(--dim);margin-left:auto;text-transform:uppercase}
-.calls-set{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 8px}
+.calls-set{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:0 14px 8px}
 .calls-set label{display:flex;flex-direction:column;gap:4px;min-width:0}
 .calls-set input{font:500 15px/1.2 var(--f-body);padding:8px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);width:100%;min-width:0}
 .call{padding:8px 14px;border-top:1px solid var(--rule)}
@@ -188,6 +191,14 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .cls{font:700 12px/1 var(--f-mono);display:inline-block;min-width:14px}
 .fr.ctl .k{color:var(--as-c)} .fr.prd .k{color:var(--as-r);font-size:13px}
 .vb.p span:nth-child(2){color:var(--as-r)}
+.rwbox{border-top:1px solid var(--rule);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+#adMap{width:100%;height:200px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule)}
+.rwlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:4px 12px;min-width:0;font-size:12.5px}
+.rw{display:flex;gap:6px;align-items:baseline;white-space:nowrap;min-width:0}
+.rw b{font:700 13.5px/1.2 var(--f-mono)}
+.rw span{color:var(--dim);overflow:hidden;text-overflow:ellipsis}
+.rw .rh{color:var(--accent);font-weight:600;font-family:var(--f-mono);font-size:11px}
+.rwnote{grid-column:1/-1;font-size:11.5px;color:var(--dim);line-height:1.35;white-space:normal}
 .vstack{padding:10px 14px 12px;display:flex;flex-direction:column;gap:4px;background:var(--bg)}
 .vstack .lbl{margin-bottom:4px}
 .vb{display:grid;grid-template-columns:96px 1fr auto;gap:8px;align-items:baseline;font-size:13px;color:var(--dim);padding:3px 6px;border-radius:5px}
@@ -195,7 +206,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .vb .f{color:var(--ink);font-weight:600}
 .vb.on{background:var(--chip);color:var(--ink)} .vb.on .f{color:var(--freq)}
 .vnote{font-size:12px;color:var(--dim);margin-top:4px}
-@media (max-width:370px){.ad-id{font-size:34px}.fr.hero .v{font-size:34px}.fr .v{font-size:22px}.fr{grid-template-columns:64px 1fr auto}.status{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:370px){.ad-id{font-size:34px}.fr.hero .v{font-size:34px}.fr .v{font-size:22px}.fr{grid-template-columns:64px 1fr auto}.status{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:420px){.st{padding:6px 6px}.st b{font-size:15px}.st small{font-size:10px}}
 @media (prefers-reduced-motion:reduce){.arrow svg{transition:none}}
 </style>
 </head>
@@ -207,6 +219,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
     <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
     <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
+    <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
   </div>
 
   <details class="notice warn fold" id="effBanner" hidden>
@@ -250,6 +263,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" id="adArrow"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg></div>
       </div>
     </div>
+    <div class="rwbox" id="rwBox" hidden>
+      <canvas id="adMap" aria-label="Aerodrome runway diagram"></canvas>
+      <div class="rwlist" id="rwList"></div>
+    </div>
     <div class="stack" id="ctafRow"></div>
     <details class="calls" id="calls">
       <summary><span class="lbl">Radio calls</span><span class="calls-at" id="callsAt"></span></summary>
@@ -259,6 +276,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       </div>
       <div class="calls-set">
         <label for="cCat"><span class="lbl">Category</span><select id="cCat"><option value="A">Aeroplane</option><option value="H">Helicopter</option></select></label>
+        <label for="cRwy"><span class="lbl">Runway</span><select id="cRwy"><option value="">[XX]</option></select></label>
         <label for="cMode"><span class="lbl">Procedure</span><select id="cMode"><option value="auto">Auto (tower hours)</option><option value="twr">Tower: Class D</option><option value="ctaf">CTAF</option></select></label>
       </div>
       <div class="calls-mode" id="callsMode"></div>
@@ -471,6 +489,62 @@ function terrainFt(la,lo){ // max of the 4 surrounding 30" posts, feet; null = u
 }
 function terPrefetch(la,lo){ if(!TER.ok) return; for(let a=-2;a<=2;a++) for(let b=-2;b<=2;b++){ const n=tName(Math.floor(la)+a,Math.floor(lo)+b); if(TER.have.has(n)&&!TER.tiles.has(n)) terLoad(n); } }
 
+/* ---------- runways: list + mini aerodrome map ---------- */
+const SURF={a:'sealed',b:'concrete',c:'gravel/grass'};
+function rwLabel(a){ return (a.rw||[]).map(r=>r[0]+'/'+r[1]); }
+function renderRunways(a,pick,h){
+  const box=$('rwBox'); if(!a.rw||!a.rw.length){ box.hidden=true; return; } box.hidden=false;
+  const cc=a.cct||{};
+  const end=d=>{ const c=cc[d]; return c&&c[0]==='R' ? `<span class="rh" title="${esc(c[1])}">${d}&nbsp;RH</span>` : ''; };
+  const sch=a.rw.some(r=>r[10]), appx=a.rw.some(r=>r[10]===2);
+  $('rwList').innerHTML=a.rw.map(r=>{
+    const rh=[end(r[0]),end(r[1])].filter(Boolean).join(' ');
+    return `<div class="rw" title="${r[8]?r[8]+' m wide':''}"><b>${r[0]}/${r[1]}</b><span>${r[6]?r[6].toLocaleString('en-AU')+' m':''}${r[7]?' '+SURF[r[7]]:''}</span>${rh}</div>`;
+  }).join('') + `<div class="rwnote">${chip(a.rw.every(r=>r[9]==='DAH')?'DAH':a.rw.some(r=>r[9]==='DAH')?'DAH':'ERSA')} ${a.rw.some(r=>r[9]==='DAH')?'Thresholds from DAH. ':''}${sch?(appx?'Drawn from the ERSA designator heading and length (schematic, position approximate). ':'Drawn from the ERSA bearing and length (schematic). '):''}${a.rw.some(r=>!r[6])?'ERSA gives no length for '+a.rw.filter(r=>!r[6]).map(r=>r[0]+'/'+r[1]).join(', ')+' (drawn 600 m). ':'Lengths and surface from ERSA. '}${Object.keys(cc).length?'RH = right-hand circuit per ERSA (tap for conditions); other circuits left-hand unless ERSA says otherwise.':'Circuits left-hand unless ERSA says otherwise.'}</div>`;
+  drawAdMap(a,pick,h);
+}
+function drawAdMap(a,pick,h){
+  const cv=$('adMap'); const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return;
+  const dpr=window.devicePixelRatio||1; if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const C={ink:cssv('--ink'),dim:cssv('--dim'),acc:cssv('--accent'),fr:cssv('--freq'),bg:cssv('--panel'),rule:cssv('--rule')};
+  const la0=a.la, lo0=a.lo, cosl=Math.cos(la0*R);
+  const rot = MAP.up==='trk'&&h ? h.deg : 0, cr=Math.cos(-rot*R), sr=Math.sin(-rot*R);
+  // metres from ARP
+  const xy=(la,lo)=>{ const x=(lo-lo0)*cosl*111320, y=(la-la0)*110540; return [x*cr-y*sr, x*sr+y*cr]; };
+  const ends=a.rw.map(r=>[xy(r[2],r[3]),xy(r[4],r[5])]);
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const [p,q] of ends) for(const v of [p,q]){ x0=Math.min(x0,v[0]);x1=Math.max(x1,v[0]);y0=Math.min(y0,v[1]);y1=Math.max(y1,v[1]); }
+  const mx=(x0+x1)/2, my=(y0+y1)/2, ext=Math.max(150,(x1-x0)/2/(W/H>1?W/H:1),(y1-y0)/2);
+  const sc=(H/2-26)/ext, cx=W/2, cy=H/2, S=v=>[cx+(v[0]-mx)*sc, cy-(v[1]-my)*sc];
+  const placed=[];
+  // runways (labels drawn after all runways so they sit on top)
+  const pend=[];
+  a.rw.forEach((r,i)=>{ const [p,q]=ends[i].map(S);
+    g.lineCap='butt'; g.strokeStyle=r[10]?C.dim:C.ink; g.lineWidth=Math.max(4,(r[8]||20)*sc*1.6);
+    if(r[10]){ g.setLineDash([6,3]); } g.beginPath(); g.moveTo(p[0],p[1]); g.lineTo(q[0],q[1]); g.stroke(); g.setLineDash([]);
+    // designators just beyond each end (label sits at the threshold you land on)
+    const dx=q[0]-p[0], dy=q[1]-p[1], L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L;
+    g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle';
+    const lab=(d,x,y,sx,sy)=>{ const rh=(a.cct||{})[d]&&(a.cct||{})[d][0]==='R'; const tw=g.measureText(d).width+4;
+      for(let k=0;k<5;k++){ const bx=[x-tw/2,y-6,tw,12]; if(!placed.some(b=>!(bx[0]>b[0]+b[2]||bx[0]+bx[2]<b[0]||bx[1]>b[1]+b[3]||bx[1]+bx[3]<b[1]))){ placed.push(bx); break; } x+=sx*9; y+=sy*9; }
+      g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x-tw/2,y-6,tw,12); g.globalAlpha=1; g.fillStyle=rh?C.acc:C.ink; g.fillText(d,x,y); };
+    pend.push(()=>{ lab(r[0],p[0]-ux*12,p[1]-uy*12,-ux,-uy); lab(r[1],q[0]+ux*12,q[1]+uy*12,ux,uy); });
+  });
+  pend.forEach(f=>f());
+  g.textBaseline='alphabetic';
+  // you: inside the diagram if close, otherwise an arrow on the edge pointing in from your side
+  const me=xy(st.pos[0],st.pos[1]); let m=S(me); const inside=m[0]>8&&m[0]<W-8&&m[1]>8&&m[1]<H-8;
+  if(!inside){ const ang=Math.atan2(-(m[1]-cy),m[0]-cx), c_=Math.cos(ang), s_=Math.sin(ang), r0=Math.min((W/2-10)/Math.max(1e-6,Math.abs(c_)),(H/2-10)/Math.max(1e-6,Math.abs(s_))); m=[cx+c_*r0, cy-s_*r0];
+    g.fillStyle=C.dim; g.font='600 9px "IBM Plex Mono", monospace'; g.textAlign='center';
+    g.fillText((pick.d<10?pick.d.toFixed(1):Math.round(pick.d))+' NM', m[0]-Math.cos(ang)*22, m[1]+Math.sin(ang)*22+3); }
+  g.save(); g.translate(m[0],m[1]); g.rotate(((h?h.deg:0)-rot)*R);
+  g.beginPath(); g.moveTo(0,-8); g.lineTo(5,6); g.lineTo(0,3); g.lineTo(-5,6); g.closePath(); g.fillStyle=C.fr; g.strokeStyle=C.bg; g.lineWidth=1.5; g.stroke(); g.fill(); g.restore();
+  // north tick + scale
+  g.save(); g.translate(W-11,12); g.rotate(-rot*R); g.fillStyle=C.dim; g.beginPath(); g.moveTo(0,-7); g.lineTo(3,-1); g.lineTo(-3,-1); g.closePath(); g.fill(); g.font='700 8px sans-serif'; g.textAlign='center'; g.fillText('N',0,7); g.restore();
+  const bar=ext>1500?1000:500, bl=bar*sc; g.strokeStyle=C.dim; g.lineWidth=1.5; g.beginPath(); g.moveTo(6,H-7); g.lineTo(6+bl,H-7); g.stroke();
+  g.fillStyle=C.dim; g.font='500 8.5px "IBM Plex Mono", monospace'; g.textAlign='left'; g.fillText(bar+' m',8+bl,H-4);
+}
+
 /* ---------- map ---------- */
 const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
@@ -630,6 +704,15 @@ function drawMap(la,lo,h,pick,AS,altFt){
       const tw=g.measureText(f).width; g.globalAlpha=.85; g.fillStyle=C.bg; g.fillRect(x+5,y+5,tw+4,12); g.globalAlpha=1;
       g.fillStyle=ctafColour(f); g.fillText(f,x+7,y+15); }
   }
+  if(MAP.range<=5){ // runways at close range
+    g.lineCap='butt';
+    for(const ad of DATA.ap){ if(!ad.rw) continue; if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue;
+      for(const r of ad.rw){ const p=P(r[2],r[3]), q=P(r[4],r[5]);
+        g.strokeStyle=r[10]?C.dim:C.ink; g.lineWidth=Math.max(3,(r[8]||20)*sc/1852*1.6); if(r[10]) g.setLineDash([5,3]);
+        g.beginPath(); g.moveTo(p[0],p[1]); g.lineTo(q[0],q[1]); g.stroke(); g.setLineDash([]);
+        if(MAP.range<=2.5){ g.font='700 9px "IBM Plex Mono", monospace'; g.fillStyle=C.dim; g.textAlign='center';
+          const dx=q[0]-p[0], dy=q[1]-p[1], L=Math.hypot(dx,dy)||1; g.fillText(r[0],p[0]-dx/L*10,p[1]-dy/L*10+3); g.fillText(r[1],q[0]+dx/L*10,q[1]+dy/L*10+3); } } }
+  }
   drawL.forEach(f=>f());
   // line to selected aerodrome
   const [sx,sy]=P(pick.a.la,pick.a.lo);
@@ -715,6 +798,7 @@ function render(){
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
   $('ctafRow').innerHTML=html; html='';
+  renderRunways(a,pick,h);
   renderCalls(a,pick,varE);
   if(a.a) html+=freqRow('ATIS',a.a[0],`Aerodrome terminal information${a.a.length>1?' · also '+a.a.slice(1).join(', '):''}${a.an?' · VOR '+a.an.join(', '):''} ${chip(SRC[a.aS])}`);
   if(a.w && !(a.a||[]).includes(a.w)) html+=freqRow('AWIS',a.w,`Automatic weather ${chip(SRC[a.wS])}`);
@@ -735,6 +819,16 @@ function render(){
   $('sAgl').textContent = terr!=null && altKnown ? 'AGL '+Math.max(0,Math.round((altFt-terr)/10)*10) : (terr!=null?'GND '+Math.round(terr/10)*10:'');
   const AS=airStack(la,lo,gnd);
   const cur=AS.bands.find(b=>altFt>=b.L-50 && altFt<b.H) || AS.bands[AS.bands.length-1];
+  { // status tile: class here and its cap (top of this band = where the next class starts)
+    const k=cur? (cur.k==='CTR'?cur.ctrCls:cur.k) : null;
+    const inP=AS.prd.find(p=>altFt>=p.L-50&&altFt<p.H);
+    $('sCls').textContent = k ? k+(inP?' · '+(inP.k==='R'?'R':'D'):'') : '—';
+    $('sCls').style.color = k ? `var(--as-${k==='A'?'c':k.toLowerCase()})` : '';
+    if(k==='G') $('sCls').style.color='var(--ink)';
+    $('sCap').textContent = cur ? (cur.H>=60000?'to UNL':'cap '+limTxt(cur.H)) : '';
+    $('sLL').textContent = cur ? 'LL '+(cur.L<=0?'SFC':limTxt(cur.L)) : '';
+    if(inP) $('sCap').textContent+=' · '+inP.n.split(' ')[0];
+  }
   if(cur){
     const above=AS.bands.filter(b=>b.L>=cur.H-50).sort((x,y)=>x.L-y.L)[0];
     const what = cur.k==='G' ? `Class G · <em>${esc(cur.unit||'FIA')}</em>`
@@ -914,7 +1008,10 @@ function renderCalls(a,pick,varE){
   const type=typeRaw?T(typeRaw):'<i>[type]</i>', cs=csRaw?T(csRaw):'<i>[callsign]</i>';
   const fromBrg=norm(pick.b+180-varE), pt=PTS[Math.round(fromBrg/45)%8];
   const dist=pick.d<1?'overhead':`${pick.d<10?pick.d.toFixed(0):Math.round(pick.d)} miles ${pt}`;
-  const lvl=sayLevel(st.alt), rwy='runway <i>[XX]</i>';
+  const sel=$('cRwy'), opts=(a.rw||[]).flatMap(r=>[r[0],r[1]]);
+  if(sel.dataset.ad!==a.i){ sel.dataset.ad=a.i; sel.innerHTML='<option value="">[XX]</option>'+opts.map(o=>`<option value="${o}">${o}${(a.cct||{})[o]&&a.cct[o][0]==='R'?' (RH)':''}</option>`).join(''); }
+  const rv=sel.value, rhTxt=rv&&(a.cct||{})[rv]&&a.cct[rv][0]==='R'?' right-hand':'';
+  const lvl=sayLevel(st.alt), rwy= rv? `runway ${rv}` : 'runway <i>[XX]</i>';
   const X=a.x||[], twrs=X.filter(x=>x[0]==='TWR'), gnd=X.find(x=>x[0]==='GND'), towered=twrs.length>0;
   const ts=towered?twrStatus(a):null, K=a.keys||{};
   let mode=$('cMode').value; if(mode==='auto') mode = towered && (ts? ts.on : !a.c) ? 'twr' : 'ctaf';
@@ -964,7 +1061,7 @@ function renderCalls(a,pick,varE){
   const keys=[mode==='twr'&&K.entry&&`CTR entry ${K.entry}`, K.cct&&`Circuit ${K.cct}`, heli&&K.hel&&`Helicopters ${K.hel}`, mode==='twr'&&K.rpts&&`Report at ${K.rpts}`].filter(Boolean);
   $('callsMode').innerHTML=modeTxt+(keys.length?`<div class="keys" style="padding:8px 0 0">${keys.map(k=>`<span>${T(k)}</span>`).join('')} ${chip('ERSA')}</div>`:'');
   $('callsList').innerHTML=calls.map(c=>`<div class="call"><div class="when">${c[0]}</div><div class="say">${c[1]}</div></div>`).join('');
-  $('callsNote').textContent=note+(a.proc?' Aerodrome-specific requirements are in ERSA local procedures below.':'');
+  $('callsNote').textContent=note+(rhTxt?` Runway ${rv}: right-hand circuit per ERSA (${a.cct[rv][1]}).`:'')+(a.proc?' Aerodrome-specific requirements are in ERSA local procedures below.':'');
   const pb=$('ersaProc'); pb.hidden=!(a.proc||a.cnotes);
   if(!pb.hidden && pb.dataset.k!==a.i+heli){ $('ersaProcBody').innerHTML=ersaProcHtml(a,heli); pb.dataset.k=a.i+heli; }
 }
@@ -972,6 +1069,7 @@ $('cType').value=ls.get('cType',''); $('cSign').value=ls.get('cSign','');
 $('calls').open=ls.get('callsOpen',false);
 $('calls').addEventListener('toggle',()=>ls.set('callsOpen',$('calls').open));
 for(const id of ['cType','cSign']) $(id).addEventListener('input',()=>{ ls.set(id,$(id).value); render(); });
+$('cRwy').addEventListener('change',()=>render());
 $('cCat').value=ls.get('cCat','A'); $('cMode').value=ls.get('cMode','auto');
 for(const id of ['cCat','cMode']) $(id).addEventListener('change',()=>{ ls.set(id,$(id).value); render(); });
 

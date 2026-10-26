@@ -250,7 +250,7 @@ if ARGS.ersa:
         if x: ap['x'] = x; ap['xS'] = 'E'
         elif ap.get('xS') == 'O': ap.pop('x'); ap.pop('xS')
         if r.get('fia'): ap['fia'] = r['fia']
-        for k3 in ('st', 'utc', 'cnotes', 'proc', 'keys'):
+        for k3 in ('st', 'utc', 'cnotes', 'proc', 'keys', 'cct', 'var'):
             if r.get(k3) is not None: ap[k3] = r[k3]
         ersa_idx[icao] = r
 
@@ -304,6 +304,53 @@ if ARGS.dah:
         if r.get('status'): x['st'] = r['status']
         dah_air.append(dict(cls=r['cls'], name=r['name'], lo=lo, lok=lok, hi=hi, hik=hik,
                             freq=fq(r['freq']) if r['freq'] else None, poly=r['poly'], x=x))
+
+# ---------- runways: DAH threshold positions first, ERSA physical characteristics for the rest ----------
+import math
+def _dest(la, lo, brg, nm):
+    p1, l1, b_, d = math.radians(la), math.radians(lo), math.radians(brg), nm / 3440.065
+    p2 = math.asin(math.sin(p1) * math.cos(d) + math.cos(p1) * math.sin(d) * math.cos(b_))
+    l2 = l1 + math.atan2(math.sin(b_) * math.sin(d) * math.cos(p1), math.cos(d) - math.sin(p1) * math.sin(p2))
+    return math.degrees(p2), math.degrees(l2)
+def _recip(d):
+    n = (int(d[:2]) + 18 - 1) % 36 + 1
+    return f"{n:02d}" + {'L': 'R', 'R': 'L', 'C': 'C'}.get(d[2:], '')
+thr = {}
+if ARGS.dah and ersa_idx:
+    thr_raw = dah.thresholds(lines)
+    key = lambda n: re.sub(r'\W', '', n.upper())
+    byname = {key(r['n']): icao for icao, r in ersa_idx.items()}
+    for n, ends in thr_raw.items():
+        icao = byname.get(key(n))
+        if icao: thr[icao] = ends
+nrw = collections.Counter()
+for icao, r in ersa_idx.items():
+    ap = airports.get(icao); rws = []
+    ends = {e[0]: e for e in thr.get(icao, [])}
+    phys = {(x[0], x[1]): x for x in r.get('rw', [])}
+    done = set()
+    # pairs from DAH thresholds (true positions)
+    for d1, e1 in ends.items():
+        d2 = _recip(d1)
+        if d1 in done or d2 not in ends: continue
+        e2 = ends[d2]; done |= {d1, d2}
+        ph = phys.get((d1, d2)) or phys.get((d2, d1))
+        lo_, hi_ = (e1, e2) if (d1, d2) in phys or not ph else (e2, e1)
+        rws.append(dict(a=lo_[0], b=hi_[0], p=[round(lo_[2], 6), round(lo_[3], 6), round(hi_[2], 6), round(hi_[3], 6)],
+                        len=ph[3] if ph else None, s=ph[4] if ph else None, w=ph[5] if ph else None, src='DAH'))
+        nrw['DAH'] += 1
+    # remaining runways from ERSA: schematic, centred on the ARP along the magnetic bearing
+    for (d1, d2), ph in phys.items():
+        if d1 in done or d2 in done: continue
+        approx = ph[2] is None
+        brgM = ph[2] if not approx else int(d1[:2]) * 10           # no bearing published: use the designator
+        brgT = (brgM + r.get('var', 0)) % 360; L = (ph[3] or 600) / 1852
+        a1 = _dest(r['la'], r['lo'], brgT + 180, L / 2); a2 = _dest(r['la'], r['lo'], brgT, L / 2)
+        rws.append(dict(a=d1, b=d2, p=[round(a1[0], 6), round(a1[1], 6), round(a2[0], 6), round(a2[1], 6)],
+                        len=ph[3], s=ph[4], w=ph[5], src='ERSA', sch=2 if approx or not ph[3] else 1))
+        nrw['ERSA schematic'] += 1
+    if rws and ap: ap['rw'] = [[x['a'], x['b'], *x['p'], x['len'], x['s'], x['w'], x['src'], x.get('sch', 0)] for x in rws]
+print('runways', dict(nrw), 'aerodromes with runways', sum(1 for a in airports.values() if a.get('rw')))
 
 import openair
 airspace = []

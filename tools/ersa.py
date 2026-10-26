@@ -59,6 +59,8 @@ def parse(text):
             m = re.search(r'(?<![\d.])(\d{5,6})S\s+(\d{6,7})E\b(.*)$', l)
             if m:
                 rec['la'] = -round(dd(m.group(1), 2), 5); rec['lo'] = round(dd(m.group(2), 3), 5)
+                v = re.search(r'VAR\s+(\d+)\s+DEG\s+([EW])', m.group(3))
+                if v: rec['var'] = int(v.group(1)) * (1 if v.group(2) == 'E' else -1)
                 c = re.search(r'\b(CERT|REG|UNCR|MIL)\s*$', m.group(3))
                 if c: rec['cat'] = c.group(1)
                 break
@@ -107,6 +109,25 @@ def parse(text):
                 for f in coms or navs:
                     rec[key].append([svc, f, note])
         if notes: rec['cnotes'] = clip(notes)
+        # runways from PHYSICAL CHARACTERISTICS: designators, magnetic bearing, length (x100 ft), surface, width
+        try:
+            p0 = next(j for j, l in enumerate(body) if l.strip() == 'PHYSICAL CHARACTERISTICS')
+            rws = []
+            for l in body[p0 + 1:p0 + 16]:
+                if HEAD_LINE.match(l.strip()) and rws: break
+                m = re.match(r'^\s*(\d{2}[LRC]?)/(\d{2}[LRC]?)\b(.*)$', l)
+                if not m: continue
+                rest = m.group(3)
+                b = re.match(r'\s+(\d{3})\s', rest)                   # bearing (deg MAG), certified ADs
+                ln = re.search(r'(?<![\d,])(\d{1,3})\s*([abcABC])(?:/[abcABC])?\b', rest)   # length x100 FT + surface
+                lm = re.search(r'RWY LEN\s+([\d,]+)\s*M', rest)       # ALAs: explicit metres
+                w = re.search(r'\bWID\s+(\d+)', rest)
+                length_m = int(lm.group(1).replace(',', '')) if lm else (round(int(ln.group(1)) * 30.48) if ln else None)
+                rws.append([m.group(1), m.group(2), int(b.group(1)) if b else None, length_m,
+                            ln.group(2).lower() if ln else None, int(w.group(1)) if w else None])
+            if rws: rec['rw'] = rws
+        except StopIteration:
+            pass
         proc = {k: clip(v, 14000) for k, v in secs.items() if v}
         if proc:
             rec['proc'] = proc
@@ -121,6 +142,18 @@ def parse(text):
             m = re.search(r'HEL[^.]{0,60}?(?:must be|at)\s+([\d,]+\s?FT(?: AMSL| AGL)?)', kt)
             if m: keys['hel'] = m.group(1)
             if keys: rec['keys'] = keys
+            cct = {}
+            for sent in re.split(r'(?<=\.)\s+(?=\(?[a-z0-9ivx]{1,4}[.)]\s|[A-Z])', kt):
+                for m in re.finditer(r'RWY\s+(\d{2}[LRC]?)\s+HJ\s*-\s*(left|right)(?:\s*:\s*HN\s*-\s*([a-zA-Z ]+?))?(?=[.;(]|$)', sent, re.I):
+                    ev = f"RWY {m.group(1)} day: {m.group(2).lower()}" + (f", night: {m.group(3).strip().lower()}" if m.group(3) else '')
+                    cct.setdefault(m.group(1), [m.group(2)[0].upper(), ev])
+                low = sent.lower()
+                hasR = re.search(r'right[- ]hand', low); hasL = re.search(r'left[- ]hand', low)
+                if not (hasR or hasL) or (hasR and hasL) or 'papi' in low: continue
+                for m in re.finditer(r'RWY\s*((?:\d{2}[LRC]?)(?:\s*(?:,|and|or|&)\s*(?:RWY\s*)?\d{2}[LRC]?)*)', sent):
+                    for d in re.findall(r'\d{2}[LRC]?', m.group(1)):
+                        cct.setdefault(d, ['R' if hasR else 'L', sent.strip()[:140]])
+            if cct: rec['cct'] = cct
         for k2 in list(rec):
             if rec[k2] in ([], None): del rec[k2]
         out[icao] = rec
