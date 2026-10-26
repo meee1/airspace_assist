@@ -5,10 +5,9 @@
 Phone web app: closest aerodrome, CTAF with a radio call guide, ATIS/AWIS, the area frequency for your position and altitude, and a small airspace map showing classes and CTA steps.
 
 ## Simulate locally (any lat/lng)
-No GPS needed. Either:
+No GPS needed. The app loads its data from `app/data.json`, so it has to be served over http (opening `index.html` as a file won't work):
 
-- Open `app/index.html` directly in a desktop browser, tap **Simulate**, and type a position.
-- Or run `./simulate.sh -38.04,144.47 2500 270 90` (macOS/Linux) or `simulate.bat -38.04,144.47 2500 270 90` (Windows). The arguments are position, altitude in ft, track in °M and ground speed in kt. This serves the app on http://localhost:8765 and opens it.
+- Run `./simulate.sh -38.04,144.47 2500 270 90` (macOS/Linux) or `simulate.bat -38.04,144.47 2500 270 90` (Windows). The arguments are position, altitude in ft, track in °M and ground speed in kt. This serves the app on http://localhost:8765 and opens it.
 
 The position field accepts:
 - decimal degrees: `-38.04, 144.47` (a missing minus is assumed south)
@@ -110,11 +109,21 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - **Key values** from ERSA are shown as chips: CTR entry altitude, circuit altitude, helicopter altitude, reporting points.
 - **ERSA local procedures:** the full text from ERSA (communications notes, local traffic regulations, flight procedures). With Helicopter selected, helicopter items are highlighted.
 
+## Files
+`app/` holds:
+- `index.html`: the page, plus a small loader
+- `app.js`: the app code
+- `data.json`: all ERSA, DAH, waypoint and variation data, rebuilt each AIRAC
+- `sw.js`: the service worker that stores everything for offline use
+- `terrain/`: the SRTM tiles
+
+The loader fetches `data.json`, then starts `app.js`. A data-only update changes just `data.json` (and the version tags in `index.html` and `sw.js`), so the phone picks it up the next time it has signal.
+
 ## Install on your phone
 Open https://meee1.github.io/airspace_assist/app/ on your phone, tap Start, then Add to Home Screen.
 
 **Offline:** after one load with signal, everything runs without a connection:
-- **What's stored:** the app with all ERSA/DAH data built in, and all the SRTM terrain tiles (about 650 KB). The terrain is stored straight away, not only for places you've visited.
+- **What's stored:** the page, the app code (`app.js`), the ERSA/DAH data (`data.json`, about 2 MB), and all the SRTM terrain tiles (about 650 KB). The terrain is stored straight away, not only for places you've visited.
 - **Needs nothing online:** GPS, compass, the map, the elevation profile and flight plans.
 - **Check:** the footer says "Offline: app and AIP data stored, terrain 42/42 tiles — ready to fly without signal" once it's ready.
 - **Updates:** they land the next time you open the app with signal. The app waits up to 3 seconds for the network, then starts from the stored copy, so a weak signal in flight doesn't hold it up.

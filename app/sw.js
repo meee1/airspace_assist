@@ -1,5 +1,5 @@
-const C='radio-au-9df0983188', T='radio-au-terrain', F='radio-au-fonts';
-const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const C='radio-au-e38c15d830', T='radio-au-terrain', F='radio-au-fonts';
+const CORE=['./','./index.html','./app.js','./data.json','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 const timed=(req,ms)=>new Promise((res,rej)=>{const t=setTimeout(()=>rej(new Error('timeout')),ms); fetch(req).then(r=>{clearTimeout(t);res(r)},e=>{clearTimeout(t);rej(e)})});
 async function precacheTerrain(){
   const c=await caches.open(T);
@@ -8,7 +8,7 @@ async function precacheTerrain(){
     await Promise.allSettled((idx.tiles||[]).filter(n=>!have.has(n+'.bin.z')).map(n=>c.add('terrain/'+n+'.bin.z')));
   }catch(e){}
 }
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE)).then(precacheTerrain).then(()=>self.skipWaiting()))});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))).then(precacheTerrain).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('message',e=>{ if(e.data==='precache') e.waitUntil(precacheTerrain()); });
 self.addEventListener('fetch',e=>{

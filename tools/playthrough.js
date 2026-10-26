@@ -11,7 +11,7 @@ const LANDS=(process.argv[5]||'').split(',').filter(Boolean), BASE=process.argv[
  const b=await chromium.launch(); const ctx=await b.newContext({...devices['iPhone 13']}); const p=await ctx.newPage();
  const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error') errs.push('console: '+m.text()); });
  await p.clock.setFixedTime(START);
- await p.goto(BASE+'?sim=-30,135&alt=0&trk=&gs=0'); await p.waitForTimeout(600);
+ await p.goto(BASE+'?sim=-30,135&alt=0&trk=&gs=0'); await p.waitForFunction(()=>typeof render==='function' && typeof FP!=='undefined'); await p.waitForTimeout(300);   // app.js starts after data.json loads
  await p.setInputFiles('#fpFile',GPX); await p.waitForTimeout(300);
  await p.evaluate(async()=>{ document.getElementById('calls').open=true;
    for(const [id,v] of [['cSign','ECHO ALPHA NOVEMBER'],['cType','Helicopter']]){ document.getElementById(id).value=v; document.getElementById(id).dispatchEvent(new Event('input')); }

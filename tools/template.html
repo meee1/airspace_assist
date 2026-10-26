@@ -196,6 +196,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .fr.ctl .k{color:var(--as-c)} .fr.prd .k{color:var(--as-r);font-size:13px}
 .vb.p span:nth-child(2){color:var(--as-r)}
 .rwbox{border-top:1px solid var(--rule);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.bootErr{margin:12px;padding:12px 14px;border-radius:8px;background:var(--panel);border:2px solid var(--warn);color:var(--ink);font-size:14px}
 #fpProf{width:100%;height:180px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation;cursor:crosshair}
 .fp-pinfo{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.4} .fp-pinfo b{color:var(--ink);font-family:var(--f-mono);font-weight:600} .fp-pinfo .w{color:var(--warn)}
 #adMap{width:100%;height:200px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule)}
@@ -1536,13 +1537,15 @@ if(ls.get('started',false) && navigator.permissions){
   else if(ls.get('simOn',false)) setSim(true);
 })();
 terInit();
+// the loader in index.html registers the service worker; once it's active, top up the terrain cache and report
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')){
-  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{ if(r.active) r.active.postMessage('precache'); setTimeout(offlineStatus,4000); }).catch(()=>{}); }
+  navigator.serviceWorker.ready.then(r=>{ if(r.active) r.active.postMessage('precache'); setTimeout(offlineStatus,4000); }).catch(()=>{}); }
 // footer: is everything needed offline stored on this device?
 async function offlineStatus(){
   const el=$('offl'); if(!el) return;
   if(!('serviceWorker' in navigator)||!navigator.serviceWorker.controller||!window.caches){ el.innerHTML=' <b>Offline:</b> not set up yet (open once online over https).'; return; }
-  try{ const app=(await caches.keys()).some(k=>/^radio-au-[0-9a-f]{10}$/.test(k));
+  try{ const ks=(await caches.keys()).filter(k=>/^radio-au-[0-9a-f]{10}$/.test(k)); let app=false;
+    for(const k of ks){ const c=await caches.open(k); if(await c.match('data.json',{ignoreSearch:true}) && await c.match('app.js',{ignoreSearch:true})) app=true; }
     const tc=await caches.open('radio-au-terrain'), n=(await tc.keys()).filter(k=>/\.bin\.z$/.test(k.url)).length, want=TER.have.size;
     el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${app&&(!TER.ok||n>=want)?' — ready to fly without signal.':'.'}`;
   }catch(e){ el.textContent=''; } }
