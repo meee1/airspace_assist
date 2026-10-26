@@ -510,6 +510,7 @@ function inScreenPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j
 function drawMap(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
   const W=cv.clientWidth, Hh=cv.clientHeight, dpr=window.devicePixelRatio||1;
+  if(!W||!Hh) return;   // map not laid out (hidden tab/pane): nothing to draw
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(Hh*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(Hh*dpr); }
   const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
   const rot = MAP.up==='trk' && h ? h.deg : 0;
