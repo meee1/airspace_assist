@@ -959,7 +959,7 @@ function ersaProcHtml(a,heli){
 }
 function renderCalls(a,pick,varE){
   const loc=callName(a.n,a.i), T=v=>esc(v), heli=$('cCat').value==='H';
-  const typeRaw=$('cType').value.trim(), csRaw=$('cSign').value.trim();
+  const typeRaw=$('cType').value.trim(), csRaw=sayCallsign($('cSign').value);
   const type=typeRaw?T(typeRaw):'<i>[type]</i>', cs=csRaw?T(csRaw):'<i>[callsign]</i>';
   const fromBrg=norm(pick.b+180-varE), pt=PTS[Math.round(fromBrg/45)%8];
   // position from the aerodrome: "<n> mile(s) <direction>". When you're at or over the field there's no real
@@ -1038,6 +1038,23 @@ function renderCalls(a,pick,varE){
   if(!pb.hidden && pb.dataset.k!==a.i+heli){ $('ersaProcBody').innerHTML=ersaProcHtml(a,heli); pb.dataset.k=a.i+heli; }
 }
 $('cType').value=ls.get('cType',''); $('cSign').value=ls.get('cSign','');
+/* callsign: type the registration (EAN, VH-EAN) or flight number and it is spelled with the ICAO phonetic alphabet.
+   VH- is dropped, as in Australian practice for VH-registered aircraft. Anything with spaces, or a single word longer than
+   4 letters with no digits (e.g. RESCUE), is left as typed. */
+const PHON={A:'ALPHA',B:'BRAVO',C:'CHARLIE',D:'DELTA',E:'ECHO',F:'FOXTROT',G:'GOLF',H:'HOTEL',I:'INDIA',J:'JULIETT',K:'KILO',L:'LIMA',M:'MIKE',
+  N:'NOVEMBER',O:'OSCAR',P:'PAPA',Q:'QUEBEC',R:'ROMEO',S:'SIERRA',T:'TANGO',U:'UNIFORM',V:'VICTOR',W:'WHISKEY',X:'X-RAY',Y:'YANKEE',Z:'ZULU',
+  0:'ZERO',1:'ONE',2:'TWO',3:'THREE',4:'FOUR',5:'FIVE',6:'SIX',7:'SEVEN',8:'EIGHT',9:'NINER'};
+function sayCallsign(raw){
+  const t=(raw||'').trim().toUpperCase().replace(/\s+/g,' '); if(!t) return '';
+  let c=t.replace(/[-.]/g,'');
+  if(/^VH ?[A-Z]{3}$/.test(c)) c=c.replace(/^VH ?/,'');               // VH-EAN -> EAN
+  else if(/\s/.test(t)) return t;                                      // already words: ECHO ALPHA NOVEMBER, POLAIR 31
+  if(!/^[A-Z0-9]{1,8}$/.test(c) || (/^[A-Z]{5,}$/.test(c))) return t;   // RESCUE, LIFESAVER: say as typed
+  return [...c].map(ch=>PHON[ch]).join(' ');
+}
+function csPreview(){ const v=$('cSign').value.trim(), s=sayCallsign(v); $('cSay').textContent = v && s!==v.toUpperCase().replace(/\s+/g,' ') ? 'Say: '+s : ''; }
+$('cSign').addEventListener('change',()=>{ const s=sayCallsign($('cSign').value); if(s){ $('cSign').value=s; ls.set('cSign',s); } csPreview(); render(); });   // expand in the box on Enter / leaving it
+$('cSign').addEventListener('input',csPreview); csPreview();
 $('calls').open=ls.get('callsOpen',false);
 $('calls').addEventListener('toggle',()=>ls.set('callsOpen',$('calls').open));
 for(const id of ['cType','cSign']) $(id).addEventListener('input',()=>{ ls.set(id,$(id).value); render(); });

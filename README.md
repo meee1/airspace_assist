@@ -98,7 +98,7 @@ python tools/fetch_srtm.py --australia            (about 900 tiles)
 - **On the phone:** tiles load as you move. The 5×5° around you is pre-loaded and kept for offline use.
 
 ## Radio call guide
-Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and choose aeroplane or helicopter; all are saved on the device.
+Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and choose aeroplane or helicopter; all are saved on the device. Type the callsign as the registration (`EAN` or `VH-EAN`) and it's spelled in the phonetic alphabet ("ECHO ALPHA NOVEMBER"): a preview shows under the box while you type, and it expands in the box when you press Enter or leave it. VH- is dropped. Digits are spoken (9 = NINER). Anything with spaces (`POLAIR 31`), or one word of 5+ letters (`RESCUE`), is left as typed.
 - **Non-towered aerodromes:** you get the standard CTAF calls from AIP ENR 1.1: inbound, overflying, joining, straight-in, taxiing, lining up and departing. Distance, compass point and level are filled in from your position.
 - **Tower aerodromes:** the app reads the tower hours (TWR HR) from ERSA and works out whether the tower is open now, allowing for daylight saving.
   - When it's open, you get Class D calls: ATIS, taxi call to Ground, ready call, an inbound call naming the ERSA reporting points (e.g. CARR, BAW, BTO, ACE, SHOL or GMH at Moorabbin) at the CTR entry altitude, and the downwind report where ERSA requires it.
