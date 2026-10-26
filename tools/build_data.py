@@ -221,7 +221,7 @@ if ARGS.ersa:
         ap = airports.get(icao)
         if not ap:
             ap = airports[icao] = dict(i=icao)
-        ap.update(n=r['n'], la=r['la'], lo=r['lo'], e=r['e'], s='E')
+        ap.update(n=r['n'], la=r['la'], lo=r['lo'], e=r.get('e', ap.get('e')), s='E')
         if re.search(r'\b(HOSPITAL|HELIPORT|HLS|HELIPAD|HELICOPTER BASE)\b', r['n']): ap['t'] = 'H'
         if r.get('cat'): ap['cat'] = r['cat']
         if r.get('ctaf'):

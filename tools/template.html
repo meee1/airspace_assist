@@ -487,9 +487,17 @@ function unitFor(kind,name,mid,la,lo){ // controlling unit from the ATC sector d
   if(!s) s=secs.find(x=>x.k==='APP'&&m(x)&&!/centre/i.test(x.n))||secs.find(x=>x.k==='APP'&&!/centre/i.test(x.n))||secs.find(x=>x.k==='CTR'||x.k==='FSS');
   return s? {f:s.f, unit: s.k==='CTR'? s.cs+' ('+s.n+')' : s.n} : {};
 }
+// Class D that ERSA says becomes Class G outside tower hours ("Outside TWR HR airspace becomes Class G").
+// Only the plain statement is used; anything more complex (Avalon E, Alice Springs, Albury...) is left as published.
+const REV=DATA.ap.filter(a=>a.x&&a.x.some(x=>x[0]==='TWR')).map(a=>{
+  const t=(a.cnotes||[]).concat(...Object.values(a.proc||{})).join(' ');
+  const m=t.match(/Outside TWR HRS?,?\s*(?:[A-Z][A-Za-z ]+ Class D airspace|airspace) becomes Class G\b(?! and)[^.]*\./);
+  return m? {a, w:callName(a.n).split(' ')[0].toUpperCase()+' ', ev:m[0]} : null; }).filter(Boolean);
+function revAd(x){ if(x.k!=='CTR'&&x.k!=='D') return null; const r=REV.find(r=>x.n.startsWith(r.w)); if(!r) return null;
+  const ts=twrStatus(r.a); return ts&&!ts.on? r : null; }
 function airStack(la,lo,gnd){
-  const hit=ASP.filter(x=>inAsp(x,la,lo));
-  const ctl=hit.filter(x=>'A C D E CTR'.split(' ').includes(x.k));
+  const hit=ASP.filter(x=>inAsp(x,la,lo)), rev=[];
+  const ctl=hit.filter(x=>'A C D E CTR'.split(' ').includes(x.k)).filter(x=>{ const r=revAd(x); if(r){ rev.push({x,...r}); return false; } return true; });
   const bcta=ctl.length? Math.min(...ctl.map(x=>limFt(x.lo,x.lok,gnd,0))) : 99999;
   const L=x=>limFt(x.lo,x.lok,gnd,bcta), H=x=>limFt(x.hi,x.hik,gnd,bcta);
   const bands=[];
@@ -524,7 +532,7 @@ function airStack(la,lo,gnd){
     if(last && last.H===lo_ && (last.src===top || (last.k===top.k && last.f===top.f))) last.H=hi_;
     else segs.push({...top,src:top,L:lo_,H:hi_});
   }
-  return {bands:segs,prd,bcta,ba};
+  return {bands:segs,prd,bcta,ba,rev};
 }
 
 /* ---------- SRTM terrain (app/terrain/*.bin.z, built by tools/fetch_srtm.py) ---------- */
@@ -612,6 +620,24 @@ function fpAdvance(){
   if(FP.i>0 && !man){ const a=FP.pts[FP.i-1], [dab]=distBrg(a.la,a.lo,p.la,p.lo), [dap]=distBrg(a.la,a.lo,st.pos[0],st.pos[1]);
     const xt=Math.abs(xte(st.pos[0],st.pos[1],a,p)); const along=Math.sqrt(Math.max(0,dap*dap-xt*xt)); passed = along>dab && d<3; }
   if((d<0.5||passed) && FP.i<FP.pts.length-1){ FP.i++; FP.man=null; ls.set('fp',FP); fpGo(); }
+}
+// Flight plan aerodromes take priority over "closest" so the right calls are on screen in time:
+//  1. the next aerodrome in the plan, once within 10 NM (the CTAF inbound/overflying call point)
+//  2. when the active waypoint is one of that aerodrome's ERSA VFR reporting points (e.g. ACE for Moorabbin), within 15 NM,
+//     so the tower inbound call is up before you reach the point
+//  3. the aerodrome you just left or overflew, within 5 NM (departure calls)
+const RPTS=new Map(); for(const a of DATA.ap){ const r=a.keys&&a.keys.rpts; if(r) for(const c of r.split(/,\s*|\s+or\s+/)) RPTS.set(c.trim()+'>'+a.i,a); }
+function fpAd(p){ if(!p) return null; const c=(p.c||p.n||'').toUpperCase();
+  return DATA.ap.find(a=>a.i===c) || DATA.ap.find(a=>Math.abs(a.la-p.la)<0.01 && distBrg(a.la,a.lo,p.la,p.lo)[0]<0.5) || null; }
+function fpAerodrome(la,lo){
+  if(!FP||!FP.pts.length) return null;
+  const P_=FP.pts, i=FP.i, at=(a,why)=>{ const [d,b]=distBrg(la,lo,a.la,a.lo); return {a,d,b,why}; };
+  let k=i, nx=null; for(;k<P_.length;k++){ nx=fpAd(P_[k]); if(nx) break; }
+  if(nx){ const n=at(nx,'Flight plan · next aerodrome');
+    if(n.d<=10) return n;
+    if(k===i+1 && n.d<=15 && RPTS.has((P_[i].c||P_[i].n||'').toUpperCase()+'>'+nx.i)) return {...n,why:'Flight plan · reporting point for '+nx.i}; }
+  for(let j=i-1;j>=0;j--){ const pa=fpAd(P_[j]); if(pa){ const n=at(pa,'Flight plan · last aerodrome'); if(n.d<=5) return n; break; } }
+  return null;
 }
 function renderFP(h,varE){
   $('fpBody').hidden=!FP||$('fpToggle').getAttribute('aria-expanded')==='false'; $('fpImport').textContent=FP?'New GPX':'Import GPX';
@@ -955,8 +981,11 @@ function render(){
   const cands=candidates();
   let pick=null;
   if(st.pin){ const a=DATA.ap.find(x=>x.i===st.pin); if(a){const [d,b]=distBrg(la,lo,a.la,a.lo); pick={a,d,b}} }
+  fpAdvance();
+  let fpWhy=null;
+  if(!pick){ const f=fpAerodrome(la,lo); if(f){ pick=f; fpWhy=f.why; } }
   if(!pick){ pick=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0]; }
-  $('adMode').textContent = st.pin?'Selected aerodrome': (st.ahead&&h?'Closest ahead':'Closest aerodrome');
+  $('adMode').textContent = st.pin?'Selected aerodrome': fpWhy ? fpWhy : (st.ahead&&h?'Closest ahead':'Closest aerodrome');
   $('unpin').hidden=!st.pin;
 
   const a=pick.a;
@@ -977,7 +1006,6 @@ function render(){
   html+=freqRow('CTAF',CI.f,csub,'hero');
   $('ctafRow').innerHTML=html; html='';
   renderRunways(a,pick,h);
-  fpAdvance();
   renderFP(h,varE);
   renderGo(h,varE);
   renderCalls(a,pick,varE);
@@ -1015,6 +1043,7 @@ function render(){
     const what = cur.k==='G' ? `Class G · <em>${esc(cur.unit||'FIA')}</em>`
                : `Class ${cur.k==='CTR'?cur.ctrCls:cur.k} · <em>${esc(cur.unit||'see ERSA')}</em>${cur.k==='E'?'':' · clearance required'}${cur.alt&&cur.alt.length?`<br>ERSA also lists ${esc(cur.alt.slice(0,3).join(', '))}${cur.alt.length>3?' …':''}`:''}`;
     let sub=`${what} ${chip(cur.us)}<br><span class="tag">${limTxt(cur.L)}–${limTxt(cur.H)}</span> ${chip(ASRC)}${altKnown?'':' <span class="tag w">alt unknown · SFC assumed</span>'}`;
+    for(const r of AS.rev) sub+=`<br><span class="tag w">${esc(titleCase(r.x.n))}: tower likely closed now, so class G</span> <span class="ev">ERSA ${r.a.i}: “${esc(r.ev)}”</span>`;
     if(above) sub+=`<br>Above ${limTxt(above.L)}: class ${above.k==='CTR'?above.ctrCls:above.k}${above.f?` <b class="mono">${above.f}</b>`:''}`;
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
@@ -1158,7 +1187,7 @@ $('unpin').onclick=()=>{st.pin=null;render()};
 /* ---------- CTAF radio call guide ---------- */
 const PTS=['north','north-east','east','south-east','south','south-west','west','north-west'];
 function callName(n){ let t=n.includes('/')? n.split('/').pop() : n; t=t.replace(/\b(airport|aerodrome|airfield|international|regional|ala|heliport|hls)\b/gi,'').replace(/\s+/g,' ').trim(); return titleCase(t||n); }
-function sayLevel(ft){ if(ft==null) return '<i>[level]</i>'; if(ft>10500) return 'flight level '+Math.round(ft/500)*5; const r=Math.max(500,Math.round(ft/500)*500); return r.toLocaleString('en-AU')+' feet'; }
+function sayLevel(ft){ if(ft==null) return '<i>[level]</i>'; if(ft>10500) return 'flight level '+Math.round(ft/500)*5; const r=Math.max(100,Math.round(ft/100)*100); return r.toLocaleString('en-AU')+' feet'; }
 /* tower hours from ERSA "TWR HR" notes, evaluated in the aerodrome's local time */
 const DOW=['SUN','MON','TUE','WED','THU','FRI','SAT'];
 function firstSun(y,m){ const d=new Date(Date.UTC(y,m,1)); return 1+((7-d.getUTCDay())%7); }
@@ -1227,12 +1256,16 @@ function renderCalls(a,pick,varE){
   if(mode==='twr'){
     const gn=gnd?titleCase(gnd[1]):null;
     // East/West tower split (from ERSA text): suggest the side you are on
-    const sideNow = norm(pick.b+180)<180 ? 'East' : 'West';
+    // which side of the field: your position, or (on the aerodrome) the direction of your next flight plan waypoint
+    const fpT=FP&&FP.pts[FP.i], onAd=pick.d<0.5;
+    const sideBrg = !onAd ? norm(pick.b+180) : fpT ? distBrg(a.la,a.lo,fpT.la,fpT.lo)[1] : null;
+    const sideNow = sideBrg==null ? null : sideBrg<180 ? 'East' : 'West';
     const twSide = twrs.find(t=>t[4]===sideNow) || twrs[0];
     const tw=titleCase(twSide[1]||loc+' Tower');
     const tf=twSide[2];
     const twAll=twrs.map(t=>`${titleCase(t[1])}${t[4]?' '+t[4]:''} ${t[2]}`).join(' · ');
-    const sideNote = twrs.some(t=>t[4]) ? ` You are ${sideNow.toLowerCase()} of the aerodrome, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
+    const sideNote = twrs.some(t=>t[4]) && !sideNow ? ` You are on the aerodrome: ERSA ties ${twrs.map(t=>`${t[4]||'?'} ${t[2]}`).join(' and ')} to departures and arrivals on that side. The ATIS says which frequency is in use.`
+      : twrs.some(t=>t[4]) ? ` ${onAd?`Your next waypoint (${esc(fpT.c||fpT.n)}) is to the ${sideNow.toLowerCase()}`:`You are ${sideNow.toLowerCase()} of the aerodrome`}, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
     const atisL = a.a?`<i>[ATIS letter]</i>`:'';
     const rptPts=(K.rpts||'').split(/,\s*|\s+or\s+/).map(x=>x.trim()).filter(Boolean).map(c=>VWby.get(c)||{c,n:c,missing:1});
     const nearR=rptPts.filter(p=>!p.missing).map(p=>({p,d:distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0]})).sort((x,y)=>x.d-y.d)[0];

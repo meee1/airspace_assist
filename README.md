@@ -53,6 +53,11 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
 - **Next waypoint:** a panel shows it with bearing °M, distance, cross-track error (L/R), ETE at your ground speed, leg course, and distance and time to go.
 - **Leg list:** each leg's course and distance. Tap a leg to make it active; Prev, Next, Reverse and Remove are below the list.
 - **Auto-advance:** the next waypoint moves on within 0.5 NM or once you've passed it, and it drives **Go to**.
+- **Aerodrome on screen:** with a plan loaded, the aerodrome card follows the plan instead of simply the closest:
+  - the next aerodrome in the plan once you're within 10 NM, so the inbound or overflying call is ready at the CTAF call point
+  - from 15 NM, when the active waypoint is one of that aerodrome's ERSA reporting points, so the tower inbound call is ready before you get there (e.g. ACE then YMMB)
+  - the aerodrome you just left or overflew, out to 5 NM
+  - otherwise the closest aerodrome. The header says which rule applied, and tapping an aerodrome in the list still pins it.
 - **Map:** the route is drawn in purple with waypoint labels, and the active waypoint is filled in.
 - **Simulation:** Fly steers along the route.
 - **Storage:** the plan is saved on the phone until you remove it or import another.
@@ -89,9 +94,10 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - **Non-towered aerodromes:** you get the standard CTAF calls from AIP ENR 1.1: inbound, overflying, joining, straight-in, taxiing, lining up and departing. Distance, compass point and level are filled in from your position.
 - **Tower aerodromes:** the app reads the tower hours (TWR HR) from ERSA and works out whether the tower is open now, allowing for daylight saving.
   - When it's open, you get Class D calls: ATIS, taxi call to Ground, ready call, an inbound call naming the ERSA reporting points (e.g. CARR, BAW, BTO, ACE, SHOL or GMH at Moorabbin) at the CTR entry altitude, and the downwind report where ERSA requires it.
-  - Outside tower hours it switches to CTAF calls.
+  - Outside tower hours it switches to CTAF calls. Where ERSA says plainly "Outside TWR HR airspace becomes Class G" (Moorabbin, Bankstown, Archerfield, Parafield, Jandakot, Camden and others), that Class D zone is shown as Class G while the tower is closed, with the ERSA sentence quoted. Reversions with conditions (Avalon to Class E, or altitude limits such as Albury, Gold Coast and Tamworth) stay as published.
   - Public holidays and NOTAM changes aren't included, so confirm on the ATIS. You can force Tower or CTAF.
-- **Split tower frequencies:** where ERSA's procedure text ties a tower frequency to a side, the frequency is labelled with it. At Moorabbin, 118.1 is East because "DEP to the E call 118.1" and "ARR from E must call 118.1". 123.0 is West because "DEP to the W call 123.0" and "report at CARR on 123.0 … western circuit". The quoted ERSA text is shown under each frequency, and the inbound call suggests the side you're on. The ERSA COMM line and the VTC only say "TWR 118.1 / 123.0", so the ATIS has the final word.
+- **Circuit direction:** right-hand circuits are flagged on the runway picker from ERSA, including "all circuits to the WEST" style notes (Lilydale: RWY 18 right, 36 left by day; the reverse at night).
+- **Split tower frequencies:** where ERSA's procedure text ties a tower frequency to a side, the frequency is labelled with it. At Moorabbin, 118.1 is East because "DEP to the E call 118.1" and "ARR from E must call 118.1". 123.0 is West because "DEP to the W call 123.0" and "report at CARR on 123.0 … western circuit". The quoted ERSA text is shown under each frequency, and the inbound call suggests the side you're on (on the aerodrome, the side of your next flight plan waypoint). The ERSA COMM line and the VTC only say "TWR 118.1 / 123.0", so the ATIS has the final word.
 - **Key values** from ERSA are shown as chips: CTR entry altitude, circuit altitude, helicopter altitude, reporting points.
 - **ERSA local procedures:** the full text from ERSA (communications notes, local traffic regulations, flight procedures). With Helicopter selected, helicopter items are highlighted.
 

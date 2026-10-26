@@ -39,13 +39,15 @@ tools/
   template.html       the app source (HTML/CSS/JS, single file); data injected at /*__DATA__*/
   build_data.py       builds data.json with source precedence (see its docstring)
   ersa.py             parses ERSA from `pdftotext -layout` text: FAC entries (COMM, TWR HR notes,
-                      procedures, runways from PHYSICAL CHARACTERISTICS, RH circuits), VFR waypoints
+                      procedures, runways from PHYSICAL CHARACTERISTICS, RH circuits incl. "all circuits to
+                      the WEST" notes), VFR waypoints
                       (VFR-GEN), aerodrome navaid frequencies
   dah.py, dah_text.py parse the DAH PDF (PyMuPDF, column-aware block order): airspace sections,
                       runway thresholds (Section 18), navaids (21), IFR waypoints (22)
   openair.py          parses the XC Australia OpenAir file (fallback airspace)
   assemble.py         template.html + data.json -> dist/ (index.html, sw.js, manifest, icons)
   fetch_srtm.py       builds app/terrain from SRTM (download from AWS skadi, or --from-dir)
+  playthrough.js      flies a GPX plan through the app (Playwright) and logs what it shows every 0.5 NM
 data/aip/             Airservices PDFs (ERSA, DAH, charts) + extracted txt (local build inputs)
 data/xcaustralia/     XC Australia OpenAir file
 simulate.bat/.sh      serve app/ on :8765 and open it in simulation mode
@@ -94,6 +96,11 @@ python3 assemble.py && cp dist/* ../app/
 - In Playwright, `localStorage` on `file://` pages doesn't reliably survive a reload. Test persistence (flight plan, go-to, settings) over http (`python3 -m http.server` in `app/`).
 - Example GPX: an OzRunways export YBRS – NAV2 – YBSS – RLR – YRSY – WAN – YLIL – ACE – YMMB – CARR – YTYA – NAV1 – PIPS – YBRS. It has 14 `rtept`s with `name` + `desc` and comes to 173 NM. NAV1/NAV2 are user points.
 - Headless check used so far: Playwright (Chromium, iPhone 13 profile). Fix the clock to test tower hours, e.g. `page.clock.setFixedTime('2026-10-26T03:00:00Z')`.
+- **Full-route check:** `node tools/playthrough.js <plan.gpx> <startUTC> run.json YLIL,YMMB` with the app served on :8811 (`python3 -m http.server 8811` in `app/`). The 4th argument lists the aerodromes you land at; all others are overflown, and the last point is the destination. It prints one line each time the aerodrome, call frequency or airspace changes, and writes every position to the JSON. With the example GPX at 2026-10-26T22:00Z (09:00 local) you should see:
+  - class G everywhere except the Moorabbin CTR
+  - YMMB tower calls from 15 NM before ACE ("Flight plan · reporting point for YMMB")
+  - each CTAF from 10 NM: YBSS 132.25, YRSY 121.6, YLIL 119.1, YTYA 128.0, YBRS 119.0
+  At 10:45Z (night) the Moorabbin CTR shows as class G with CTAF 118.1.
 - Spot-check after any data change:
   - YMAV: Class D, Avalon Tower 120.1, E 133.55 above A025.
   - YMMB: Tower East 118.1 / West 123.0, Ground 134.25, ATIS 120.9.
@@ -103,6 +110,8 @@ python3 assemble.py && cp dist/* ../app/
   - CLASS tile: near Avalon (-38.0,144.40) it reads D cap A025 LL SFC at 1,000 ft, E cap A045 LL A025 at 3,000 ft, and C cap FL180 LL A045 at 6,000 ft. Bathurst at 5,000 ft reads G cap A085 LL SFC.
   - YMMB runways: 04/22, 13L/31R, 13R/31L, 17L/35R, 17R/35L from DAH thresholds. RH: 04, 31R, 13R, 35R, 17R (day).
   - Simulating at CARR picks YMMB, not a hospital HLS.
+  - YRSY: FIA Melbourne Centre 135.7 only. YBCV (Charleville): no tower. Both picked up the next entry's data before ERSA entries without ELEV were parsed (YRAY Rose Bay, YCLN, YEQY …).
+  - YLIL: RWY 18 RH, 36 LH (day: "all circuits to the WEST").
 
 ## Gotchas
 
@@ -114,3 +123,7 @@ python3 assemble.py && cp dist/* ../app/
 - `data/aip` holds Airservices copyright material (ERSA, DAH, VTC/VNC) in a public repo. Consider `.gitignore`-ing `data/`, since only the generated app is needed for Pages. Ask the owner before changing this.
 - The ERSA/DAH in use are effective **26 NOV 2026**. The app shows a red banner before that date and warns when the data is more than two cycles old.
 - Tower-hours logic parses ERSA "TWR HR" notes, using local times and HDS by state. It doesn't know about public holidays or NOTAMs, and the UI says so.
+- Outside tower hours, a Class D zone is shown as class G only where ERSA says it in one plain sentence ("Outside TWR HR airspace becomes Class G", `REV` in template.html). Avalon (becomes E) and zones whose wording has altitude limits or CTA conditions (Albury, Alice Springs, Gold Coast, Sunshine Coast, Broome, Tamworth, Hobart, Launceston, Canberra) stay as published. Don't widen this without reading each ERSA entry.
+- ERSA entries without `ELEV` on the name line (water aerodromes, offshore helidecks) are found from the state/UTC/ICAO line. Without that, their COMM lines merge into the entry before.
+- With a flight plan loaded, the aerodrome card follows the plan (`fpAerodrome`): the next plan aerodrome within 10 NM; that aerodrome within 15 NM when the active waypoint is one of its ERSA reporting points; then the last plan aerodrome within 5 NM; otherwise the closest. A pin still wins.
+- The CTAF call location is the part after `/` in the ERSA name (`callName`): MELBOURNE/MOORABBIN gives "Moorabbin", and BARWON HEADS/GEELONG gives "Geelong".

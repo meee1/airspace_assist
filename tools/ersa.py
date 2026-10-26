@@ -50,6 +50,18 @@ def parse(text):
             mm = re.search(r'\bUTC\b.*?\s(Y[A-Z0-9]{3})\s*$', lines[j])
             if mm: icao = mm.group(1); break
         if icao: heads.append((i, m.group(1).strip(), int(m.group(2)), icao))
+    # entries with no ELEV on the name line (water aerodromes, helidecks, e.g. ROSE BAY): the name is the
+    # nearest all-caps line above the state/UTC/ICAO line. Without this they merge into the entry before.
+    have = {h[0] for h in heads}
+    for j, l in enumerate(lines):
+        mm = re.search(r'\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT|OTH)\b\s+UTC\s*[+-].*?\s(Y[A-Z0-9]{3})\s*$', l)
+        if not mm or any(i in have for i in range(max(0, j - 6), j)): continue
+        for i in range(j - 1, max(0, j - 5), -1):
+            s = lines[i].strip()
+            if not s or s.startswith(('FULL NOTAM', 'AVFAX')): continue
+            if re.fullmatch(r"[A-Z][A-Z0-9 '()/&.-]{2,}", s): heads.append((i, s, None, mm.group(2)))
+            break
+    heads.sort()
     out = {}
     for k, (i, name, elev, icao) in enumerate(heads):
         end = heads[k + 1][0] if k + 1 < len(heads) else len(lines)
@@ -153,6 +165,23 @@ def parse(text):
                 for m in re.finditer(r'RWY\s*((?:\d{2}[LRC]?)(?:\s*(?:,|and|or|&)\s*(?:RWY\s*)?\d{2}[LRC]?)*)', sent):
                     for d in re.findall(r'\d{2}[LRC]?', m.group(1)):
                         cct.setdefault(d, ['R' if hasR else 'L', sent.strip()[:140]])
+            # "Daylight Operations all circuits to the WEST." -> left/right per runway (e.g. YLIL)
+            side = {}
+            for sent in re.split(r'(?<=\.)\s+', kt):
+                m = re.search(r'\b(?:circuits|CCTS)\s+to\s+the\s+(NORTH|SOUTH|EAST|WEST|N|S|E|W)\b', sent, re.I)
+                if not m or re.search(r'glider|ultra|other a', sent, re.I): continue
+                b = {'N': 0, 'E': 90, 'S': 180, 'W': 270}[m.group(1)[0].upper()]
+                when = 'night' if re.search(r'\bnight\b|\bHN\b', sent, re.I) else 'day' if re.search(r'\bday(light)?\b|\bHJ\b', sent, re.I) else 'all'
+                side.setdefault(when, (b, {0: 'north', 90: 'east', 180: 'south', 270: 'west'}[b]))
+            for r in rec.get('rw', []) if side else []:
+                for d in r[:2]:
+                    hdg = int(d[:2]) * 10
+                    def lr(b): return 'R' if abs(((hdg + 90 - b) + 180) % 360 - 180) < 90 else 'L'
+                    day = side.get('day') or side.get('all'); night = side.get('night') or side.get('all')
+                    if not day: continue
+                    w = {'R': 'right', 'L': 'left'}
+                    ev = f"RWY {d} day: {w[lr(day[0])]} (circuits to the {day[1]})" + (f", night: {w[lr(night[0])]} (to the {night[1]})" if night and night != day else '')
+                    cct.setdefault(d, [lr(day[0]), ev])
             if cct: rec['cct'] = cct
         for k2 in list(rec):
             if rec[k2] in ([], None): del rec[k2]
