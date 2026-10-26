@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Radio Calls AU</title>
+<meta name="theme-color" content="#0d1417">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Radio AU">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column instrument stack — status strip, nearest-aerodrome block, frequency "stack" like a radio panel, nearby list. */
+:root{
+  --bg:#eef1ee; --panel:#ffffff; --ink:#132026; --dim:#5a6a70; --rule:#d3dad6;
+  --freq:#0b5c45; --accent:#c25a00; --warn:#a3281b; --ok:#1d7a4a; --chip:#e3e9e5;
+  --as-c:#1f5fbf; --as-d:#1f5fbf; --as-e:#7a4fc2; --as-r:#c8202f; --as-q:#d0660a; --as-fia:#2f8f5b;
+  --f-label:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --as-c:#6aa8ff; --as-d:#6aa8ff; --as-e:#b493ff; --as-r:#ff5f6d; --as-q:#ffa04d; --as-fia:#5fe0a8;
+  --bg:#0d1417; --panel:#152024; --ink:#e6efe9; --dim:#8a9ba0; --rule:#26353a;
+  --freq:#5fe0a8; --accent:#ffad4d; --warn:#ff7a66; --ok:#5fe0a8; --chip:#1d2b30; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --as-c:#6aa8ff; --as-d:#6aa8ff; --as-e:#b493ff; --as-r:#ff5f6d; --as-q:#ffa04d; --as-fia:#5fe0a8;
+  --bg:#0d1417; --panel:#152024; --ink:#e6efe9; --dim:#8a9ba0; --rule:#26353a;
+  --freq:#5fe0a8; --accent:#ffad4d; --warn:#ff7a66; --ok:#5fe0a8; --chip:#1d2b30; color-scheme:dark}
+:root[data-theme="night"]{
+  --as-c:#ff6a55; --as-d:#ff6a55; --as-e:#d94a3a; --as-r:#ff2a1a; --as-q:#ff8a6a; --as-fia:#a8392e;
+  --bg:#000; --panel:#0c0000; --ink:#ff5a4a; --dim:#a8392e; --rule:#3a0d08;
+  --freq:#ff6a55; --accent:#ff8a6a; --warn:#ff3b2a; --ok:#ff6a55; --chip:#1a0402; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px;padding-block:10px}
+.lbl{font:600 12px/1 var(--f-label);letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* status strip */
+.status{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.st{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:7px 8px;min-width:0}
+.st b{display:block;font:600 17px/1.15 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.st small.agl{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);color:var(--accent);text-transform:none;letter-spacing:0}
+.st small{font:500 11px/1 var(--f-label);letter-spacing:.05em;color:var(--dim);text-transform:uppercase}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dim);margin-right:5px;vertical-align:1px}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--accent)} .dot.bad{background:var(--warn)}
+
+/* aerodrome block */
+.ad{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.ad-head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 10px}
+.ad-id{font:700 40px/1 var(--f-label);letter-spacing:.02em}
+.ad-name{font-weight:500;color:var(--dim);margin-top:2px;overflow-wrap:anywhere}
+.ad-mode{font:600 11px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;display:flex;gap:8px;align-items:center}
+.nav{display:flex;align-items:center;gap:10px}
+.arrow{width:56px;height:56px;border-radius:50%;border:2px solid var(--rule);display:grid;place-items:center;flex:none}
+.arrow svg{width:30px;height:30px;transition:transform .4s ease;fill:var(--accent)}
+.navnum{text-align:right}
+.navnum .big{font:600 24px/1 var(--f-mono);font-variant-numeric:tabular-nums}
+.navnum .sm{font:500 13px/1.3 var(--f-mono);color:var(--dim)}
+
+/* frequency stack */
+.stack{border-top:1px solid var(--rule)}
+.fr{display:grid;grid-template-columns:76px 1fr auto;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule)}
+.fr:last-child{border-bottom:0}
+.fr .k{font:700 15px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase}
+.fr .who{min-width:0;color:var(--dim);font-size:13px;line-height:1.3;overflow-wrap:anywhere}
+.fr .who em{font-style:normal;color:var(--ink);font-weight:500}
+.fr .v{font:600 26px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--freq);letter-spacing:-.01em;white-space:nowrap}
+.fr.hero .v{font-size:40px}
+.fr.hero .k{font-size:18px}
+.fr .v.none{color:var(--dim);font-size:16px}
+.tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
+.tag.w{color:var(--accent)}
+
+/* nearby */
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;padding:0 2px}
+.list{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:28px 64px 1fr auto;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--rule);width:100%;background:none;border-left:0;border-right:0;border-top:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.row.sel{background:var(--chip)}
+.row .ra svg{width:18px;height:18px;fill:var(--dim);display:block}
+.row .id{font:700 18px/1 var(--f-label);letter-spacing:.03em}
+.row .nm{color:var(--dim);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.row .r{text-align:right;font:500 13px/1.25 var(--f-mono);font-variant-numeric:tabular-nums}
+.row .r .c{color:var(--freq);font-weight:600}
+
+/* controls */
+.ctl{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:600 13px/1 var(--f-label);letter-spacing:.07em;text-transform:uppercase;padding:11px 12px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--freq);color:var(--bg);border-color:var(--freq)}
+.notice.warn{border-left-color:var(--warn)}
+.src{display:inline-block;font:600 9.5px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:2px 4px;border-radius:3px;vertical-align:1px;border:1px solid currentColor}
+.src.off{color:var(--ok)} .src.unv{color:var(--accent)}
+.notice{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:14px}
+.foot{color:var(--dim);font-size:12px;line-height:1.5;padding:0 2px}
+.foot b{color:var(--ink);font-weight:600}
+
+.sim{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.sim-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sim label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sim input{font:500 16px/1.2 var(--f-mono);padding:9px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);width:100%;min-width:0}
+.sim input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.sim .hint{font-size:12px;color:var(--dim)}
+.sim .err{color:var(--warn);font-size:13px}
+.simbadge{color:var(--accent)}
+.calls{border-bottom:1px solid var(--rule);background:var(--bg)}
+.calls summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px}
+.calls summary::-webkit-details-marker{display:none}
+.calls summary::after{content:"+";font:600 18px/1 var(--f-mono);color:var(--dim)}
+.calls[open] summary::after{content:"–"}
+.calls summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.calls-at{font:600 13px/1 var(--f-label);letter-spacing:.06em;color:var(--dim);margin-left:auto;text-transform:uppercase}
+.calls-set{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 8px}
+.calls-set label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.calls-set input{font:500 15px/1.2 var(--f-body);padding:8px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);width:100%;min-width:0}
+.call{padding:8px 14px;border-top:1px solid var(--rule)}
+.call .when{font:700 12px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.call .say{font-size:15px;line-height:1.45}
+.call .say i{font-style:normal;color:var(--dim)}
+.calls .vnote{padding:8px 14px 12px}
+.calls select{font:500 15px/1.2 var(--f-body);padding:8px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);width:100%;min-width:0}
+.calls-mode{padding:4px 14px 8px;font-size:13px;color:var(--dim)}
+.calls-mode b{color:var(--ink)}
+.keys{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px}
+.keys span{font:500 12px/1.2 var(--f-mono);background:var(--chip);border-radius:5px;padding:4px 7px}
+.ersa-proc{border-top:1px solid var(--rule)}
+.ersa-proc summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px}
+.ersa-proc summary::-webkit-details-marker{display:none}
+#ersaProcBody{padding:0 14px 12px;font-size:13px;line-height:1.45}
+#ersaProcBody h4{font:700 12px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:12px 0 6px}
+#ersaProcBody p{margin:0 0 2px}
+#ersaProcBody p.n{margin-top:6px;font-weight:600}
+#ersaProcBody mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:inherit;border-radius:3px}
+.mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
+#map{width:100%;height:min(86vw,340px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation}
+.mapctl{display:flex;gap:6px;align-items:center}
+.mapctl .btn{padding:8px 12px;font-size:14px}
+.mapctl #mapUp{margin-left:auto;font-size:12px}
+.mapctl #mapRng{min-width:52px;text-align:center}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--dim)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{display:inline-block;width:16px;height:0;border-top:2px solid}
+.sw.dash{border-top-style:dashed} .sw.dot{border-top-style:dotted}
+.c-C,.c-A{color:var(--as-c);border-color:var(--as-c)} .c-D{color:var(--as-d);border-color:var(--as-d)} .c-E{color:var(--as-e);border-color:var(--as-e)}
+.c-R{color:var(--as-r);border-color:var(--as-r)} .c-Q{color:var(--as-q);border-color:var(--as-q)} .c-FIA{color:var(--as-fia);border-color:var(--as-fia)} .c-G{color:var(--dim)}
+.cls{font:700 12px/1 var(--f-mono);display:inline-block;min-width:14px}
+.fr.ctl .k{color:var(--as-c)} .fr.prd .k{color:var(--as-r);font-size:13px}
+.vb.p span:nth-child(2){color:var(--as-r)}
+.vstack{padding:10px 14px 12px;display:flex;flex-direction:column;gap:4px;background:var(--bg)}
+.vstack .lbl{margin-bottom:4px}
+.vb{display:grid;grid-template-columns:96px 1fr auto;gap:8px;align-items:baseline;font-size:13px;color:var(--dim);padding:3px 6px;border-radius:5px}
+.vb span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+.vb .f{color:var(--ink);font-weight:600}
+.vb.on{background:var(--chip);color:var(--ink)} .vb.on .f{color:var(--freq)}
+.vnote{font-size:12px;color:var(--dim);margin-top:4px}
+@media (max-width:370px){.ad-id{font-size:34px}.fr.hero .v{font-size:34px}.fr .v{font-size:22px}.fr{grid-template-columns:64px 1fr auto}.status{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){.arrow svg{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="status" aria-live="off">
+    <div class="st"><small><span class="dot" id="gpsDot"></span>GPS</small><b id="sAcc">—</b></div>
+    <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
+    <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
+    <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
+  </div>
+
+  <div class="notice warn" id="effBanner" hidden></div>
+
+  <div class="notice" id="startBox">
+    <div style="margin-bottom:8px">Uses your GPS position (and compass when stationary) to find the closest aerodrome and the area frequency for where you are.</div>
+    <button class="btn primary" id="startBtn">Start GPS &amp; compass</button>
+  </div>
+
+  <section class="sim" id="simBox" hidden>
+    <div class="sim-h"><span class="lbl simbadge">Simulated position</span><button class="btn" id="simOff" style="padding:6px 8px;font-size:11px">Use real GPS</button></div>
+    <label for="simPos"><span class="lbl">Position</span>
+      <input id="simPos" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="-38.04, 144.47  ·  38 02 22S 144 28 10E  ·  YMAV"></label>
+    <div class="sim-grid">
+      <label for="simAlt"><span class="lbl">Alt ft AMSL</span><input id="simAlt" inputmode="numeric" value="1500"></label>
+      <label for="simTrk"><span class="lbl">Track °M</span><input id="simTrk" inputmode="numeric" placeholder="none"></label>
+      <label for="simGs"><span class="lbl">GS kt</span><input id="simGs" inputmode="numeric" value="0"></label>
+    </div>
+    <div class="ctl"><button class="btn primary" id="simGo">Set position</button><button class="btn" id="simFly" aria-pressed="false">Fly</button></div>
+    <div class="err" id="simErr" hidden></div>
+    <div class="hint">Decimal degrees, DMS, or an ICAO code. Fly moves you along the track at the set ground speed. Tap an aerodrome in Nearby to select it.</div>
+  </section>
+
+  <section class="ad" id="adCard" aria-live="polite">
+    <div class="ad-head">
+      <div style="min-width:0">
+        <div class="ad-mode"><span id="adMode">Closest aerodrome</span><button class="btn" id="unpin" hidden style="padding:5px 7px;font-size:11px">Back to auto</button></div>
+        <div class="ad-id" id="adId">----</div>
+        <div class="ad-name" id="adName">Waiting for position</div>
+      </div>
+      <div class="nav">
+        <div class="navnum"><div class="big" id="adDist">—</div><div class="sm" id="adBrg">—</div><div class="sm" id="adElev"></div></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" id="adArrow"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg></div>
+      </div>
+    </div>
+    <div class="stack" id="ctafRow"></div>
+    <details class="calls" id="calls">
+      <summary><span class="lbl">Radio calls</span><span class="calls-at" id="callsAt"></span></summary>
+      <div class="calls-set">
+        <label for="cType"><span class="lbl">Aircraft type</span><input id="cType" autocomplete="off" placeholder="Helicopter"></label>
+        <label for="cSign"><span class="lbl">Callsign</span><input id="cSign" autocomplete="off" autocapitalize="characters" placeholder="Hotel Golf Bravo"></label>
+      </div>
+      <div class="calls-set">
+        <label for="cCat"><span class="lbl">Category</span><select id="cCat"><option value="A">Aeroplane</option><option value="H">Helicopter</option></select></label>
+        <label for="cMode"><span class="lbl">Procedure</span><select id="cMode"><option value="auto">Auto (tower hours)</option><option value="twr">Tower: Class D</option><option value="ctaf">CTAF</option></select></label>
+      </div>
+      <div class="calls-mode" id="callsMode"></div>
+      <div id="callsList"></div>
+      <div class="vnote" id="callsNote"></div>
+      <details class="ersa-proc" id="ersaProc" hidden>
+        <summary><span class="lbl">ERSA local procedures</span><span class="src off">ERSA</span></summary>
+        <div id="ersaProcBody"></div>
+      </details>
+    </details>
+    <div class="stack" id="stack"></div>
+    <div class="mapwrap">
+      <canvas id="map" aria-label="Airspace map around your position"></canvas>
+      <div class="mapctl">
+        <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
+        <span class="lbl mono" id="mapRng">10 NM</span>
+        <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
+        <button class="btn" id="mapUp">Track up</button>
+      </div>
+      <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
+    </div>
+  </section>
+
+  <div class="sec-h"><span class="lbl">Nearby</span><span class="lbl" id="listMode"></span></div>
+  <div class="list" id="list"></div>
+
+  <div class="ctl">
+    <button class="btn" id="bAhead" aria-pressed="false">Favour ahead</button>
+    <button class="btn" id="bHeli" aria-pressed="false">Show heliports</button>
+    <button class="btn" id="bAll" aria-pressed="true">Include non-ERSA strips</button>
+    <button class="btn" id="bTheme">Theme: auto</button>
+    <button class="btn" id="bWake" aria-pressed="false">Keep screen on</button>
+    <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const $ = id => document.getElementById(id);
+const R = Math.PI/180, NM = 3440.065;
+const ls = {get(k,d){try{const v=localStorage.getItem('rc_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+            set(k,v){try{localStorage.setItem('rc_'+k,JSON.stringify(v))}catch(e){}}};
+
+const st = {pos:null, acc:null, alt:null, gs:null, trk:null, compass:null, compassMag:true,
+  ahead:ls.get('ahead',false), heli:ls.get('heli',false), all:ls.get('all',true), theme:ls.get('theme','auto'),
+  pin:null, wake:null};
+
+/* ---------- geometry ---------- */
+function distBrg(la1,lo1,la2,lo2){
+  const p1=la1*R,p2=la2*R,dl=(lo2-lo1)*R;
+  const a=Math.sin((p2-p1)/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  const d=2*NM*Math.asin(Math.min(1,Math.sqrt(a)));
+  const y=Math.sin(dl)*Math.cos(p2), x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
+  return [d,(Math.atan2(y,x)/R+360)%360];
+}
+function variation(la,lo){ // east positive, bilinear on WMM grid
+  const v=DATA.var, g=v.g; let fy=(la-v.la0)/v.st, fx=(lo-v.lo0)/v.st;
+  fy=Math.max(0,Math.min(g.length-1.001,fy)); fx=Math.max(0,Math.min(g[0].length-1.001,fx));
+  const y=Math.floor(fy), x=Math.floor(fx), ty=fy-y, tx=fx-x;
+  return (g[y][x]*(1-tx)+g[y][x+1]*tx)*(1-ty)+(g[y+1][x]*(1-tx)+g[y+1][x+1]*tx)*ty;
+}
+const norm=a=>((a%360)+360)%360;
+const fmt3=a=>String(Math.round(norm(a))%360).padStart(3,'0');
+
+/* boundary bboxes */
+const BB={};
+for(const [k,p] of Object.entries(DATA.bnd)){
+  let a=90,b=-90,c=180,d=-180; for(const q of p){a=Math.min(a,q[0]);b=Math.max(b,q[0]);c=Math.min(c,q[1]);d=Math.max(d,q[1])}
+  BB[k]=[a,b,c,d];
+}
+function inPoly(la,lo,k){
+  const bb=BB[k]; if(la<bb[0]||la>bb[1]||lo<bb[2]||lo>bb[3]) return false;
+  const p=DATA.bnd[k]; let c=false;
+  for(let i=0,j=p.length-1;i<p.length;j=i++){
+    const a=p[i],b=p[j];
+    if((a[0]>la)!==(b[0]>la) && lo<(b[1]-a[1])*(la-a[0])/(b[0]-a[0])+a[1]) c=!c;
+  }
+  return c;
+}
+function sectorsAt(la,lo,altFt){
+  const out=[];
+  for(const s of DATA.sec){
+    for(const [lo_,hi,bl] of s.v){
+      if(altFt<lo_-200||altFt>hi) continue;
+      if(bl.some(b=>inPoly(la,lo,b))){out.push({...s,lo:lo_,hi});break}
+    }
+  }
+  return out;
+}
+
+function altTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>10000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
+function bandTxt(b){ return altTxt(b.lo)+'–'+altTxt(b.hi); }
+function areaBands(la,lo){ // one representative frequency per vertical band at this point
+  const all=[];
+  for(const s of DATA.sec) for(const [l,h,bl] of s.v) if(bl.some(b=>inPoly(la,lo,b))) all.push({...s,lo:l,hi:h});
+  const out=[], key=new Set();
+  const add=(b,role)=>{ const k=role+b.lo+'-'+b.hi; if(key.has(k)) return; key.add(k); out.push({...b,role}); };
+  all.filter(b=>b.k==='TWR').forEach(b=>add(b,'TWR'));
+  const tma=all.filter(b=>b.k==='APP'||b.k==='DEP');
+  // prefer the "Radar (Centre)" class G/E frequency, then a named approach, per band
+  [...tma].sort((x,y)=>(/centre/i.test(y.n)-/centre/i.test(x.n))||((y.k==='APP')-(x.k==='APP'))).forEach(b=>add(b,'TMA'));
+  all.filter(b=>b.k==='CTR'||b.k==='FSS').sort((x,y)=>(x.hi-x.lo)-(y.hi-y.lo)).forEach(b=>add(b,'CTR'));
+  // drop enroute bands fully covered by a TMA band (vatSys stacks them 0-UNL underneath)
+  return out.filter(b=>!(b.role==='CTR' && out.some(o=>o.role==='TMA' && o.lo<=b.lo && o.hi>=b.hi)))
+            .map(b=> b.role==='CTR'? (()=>{ const t=out.filter(o=>o.role==='TMA'&&o.lo<=b.lo&&o.hi>b.lo&&o.hi<b.hi).reduce((m,o)=>Math.max(m,o.hi),b.lo); return {...b,lo:t}; })() : b)
+            .filter((b,i,arr)=>arr.findIndex(o=>o.f===b.f&&o.lo===b.lo&&o.hi===b.hi)===i);
+}
+
+/* ---------- DAH airspace (XC Australia OpenAir) ---------- */
+const ASP=(DATA.asp||[]).map(([k,n,lo,lok,hi,hik,f,p,x])=>{
+  let a=90,b=-90,c=180,d=-180; for(const q of p){a=Math.min(a,q[0]);b=Math.max(b,q[0]);c=Math.min(c,q[1]);d=Math.max(d,q[1])}
+  return {k,n,lo,lok,hi,hik,f,p,x:x||{},bb:[a,b,c,d]};
+});
+function inRing(la,lo,p){ let c=false;
+  for(let i=0,j=p.length-1;i<p.length;j=i++){ const a=p[i],b=p[j];
+    if((a[0]>la)!==(b[0]>la) && lo<(b[1]-a[1])*(la-a[0])/(b[0]-a[0])+a[1]) c=!c; }
+  return c; }
+function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&lo<=bb[3]&&inRing(la,lo,x.p); }
+function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?99999:v; return v==null?0:v; }
+function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
+const ucfirst=s=>titleCase(s||'');
+const META=DATA.meta||{}, ASRC=META.airspace==='DAH'?'DAH':'XC';
+const SRC={E:'ERSA',X:'XC Aus',V:'VATPAC',O:'OurAirports'};
+function chip(src){ if(!src) return ''; const off=['ERSA','DAH','AIP'].includes(src); return `<span class="src ${off?'off':'unv'}">${src}</span>`; }
+function baAt(la,lo){ return ASP.find(x=>x.k==='BA'&&inAsp(x,la,lo)); }
+function ctafInfo(a){
+  const other = a.c && a.cS!=='E' ? {f:a.c, src:SRC[a.cS]||a.cS} : null;
+  if(a.cS==='E') return {f:a.c, src:'ERSA', note:a.ct?'When tower not active':'Common traffic advisory', afru:a.afru};
+  if(a.s==='E' && a.x && a.x.some(x=>x[0]==='TWR')) return {f:null, src:'ERSA', note:'No CTAF published: tower aerodrome'};
+  const ba=baAt(a.la,a.lo);
+  if(ba) return {f:ba.f, src:ASRC, note:titleCase(ba.n)+' broadcast area', other: other&&other.f!==ba.f?other:null};
+  return {f:'126.7', src:'AIP', note: a.s==='E'?'ERSA lists no CTAF: AIP default':'Not listed in ERSA: AIP default CTAF', other: other&&other.f!=='126.7'?other:null};
+}
+function unitFor(kind,name,mid,la,lo){ // controlling unit from the ATC sector data
+  const secs=sectorsAt(la,lo,mid), w=(name||'').split(/[ /]/)[0].toLowerCase();
+  const m=s=>s.n.toLowerCase().startsWith(w);
+  let s=null;
+  if(kind==='A') s=secs.filter(x=>x.k==='CTR'||x.k==='FSS').sort((a,b)=>(a.hi-a.lo)-(b.hi-b.lo))[0];
+  if(kind==='CTR'||kind==='D') s=secs.find(x=>x.k==='TWR'&&m(x))||secs.find(x=>x.k==='TWR')||secs.find(x=>x.k==='APP'&&m(x));
+  if(!s) s=secs.find(x=>x.k==='APP'&&m(x)&&!/centre/i.test(x.n))||secs.find(x=>x.k==='APP'&&!/centre/i.test(x.n))||secs.find(x=>x.k==='CTR'||x.k==='FSS');
+  return s? {f:s.f, unit: s.k==='CTR'? s.cs+' ('+s.n+')' : s.n} : {};
+}
+function airStack(la,lo,gnd){
+  const hit=ASP.filter(x=>inAsp(x,la,lo));
+  const ctl=hit.filter(x=>'A C D E CTR'.split(' ').includes(x.k));
+  const bcta=ctl.length? Math.min(...ctl.map(x=>limFt(x.lo,x.lok,gnd,0))) : 99999;
+  const L=x=>limFt(x.lo,x.lok,gnd,bcta), H=x=>limFt(x.hi,x.hik,gnd,bcta);
+  const bands=[];
+  for(const x of ctl){
+    const b={...x,L:L(x),H:H(x)}; if(b.H<=b.L) continue;
+    const mid=(b.L+Math.min(b.H,b.L+3000))/2;
+    if(x.k==='CTR'){ const m=x.n.match(/\(([A-Z])\)/); b.ctrCls=x.x.cc||(m?m[1]:'D'); }
+    if(x.k==='E'){ const ef=hit.find(e=>e.k==='EF' && L(e)<=mid && H(e)>mid);
+      if(ef){ b.f=ef.f; b.unit=ucfirst(ef.n)+' (E frequency)'; b.us=ASRC; } }
+    if(!b.f && x.x.u && x.x.u.length){
+      let u=x.x.u[0];
+      if(x.x.u.length>1){ const vs=sectorsAt(la,lo,mid).map(s=>s.f); u=x.x.u.find(e=>vs.includes(e[1]))||u;
+        b.alt=x.x.u.filter(e=>e!==u).map(e=>e[0]+' '+e[1]); }
+      b.f=u[1]; b.unit=u[0]; b.us='ERSA'; }
+    if(!b.f){ const u=unitFor(x.k==='CTR'?'CTR':x.k,x.n,mid,la,lo); b.f=u.f; b.unit=u.unit; b.us=u.f?'VATPAC':null; }
+    bands.push(b);
+  }
+  if(bcta>0){
+    const fias=hit.filter(x=>x.k==='FIA');
+    for(const f of fias){ const fl=L(f), fh=Math.min(H(f),bcta); if(fh>fl) bands.push({k:'G',n:ucfirst(f.n),L:fl,H:fh,f:f.f,unit:ucfirst(f.n),us:ASRC}); }
+    if(!fias.length) bands.push({k:'G',n:'Class G',L:0,H:bcta,f:null,unit:null});
+  }
+  const ba=hit.filter(x=>x.k==='BA').map(x=>({...x,L:L(x),H:H(x)}));
+  const prd=hit.filter(x=>x.k==='R'||x.k==='Q').map(x=>({...x,L:L(x),H:H(x)})).filter(x=>x.L<20000);
+  // resolve vertical overlaps: CTR > D > C > A > E > G, then merge
+  const PR={CTR:6,D:5,C:4,A:3,E:2,G:1};
+  const cuts=[...new Set(bands.flatMap(b=>[b.L,b.H]))].sort((a,b)=>a-b), segs=[];
+  for(let i=0;i<cuts.length-1;i++){
+    const lo_=cuts[i], hi_=cuts[i+1], m=(lo_+hi_)/2;
+    const top=bands.filter(b=>b.L<=m&&b.H>m).sort((a,b)=>PR[b.k]-PR[a.k])[0]; if(!top) continue;
+    const last=segs[segs.length-1];
+    if(last && last.H===lo_ && (last.src===top || (last.k===top.k && last.f===top.f))) last.H=hi_;
+    else segs.push({...top,src:top,L:lo_,H:hi_});
+  }
+  return {bands:segs,prd,bcta,ba};
+}
+
+/* ---------- SRTM terrain (app/terrain/*.bin.z, built by tools/fetch_srtm.py) ---------- */
+const TER={idx:null,have:new Set(),sea:new Set(),tiles:new Map(),busy:new Set(),ok:false};
+async function terInit(){
+  try{ const r=await fetch('terrain/index.json',{cache:'no-cache'}); if(!r.ok) return; TER.idx=await r.json();
+    TER.have=new Set(TER.idx.tiles||[]); TER.sea=new Set(TER.idx.sea||[]); TER.ok=TER.have.size>0 && typeof DecompressionStream!=='undefined'; setFoot(); render(); }catch(e){}
+}
+function tName(la0,lo0){ return (la0<0?'S':'N')+String(Math.abs(la0)).padStart(2,'0')+(lo0<0?'W':'E')+String(Math.abs(lo0)).padStart(3,'0'); }
+async function terLoad(n){
+  if(TER.busy.has(n)) return; TER.busy.add(n);
+  try{ const r=await fetch('terrain/'+n+'.bin.z'); if(!r.ok) throw 0;
+    const buf=await new Response(r.body.pipeThrough(new DecompressionStream('deflate'))).arrayBuffer();
+    TER.tiles.set(n,new Int16Array(buf)); render(); }catch(e){ TER.tiles.set(n,null); }
+}
+function terrainFt(la,lo){ // max of the 4 surrounding 30" posts, feet; null = unknown
+  if(!TER.ok) return null;
+  const la0=Math.floor(la), lo0=Math.floor(lo), n=tName(la0,lo0);
+  if(TER.sea.has(n)) return 0;
+  if(!TER.have.has(n)) return null;
+  const t=TER.tiles.get(n); if(t===undefined){ terLoad(n); return null; } if(t===null) return null;
+  const N=(TER.idx.n||121)-1, fy=(la0+1-la)*N, fx=(lo-lo0)*N;
+  const y=Math.min(N-1,Math.floor(fy)), x=Math.min(N-1,Math.floor(fx)), W=N+1;
+  const m=Math.max(t[y*W+x],t[y*W+x+1],t[(y+1)*W+x],t[(y+1)*W+x+1]);
+  return m*3.28084;
+}
+function terPrefetch(la,lo){ if(!TER.ok) return; for(let a=-2;a<=2;a++) for(let b=-2;b<=2;b++){ const n=tName(Math.floor(la)+a,Math.floor(lo)+b); if(TER.have.has(n)&&!TER.tiles.has(n)) terLoad(n); } }
+
+/* ---------- map ---------- */
+const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk')};
+function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function clipRect(pts,W,H){ // Sutherland-Hodgman against [0,W]x[0,H]
+  const edges=[[p=>p[0]>=0,(a,b)=>{const t=(0-a[0])/(b[0]-a[0]);return[0,a[1]+t*(b[1]-a[1])]}],
+               [p=>p[0]<=W,(a,b)=>{const t=(W-a[0])/(b[0]-a[0]);return[W,a[1]+t*(b[1]-a[1])]}],
+               [p=>p[1]>=0,(a,b)=>{const t=(0-a[1])/(b[1]-a[1]);return[a[0]+t*(b[0]-a[0]),0]}],
+               [p=>p[1]<=H,(a,b)=>{const t=(H-a[1])/(b[1]-a[1]);return[a[0]+t*(b[0]-a[0]),H]}]];
+  let out=pts;
+  for(const [ins,isect] of edges){ const inp=out; out=[]; if(!inp.length) break;
+    for(let i=0;i<inp.length;i++){ const cur=inp[i], prev=inp[(i+inp.length-1)%inp.length];
+      if(ins(cur)){ if(!ins(prev)) out.push(isect(prev,cur)); out.push(cur); } else if(ins(prev)) out.push(isect(prev,cur)); } }
+  return out;
+}
+function polyCentroid(p){ let A=0,x=0,y=0; for(let i=0,j=p.length-1;i<p.length;j=i++){ const f=p[j][0]*p[i][1]-p[i][0]*p[j][1]; A+=f; x+=(p[j][0]+p[i][0])*f; y+=(p[j][1]+p[i][1])*f; }
+  A/=2; if(Math.abs(A)<1) return null; return [x/(6*A),y/(6*A),Math.abs(A)]; }
+function inScreenPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j=i++){ const a=p[i],b=p[j];
+  if((a[1]>y)!==(b[1]>y) && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; }
+function drawMap(la,lo,h,pick,AS,altFt){
+  const cv=$('map'); if(!cv) return;
+  const W=cv.clientWidth, Hh=cv.clientHeight, dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(Hh*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(Hh*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
+  const rot = MAP.up==='trk' && h ? h.deg : 0;
+  const cx=W/2, cy= MAP.up==='trk'&&h ? Hh*0.62 : Hh/2;
+  const sc=Math.min(W,Hh)*0.46/MAP.range, cosl=Math.cos(la*R), cr=Math.cos(-rot*R), sr=Math.sin(-rot*R);
+  const P=(pla,plo)=>{ const x=(plo-lo)*cosl*60, y=(pla-la)*60; return [cx+(x*cr-y*sr)*sc, cy-(x*sr+y*cr)*sc]; };
+  const reach=MAP.range*1.6/60, bbHit=bb=>!(bb[1]<la-reach||bb[0]>la+reach||bb[3]<lo-reach/cosl||bb[2]>lo+reach/cosl);
+  const C={C:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),CTR:cssv('--as-d'),A:cssv('--as-c'),R:cssv('--as-r'),Q:cssv('--as-q'),FIA:cssv('--as-fia'),EF:cssv('--as-e'),ink:cssv('--ink'),dim:cssv('--dim'),bg:cssv('--panel'),acc:cssv('--accent'),fr:cssv('--freq')};
+  const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
+  // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise
+  if(TER.ok){
+    const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
+    const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink');
+    for(let py=0;py<Hh;py+=step) for(let px=0;px<W;px+=step){
+      const [qa,qo]=inv(px+step/2,py+step/2), t=terrainFt(qa,qo); if(t==null||t<=0) continue;
+      if(st.alt!=null && t>=altFt-100){ g.fillStyle=red; g.globalAlpha=.42; }
+      else if(st.alt!=null && t>=altFt-500){ g.fillStyle=amb; g.globalAlpha=.32; }
+      else { g.fillStyle=rel; g.globalAlpha=Math.min(.16,t/12000); }
+      g.fillRect(px,py,step,step);
+    }
+    g.globalAlpha=1;
+  }
+  const ceil=Math.max(12500, altFt+5000);
+  const vis=ASP.filter(x=>bbHit(x.bb) && x.k!=='EF' && x.k!=='A' && (x.k==='FIA' || (x.lok==='AGL'?x.lo:(x.lo||0))<ceil) && !((x.k==='R'||x.k==='Q') && (x.lo||0)>=10000));
+  const order={FIA:0,E:1,C:2,A:2,D:3,CTR:4,Q:5,R:6};
+  vis.sort((a,b)=>order[a.k]-order[b.k]);
+  const labels=[[cx-16,cy-16,32,32],[W-34,2,32,32]], drawL=[];
+  g.lineJoin='round';
+  for(const x of vis){
+    const sp=x.p.map(q=>P(q[0],q[1]));
+    g.beginPath(); sp.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.closePath();
+    const col=C[x.k]||C.dim;
+    if(x.k==='FIA'){ g.setLineDash([2,4]); g.lineWidth=1.2; g.strokeStyle=col; g.stroke(); g.setLineDash([]); }
+    else{
+      const here=curSet.has(x.n);
+      if(here||x.k==='R'){ g.globalAlpha= here?0.18:0.06; g.fillStyle=col; g.fill(); g.globalAlpha=1; }
+      g.setLineDash(x.k==='D'||x.k==='CTR'?[6,3]:x.k==='Q'?[3,3]:[]);
+      g.lineWidth= here?2.4:(x.k==='E'?1:1.6); g.strokeStyle=col; g.stroke(); g.setLineDash([]);
+    }
+    // label at the centroid of the visible part
+    const cl=clipRect(sp,W,Hh); if(cl.length<3) continue;
+    const c=polyCentroid(cl); if(!c||c[2]<900) continue;
+    let [lx,ly]=c; if(!inScreenPoly(lx,ly,cl)){ lx=cl.reduce((s,q)=>s+q[0],0)/cl.length; ly=cl.reduce((s,q)=>s+q[1],0)/cl.length; if(!inScreenPoly(lx,ly,cl)) continue; }
+    let lines;
+    if(x.k==='FIA'){ if(!x.f) continue; lines=[x.f]; }
+    else{
+      const gnd=0, top=x.hik==='NOTAM'?'NOTAM':x.hik==='BCTA'?'BCTA':limTxt(limFt(x.hi,x.hik,gnd,0)), bot=x.lok==='AGL'?x.lo+' AGL':x.lok==='NOTAM'?'NOTAM':limTxt(limFt(x.lo,x.lok,gnd,0));
+      const cls=x.k==='CTR'?((x.n.match(/\(([A-Z])\)/)||[])[1]||'D'):x.k==='Q'?'D':x.k;
+      lines=[(x.k==='R'||x.k==='Q'?x.n.split(' ')[0]+' ':'')+cls, top, bot];
+    }
+    g.font='600 10.5px "IBM Plex Mono", ui-monospace, monospace';
+    const w=Math.max(...lines.map(t=>g.measureText(t).width))+8, hh=lines.length*12+4;
+    const box=[lx-w/2,ly-hh/2,w,hh];
+    if(labels.some(b=>!(box[0]>b[0]+b[2]+2||box[0]+box[2]<b[0]-2||box[1]>b[1]+b[3]+2||box[1]+box[3]<b[1]-2))) continue;
+    labels.push(box);
+    drawL.push(()=>{
+      g.font='600 10.5px "IBM Plex Mono", ui-monospace, monospace';
+      g.globalAlpha=.9; g.fillStyle=C.bg; g.fillRect(...box); g.globalAlpha=1;
+      g.fillStyle=col; g.textAlign='center'; g.textBaseline='middle';
+      lines.forEach((t,i)=>g.fillText(t,lx,box[1]+8+i*12));
+      if(lines.length===3){ g.strokeStyle=col; g.lineWidth=1; g.beginPath(); g.moveTo(lx-w/2+4,box[1]+26); g.lineTo(lx+w/2-4,box[1]+26); g.stroke(); }
+      g.textBaseline='alphabetic';
+    });
+  }
+  // range rings
+  g.strokeStyle=C.dim; g.globalAlpha=.5; g.lineWidth=1; g.setLineDash([1,3]);
+  for(const r of [MAP.range/2,MAP.range]){ g.beginPath(); g.arc(cx,cy,r*sc,0,2*Math.PI); g.stroke(); }
+  g.setLineDash([]); g.globalAlpha=1;
+  g.fillStyle=C.dim; g.font='500 10px "IBM Plex Mono", monospace'; g.textAlign='left';
+  g.fillText(MAP.range+' NM',cx+MAP.range*sc*0.707+3,cy-MAP.range*sc*0.707);
+  // aerodromes
+  g.font='600 10px "IBM Plex Mono", monospace';
+  for(const ad of DATA.ap){
+    if(ad.t==='H'&&!st.heli) continue;
+    if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue;
+    const [x,y]=P(ad.la,ad.lo); if(x<-10||y<-10||x>W+10||y>Hh+10) continue;
+    const sel=ad===pick.a;
+    g.beginPath(); g.arc(x,y,sel?5:3,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.fill();
+    if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+6,y+3); }
+  }
+  drawL.forEach(f=>f());
+  // line to selected aerodrome
+  const [sx,sy]=P(pick.a.la,pick.a.lo);
+  g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,4]); g.beginPath(); g.moveTo(cx,cy); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]);
+  // ownship
+  g.save(); g.translate(cx,cy); g.rotate(((h?h.deg:0)-rot)*R);
+  g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,4); g.lineTo(-7,8); g.closePath();
+  g.fillStyle=C.fr; g.strokeStyle=C.bg; g.lineWidth=2; g.stroke(); g.fill(); g.restore();
+  // north pointer
+  g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';
+  g.beginPath(); g.moveTo(0,-11); g.lineTo(4,-3); g.lineTo(-4,-3); g.closePath(); g.fill(); g.fillText('N',0,8); g.restore();
+  $('mapUp').textContent = MAP.up==='trk'&&h ? (h.src==='TRK'?'Track up':'Heading up') : 'North up';
+  $('mapRng').textContent=MAP.range+' NM';
+  $('terLeg').hidden=!TER.ok;
+}
+
+/* ---------- aerodrome selection ---------- */
+function candidates(){
+  const [la,lo]=st.pos; const out=[];
+  const coslat=Math.cos(la*R);
+  for(const a of DATA.ap){
+    if(a.t==='H' && !st.heli) continue;
+    if(!st.all && a.s!=='E' && a.t!=='H') continue;
+    // quick reject > ~150 NM
+    if(Math.abs(a.la-la)>2.6 || Math.abs(a.lo-lo)*coslat>2.6) continue;
+    const [d,b]=distBrg(la,lo,a.la,a.lo); out.push({a,d,b});
+  }
+  if(out.length<8){ // remote: widen search
+    for(const a of DATA.ap){ if(a.t==='H'&&!st.heli) continue; if(out.find(o=>o.a===a)) continue;
+      const [d,b]=distBrg(la,lo,a.la,a.lo); out.push({a,d,b}); }
+  }
+  out.sort((x,y)=>x.d-y.d);
+  return out.slice(0,40);
+}
+function heading(){ // returns {deg(true), src}
+  if(st.trk!=null && (st.sim || (st.gs!=null && st.gs>5))) return {deg:st.trk, src:'TRK'};
+  if(st.compass!=null){ const v=st.pos?variation(st.pos[0],st.pos[1]):0;
+    return {deg: st.compassMag? st.compass+v : st.compass, src:'HDG'}; }
+  return null;
+}
+function score(c,h){
+  if(!st.ahead||!h) return c.d;
+  const rel=Math.abs(((c.b-h.deg+540)%360)-180);
+  return c.d*(1+Math.max(0,rel-20)/45) + (rel>100?8:0);
+}
+
+/* ---------- rendering ---------- */
+const arrowSvg=deg=>`<svg viewBox="0 0 24 24" style="transform:rotate(${deg}deg)"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg>`;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function titleCase(s){return s.toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase())}
+
+function freqRow(k,v,who,cls=''){
+  return `<div class="fr ${cls}"><div class="k">${k}</div><div class="who">${who||''}</div><div class="v ${v?'':'none'}">${v||'—'}</div></div>`;
+}
+
+function render(){
+  if(!st.pos){ return; }
+  const [la,lo]=st.pos, varE=variation(la,lo), h=heading();
+  $('hdgLbl').textContent=h?h.src+' °M':'TRK';
+  $('sHdg').textContent=h?fmt3(h.deg-varE):'—';
+
+  const cands=candidates();
+  let pick=null;
+  if(st.pin){ const a=DATA.ap.find(x=>x.i===st.pin); if(a){const [d,b]=distBrg(la,lo,a.la,a.lo); pick={a,d,b}} }
+  if(!pick){ pick=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0]; }
+  $('adMode').textContent = st.pin?'Selected aerodrome': (st.ahead&&h?'Closest ahead':'Closest aerodrome');
+  $('unpin').hidden=!st.pin;
+
+  const a=pick.a;
+  $('adId').textContent=a.i;
+  $('adName').textContent=titleCase(a.n)+(a.t==='H'?' · heliport':'');
+  $('adDist').textContent=(pick.d<10?pick.d.toFixed(1):Math.round(pick.d))+' NM';
+  $('adBrg').textContent=fmt3(pick.b-varE)+'°M';
+  $('adElev').textContent=a.e!=null?('ELEV '+a.e):'';
+  const rel=h?pick.b-h.deg:pick.b;
+  $('adArrow').style.transform=`rotate(${rel}deg)`;
+
+  // frequency stack
+  let html='';
+  const CI=ctafInfo(a);
+  let csub=`<em>${CI.note}</em> ${chip(CI.src)}`;
+  if(CI.other) csub+=`<br><span class="tag w">${CI.other.src} says ${CI.other.f}</span>`;
+  const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
+  html+=freqRow('CTAF',CI.f,csub,'hero');
+  $('ctafRow').innerHTML=html; html='';
+  renderCalls(a,pick,varE);
+  if(a.a) html+=freqRow('ATIS',a.a[0],`Aerodrome terminal information${a.a.length>1?' · also '+a.a.slice(1).join(', '):''}${a.an?' · VOR '+a.an.join(', '):''} ${chip(SRC[a.aS])}`);
+  if(a.w && !(a.a||[]).includes(a.w)) html+=freqRow('AWIS',a.w,`Automatic weather ${chip(SRC[a.wS])}`);
+  if(a.x){ const seen=new Set();
+    for(const x of a.x.filter(x=>['TWR','GND','SMC','DEL','APP','DEP','UNICOM'].includes(x[0]))){
+      const key=x[0]+x[2]; if(seen.has(key)) continue; seen.add(key);
+      html+=freqRow(x[0]==='SMC'?'GND':x[0],x[2],`${esc(x[1]?titleCase(x[1]):a.i+' '+x[0].toLowerCase())}${x[3]&&!/^\(\d/.test(x[3])?' · '+esc(x[3]):''} ${chip(SRC[a.xS])}`);
+    } }
+  if(a.fia){ for(const f of a.fia) html+=freqRow('AREA',f[1],`<em>${esc(titleCase(f[0]))}</em>${f[2]?' · '+esc(f[2].toLowerCase()):''} at ${a.i} ${chip('ERSA')}`); }
+
+  // airspace & frequency at your position, by altitude (DAH-derived)
+  const altKnown = st.alt!=null, altFt = altKnown? st.alt : 0;
+  const near=cands[0], terr=terrainFt(la,lo); terPrefetch(la,lo);
+  const gnd = terr!=null ? terr : (near && near.d<15 && near.a.e!=null ? near.a.e : 0);
+  $('sAgl').textContent = terr!=null && altKnown ? 'AGL '+Math.max(0,Math.round((altFt-terr)/10)*10) : (terr!=null?'GND '+Math.round(terr/10)*10:'');
+  const AS=airStack(la,lo,gnd);
+  const cur=AS.bands.find(b=>altFt>=b.L-50 && altFt<b.H) || AS.bands[AS.bands.length-1];
+  if(cur){
+    const above=AS.bands.filter(b=>b.L>=cur.H-50).sort((x,y)=>x.L-y.L)[0];
+    const what = cur.k==='G' ? `Class G · <em>${esc(cur.unit||'FIA')}</em>`
+               : `Class ${cur.k==='CTR'?cur.ctrCls:cur.k} · <em>${esc(cur.unit||'see ERSA')}</em>${cur.k==='E'?'':' · clearance required'}${cur.alt&&cur.alt.length?`<br>ERSA also lists ${esc(cur.alt.slice(0,3).join(', '))}${cur.alt.length>3?' …':''}`:''}`;
+    let sub=`${what} ${chip(cur.us)}<br><span class="tag">${limTxt(cur.L)}–${limTxt(cur.H)}</span> ${chip(ASRC)}${altKnown?'':' <span class="tag w">alt unknown · SFC assumed</span>'}`;
+    if(above) sub+=`<br>Above ${limTxt(above.L)}: class ${above.k==='CTR'?above.ctrCls:above.k}${above.f?` <b class="mono">${above.f}</b>`:''}`;
+    html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
+  } else html+=freqRow('AREA','', 'No airspace data here');
+  for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
+    html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
+  for(const p of AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H))
+    html+=freqRow(p.k==='R'?'R AREA':'DANGER','',`<em>${esc(p.n)}</em><br><span class="tag w">${limTxt(p.L)}–${p.hik==='NOTAM'?'NOTAM':limTxt(p.H)}</span> check status`,'prd');
+  // the selected aerodrome's own approach unit
+  const adName=callName(a.n).toLowerCase(), shown=new Set([cur&&cur.f]);
+  for(const x of (a.x||[]).filter(x=>x[0]==='APP'||x[0]==='DEP')) shown.add(x[2]);
+  for(const s of DATA.sec.filter(s=>(s.k==='APP') && s.n.toLowerCase().startsWith(adName+' ') && !(a.xS==='E'))){
+    if(shown.has(s.f)) continue; shown.add(s.f);
+    html+=freqRow('APP',s.f,`<em>${esc(s.n)}</em> · for ${a.i} ${chip('VATPAC')}`);
+  }
+  // vertical stack for this position
+  if(AS.bands.length){
+    html+=`<div class="vstack"><div class="lbl">Airspace above you${altKnown?' · GPS alt '+Math.round(altFt/10)*10+' ft':''}${terr!=null?' · terrain '+Math.round(terr/10)*10+' ft':''}</div>`+
+      [...AS.bands,...AS.prd].sort((x,y)=>y.L-x.L||y.H-x.H).map(b=>{
+        const on=b===cur, cls=b.k==='CTR'?b.ctrCls:b.k, isP=b.k==='R'||b.k==='Q';
+        return `<div class="vb ${on?'on':''} ${isP?'p':''}"><span class="mono">${limTxt(b.L)}–${b.hik==='NOTAM'?'NTM':limTxt(b.H)}</span><span><b class="cls c-${isP?b.k:cls}">${isP?(b.k==='R'?'R':'D'):cls}</b> ${esc(isP?b.n:(b.unit||b.n))} ${b.us&&b.us!=='ERSA'&&b.us!=='DAH'?chip(b.us):''}</span><span class="mono f">${b.f||''}</span></div>`;
+      }).join('')+`<div class="vnote">The area frequency changes with altitude and with each CTA step. GPS altitude is geometric, not pressure altitude, so near a boundary go by your altimeter and the chart.</div></div>`;
+  }
+  drawMap(la,lo,h,pick,AS,altFt);
+  $('stack').innerHTML=html;
+
+  // list
+  const lst=[...cands].slice(0,8);
+  $('list').innerHTML=lst.map(c=>{
+    const r=h?c.b-h.deg:c.b;
+    return `<button class="row ${c.a===a?'sel':''}" data-i="${c.a.i}">
+      <span class="ra">${arrowSvg(r)}</span>
+      <span class="id">${c.a.i}</span>
+      <span class="nm">${esc(titleCase(c.a.n))}</span>
+      <span class="r">${c.d<10?c.d.toFixed(1):Math.round(c.d)} NM · ${fmt3(c.b-varE)}°<br><span class="c">${(()=>{const ci=ctafInfo(c.a); return ci.f? ci.f+(ci.src==='ERSA'?'':'*') : 'TWR';})()}</span>${c.a.a?' / ATIS '+c.a.a[0]:''}</span></button>`;
+  }).join('');
+  $('listMode').textContent=h?'Arrows relative to '+h.src.toLowerCase():'Arrows north-up (no heading yet)';
+}
+
+/* ---------- sensors ---------- */
+function onPos(p){
+  if(st.sim) return;
+  const c=p.coords;
+  st.pos=[c.latitude,c.longitude]; st.acc=c.accuracy;
+  st.alt = c.altitude!=null? c.altitude*3.28084 : null;
+  st.gs = c.speed!=null? c.speed*1.943844 : st.gs;
+  if(c.heading!=null && !isNaN(c.heading) && (c.speed||0)>2) st.trk=c.heading;
+  $('sAcc').textContent='±'+Math.round(c.accuracy)+' m';
+  $('gpsDot').className='dot '+(c.accuracy<50?'ok':c.accuracy<300?'warn':'bad');
+  $('sGs').textContent=st.gs!=null?Math.round(st.gs):'—';
+  $('sAlt').textContent=st.alt!=null?Math.round(st.alt/10)*10:'—';
+  render();
+}
+function onPosErr(e){
+  if(st.sim) return;
+  $('gpsDot').className='dot bad';
+  $('sAcc').textContent=e.code===1?'denied':'no fix';
+  $('startBox').hidden=false;
+  $('startBox').firstElementChild.textContent = e.code===1
+    ? 'Location permission was refused. Allow location for this site in your browser settings, then tap Start.'
+    : 'Waiting for a GPS fix. Move clear of buildings or the aircraft roof if you can.';
+}
+let lastOri=0;
+function onOri(e){
+  let h=null, mag=true;
+  if(e.webkitCompassHeading!=null){ h=e.webkitCompassHeading; mag=true; }          // iOS, magnetic
+  else if(e.absolute && e.alpha!=null){ h=360-e.alpha; mag=true; }                 // Android, magnetometer north
+  if(h==null) return;
+  const so=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
+  st.compass=norm(h+so); st.compassMag=mag;
+  const now=performance.now(); if(now-lastOri>400){lastOri=now; render();}
+}
+async function start(){
+  if(!('geolocation' in navigator)){ $('startBox').firstElementChild.textContent='This browser has no location support.'; return; }
+  if(!watching){watching=true; navigator.geolocation.watchPosition(onPos,onPosErr,{enableHighAccuracy:true,maximumAge:2000,timeout:20000});}
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission(); if(r==='granted') addEventListener('deviceorientation',onOri);
+      else throw new Error('compass');
+    }else if('ondeviceorientationabsolute' in window){ addEventListener('deviceorientationabsolute',onOri); }
+    else addEventListener('deviceorientation',onOri);
+  }catch(e){
+    $('startBox').hidden=false; $('startBox').firstElementChild.textContent='GPS is running. Tap to enable the compass, so arrows work while stationary.';
+    $('startBtn').textContent='Enable compass'; ls.set('started',true); return;
+  }
+  $('startBox').hidden=true; ls.set('started',true);
+}
+
+/* ---------- controls ---------- */
+function syncBtns(){
+  $('bAhead').setAttribute('aria-pressed',st.ahead); $('bHeli').setAttribute('aria-pressed',st.heli);
+  $('bAll').setAttribute('aria-pressed',st.all);
+  $('bTheme').textContent='Theme: '+st.theme;
+  if(st.theme==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',st.theme);
+  const tc={auto:null,light:'#eef1ee',dark:'#0d1417',night:'#000000'}[st.theme];
+  document.querySelector('meta[name=theme-color]').content=tc||(matchMedia('(prefers-color-scheme: dark)').matches?'#0d1417':'#eef1ee');
+}
+let watching=false;
+$('startBtn').onclick=start;
+$('bAhead').onclick=()=>{st.ahead=!st.ahead;ls.set('ahead',st.ahead);syncBtns();render()};
+$('bHeli').onclick=()=>{st.heli=!st.heli;ls.set('heli',st.heli);syncBtns();render()};
+$('bAll').onclick=()=>{st.all=!st.all;ls.set('all',st.all);syncBtns();render()};
+$('bTheme').onclick=()=>{const o=['auto','light','dark','night'];st.theme=o[(o.indexOf(st.theme)+1)%o.length];ls.set('theme',st.theme);syncBtns()};
+$('bWake').onclick=async()=>{
+  if(st.wake){ try{await st.wake.release()}catch(e){} st.wake=null; $('bWake').setAttribute('aria-pressed',false); return; }
+  try{ st.wake=await navigator.wakeLock.request('screen'); $('bWake').setAttribute('aria-pressed',true);
+    st.wake.addEventListener('release',()=>{ $('bWake').setAttribute('aria-pressed',false); }); }
+  catch(e){ $('bWake').textContent='Screen lock not supported'; }
+};
+document.addEventListener('visibilitychange',async()=>{ if(document.visibilityState==='visible' && $('bWake').getAttribute('aria-pressed')==='true'){ try{st.wake=await navigator.wakeLock.request('screen')}catch(e){} }});
+$('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); window.scrollTo({top:0,behavior:'smooth'})});
+const RANGES=[2.5,5,10,20,40,80];
+$('mapIn').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.max(0,(i<0?2:i)-1)]; ls.set('mapRange',MAP.range); render(); };
+$('mapOut').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.min(RANGES.length-1,(i<0?2:i)+1)]; ls.set('mapRange',MAP.range); render(); };
+$('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
+addEventListener('resize',()=>render());
+$('unpin').onclick=()=>{st.pin=null;render()};
+
+
+/* ---------- CTAF radio call guide ---------- */
+const PTS=['north','north-east','east','south-east','south','south-west','west','north-west'];
+function callName(n){ let t=n.includes('/')? n.split('/').pop() : n; t=t.replace(/\b(airport|aerodrome|airfield|international|regional|ala|heliport|hls)\b/gi,'').replace(/\s+/g,' ').trim(); return titleCase(t||n); }
+function sayLevel(ft){ if(ft==null) return '<i>[level]</i>'; if(ft>10500) return 'flight level '+Math.round(ft/500)*5; const r=Math.max(500,Math.round(ft/500)*500); return r.toLocaleString('en-AU')+' feet'; }
+/* tower hours from ERSA "TWR HR" notes, evaluated in the aerodrome's local time */
+const DOW=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+function firstSun(y,m){ const d=new Date(Date.UTC(y,m,1)); return 1+((7-d.getUTCDay())%7); }
+function isHDS(state,now){ if(!['NSW','VIC','ACT','TAS','SA'].includes(state)) return false;
+  const y=now.getUTCFullYear(), start=Date.UTC(y,9,firstSun(y,9),16), end=Date.UTC(y,3,firstSun(y,3),16); // ~2-3am local
+  return now.getTime()>=start || now.getTime()<end; }
+function twrStatus(a,now=new Date()){
+  const L=a.cnotes||[]; const i=L.findIndex(l=>/TWR HR/.test(l)); if(i<0 || a.utc==null) return null;
+  const hds=isHDS(a.st,now), off=a.utc+(hds?1:0), loc=new Date(now.getTime()+off*3600e3);
+  const dow=DOW[loc.getUTCDay()], mins=loc.getUTCHours()*60+loc.getUTCMinutes();
+  const ent=[]; let hctx=false;
+  for(let j=i;j<Math.min(L.length,i+14);j++){
+    const l=L[j]; if(j>i && /^\d+\.\s/.test(l)) break;
+    if(/During HDS/i.test(l)) hctx=true;
+    const u=l.match(/(\d{4})\s*-\s*(\d{4})\s*UTC/); if(!u) continue;
+    const lm=l.match(/\((\d{4})\s*-\s*(\d{4})\s*Local\)/);
+    const dm=l.match(/\b(MON|TUE|WED|THU|FRI|SAT|SUN)(?:\s*-\s*(MON|TUE|WED|THU|FRI|SAT|SUN))?\b/);
+    let days=DOW; if(dm){ const a0=DOW.indexOf(dm[1]), b0=DOW.indexOf(dm[2]||dm[1]); days=[]; for(let k=a0;;k=(k+1)%7){ days.push(DOW[k]); if(k===b0) break; } }
+    if(/\bJF\b/.test(l)&&!dm) days=['SAT','SUN'];
+    const tm=x=>Math.floor(x/100)*60+x%100;
+    let s0,e0; if(lm){ s0=tm(+lm[1]); e0=tm(+lm[2]); } else { s0=(tm(+u[1])+off*60)%1440; e0=(tm(+u[2])+off*60)%1440; }
+    ent.push({days,s0,e0,hds:hctx||/\bHDS\b/.test(l)});
+  }
+  if(!ent.length) return null;
+  let use=ent.filter(e=>e.hds===hds); if(!use.length) use=ent.filter(e=>!e.hds);
+  const inside=e=> e.s0<e.e0 ? mins>=e.s0&&mins<e.e0 : mins>=e.s0||mins<e.e0;
+  const on=use.some(e=>e.days.includes(dow)&&inside(e));
+  const today=use.filter(e=>e.days.includes(dow)).map(e=>`${String(Math.floor(e.s0/60)).padStart(2,'0')}${String(e.s0%60).padStart(2,'0')}–${String(Math.floor(e.e0/60)).padStart(2,'0')}${String(e.e0%60).padStart(2,'0')}`);
+  return {on, today:today.join(', '), hds};
+}
+function ersaProcHtml(a,heli){
+  const out=[]; const secs=Object.entries(a.proc||{});
+  if(a.cnotes) secs.unshift(['COMMUNICATIONS NOTES',a.cnotes]);
+  for(const [h,lines] of secs){
+    out.push(`<h4>${esc(titleCase(h))}</h4>`); let inHel=false;
+    for(const l of lines){
+      const top=/^\d+\.\s/.test(l);
+      if(top) inHel=/HELICOPTER|HEL\b/i.test(l);
+      const t=esc(l);
+      out.push(`<p class="${top?'n':''}">${heli&&(inHel||/\bHEL\b/.test(l))?`<mark>${t}</mark>`:t}</p>`);
+    }
+  }
+  return out.join('');
+}
+function renderCalls(a,pick,varE){
+  const loc=callName(a.n), T=v=>esc(v), heli=$('cCat').value==='H';
+  const typeRaw=$('cType').value.trim(), csRaw=$('cSign').value.trim();
+  const type=typeRaw?T(typeRaw):'<i>[type]</i>', cs=csRaw?T(csRaw):'<i>[callsign]</i>';
+  const fromBrg=norm(pick.b+180-varE), pt=PTS[Math.round(fromBrg/45)%8];
+  const dist=pick.d<1?'overhead':`${pick.d<10?pick.d.toFixed(0):Math.round(pick.d)} miles ${pt}`;
+  const lvl=sayLevel(st.alt), rwy='runway <i>[XX]</i>';
+  const X=a.x||[], twrs=X.filter(x=>x[0]==='TWR'), gnd=X.find(x=>x[0]==='GND'), towered=twrs.length>0;
+  const ts=towered?twrStatus(a):null, K=a.keys||{};
+  let mode=$('cMode').value; if(mode==='auto') mode = towered && (ts? ts.on : !a.c) ? 'twr' : 'ctaf';
+  if(!towered && mode==='twr') mode='ctaf';
+  const CI=ctafInfo(a);
+  let calls=[], modeTxt='', note='';
+  if(mode==='twr'){
+    const tw=titleCase(twrs[0][1]||loc+' Tower'), gn=gnd?titleCase(gnd[1]):null;
+    const tf=[...new Set(twrs.map(t=>t[2]))].join(' / ');
+    const atisL = a.a?`<i>[ATIS letter]</i>`:'';
+    const rp = K.rpts? `over <i>[${T(K.rpts)}]</i>` : dist;
+    const ft=x=>x.replace(/\s*FT.*$/i,'')+' feet';
+    const inAlt = heli&&K.hel ? ft(K.hel) : K.entry ? ft(K.entry) : lvl;
+    $('callsAt').textContent=tw+' · '+tf;
+    modeTxt=`<b>Tower procedures (Class D)</b> · ${tw} ${tf}${gn?` · ${gn} ${gnd[2]}`:''}${a.a?` · ATIS ${a.a[0]}`:''}<br>`+
+      (ts? `ERSA tower hours today ${ts.today||'none'} local${ts.hds?' (daylight saving)':''}: <b>${ts.on?'tower likely active':'tower likely closed'}</b>. Public holidays and NOTAMs not included; confirm on the ATIS.` : 'Tower hours not parsed: confirm on the ATIS.');
+    if(a.a) calls.push(['Before first contact',`Listen to ATIS ${a.a[0]} and note the information letter${heli?'. Nominate your landing site or aiming point on first contact if ERSA requires it':''}.`]);
+    if(gn) calls.push(['Taxi · '+gn+' '+gnd[2],`${T(gn)}, ${cs}, ${type}, <i>[position on aerodrome]</i>, received ${atisL||'<i>[ATIS]</i>'}, request taxi ${heli?'<i>[for aiming point / HLS]</i> ':''}for <i>[circuits / VFR departure to the …]</i>.`]);
+    calls.push(['Ready · '+tw+' '+tf,`${T(tw)}, ${cs}, ready ${heli?'<i>[aiming point / HLS]</i>':rwy}, <i>[circuits / departing to the … at … feet]</i>.`]);
+    calls.push(['Inbound · before entering the CTR',`${T(tw)}, ${cs}, ${type}, ${rp}, ${inAlt}, received ${atisL||'<i>[ATIS]</i>'}, inbound${heli?' for <i>[HLS / aiming point]</i>':' for landing'}.`]);
+    if(/report turning downwind/i.test(JSON.stringify(a.proc||{}))) calls.push(['Turning downwind (ERSA requires)',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
+    else calls.push(['Circuit',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
+    calls.push(['Leaving the CTR',`Follow ATC instructions. ${a.fia?`For class G, ERSA lists ${T(titleCase(a.fia[0][0]))} ${a.fia[0][1]}.`:''}`]);
+    note='Controlled aerodrome calls (AIP ENR 1.1). Read back clearances, runway and QNH. Words in brackets are yours to fill.';
+  } else {
+    const id=`${T(loc)} traffic, ${type} ${cs}`, end=`, ${T(loc)}`;
+    $('callsAt').textContent=loc+' traffic · '+(CI.f||'—');
+    modeTxt=`<b>CTAF procedures</b> · ${CI.f||'—'} ${chip(CI.src)}${towered?(ts?` · ERSA tower hours today ${ts.today||'none'} local: <b>${ts.on?'tower likely active':'tower likely closed'}</b>`:''):''}`;
+    calls=[
+      ['Inbound · by 10 NM',`${id}, ${dist}, ${lvl}, inbound, estimate circuit <i>[time]</i>, <i>[joining intentions]</i>${end}.`],
+      ['Overflying',`${id}, ${dist}, ${lvl}, overflying, <i>[tracking to …]</i>${end}.`],
+      ['Joining circuit',`${id}, joining <i>[crosswind / downwind / base]</i> ${heli?'<i>[or helicopter arrival per ERSA]</i>':rwy}${end}.`],
+      ['Straight-in · 3 NM final',`${id}, 3 mile final, straight in ${rwy}${end}.`],
+      ['Taxiing',`${id}, taxiing for ${heli?'<i>[departure point]</i>':rwy} for <i>[departure / circuits]</i>${end}.`],
+      ['Entering runway',`${id}, ${heli?'lifting from <i>[location]</i>':'lining up '+rwy} for <i>[departure direction / circuits]</i>${end}.`],
+      ['Departing',`${id}, departed ${heli?'<i>[location]</i>':rwy}, climbing to <i>[level]</i>, tracking <i>[direction]</i>${end}.`],
+    ];
+    note='Non-controlled aerodrome calls (AIP ENR 1.1). Inbound call by 10 NM; position and level are filled in from GPS. Start and end each call with the location name. Words in brackets are yours to fill.';
+  }
+  const keys=[mode==='twr'&&K.entry&&`CTR entry ${K.entry}`, K.cct&&`Circuit ${K.cct}`, heli&&K.hel&&`Helicopters ${K.hel}`, mode==='twr'&&K.rpts&&`Report at ${K.rpts}`].filter(Boolean);
+  $('callsMode').innerHTML=modeTxt+(keys.length?`<div class="keys" style="padding:8px 0 0">${keys.map(k=>`<span>${T(k)}</span>`).join('')} ${chip('ERSA')}</div>`:'');
+  $('callsList').innerHTML=calls.map(c=>`<div class="call"><div class="when">${c[0]}</div><div class="say">${c[1]}</div></div>`).join('');
+  $('callsNote').textContent=note+(a.proc?' Aerodrome-specific requirements are in ERSA local procedures below.':'');
+  const pb=$('ersaProc'); pb.hidden=!(a.proc||a.cnotes);
+  if(!pb.hidden && pb.dataset.k!==a.i+heli){ $('ersaProcBody').innerHTML=ersaProcHtml(a,heli); pb.dataset.k=a.i+heli; }
+}
+$('cType').value=ls.get('cType',''); $('cSign').value=ls.get('cSign','');
+$('calls').open=ls.get('callsOpen',false);
+$('calls').addEventListener('toggle',()=>ls.set('callsOpen',$('calls').open));
+for(const id of ['cType','cSign']) $(id).addEventListener('input',()=>{ ls.set(id,$(id).value); render(); });
+$('cCat').value=ls.get('cCat','A'); $('cMode').value=ls.get('cMode','auto');
+for(const id of ['cCat','cMode']) $(id).addEventListener('change',()=>{ ls.set(id,$(id).value); render(); });
+
+/* ---------- simulation ---------- */
+function parsePos(t){
+  t=t.trim().toUpperCase();
+  if(/^[A-Z][A-Z0-9]{3}$/.test(t)){ const a=DATA.ap.find(x=>x.i===t); if(a) return [a.la,a.lo,a]; throw new Error(t+' is not in the aerodrome list.'); }
+  // DMS / DM / decimal with hemisphere letters, e.g. 38 02 22S 144 28 10E, 3802.4S 14428.2E, 38°02'22"S
+  const hemi=t.match(/([0-9.\s°'"’″:]+)\s*([NS])[\s,;\/]*([0-9.\s°'"’″:]+)\s*([EW])/);
+  const conv=(str)=>{ const p=str.replace(/[°'"’″:]/g,' ').trim().split(/\s+/).map(Number);
+    if(p.length===1){ const v=p[0]; if(v>=1000){ // DDMM.m or DDDMM.m packed
+        const d=Math.floor(v/100); return d+(v-d*100)/60; } return v; }
+    return p[0]+(p[1]||0)/60+(p[2]||0)/3600; };
+  if(hemi){ let la=conv(hemi[1]), lo=conv(hemi[3]); if(hemi[2]==='S') la=-la; if(hemi[4]==='W') lo=-lo; return [la,lo]; }
+  const n=t.match(/-?\d+(\.\d+)?/g);
+  if(n&&n.length===2){ let la=+n[0], lo=+n[1]; if(la>0 && lo>100) la=-la; // forgot the minus: assume southern hemisphere
+    return [la,lo]; }
+  throw new Error('Could not read that position. Try "-38.04, 144.47", "38 02 22S 144 28 10E" or an ICAO code.');
+}
+function simApply(){
+  $('simErr').hidden=true;
+  let la,lo;
+  try{ [la,lo]=parsePos($('simPos').value); }catch(e){ $('simErr').textContent=e.message; $('simErr').hidden=false; return false; }
+  if(!(la>=-60&&la<=0&&lo>=90&&lo<=180)){ $('simErr').textContent='That position is outside the Australian region this app covers.'; $('simErr').hidden=false; return false; }
+  const alt=parseFloat($('simAlt').value), trkM=parseFloat($('simTrk').value), gs=parseFloat($('simGs').value);
+  st.pos=[la,lo]; st.acc=0; st.alt=isNaN(alt)?null:alt; st.gs=isNaN(gs)?0:gs;
+  st.trk=isNaN(trkM)?null:norm(trkM+variation(la,lo));
+  if(st.trk!=null && !(st.gs>5)) st.gs=Math.max(st.gs,0); // track shown via heading fallback below
+  st.simHdg = st.trk; // used when GS is low
+  ls.set('sim',{p:$('simPos').value,a:$('simAlt').value,t:$('simTrk').value,g:$('simGs').value});
+  simStatus(); render(); return true;
+}
+function simStatus(){
+  $('gpsDot').className='dot warn'; $('sAcc').textContent='SIM';
+  $('sGs').textContent=st.gs!=null?Math.round(st.gs):'—';
+  $('sAlt').textContent=st.alt!=null?Math.round(st.alt):'—';
+}
+let flyTimer=null, flyLast=0;
+function flyStep(){
+  const now=performance.now(), dt=(now-flyLast)/3600000; flyLast=now; // hours
+  if(st.trk==null||!st.gs) return;
+  const d=st.gs*dt/60*R, b=st.trk*R, p1=st.pos[0]*R, l1=st.pos[1]*R; // d in radians of arc (NM/60 deg)
+  const p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(b));
+  const l2=l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(p1),Math.cos(d)-Math.sin(p1)*Math.sin(p2));
+  st.pos=[p2/R,l2/R];
+  $('simPos').value=st.pos[0].toFixed(5)+', '+st.pos[1].toFixed(5);
+  render();
+}
+function setFly(on){
+  clearInterval(flyTimer); flyTimer=null; $('simFly').setAttribute('aria-pressed',on);
+  if(on){ if(!simApply()){ $('simFly').setAttribute('aria-pressed',false); return; }
+    if(st.trk==null||!st.gs){ $('simErr').textContent='Set a track and a ground speed to fly.'; $('simErr').hidden=false; $('simFly').setAttribute('aria-pressed',false); return; }
+    flyLast=performance.now(); flyTimer=setInterval(flyStep,1000); }
+}
+function setSim(on){
+  st.sim=on; $('simBox').hidden=!on; $('bSim').setAttribute('aria-pressed',on); ls.set('simOn',on);
+  if(on){ $('startBox').hidden=true; const s=ls.get('sim',null);
+    if(s){ $('simPos').value=s.p; $('simAlt').value=s.a; $('simTrk').value=s.t; $('simGs').value=s.g; }
+    if(!$('simPos').value) $('simPos').value='YMAV';
+    simApply(); }
+  else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null;
+    $('sAcc').textContent='—'; $('gpsDot').className='dot'; $('sGs').textContent='—'; $('sAlt').textContent='—';
+    $('adId').textContent='----'; $('adName').textContent='Waiting for position'; $('stack').innerHTML=''; $('list').innerHTML='';
+    if(!watching) $('startBox').hidden=false; }
+}
+$('bSim').onclick=()=>setSim(!st.sim);
+$('simOff').onclick=()=>setSim(false);
+$('simGo').onclick=()=>{ setFly(false); simApply(); };
+$('simFly').onclick=()=>setFly($('simFly').getAttribute('aria-pressed')!=='true');
+for(const id of ['simPos','simAlt','simTrk','simGs']) $(id).addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); simApply(); } });
+
+function setFoot(){ $('foot').innerHTML=`<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). Data built ${DATA.built}.`; }
+setFoot();
+(function(){ // effective-date check
+  const eff=META.ersa||META.dah; if(!eff) return;
+  const d=new Date(eff+' 00:00 UTC'); if(isNaN(d)) return;
+  const now=new Date();
+  if(now<d){ const b=$('effBanner'); b.hidden=false;
+    b.innerHTML=`<b>AIP data effective ${eff}.</b> Until then the current ERSA and DAH apply, and some frequencies or steps here may not be in force yet.`; }
+  else if((now-d)/864e5>56){ const b=$('effBanner'); b.hidden=false;
+    b.innerHTML=`<b>AIP data from ${eff} may be out of date.</b> Rebuild with the current ERSA and DAH.`; }
+})();
+syncBtns();
+if(ls.get('started',false) && navigator.permissions){
+  navigator.permissions.query({name:'geolocation'}).then(r=>{ if(r.state==='granted') start(); }).catch(()=>{});
+}
+(function(){ // ?sim=-38.04,144.47&alt=1500&trk=270&gs=90   or ?sim=YMAV
+  const q=new URLSearchParams(location.search);
+  if(q.has('sim')){ ls.set('sim',{p:q.get('sim'),a:q.get('alt')||'1500',t:q.get('trk')||'',g:q.get('gs')||'0'}); setSim(true); }
+  else if(ls.get('simOn',false)) setSim(true);
+})();
+terInit();
+if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
