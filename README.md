@@ -111,7 +111,16 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - **ERSA local procedures:** the full text from ERSA (communications notes, local traffic regulations, flight procedures). With Helicopter selected, helicopter items are highlighted.
 
 ## Install on your phone
-Open https://meee1.github.io/airspace_assist/app/ on your phone, tap Start, then Add to Home Screen. After the first load it works offline. It's served by GitHub Pages from this repo's [`app/`](app/) folder. GPS needs HTTPS, so any other static HTTPS host works too.
+Open https://meee1.github.io/airspace_assist/app/ on your phone, tap Start, then Add to Home Screen.
+
+**Offline:** after one load with signal, everything runs without a connection:
+- **What's stored:** the app with all ERSA/DAH data built in, and all the SRTM terrain tiles (about 650 KB). The terrain is stored straight away, not only for places you've visited.
+- **Needs nothing online:** GPS, compass, the map, the elevation profile and flight plans.
+- **Check:** the footer says "Offline: app and AIP data stored, terrain 42/42 tiles — ready to fly without signal" once it's ready.
+- **Updates:** they land the next time you open the app with signal. The app waits up to 3 seconds for the network, then starts from the stored copy, so a weak signal in flight doesn't hold it up.
+- **Not stored:** there are no NOTAMs or live weather, and there never were. Fonts fall back to the phone's own until they've been cached once.
+- **Terrain area:** the tiles currently cover 36–42°S, 140–148°E. Run `fetch_srtm.bat` with a bigger area for more.
+- **iPhone:** use the Home Screen app rather than a Safari tab. Safari can clear a website's stored data after a few weeks without visits. It's served by GitHub Pages from this repo's [`app/`](app/) folder. GPS needs HTTPS, so any other static HTTPS host works too.
 
 ## Refresh data each AIRAC
 1. From the Airservices AIP page, download the current **complete ERSA** PDF and the **DAH** PDF into `data/aip/`.

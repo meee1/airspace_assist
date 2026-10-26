@@ -1514,7 +1514,7 @@ $('simGo').onclick=()=>{ setFly(false); simApply(); };
 $('simFly').onclick=()=>setFly($('simFly').getAttribute('aria-pressed')!=='true');
 for(const id of ['simPos','simAlt','simTrk','simGs']) $(id).addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); simApply(); } });
 
-function setFoot(){ $('foot').innerHTML=`<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). Data built ${DATA.built}.`; }
+function setFoot(){ $('foot').innerHTML=`<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). Data built ${DATA.built}.<span id="offl"></span>`; offlineStatus(); }
 setFoot();
 (function(){ // effective-date check
   const eff=META.ersa||META.dah; if(!eff) return;
@@ -1536,7 +1536,16 @@ if(ls.get('started',false) && navigator.permissions){
   else if(ls.get('simOn',false)) setSim(true);
 })();
 terInit();
-if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')){
+  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{ if(r.active) r.active.postMessage('precache'); setTimeout(offlineStatus,4000); }).catch(()=>{}); }
+// footer: is everything needed offline stored on this device?
+async function offlineStatus(){
+  const el=$('offl'); if(!el) return;
+  if(!('serviceWorker' in navigator)||!navigator.serviceWorker.controller||!window.caches){ el.innerHTML=' <b>Offline:</b> not set up yet (open once online over https).'; return; }
+  try{ const app=(await caches.keys()).some(k=>/^radio-au-[0-9a-f]{10}$/.test(k));
+    const tc=await caches.open('radio-au-terrain'), n=(await tc.keys()).filter(k=>/\.bin\.z$/.test(k.url)).length, want=TER.have.size;
+    el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${app&&(!TER.ok||n>=want)?' — ready to fly without signal.':'.'}`;
+  }catch(e){ el.textContent=''; } }
 </script>
 </body>
 </html>
