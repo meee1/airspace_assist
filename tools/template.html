@@ -137,6 +137,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .calls select{font:500 15px/1.2 var(--f-body);padding:8px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);width:100%;min-width:0}
 .calls-mode{padding:4px 14px 8px;font-size:13px;color:var(--dim)}
 .calls-mode b{color:var(--ink)}
+.ev{font-size:12px;color:var(--dim);font-style:italic}
 .keys{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px}
 .keys span{font:500 12px/1.2 var(--f-mono);background:var(--chip);border-radius:5px;padding:4px 7px}
 .ersa-proc{border-top:1px solid var(--rule)}
@@ -627,7 +628,10 @@ function render(){
   if(a.x){ const seen=new Set();
     for(const x of a.x.filter(x=>['TWR','GND','SMC','DEL','APP','DEP','UNICOM'].includes(x[0]))){
       const key=x[0]+x[2]; if(seen.has(key)) continue; seen.add(key);
-      html+=freqRow(x[0]==='SMC'?'GND':x[0],x[2],`${esc(x[1]?titleCase(x[1]):a.i+' '+x[0].toLowerCase())}${x[3]&&!/^\(\d/.test(x[3])?' · '+esc(x[3]):''} ${chip(SRC[a.xS])}`);
+      const nm=esc(x[1]?titleCase(x[1]):a.i+' '+x[0].toLowerCase())+(x[4]?' <em>'+x[4]+'</em>':'');
+      const ev=x[5]?`<br><span class="ev">ERSA: “${esc(x[5].split(' / ')[0])}”</span>`:'';
+      const multi=x[0]==='TWR' && !x[4] && a.x.filter(y=>y[0]==='TWR').length>1 ? '<br><span class="ev">ERSA lists more than one tower frequency: the ATIS says which to use</span>':'';
+      html+=freqRow(x[0]==='SMC'?'GND':(x[4]?'TWR '+x[4][0]:x[0]),x[2],`${nm}${x[3]&&!/^\(\d/.test(x[3])?' · '+esc(x[3]):''} ${chip(SRC[a.xS])}${ev}${multi}`);
     } }
   if(a.fia){ for(const f of a.fia) html+=freqRow('AREA',f[1],`<em>${esc(titleCase(f[0]))}</em>${f[2]?' · '+esc(f[2].toLowerCase()):''} at ${a.i} ${chip('ERSA')}`); }
 
@@ -823,23 +827,30 @@ function renderCalls(a,pick,varE){
   const CI=ctafInfo(a);
   let calls=[], modeTxt='', note='';
   if(mode==='twr'){
-    const tw=titleCase(twrs[0][1]||loc+' Tower'), gn=gnd?titleCase(gnd[1]):null;
-    const tf=[...new Set(twrs.map(t=>t[2]))].join(' / ');
+    const gn=gnd?titleCase(gnd[1]):null;
+    // East/West tower split (from ERSA text): suggest the side you are on
+    const sideNow = norm(pick.b+180)<180 ? 'East' : 'West';
+    const twSide = twrs.find(t=>t[4]===sideNow) || twrs[0];
+    const tw=titleCase(twSide[1]||loc+' Tower');
+    const tf=twSide[2];
+    const twAll=twrs.map(t=>`${titleCase(t[1])}${t[4]?' '+t[4]:''} ${t[2]}`).join(' · ');
+    const sideNote = twrs.some(t=>t[4]) ? ` You are ${sideNow.toLowerCase()} of the aerodrome, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
     const atisL = a.a?`<i>[ATIS letter]</i>`:'';
     const rp = K.rpts? `over <i>[${T(K.rpts)}]</i>` : dist;
     const ft=x=>x.replace(/\s*FT.*$/i,'')+' feet';
     const inAlt = heli&&K.hel ? ft(K.hel) : K.entry ? ft(K.entry) : lvl;
     $('callsAt').textContent=tw+' · '+tf;
-    modeTxt=`<b>Tower procedures (Class D)</b> · ${tw} ${tf}${gn?` · ${gn} ${gnd[2]}`:''}${a.a?` · ATIS ${a.a[0]}`:''}<br>`+
+    modeTxt=`<b>Tower procedures (Class D)</b> · ${twAll}${gn?` · ${gn} ${gnd[2]}`:''}${a.a?` · ATIS ${a.a[0]}`:''}<br>`+
       (ts? `ERSA tower hours today ${ts.today||'none'} local${ts.hds?' (daylight saving)':''}: <b>${ts.on?'tower likely active':'tower likely closed'}</b>. Public holidays and NOTAMs not included; confirm on the ATIS.` : 'Tower hours not parsed: confirm on the ATIS.');
     if(a.a) calls.push(['Before first contact',`Listen to ATIS ${a.a[0]} and note the information letter${heli?'. Nominate your landing site or aiming point on first contact if ERSA requires it':''}.`]);
     if(gn) calls.push(['Taxi · '+gn+' '+gnd[2],`${T(gn)}, ${cs}, ${type}, <i>[position on aerodrome]</i>, received ${atisL||'<i>[ATIS]</i>'}, request taxi ${heli?'<i>[for aiming point / HLS]</i> ':''}for <i>[circuits / VFR departure to the …]</i>.`]);
-    calls.push(['Ready · '+tw+' '+tf,`${T(tw)}, ${cs}, ready ${heli?'<i>[aiming point / HLS]</i>':rwy}, <i>[circuits / departing to the … at … feet]</i>.`]);
-    calls.push(['Inbound · before entering the CTR',`${T(tw)}, ${cs}, ${type}, ${rp}, ${inAlt}, received ${atisL||'<i>[ATIS]</i>'}, inbound${heli?' for <i>[HLS / aiming point]</i>':' for landing'}.`]);
+    const twOf=side=>{ const t=twrs.find(t=>t[4]===side)||twSide; return [titleCase(t[1]), t[2], t[4]||'']; };
+    calls.push(['Ready · '+(twrs.some(t=>t[4])? twrs.map(t=>(t[4]||'')+' '+t[2]).join(' / ')+' by departure direction' : tw+' '+tf),`${T(tw)}, ${cs}, ready ${heli?'<i>[aiming point / HLS]</i>':rwy}, <i>[circuits / departing to the … at … feet]</i>.`]);
+    calls.push(['Inbound · '+tw+(twSide[4]?' '+twSide[4]:'')+' '+tf+' · before entering the CTR',`${T(tw)}, ${cs}, ${type}, ${rp}, ${inAlt}, received ${atisL||'<i>[ATIS]</i>'}, inbound${heli?' for <i>[HLS / aiming point]</i>':' for landing'}.`]);
     if(/report turning downwind/i.test(JSON.stringify(a.proc||{}))) calls.push(['Turning downwind (ERSA requires)',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
     else calls.push(['Circuit',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
     calls.push(['Leaving the CTR',`Follow ATC instructions. ${a.fia?`For class G, ERSA lists ${T(titleCase(a.fia[0][0]))} ${a.fia[0][1]}.`:''}`]);
-    note='Controlled aerodrome calls (AIP ENR 1.1). Read back clearances, runway and QNH. Words in brackets are yours to fill.';
+    note='Controlled aerodrome calls (AIP ENR 1.1). Read back clearances, runway and QNH. Words in brackets are yours to fill.'+sideNote;
   } else {
     const id=`${T(loc)} traffic, ${type} ${cs}`, end=`, ${T(loc)}`;
     $('callsAt').textContent=loc+' traffic · '+(CI.f||'—');

@@ -1,5 +1,7 @@
 # Radio Calls AU
 
+**Open the app: https://meee1.github.io/airspace_assist/app/** (source: [`app/`](app/))
+
 Phone web app: closest aerodrome, CTAF with a radio call guide, ATIS/AWIS, the area frequency for your position and altitude, and a small airspace map showing classes and CTA steps.
 
 ## Simulate locally (any lat/lng)
@@ -53,11 +55,12 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
   - When it's open, you get Class D calls: ATIS, taxi call to Ground, ready call, an inbound call naming the ERSA reporting points (e.g. CARR, BAW, BTO, ACE, SHOL or GMH at Moorabbin) at the CTR entry altitude, and the downwind report where ERSA requires it.
   - Outside tower hours it switches to CTAF calls.
   - Public holidays and NOTAM changes aren't included, so confirm on the ATIS. You can force Tower or CTAF.
+- **Split tower frequencies:** where ERSA's procedure text ties a tower frequency to a side, the frequency is labelled with it. At Moorabbin, 118.1 is East because "DEP to the E call 118.1" and "ARR from E must call 118.1". 123.0 is West because "DEP to the W call 123.0" and "report at CARR on 123.0 … western circuit". The quoted ERSA text is shown under each frequency, and the inbound call suggests the side you're on. The ERSA COMM line and the VTC only say "TWR 118.1 / 123.0", so the ATIS has the final word.
 - **Key values** from ERSA are shown as chips: CTR entry altitude, circuit altitude, helicopter altitude, reporting points.
 - **ERSA local procedures:** the full text from ERSA (communications notes, local traffic regulations, flight procedures). With Helicopter selected, helicopter items are highlighted.
 
 ## Install on your phone
-GPS needs HTTPS. Host the `app/` folder on any static HTTPS host, such as GitHub Pages or https://app.netlify.com/drop. Open it, tap Start, then Add to Home Screen. After the first load it works offline.
+Open https://meee1.github.io/airspace_assist/app/ on your phone, tap Start, then Add to Home Screen. After the first load it works offline. It's served by GitHub Pages from this repo's [`app/`](app/) folder. GPS needs HTTPS, so any other static HTTPS host works too.
 
 ## Refresh data each AIRAC
 1. From the Airservices AIP page, download the current **complete ERSA** PDF and the **DAH** PDF into `data/aip/`.

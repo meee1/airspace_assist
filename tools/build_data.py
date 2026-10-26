@@ -233,6 +233,20 @@ if ARGS.ersa:
         for key, T in (('twr', 'TWR'), ('smc', 'GND'), ('acd', 'DEL'), ('app', 'APP'), ('dep', 'DEP'), ('unicom', 'UNICOM')):
             for svc, f, note in r.get(key, []):
                 x.append([T, svc, f, note])
+        # label multiple tower frequencies East/West from the ERSA procedure text (e.g. YMMB 118.1 / 123.0)
+        tw = [e for e in x if e[0] == 'TWR']
+        if len(tw) > 1 and r.get('proc'):
+            txt = ' '.join(' '.join(v) for v in r['proc'].values())
+            for e in tw:
+                F = re.escape(e[2]) + r'(?![\d])'
+                hits = []
+                for m in re.finditer(r'[^.;]*?\b(?:to|from) (?:the )?(E|W|EAST|WEST)\b[^.;]{0,25}?\b(?:call|on|contact)\s+' + F + r'[^.;]*', txt):
+                    hits.append(('East' if m.group(1)[0] == 'E' else 'West', m.group(0).strip()))
+                for m in re.finditer(r'[^.;]*?' + F + r'[^.;]{0,90}\b(eastern|western) circuit[^.;]*', txt, re.I):
+                    hits.append(('East' if m.group(1).lower() == 'eastern' else 'West', m.group(0).strip()))
+                sides = {h[0] for h in hits}
+                if len(sides) == 1:
+                    e += [hits[0][0], ' / '.join(dict.fromkeys(h[1][:150] for h in hits))]
         if x: ap['x'] = x; ap['xS'] = 'E'
         elif ap.get('xS') == 'O': ap.pop('x'); ap.pop('xS')
         if r.get('fia'): ap['fia'] = r['fia']
