@@ -591,6 +591,12 @@ function parseGPX(xml){
   return {name: nm || pts[0].n+' – '+pts[pts.length-1].n, kind, pts, i: pts.length>1?1:0};
 }
 function fpSet(fp){ FP=fp; ls.set('fp',FP); if(FP) fpGo(); render(); }
+function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto-advance undo it
+  if(!FP) return; FP.i=Math.max(0,Math.min(FP.pts.length-1,i));
+  const p=FP.pts[FP.i], d=st.pos&&p? distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0] : null;
+  FP.man={i:FP.i, armed: d==null||d>=0.5};   // if you're already on it, wait until you've moved 1 NM away
+  ls.set('fp',FP); fpGo(); render();
+}
 function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGo({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
 function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-track remaining
   const [d13,b13]=distBrg(a.la,a.lo,la,lo), [,b12]=distBrg(a.la,a.lo,b.la,b.lo);
@@ -599,10 +605,13 @@ function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-trac
 function fpAdvance(){
   if(!FP||!st.pos) return; const p=FP.pts[FP.i]; if(!p) return;
   const d=distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0];
+  const man=FP.man&&FP.man.i===FP.i? FP.man : null;
+  if(man && !man.armed){ if(d>1){ man.armed=true; ls.set('fp',FP); } return; }
   let passed=false;
-  if(FP.i>0){ const a=FP.pts[FP.i-1], [dab]=distBrg(a.la,a.lo,p.la,p.lo), [dap]=distBrg(a.la,a.lo,st.pos[0],st.pos[1]);
+  // 'passed it' only applies to the normal sequence, not a waypoint you chose by hand
+  if(FP.i>0 && !man){ const a=FP.pts[FP.i-1], [dab]=distBrg(a.la,a.lo,p.la,p.lo), [dap]=distBrg(a.la,a.lo,st.pos[0],st.pos[1]);
     const xt=Math.abs(xte(st.pos[0],st.pos[1],a,p)); const along=Math.sqrt(Math.max(0,dap*dap-xt*xt)); passed = along>dab && d<3; }
-  if((d<0.5||passed) && FP.i<FP.pts.length-1){ FP.i++; ls.set('fp',FP); fpGo(); }
+  if((d<0.5||passed) && FP.i<FP.pts.length-1){ FP.i++; FP.man=null; ls.set('fp',FP); fpGo(); }
 }
 function renderFP(h,varE){
   $('fpBody').hidden=!FP||$('fpToggle').getAttribute('aria-expanded')==='false'; $('fpImport').textContent=FP?'New GPX':'Import GPX';
@@ -1134,11 +1143,11 @@ $('fpFile').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!
   e.target.value=''; });
 $('fpToggle').onclick=()=>{ const open=$('fpToggle').getAttribute('aria-expanded')!=='true'; $('fpToggle').setAttribute('aria-expanded',open); ls.set('fpOpen',open); render(); };
 $('fpToggle').setAttribute('aria-expanded',ls.get('fpOpen',true));
-$('fpPrev').onclick=()=>{ if(FP&&FP.i>0){ FP.i--; ls.set('fp',FP); fpGo(); render(); } };
-$('fpSkip').onclick=()=>{ if(FP&&FP.i<FP.pts.length-1){ FP.i++; ls.set('fp',FP); fpGo(); render(); } };
-$('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); FP.i=Math.min(1,FP.pts.length-1); ls.set('fp',FP); fpGo(); render(); };
+$('fpPrev').onclick=()=>{ if(FP&&FP.i>0) fpPick(FP.i-1); };
+$('fpSkip').onclick=()=>{ if(FP&&FP.i<FP.pts.length-1) fpPick(FP.i+1); };
+$('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); fpPick(Math.min(1,FP.pts.length-1)); };
 $('fpClear').onclick=()=>{ fpSet(null); setGo(null); };
-$('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; FP.i=+li.dataset.k; ls.set('fp',FP); fpGo(); render(); });
+$('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; fpPick(+li.dataset.k); });
 // tap the map to pick a waypoint, navaid or aerodrome as go-to
 $('map').addEventListener('click',e=>{ const r=$('map').getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
   let best=null,bd=22; for(const it of (MAP.hits||[])){ const d=Math.hypot(it.x-x,it.y-y); if(d<bd){bd=d;best=it.p;} }
@@ -1199,8 +1208,12 @@ function renderCalls(a,pick,varE){
   const typeRaw=$('cType').value.trim(), csRaw=$('cSign').value.trim();
   const type=typeRaw?T(typeRaw):'<i>[type]</i>', cs=csRaw?T(csRaw):'<i>[callsign]</i>';
   const fromBrg=norm(pick.b+180-varE), pt=PTS[Math.round(fromBrg/45)%8];
-  let dist=pick.d<1?'overhead':`${pick.d<10?pick.d.toFixed(0):Math.round(pick.d)} miles ${pt}`;
-  const nv=nearestVFR(st.pos[0],st.pos[1],1.5); if(nv && pick.d>=1) dist=`over ${esc(titleCase(nv.p.n))}, ${dist}`;
+  // position from the aerodrome: "<n> mile(s) <direction>". When you're at or over the field there's no real
+  // inbound position, so show a placeholder at the 10 NM call point instead of "overhead".
+  const nmi=Math.max(1,Math.round(pick.d)), atField=pick.d<0.75;
+  let dist= atField ? '<i>[10 miles north]</i>' : `${nmi} mile${nmi===1?'':'s'} ${pt}`;
+  const nv=nearestVFR(st.pos[0],st.pos[1],1.5); if(nv && !atField) dist=`over ${esc(titleCase(nv.p.n))}, ${dist}`;
+  const ovr = atField ? 'overhead' : dist;   // "overhead" is right for an overflying call over the field
   const sel=$('cRwy'), opts=(a.rw||[]).flatMap(r=>[r[0],r[1]]);
   if(sel.dataset.ad!==a.i){ sel.dataset.ad=a.i; sel.innerHTML='<option value="">[XX]</option>'+opts.map(o=>`<option value="${o}">${o}${(a.cct||{})[o]&&a.cct[o][0]==='R'?' (RH)':''}</option>`).join(''); }
   const rv=sel.value, rhTxt=rv&&(a.cct||{})[rv]&&a.cct[rv][0]==='R'?' right-hand':'';
@@ -1244,14 +1257,14 @@ function renderCalls(a,pick,varE){
     modeTxt=`<b>CTAF procedures</b> · ${CI.f||'—'} ${chip(CI.src)}${towered?(ts?` · ERSA tower hours today ${ts.today||'none'} local: <b>${ts.on?'tower likely active':'tower likely closed'}</b>`:''):''}`;
     calls=[
       ['Inbound · by 10 NM',`${id}, ${dist}, ${lvl}, inbound, estimate circuit <i>[time]</i>, <i>[joining intentions]</i>${end}.`],
-      ['Overflying',`${id}, ${dist}, ${lvl}, overflying, <i>[tracking to …]</i>${end}.`],
+      ['Overflying',`${id}, ${ovr}, ${lvl}, overflying, <i>[tracking to …]</i>${end}.`],
       ['Joining circuit',`${id}, joining <i>[crosswind / downwind / base]</i> ${heli?'<i>[or helicopter arrival per ERSA]</i>':rwy}${end}.`],
       ['Straight-in · 3 NM final',`${id}, 3 mile final, straight in ${rwy}${end}.`],
       ['Taxiing',`${id}, taxiing for ${heli?'<i>[departure point]</i>':rwy} for <i>[departure / circuits]</i>${end}.`],
       ['Entering runway',`${id}, ${heli?'lifting from <i>[location]</i>':'lining up '+rwy} for <i>[departure direction / circuits]</i>${end}.`],
       ['Departing',`${id}, departed ${heli?'<i>[location]</i>':rwy}, climbing to <i>[level]</i>, tracking <i>[direction]</i>${end}.`],
     ];
-    note='Non-controlled aerodrome calls (AIP ENR 1.1). Inbound call by 10 NM; position and level are filled in from GPS. Start and end each call with the location name. Words in brackets are yours to fill.';
+    note=(atField?'You are at the aerodrome, so the inbound position is a placeholder: make the call by 10 NM with your actual distance and direction. ':'')+'Non-controlled aerodrome calls (AIP ENR 1.1). Inbound call by 10 NM; position and level are filled in from GPS. Start and end each call with the location name. Words in brackets are yours to fill.';
   }
   let rptHtml='';
   if(mode==='twr' && K.rpts){
