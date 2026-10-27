@@ -238,3 +238,9 @@ python3 assemble.py && cp dist/* ../app/
   - **When a rule applies:** the active waypoint is <RP>, or you're within 3 NM of it, or you're within ±45° of that sector from the aerodrome, and the runway picked in Radio calls (`#cRwy`) isn't excluded. The rule's frequency then replaces the bearing-based East/West.
   - **YMMB:** CARR → 123.0 (West) for RWY 17/35, although CARR bears about 172° from YMMB.
   - **Shown:** the tile reads "via CARR (RWY 17/35)" and the calls note quotes ERSA.
+- **SUA details** (`tools/sua.py` → `data.json` `sua` = `{areas:{IDENT:{st,lim,hr,auth,ph,act,grp}}, ra:{RA1,RA2,RA3}}`):
+  - **Source:** parsed from the ERSA SUA section: tables 6 Restricted, 7 Danger and 8 MOA, the 9 contact numbers, and the 3.2 RA legend.
+  - **Parsing by column:** each page's IDENT header gives the columns. Text runs separated by 2+ spaces go to the nearest column. "(n) Authority" always starts the authority. When authority and activity share a run, the activity is taken off the end, matching the longest activity seen elsewhere, else the trailing capitals.
+  - **Check:** 556 areas (03 SEP) and 562 (26 NOV), none incomplete.
+  - **Where it shows:** the long-press menu (`suaHere`) lists every R/Q/P area containing the point, with DAH limits and the ERSA entry.
+- **MOA fix:** `dah.py` mapped M-prefixed areas (military operating areas, ERSA SUA 4.1: a subset of danger areas) to restricted `R`. They're now `Q`. 113 entries were patched in both data files; they had drawn red and could have triggered the NEXT CLASS restricted alert.

@@ -79,7 +79,7 @@ def parse(lines):
                 cls = 'CTR'
             if cls == 'SUA':
                 k = name[:1]
-                cls = {'R': 'R', 'D': 'Q', 'P': 'P'}.get(k, 'R')
+                cls = {'R': 'R', 'D': 'Q', 'P': 'P', 'M': 'Q'}.get(k, 'R')   # M = military operating area, a kind of danger area (ERSA SUA 4.1)
             freq = None
             fm = re.search(r'\s(1\d\d\.\d+)\w*$', name)
             if fm and cls in ('FIA', 'EF', 'BA'):

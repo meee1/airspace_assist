@@ -68,6 +68,12 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Press and hold** anywhere on the map (right-click on a computer) for that point's details, with a crosshair marking it:
   - **Where it is:** the nearest town, locality or suburb ("St Andrews", or "1.6 NM N of Seville East").
   - **Its position:** degrees and decimal minutes plus decimal lat/lon, its distance and bearing from you, and the terrain height there.
+  - **Special use airspace there:** every prohibited, restricted, danger and military operating area over the point, at all levels, from the ERSA SUA list:
+    - its limits (from the DAH) and hours, with HJ, H24 and NOTAM explained
+    - the activity, e.g. Parachuting or Military Flying
+    - the controlling authority or contact, with a tap-to-call phone number
+    - for restricted areas, the RA1/RA2/RA3 conditional status and what ERSA says it means
+    - for example, R330A Point Cook: RA3, NOTAM, Point Cook AD OPR 03 8348 6888
   - **What you can do:** **Go to this point**, **Go to** the nearest aerodrome, VFR waypoint or navaid within 2 NM, or **Copy lat/lon**.
   - **Closing it:** tap elsewhere, drag the map or tap ✕.
 

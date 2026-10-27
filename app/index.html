@@ -193,6 +193,12 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapmenu{position:absolute;left:8px;right:8px;bottom:8px;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13px}
 .mapmenu .mm-head{display:flex;align-items:center;gap:8px}.mapmenu .mm-head b{flex:1;font-size:15px}
 .mapmenu .mm-head .btn{padding:4px 9px}
+.mapmenu{max-height:calc(100% - 16px);overflow:auto}
+.mapmenu .mm-sua:empty{display:none}
+.mapmenu .sua{margin-top:8px;padding:7px 9px;border-radius:8px;border-left:4px solid var(--as-q);background:color-mix(in srgb,var(--as-q) 8%,var(--panel));font-size:12.5px;line-height:1.35}
+.mapmenu .sua.r{border-left-color:var(--as-r);background:color-mix(in srgb,var(--as-r) 9%,var(--panel))}
+.mapmenu .sua b.id{font:700 13px/1.2 var(--f-mono)} .mapmenu .sua .ra{color:var(--dim);font-size:11.5px;margin-top:3px}
+.mapmenu .sua a{color:inherit}
 .mapmenu .mm-sub{color:var(--dim);margin-top:2px}.mapmenu .mm-ll{margin-top:4px;font-size:12px}
 .mapmenu .mm-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mapmenu .mm-btns .btn{font-size:12px;padding:8px 10px}
 .mapsec .mapwrap{border-top:0} .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
@@ -317,6 +323,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="mm-head"><b id="mmName"></b><button class="btn" id="mmClose" aria-label="Close">✕</button></div>
         <div class="mm-sub" id="mmSub"></div>
         <div class="mm-ll mono" id="mmLL"></div>
+        <div class="mm-sua" id="mmSua"></div>
         <div class="mm-btns" id="mmBtns"></div>
       </div>
       </div>
@@ -461,7 +468,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 <script>
 // Loader: pick the AIP dataset in force now, fetch it and the urban areas, then start the app (all cached for offline).
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{});
-window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [1795622400000, "data-next.json?v=002bd2afa1", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
+window.__SETS=[[1788364800000, "data.json?v=6f4a0562c3", "03 SEP 2026"], [1795622400000, "data-next.json?v=a3c5ca7afc", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
 (async()=>{
   const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
   try{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v=b7ee073b12').catch(()=>null)]);
@@ -471,7 +478,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=7a066d7fa0'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=cb5c0d2486'; document.body.appendChild(s);
 })();
 </script>
 

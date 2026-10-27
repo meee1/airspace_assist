@@ -1496,6 +1496,26 @@ $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!l
    Also offered: go to the nearest aerodrome, VFR waypoint or navaid within 2 NM of the point. */
 const ddm=(v,pos,neg,w)=>{ const a=Math.abs(v), d=Math.floor(a), m=(a-d)*60; return `${String(d).padStart(w,'0')}°${m.toFixed(2).padStart(5,'0')}'${v<0?neg:pos}`; };
 const COMP=['N','NE','E','SE','S','SW','W','NW'];
+/* Prohibited, restricted, danger and military operating areas at a point, all levels, with the ERSA SUA entry:
+   conditional status (RA1/2/3 with ERSA's meaning), hours, controlling authority or contact and phone, activity.
+   Limits come from the DAH (as drawn); ERSA's are quoted only if they differ. */
+const HRS={H24:'continuous',HJ:'sunrise to sunset',HN:'sunset to sunrise',NOTAM:'only when activated by NOTAM'};
+const aspLim=(v,k)=> k==='NOTAM'?'NOTAM': k==='BCTA'?'BCTA': limTxt(v);
+function suaHere(la,lo){
+  const S=(DATA.sua&&DATA.sua.areas)||{}, RA=(DATA.sua&&DATA.sua.ra)||{};
+  const hits=ASP.filter(x=>(x.k==='R'||x.k==='Q'||x.k==='P')&&inAsp(x,la,lo)).sort((a,b)=>(a.lo||0)-(b.lo||0));
+  const seen=new Set();
+  return hits.filter(x=>!seen.has(x.n)&&seen.add(x.n)).map(x=>{
+    const id=x.n.split(' ')[0], e=S[id], kind= x.k==='R'?'Restricted area': x.k==='P'?'Prohibited area': /^M/.test(id)?'Military operating area':'Danger area';
+    const lim=`${aspLim(x.lo,x.lok)}–${aspLim(x.hi,x.hik)}`, st=e&&e.st || (x.x&&x.x.st) || '';
+    const hr=e&&e.hr? esc(e.hr)+(HRS[e.hr]? ` (${HRS[e.hr]})` : /\bHJ\b/.test(e.hr)? ' (HJ = sunrise to sunset)' : /\bHN\b/.test(e.hr)? ' (HN = sunset to sunrise)' : '') : '';
+    const ph=e&&e.ph? ` · <a href="tel:${esc(e.ph.match(/[\d ]{8,}/)?e.ph.match(/[\d ]{8,}/)[0].replace(/\s/g,''):'')}">${esc(e.ph)}</a>` : '';
+    return `<div class="sua ${x.k==='R'||x.k==='P'?'r':''}"><b class="id">${esc(x.n)}</b> · ${kind}${st?` · <b>${esc(st)}</b>`:''}<br>`+
+      `${lim}${hr?' · hours '+hr:''}${e&&e.act?' · '+esc(titleCase(e.act)):''}`+
+      (e&&e.auth? `<br>${x.k==='R'?'Controlling authority':'Contact'}: ${esc(e.auth)}${ph}` : '')+
+      (st&&RA[st]? `<div class="ra">${esc(st)}: ${esc(RA[st].charAt(0).toUpperCase()+RA[st].slice(1))} (ERSA SUA)</div>` : '')+
+      (e? '' : '<div class="ra">Not in the ERSA SUA list: check NOTAMs.</div>')+`</div>`; }).join('')+
+    (hits.length? `<div class="ra" style="margin-top:4px;color:var(--dim);font-size:11px">ERSA SUA ${esc(META.ersa||'')} · limits from the DAH. Activation, hours and status can change by NOTAM.</div>` : ''); }
 function mapMenuClose(){ $('mapMenu').hidden=true; MAP.press=null; if(MAP.last) drawMap(...MAP.last); }
 function mapMenu(px,py){
   if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
@@ -1507,6 +1527,7 @@ function mapMenu(px,py){
   let sub=kind; if(st.pos){ const [d,b]=distBrg(st.pos[0],st.pos[1],la,lo); sub+=(sub?' · ':'')+`${d<10?d.toFixed(1):Math.round(d)} NM ${fmt3(b-variation(st.pos[0],st.pos[1]))}°M from you`; }
   const t=terrainFt(la,lo); if(t!=null) sub+=` · terrain ${Math.round(t/10)*10} ft`;
   $('mmName').textContent=place; $('mmSub').textContent=sub; $('mmLL').textContent=`${dm}  ·  ${ll}`;
+  $('mmSua').innerHTML=suaHere(la,lo);
   const goPt={k:'USR',c:town&&town.d<1.5? town.t.n : dm,n:`${town&&town.d<1.5?(kind||'Map point'):place} · ${dm}`,la,lo};
   const B=$('mmBtns'); B.innerHTML='';
   const btn=(txt,fn,primary)=>{ const b=document.createElement('button'); b.className='btn'+(primary?' primary':''); b.textContent=txt; b.onclick=fn; B.appendChild(b); };

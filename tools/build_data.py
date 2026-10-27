@@ -209,6 +209,7 @@ if ARGS.xc:
 # ---------- ERSA (AIP) — first source for aerodromes and frequencies ----------
 ersa_idx = {}
 vfr_wp, ersa_nav = [], {}
+ersa_sua = None
 if ARGS.ersa:
     import ersa
     if ARGS.ersa.lower().endswith('.pdf'):
@@ -220,6 +221,8 @@ if ARGS.ersa:
     E = ersa.parse(txt)
     vfr_wp = ersa.vfr_waypoints(txt)
     ersa_nav = ersa.navaids(txt)
+    import sua
+    ersa_sua = sua.parse(txt)   # SUA tables: status, hours, authority, contact number, activity
     for icao, r in E.items():
         ap = airports.get(icao)
         if not ap:
@@ -411,6 +414,9 @@ data = dict(
     na=nav_out,
     iw=ifr_out,
 )
+if ersa_sua and ersa_sua['areas']:
+    data['sua'] = ersa_sua
+    print('SUA areas (ERSA)', len(ersa_sua['areas']))
 if ARGS.urban:
     import urban
     data['urb'] = urban.load(ARGS.urban, 0.0005)
