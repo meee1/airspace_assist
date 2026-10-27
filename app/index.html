@@ -59,6 +59,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.plan small.turn.off{color:var(--accent)}
 .st.cls b{font-family:var(--f-label);font-size:19px;letter-spacing:.02em}
 .st.cls .cap+.cap{margin-top:2px}
+.st.fq{grid-column:span 3;display:flex;align-items:baseline;gap:8px;padding:6px 9px}
+.st.fq b{margin-top:0;color:var(--freq);font-size:18px;flex:none} .st.fq>small:first-child{flex:none}
+.st.fq small.who{font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .st.cls .cap{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim)}
 .st{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:7px 8px;min-width:0}
 .st b{display:block;font:600 17px/1.15 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
@@ -276,6 +279,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
     <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
+    <div class="st fq" title="CTAF of the aerodrome on screen"><small>CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small></div>
+    <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small></div>
   </div>
 
   <section class="go" id="goBox">
@@ -432,7 +437,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=622a5daccc'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=0a93bc267d'; document.body.appendChild(s);
 })();
 </script>
 

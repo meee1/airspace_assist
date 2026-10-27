@@ -98,7 +98,7 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - the aerodrome you just left or overflew, out to 5 NM
   - otherwise the closest aerodrome. The header says which rule applied, and tapping an aerodrome in the list still pins it.
 - **Map:** the route is drawn in purple with waypoint labels, and the active waypoint is filled in.
-- **Simulation:** Fly steers along the route.
+- **Simulation:** Fly steers along the route. Typing a track while flying takes over from the plan (fly that track); press Fly again to go back to following the plan. Track, ground speed and altitude apply as you type, with no Enter needed (a phone's number pad has none).
 - **Storage:** the plan is saved on the phone until you remove it or import another.
 
 ## Navigation points
