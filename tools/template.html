@@ -1227,6 +1227,17 @@ $('chartOp').addEventListener('input',()=>{ CH.op=+$('chartOp').value; ls.set('c
 $('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; $('chartBox').scrollIntoView({block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
 if(window.caches) chartIndexLoad();
 
+function drawLead(g,sc,C){   // in the ownship frame: forward is -y, 1 NM = sc px. Orange dashed, a cross line each NM, every 2nd numbered
+  const L=10*sc, halo=C.bg, acc=C.acc;
+  g.lineCap='round';
+  const line=(w,col,dash)=>{ g.setLineDash(dash||[]); g.lineWidth=w; g.strokeStyle=col; g.beginPath(); g.moveTo(0,-14); g.lineTo(0,-L); g.stroke(); };
+  const tick=(k,w,col)=>{ g.lineWidth=w; g.strokeStyle=col; g.beginPath(); g.moveTo(-6,-k*sc); g.lineTo(6,-k*sc); g.stroke(); };
+  line(4.5,halo); line(2,acc,[6,5]); g.setLineDash([]);
+  g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='left'; g.textBaseline='middle';
+  for(let k=1;k<=10;k++){ tick(k,4.5,halo); tick(k,2,acc);
+    if(k%2===0){ g.lineWidth=3; g.strokeStyle=halo; g.strokeText(String(k),10,-k*sc); g.fillStyle=acc; g.fillText(String(k),10,-k*sc); } }
+  g.lineCap='butt'; g.textBaseline='alphabetic';
+}
 function drawMap(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
   MAP.last=[la,lo,h,pick,AS,altFt];
@@ -1422,6 +1433,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
   // line to selected aerodrome
   const [sx,sy]=P(pick.a.la,pick.a.lo);
   g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]);
+  // lead line: 10 NM out along your track/heading, a cross line every 1 NM
+  { const hd=heading(); if(hd){ g.save(); g.translate(ox,oy); g.rotate((hd.deg-rot)*R); drawLead(g,sc,C); g.restore(); } }
   // ownship
   { const hd=heading(); g.save(); g.translate(ox,oy); g.rotate(((hd?hd.deg:0)-rot)*R); }
   g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,4); g.lineTo(-7,8); g.closePath();

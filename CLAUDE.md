@@ -97,7 +97,7 @@ python3 assemble.py && cp dist/* ../app/
 - Browser storage keys are all prefixed `rc_`:
   - `fp`: flight plan
   - `goto`
-  - `mapRange`, `mapUp`, `mapCtaf`, `mapTer` (terrain shading on the map, default on), `mapCharts`, `chartOp`
+  - `mapRange`, `mapUp`, `mapCtaf`, `mapLead` (lead line, default on), `mapTer` (terrain shading on the map, default on), `mapCharts`, `chartOp`
   - `sim`, `simOn`, `simOpen`
   - `effOpen_<date>`
   - `cType`, `cSign`, `cCat`, `cMode`
@@ -188,4 +188,4 @@ python3 assemble.py && cp dist/* ../app/
 - **Android compass** (`tiltHeading`): `deviceorientationabsolute` gives Euler angles (W3C Z-X'-Y'', earth x East, y North, z up), and `360-alpha` is only right with the phone flat. Build R = Rz(α)Rx(β)Ry(γ). The screen-up vector is sin(so)·X + cos(so)·Y (so = screen orientation angle) and the back vector is −Z. Take whichever is more horizontal and use heading = atan2(vx, vy). Checks: flat α=90 → 270; upright β=90 α=30 → 330; landscape flat so=90 α=90 → 0. iOS keeps `webkitCompassHeading` + so (already tilt-compensated).
 - **Install app** (`#bInstall`): shown on Chrome/Android when `beforeinstallprompt` fires, hidden after `appinstalled`.
 - **Map height:** `min(94vw, 56vh, 520px)`, which is 399 px on the Pixel 9 Pro.
-- **Lead line** (`drawLead`, drawn in the ownship frame before the arrow): 10 NM along `heading()`, in the accent colour, dashed, with a panel-colour halo, a 12 px cross line each NM and labels at the even NM. The owner picked this from four styles (A ruler, B orange dashed, C green in minutes, D dotted) on 27 Oct 2026. It shares the accent orange with the line to the selected aerodrome, which is thinner and has no ticks.
+- **Lead line** (`drawLead`, drawn in the ownship frame before the arrow): 10 NM along `heading()`, in the accent colour, dashed, with a panel-colour halo, a 12 px cross line each NM and labels at the even NM. The owner picked this from four styles (A ruler, B orange dashed, C green in minutes, D dotted) on 27 Oct 2026. It shares the accent orange with the line to the selected aerodrome, which is thinner and has no ticks. The `#mapLead` button toggles `MAP.lead`. The four layer buttons share one row (`flex:1 1 0`, 4 px side padding) so they fit on a 375 px iPhone SE.
