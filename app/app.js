@@ -189,9 +189,9 @@ function findPoint(q){
   const iw=(DATA.iw||[]).find(w=>w[0]===q); if(iw) return {k:'IFR',c:iw[0],n:'IFR waypoint',la:iw[1],lo:iw[2]};
   const byName=VW.find(p=>p.n===q)||VW.find(p=>p.n.startsWith(q)&&q.length>=4)||DATA.ap.find(x=>x.n.toUpperCase()===q);
   if(byName) return byName.k?byName:{k:'AD',c:byName.i,n:byName.n,la:byName.la,lo:byName.lo};
-  return null;
+  const f=searchPoints(q,1)[0]; return f&&f.sc>=60? f.p : null;
 }
-function ptDesc(p){ if(p.k==='FP') return p.n; return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
+function ptDesc(p){ if(p.k==='FP') return p.n; if(p.k==='TOWN') return 'Town · '+p.n+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
 function nearestVFR(la,lo,maxNm){ let best=null,bd=maxNm; for(const p of VW){ if(Math.abs(p.la-la)>maxNm/60+.02) continue; const d=distBrg(la,lo,p.la,p.lo)[0]; if(d<bd){bd=d;best=p;} } return best?{p:best,d:bd}:null; }
 let GO=ls.get('goto',null);
 /* ---------- flight plan (GPX) ---------- */
@@ -379,6 +379,48 @@ function legAltNote(lp){
 }
 /* ABS urban centres and localities (populous areas for CASR 91.265), from data.json "urb" */
 const URB=(DATA.urb||[]).map(([n,c,bb,rings])=>({n,c,bb:bb.map(v=>v/1e4),r:rings.map(f=>{ const o=[]; for(let i=0;i<f.length;i+=2) o.push([f[i]/1e4,f[i+1]/1e4]); return o; })}));
+// towns: one point per ABS urban centre / locality (area centroid of its largest part); used for search and map labels
+const TOWNS=URB.map(u=>{ let best=null,ba=-1; for(const r of u.r){ let A=0,x=0,y=0; for(let i=0,j=r.length-1;i<r.length;j=i++){ const f=r[j][1]*r[i][0]-r[i][1]*r[j][0]; A+=f; x+=(r[j][1]+r[i][1])*f; y+=(r[j][0]+r[i][0])*f; }
+    if(Math.abs(A)>ba){ ba=Math.abs(A); best=A? [y/(3*A), x/(3*A)] : [r[0][0],r[0][1]]; } }
+  const n=u.n.replace(/\s*\([^)]*\)\s*$/,'').trim(); return {k:'TOWN',c:n.toUpperCase(),n,t:u.c,la:best[0],lo:best[1],area:ba}; });
+/* fuzzy search over aerodromes, VFR waypoints, navaids, towns and IFR waypoints */
+function lev(a,b,max){ if(Math.abs(a.length-b.length)>max) return max+1; let p=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){ const c=[i]; let m=i; for(let j=1;j<=b.length;j++){ c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1)); m=Math.min(m,c[j]); } if(m>max) return max+1; p=c; } return p[b.length]; }
+function fuzzy(q,s){ if(!s) return 0; if(s===q) return 100; if(s.startsWith(q)) return 92-Math.min(12,(s.length-q.length)/2);
+  const w=s.split(/[\s\/\-()]+/); if(w.some(x=>x.startsWith(q))) return 78; if(s.includes(q)) return 64;
+  if(q.length>=4){ const e=Math.min(...w.concat([s]).map(x=>lev(q,x.slice(0,q.length+1),2))); if(e<=1) return 56; if(e===2&&q.length>=6) return 44; }
+  if(q.length>=3){ let i=0; for(const ch of s) if(ch===q[i]) i++; if(i===q.length) return 36; }
+  return 0; }
+let SEARCH=null;
+function searchIdx(){ if(SEARCH) return SEARCH; SEARCH=[];
+  for(const a of DATA.ap){ if(a.t==='H'&&!st.heli) continue; SEARCH.push({p:{k:'AD',c:a.i,n:a.n,la:a.la,lo:a.lo},keys:[a.i,a.n.toUpperCase(),...a.n.toUpperCase().split('/')],w:4}); }
+  for(const p of VW) SEARCH.push({p,keys:[p.c,p.n.toUpperCase()],w:3});
+  for(const p of NA) SEARCH.push({p,keys:[p.c,(p.n||'').toUpperCase()],w:2});
+  for(const p of TOWNS) SEARCH.push({p,keys:[p.c,...p.c.split(' - ')],w:p.t==='L'?1:2.5});   // "Ocean Grove - Barwon Heads" matches either
+  for(const w of (DATA.iw||[])) SEARCH.push({p:{k:'IFR',c:w[0],n:'IFR waypoint',la:w[1],lo:w[2]},keys:[w[0]],w:0});
+  return SEARCH; }
+function searchPoints(q,n=8){ q=q.trim().toUpperCase(); if(!q) return [];
+  const ref=st.pos||(GO?[GO.la,GO.lo]:[-37.8,145]), out=[];
+  for(const it of searchIdx()){ let sc=0; for(const k of it.keys){ const v=fuzzy(q,k); if(v>sc) sc=v; } if(sc<36) continue;
+    const d=distBrg(ref[0],ref[1],it.p.la,it.p.lo)[0]; out.push({p:it.p,sc:sc+it.w-Math.min(15,d/30),d}); }
+  out.sort((a,b)=>b.sc-a.sc||a.d-b.d);
+  const seen=new Set(); return out.filter(o=>{ const k=o.p.k+o.p.c+o.p.la.toFixed(3); if(seen.has(k)) return false; seen.add(k); return true; }).slice(0,n); }
+function suggest(inp,list,pick){ // dropdown under an input: type to search, tap or Enter to choose, Esc to close
+  let res=[], on=0; const varE=()=>st.pos?variation(st.pos[0],st.pos[1]):0;
+  const show=()=>{ const q=inp.value; res=/^[-\d\s.,°'"NSEW]+$/i.test(q)&&/\d/.test(q)? [] : searchPoints(q); on=0;
+    if(!res.length||document.activeElement!==inp){ list.hidden=true; return; }
+    list.innerHTML=res.map((o,i)=>{ const b=st.pos?distBrg(st.pos[0],st.pos[1],o.p.la,o.p.lo):null;
+      return `<li data-i="${i}" class="${i===on?'on':''}"><span class="t">${o.p.k==='AD'?'AD':o.p.k==='VFR'?'VFR':o.p.k==='NAV'?esc(o.p.t||'NAV'):o.p.k==='TOWN'?'Town':'IFR'}</span><span><b>${esc(o.p.k==='TOWN'?o.p.n:o.p.c)}</b> <span class="n">${o.p.k==='TOWN'?'':esc(titleCase(o.p.n||''))}</span></span><span class="d">${b?(b[0]<10?b[0].toFixed(1):Math.round(b[0]))+' NM '+fmt3(b[1]-varE())+'°':''}</span></li>`; }).join('');
+    list.hidden=false; };
+  const choose=i=>{ const o=res[i]; if(!o) return false; list.hidden=true; pick(o.p); return true; };
+  inp.addEventListener('input',show); inp.addEventListener('focus',show);
+  inp.addEventListener('blur',()=>setTimeout(()=>{ list.hidden=true; },200));
+  inp.addEventListener('keydown',e=>{ if(list.hidden) return;
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); on=(on+(e.key==='ArrowDown'?1:res.length-1))%res.length; [...list.children].forEach((li,i)=>li.classList.toggle('on',i===on)); }
+    else if(e.key==='Enter'){ if(choose(on)){ e.preventDefault(); e.stopImmediatePropagation(); } }
+    else if(e.key==='Escape') list.hidden=true; },true);
+  list.addEventListener('pointerdown',e=>{ const li=e.target.closest('li'); if(li){ e.preventDefault(); choose(+li.dataset.i); } });
+}
 function urbanAt(la,lo){ for(const u of URB){ const b=u.bb; if(la<b[0]||la>b[1]||lo<b[2]||lo>b[3]) continue; if(u.r.some(r=>inRing(la,lo,r))) return u; } return null; }
 function profAlong(){ // your distance along the plan (projected onto the active leg)
   if(!st.pos||!FP||!PROF) return null; const i=FP.i, P_=FP.pts;
@@ -913,6 +955,17 @@ function drawMap(la,lo,h,pick,AS,altFt){
         if(p.t.includes('DME')||p.t==='TAC') g.strokeRect(x-6,y-5.2,12,10.4); g.beginPath(); g.arc(x,y,1.4,0,2*Math.PI); g.fill(); }
       g.fillStyle=C.dim; g.fillText(p.c+(p.f&&MAP.range<=10?' '+p.f:''),x+8,y+10); }
   }
+  // towns (ABS urban centres; localities when zoomed in) — the chart already names them when it's showing
+  if(!chartsShown && MAP.range<=20){ g.font='italic 500 10.5px '+cssv('--f-body'); g.fillStyle=C.dim; g.textAlign='center';
+    const tb=labels.slice(); tb.push([ox-14,oy-14,28,28]);     // keep clear of airspace labels, you, and aerodrome codes
+    for(const ad of DATA.ap){ if(ad.t==='H'&&!st.heli) continue; if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue; const [x,y]=P(ad.la,ad.lo); tb.push([x-5,y-8,44,14]); }
+    for(const p of VW){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue; const [x,y]=P(p.la,p.lo); tb.push([x-7,y-12,48,22]); }
+    for(const t of TOWNS){ if(t.t==='L'&&MAP.range>10) continue; if(Math.abs(t.la-la)>reach||Math.abs(t.lo-lo)>reach/cosl) continue;
+      const [x0,y0]=P(t.la,t.lo); if(x0<0||y0<8||x0>W||y0>Hh) continue; const w=g.measureText(t.n).width;
+      for(const [dx,dy] of [[0,0],[0,14],[0,-14],[w/2+12,0],[-w/2-12,0]]){ const x=x0+dx, y=y0+dy, bx=[x-w/2-2,y-9,w+4,12];
+        if(bx[0]<0||bx[0]+bx[2]>W||bx[1]<0||bx[1]+bx[3]>Hh) continue;
+        if(tb.some(b=>!(bx[0]>b[0]+b[2]||bx[0]+bx[2]<b[0]||bx[1]>b[1]+b[3]||bx[1]+bx[3]<b[1]))) continue; tb.push(bx); g.fillText(t.n,x,y); break; } }
+    g.textAlign='left'; }
   // flight plan route
   if(FP && FP.pts.length>1){ const wp=cssv('--wp'); const pts=FP.pts.map(p=>P(p.la,p.lo));
     g.lineWidth=3; g.strokeStyle=wp; g.globalAlpha=.75; g.beginPath(); pts.forEach((q,k)=>k?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.stroke(); g.globalAlpha=1;
@@ -1154,7 +1207,7 @@ function syncBtns(){
 let watching=false;
 $('startBtn').onclick=start;
 $('bAhead').onclick=()=>{st.ahead=!st.ahead;ls.set('ahead',st.ahead);syncBtns();render()};
-$('bHeli').onclick=()=>{st.heli=!st.heli;ls.set('heli',st.heli);syncBtns();render()};
+$('bHeli').onclick=()=>{SEARCH=null;st.heli=!st.heli;ls.set('heli',st.heli);syncBtns();render()};
 $('bAll').onclick=()=>{st.all=!st.all;ls.set('all',st.all);syncBtns();render()};
 $('bTheme').onclick=()=>{const o=['auto','light','dark','night'];st.theme=o[(o.indexOf(st.theme)+1)%o.length];ls.set('theme',st.theme);syncBtns()};
 $('bWake').onclick=async()=>{
@@ -1176,6 +1229,8 @@ $('goIn').value=GO?GO.c:'';
 $('goIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preventDefault(); const p=findPoint($('goIn').value);
   if(p) setGo(p); else { $('goErr').textContent=`${$('goIn').value.trim().toUpperCase()} not found. Use a VFR waypoint code (CARR), navaid ident (AV), IFR waypoint or aerodrome code.`; $('goErr').hidden=false; } });
 $('goIn').addEventListener('change',()=>{ const p=findPoint($('goIn').value); if(p) setGo(p); });
+suggest($('goIn'),$('goList'),p=>{ if(p.k==='AD') st.pin=p.c; setGo(p); $('goIn').blur(); });
+suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFixed(5)+', '+p.lo.toFixed(5) : p.c; simApply(); $('simPos').blur(); });
 $('goClr').onclick=()=>setGo(null);
 $('fpFile').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; $('fpErr').hidden=true;
   try{ const fp=parseGPX(await f.text()); $('fpToggle').setAttribute('aria-expanded','true'); fpSet(fp); }

@@ -237,6 +237,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .go-row{display:flex;align-items:center;gap:8px}
 .go-row input{flex:1;min-width:0;font:500 15px/1.2 var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);text-transform:uppercase}
 .go-row .btn{padding:6px 8px;font-size:11px}
+.sugg{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:8px;background:var(--panel);max-height:300px;overflow:auto}
+.sugg li{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:baseline;padding:7px 9px;border-top:1px solid var(--rule);cursor:pointer}
+.sugg li:first-child{border-top:0} .sugg li.on,.sugg li:hover{background:color-mix(in srgb,var(--wp) 14%,transparent)}
+.sugg .t{font:600 10px/1 var(--f-label);letter-spacing:.05em;text-transform:uppercase;color:var(--dim)} .sugg b{font-family:var(--f-mono)} .sugg .n{color:var(--dim);font-size:13px} .sugg .d{font:500 12px var(--f-mono);color:var(--dim);white-space:nowrap}
 .go-res{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
 .arrow.sm{width:40px;height:40px;border-color:var(--wp)}
 .arrow.sm svg{width:22px;height:22px;fill:var(--wp)}
@@ -277,7 +281,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
   <section class="go" id="goBox">
     <div class="go-row">
       <span class="lbl">Go to</span>
-      <input id="goIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CARR · SHOL · AV · YMAV · tap map">
+      <input id="goIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Name or code: CARR, Lilydale, Geelong, AV">
       <button class="btn" id="goClr" hidden>Clear</button>
     </div>
     <div class="go-res" id="goRes" hidden>
@@ -285,6 +289,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       <div class="go-txt"><b id="goName"></b><span id="goSub"></span></div>
       <div class="go-num mono"><b id="goDist"></b><span id="goBrg"></span></div>
     </div>
+    <ul class="sugg" id="goList" hidden></ul>
     <div class="err" id="goErr" hidden></div>
   </section>
 
@@ -305,7 +310,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     </div>
     <div id="simBody" class="sim-body">
     <label for="simPos"><span class="lbl">Position</span>
-      <input id="simPos" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="-38.04, 144.47 · YMAV · CARR · AV"></label>
+      <input id="simPos" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="-38.04, 144.47 · YMAV · CARR · AV · town"></label>
+    <ul class="sugg" id="simList" hidden></ul>
     <div class="sim-grid">
       <label for="simAlt"><span class="lbl">Alt ft AMSL</span><input id="simAlt" inputmode="numeric" value="1500"></label>
       <label for="simTrk"><span class="lbl">Track °M</span><input id="simTrk" inputmode="numeric" placeholder="none"></label>
@@ -426,7 +432,7 @@ window.__SETS=[[1788364800000, "data.json?v=f6db3df8c4", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=ff12306b1a'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=946c9c85d4'; document.body.appendChild(s);
 })();
 </script>
 

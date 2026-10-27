@@ -107,6 +107,12 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
 - **Radio calls:**
   - Position reports start with "over <waypoint>" when you're within 1.5 NM of a VFR waypoint, e.g. "over Carrum, 5 miles south".
   - At tower aerodromes, the ERSA reporting points are shown as chips with full name, bearing and distance, nearest first. Tap a chip to go to it. The inbound call says "over Carrum" once you're within 3 NM of a reporting point.
+- **Search:** typing in **Go to** (or the simulator's Position) shows a pick list as you type.
+  - **What it searches:** aerodromes (ICAO or name), VFR waypoints, navaids, IFR waypoints, and towns from the ABS urban centres and localities (e.g. "Ocean Grove - Barwon Heads" matches either name).
+  - **Fuzzy matching:** prefix, any word, substring, small typos ("geelng") and letters in order. Aerodromes and nearby places rank first.
+  - **Each row** shows the type, name, and distance and bearing from you. Tap a row or press Enter to pick it; choosing an aerodrome also selects it as the aerodrome on screen.
+  - **Suburbs:** not included yet (they're part of the city in the ABS urban data).
+- **Town names on the map:** urban centres at 20 NM range and below, localities at 10 NM and below, placed clear of other labels. They're hidden while a chart is showing, since the chart names them.
 
 ## Terrain (SRTM)
 The app uses SRTM terrain for three things:
