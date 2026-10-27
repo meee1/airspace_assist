@@ -42,7 +42,7 @@ The position field accepts:
 The area frequency depends on altitude. The app builds the airspace stack above your position from the DAH steps. Class G uses the area (FIA) frequency, class E uses the E frequency boundary, and C and D use the controlling unit. Your current band is highlighted. At Avalon, for example, it lists SFC–A025 D Avalon Tower 120.1, then A025–A045 E Avalon 133.55, then A045+ C Melbourne Approach 132.0. GPS altitude is geometric, not pressure altitude, so near a band boundary go by the altimeter and the chart.
 
 ## Airspace map
-The map sits under the frequencies. Pinch to zoom (2.5 to 80 NM; the mouse wheel on a computer), or use − and + to step through 2.5, 5, 10, 20, 40 and 80 NM, and the button to switch between track up and north up. Below them, **CTAF**, **Terrain**, **Charts** and **Lead** turn those layers on and off (remembered on the phone).
+The map sits at the top of the screen, straight under the top bar, with Go to, the flight plan and the aerodrome card below it. Pinch to zoom (2.5 to 80 NM; the mouse wheel on a computer), or use − and + to step through 2.5, 5, 10, 20, 40 and 80 NM, and the button to switch between track up and north up. Below them, **CTAF**, **Terrain**, **Charts** and **Lead** turn those layers on and off (remembered on the phone).
 - Lines follow chart conventions: C solid blue, D and CTR dashed blue, E violet, restricted areas red, danger areas dashed orange.
 - Each step is labelled chart-style: class, then upper over lower limit.
 - Area frequency boundaries are dotted green, with the frequency inside each area.
@@ -139,6 +139,10 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - **Fuzzy matching:** prefix, any word, substring, small typos ("geelng", "belmomt"), names typed without spaces ("stkilda") and letters in order (not for suburbs: too many). Aerodromes and nearby places rank first.
   - **Each row** shows the type, name, and distance and bearing from you. Tap a row or press Enter to pick it; choosing an aerodrome also selects it as the aerodrome on screen.
   - **Ranking:** aerodromes, then VFR waypoints, navaids, towns, localities and suburbs; nearer places rank higher.
+  - **Phonetic alphabet:** spelled codes are understood, typed or spoken: "yankee lima india lima" finds YLIL, "charlie alpha romeo romeo" CARR, "Y L I L" YLIL. A leading "go to" or "direct to" is ignored.
+  - **Voice (mic button):** tap the mic beside Go to and say a place ("Moorabbin", "St Andrews") or spell a code. What you said goes into the box with the pick list open; tap the match to confirm.
+    - **On the phone:** the app uses Chrome's speech recognition on the phone itself when it can. Chrome downloads its offline English pack once, while you have signal.
+    - **Offline fallback:** where the browser can only recognise speech online and you have no signal, the app says so. Use the keyboard's mic instead; Gboard voice typing works offline on the Pixel.
 - **Town names on the map:** urban centres at 20 NM range and below, localities at 10 NM and below, suburbs at 5 NM and below, placed clear of other labels. They're hidden while a chart is showing, since the chart names them.
 
 ## Terrain (SRTM)

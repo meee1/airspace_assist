@@ -182,7 +182,7 @@ const VW=(DATA.vw||[]).map(([c,n,la,lo])=>({k:'VFR',c,n,la,lo}));
 const NA=(DATA.na||[]).map(([c,t,n,la,lo,f])=>({k:'NAV',c,t,n,la,lo,f}));
 const VWby=new Map(VW.map(p=>[p.c,p]));
 function findPoint(q){
-  q=q.trim().toUpperCase(); if(!q) return null;
+  q=decodeSpoken(q); if(!q) return null;
   const a=DATA.ap.find(x=>x.i===q); if(a) return {k:'AD',c:a.i,n:a.n,la:a.la,lo:a.lo};
   if(VWby.has(q)) return VWby.get(q);
   const nv=NA.filter(p=>p.c===q); if(nv.length){ const ref=st.pos||[-30,135]; return nv.sort((x,y)=>distBrg(ref[0],ref[1],x.la,x.lo)[0]-distBrg(ref[0],ref[1],y.la,y.lo)[0])[0]; }
@@ -191,7 +191,7 @@ function findPoint(q){
   if(byName) return byName.k?byName:{k:'AD',c:byName.i,n:byName.n,la:byName.la,lo:byName.lo};
   const f=searchPoints(q,1)[0]; return f&&f.sc>=60? f.p : null;
 }
-function ptDesc(p){ if(p.k==='FP') return p.n; if(p.k==='TOWN') return (p.t==='S'?'Suburb · ':'Town · ')+p.n+(p.ste?', '+p.ste:'')+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
+function ptDesc(p){ if(p.k==='FP'||p.k==='USR') return p.n; if(p.k==='TOWN') return (p.t==='S'?'Suburb · ':'Town · ')+p.n+(p.ste?', '+p.ste:'')+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
 function nearestVFR(la,lo,maxNm){ let best=null,bd=maxNm; for(const p of VW){ if(Math.abs(p.la-la)>maxNm/60+.02) continue; const d=distBrg(la,lo,p.la,p.lo)[0]; if(d<bd){bd=d;best=p;} } return best?{p:best,d:bd}:null; }
 let GO=ls.get('goto',null);
 /* ---------- flight plan (GPX) ---------- */
@@ -409,7 +409,19 @@ function searchIdx(){ if(SEARCH) return SEARCH; SEARCH=[];
   for(const p of TOWNS) SEARCH.push({p,keys:p.t==='S'?[p.c]:[p.c,...p.c.split(' - ')],w:p.t==='S'?0.5:p.t==='L'?1:2.5,lite:p.t==='S'});   // "Ocean Grove - Barwon Heads" matches either
   for(const w of (DATA.iw||[])) SEARCH.push({p:{k:'IFR',c:w[0],n:'IFR waypoint',la:w[1],lo:w[2]},keys:[w[0]],w:0});
   return SEARCH; }
-function searchPoints(q,n=8){ q=q.trim().toUpperCase(); if(!q) return [];
+/* Spoken input: "go to yankee lima india lima" -> YLIL, "charlie alpha romeo romeo" -> CARR, "Y L I L" -> YLIL.
+   Runs of 2+ phonetic-alphabet words (or single letters / digit words) collapse into one code; other words are
+   kept, so "Lilydale" or "St Andrews" pass through. Leading "go to" / "direct (to)" is dropped. */
+const SPOKEN=(()=>{ const m={}; 'alpha alfa:A bravo:B charlie charley:C delta:D echo:E foxtrot:F golf:G hotel:H india:I juliet juliett:J kilo keylo:K lima leema:L mike:M november:N oscar:O papa:P quebec:Q romeo:R sierra:S tango:T uniform:U victor:V whiskey whisky:W xray:X yankee yankey:Y zulu:Z zero:0 one:1 two:2 three tree:3 four:4 five fife:5 six:6 seven:7 eight:8 nine niner:9'
+  .split(' ').reduce((acc,w)=>{ if(w.includes(':')){ const [k,v]=w.split(':'); acc.push(k); for(const x of acc) m[x]=v; acc.length=0; } else acc.push(w); return acc; },[]); return m; })();
+function decodeSpoken(q){
+  let t=String(q).toLowerCase().replace(/x[\s-]ray/g,'xray').replace(/[^a-z0-9\s]/g,' ').trim();
+  t=t.replace(/^(please\s+)?(go\s*to|goto|direct\s+to|direct|navigate\s+to|take\s+me\s+to|head\s+to|fly\s+to)\s+/,'');
+  const w=t.split(/\s+/).filter(Boolean), out=[]; let run=[];
+  const flush=()=>{ if(run.length>=2) out.push(run.map(x=>SPOKEN[x]||x.toUpperCase()).join('')); else out.push(...run); run=[]; };
+  for(const x of w){ if(SPOKEN[x]||/^[a-z]$/.test(x)||/^\d$/.test(x)) run.push(x); else { flush(); out.push(x); } }
+  flush(); return out.join(' ').toUpperCase(); }
+function searchPoints(q,n=8){ q=decodeSpoken(q); if(!q) return [];
   const ref=st.pos||(GO?[GO.la,GO.lo]:[-37.8,145]), out=[];
   for(const it of searchIdx()){ let sc=0; for(const k of it.keys){ const v=fuzzy(q,k,it.lite); if(v>sc) sc=v; } if(sc<36) continue;
     const d=distBrg(ref[0],ref[1],it.p.la,it.p.lo)[0]; out.push({p:it.p,sc:sc+it.w-Math.min(15,d/30),d}); }
@@ -418,12 +430,12 @@ function searchPoints(q,n=8){ q=q.trim().toUpperCase(); if(!q) return [];
 function suggest(inp,list,pick){ // dropdown under an input: type to search, tap or Enter to choose, Esc to close
   let res=[], on=0; const varE=()=>st.pos?variation(st.pos[0],st.pos[1]):0;
   const show=()=>{ const q=inp.value; res=/^[-\d\s.,°'"NSEW]+$/i.test(q)&&/\d/.test(q)? [] : searchPoints(q); on=0;
-    if(!res.length||document.activeElement!==inp){ list.hidden=true; return; }
+    if(!res.length||(document.activeElement!==inp&&!inp._voice)){ list.hidden=true; return; }
     list.innerHTML=res.map((o,i)=>{ const b=st.pos?distBrg(st.pos[0],st.pos[1],o.p.la,o.p.lo):null;
       return `<li data-i="${i}" class="${i===on?'on':''}"><span class="t">${o.p.k==='AD'?'AD':o.p.k==='VFR'?'VFR':o.p.k==='NAV'?esc(o.p.t||'NAV'):o.p.k==='TOWN'?(o.p.t==='S'?'Suburb':'Town'):'IFR'}</span><span><b>${esc(o.p.k==='TOWN'?o.p.n:o.p.c)}</b> <span class="n">${o.p.k==='TOWN'?esc(o.p.ste||''):esc(titleCase(o.p.n||''))}</span></span><span class="d">${b?(b[0]<10?b[0].toFixed(1):Math.round(b[0]))+' NM '+fmt3(b[1]-varE())+'°':''}</span></li>`; }).join('');
     list.hidden=false; };
-  const choose=i=>{ const o=res[i]; if(!o) return false; list.hidden=true; pick(o.p); return true; };
-  inp.addEventListener('input',show); inp.addEventListener('focus',show);
+  const choose=i=>{ const o=res[i]; if(!o) return false; list.hidden=true; inp._voice=false; pick(o.p); return true; };
+  inp.addEventListener('input',show); inp.addEventListener('focus',()=>{ inp._voice=false; show(); });
   inp.addEventListener('blur',()=>setTimeout(()=>{ list.hidden=true; },200));
   inp.addEventListener('keydown',e=>{ if(list.hidden) return;
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); on=(on+(e.key==='ArrowDown'?1:res.length-1))%res.length; [...list.children].forEach((li,i)=>li.classList.toggle('on',i===on)); }
@@ -549,7 +561,7 @@ function renderFP(h,varE){
 }
 
 
-function setGo(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
+function setGo(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
 function renderGo(h,varE){
   $('goClr').hidden=!GO; $('goRes').hidden=!GO||!st.pos;
   if(!GO||!st.pos) return;
@@ -823,6 +835,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const C={C:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),CTR:cssv('--as-d'),A:cssv('--as-c'),R:cssv('--as-r'),Q:cssv('--as-q'),FIA:cssv('--as-fia'),EF:cssv('--as-e'),ink:cssv('--ink'),dim:cssv('--dim'),bg:cssv('--panel'),acc:cssv('--accent'),fr:cssv('--freq')};
   const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
   const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
+  MAP.inv=invPx; MAP.P=P;
   const chartsShown=drawCharts(g,W,Hh,invPx);
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
   if(TER.ok && MAP.ter){
@@ -994,6 +1007,9 @@ function drawMap(la,lo,h,pick,AS,altFt){
     FP.pts.forEach((p,k)=>{ const [x,y]=pts[k]; if(x<-20||y<-20||x>W+20||y>Hh+20) return;
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
       const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
+  // pressed point (map menu open): a crosshair
+  if(MAP.press && !$('mapMenu').hidden){ const [x,y]=P(MAP.press[0],MAP.press[1]); g.strokeStyle=cssv('--wp'); g.lineWidth=2;
+    g.beginPath(); g.arc(x,y,7,0,2*Math.PI); g.moveTo(x-12,y); g.lineTo(x-4,y); g.moveTo(x+4,y); g.lineTo(x+12,y); g.moveTo(x,y-12); g.lineTo(x,y-4); g.moveTo(x,y+4); g.lineTo(x,y+12); g.stroke(); }
   // go-to line
   if(GO){ const [gx,gy]=P(GO.la,GO.lo); g.strokeStyle=cssv('--wp'); g.lineWidth=2; g.setLineDash([2,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(gx,gy); g.stroke(); g.setLineDash([]); }
   // line to selected aerodrome
@@ -1372,6 +1388,36 @@ $('goIn').addEventListener('change',()=>{ const p=findPoint($('goIn').value); if
 suggest($('goIn'),$('goList'),p=>{ if(p.k==='AD') st.pin=p.c; setGo(p); $('goIn').blur(); });
 suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFixed(5)+', '+p.lo.toFixed(5) : p.c; simApply(); $('simPos').blur(); });
 $('goClr').onclick=()=>setGo(null);
+/* Mic for Go to. Uses the browser's speech recognition, on the phone when it can (processLocally, with the English
+   pack downloaded once while online), else the online service when there's signal. Alternatives are tried in order and
+   the one whose best search match scores highest goes into the box, with the pick list open, so you confirm with a tap. */
+{ const SR=window.SpeechRecognition||window.webkitSpeechRecognition, btn=$('goMic'), msg=t=>{ $('goMicMsg').textContent=t||''; $('goMicMsg').hidden=!t; };
+  let rec=null;
+  if(SR){ btn.hidden=false;
+    const LANGS=['en-AU','en-US'];
+    async function local(){   // 'available' | 'downloadable' | 'downloading' | 'unavailable' | 'unsupported'
+      if(typeof SR.available!=='function') return 'unsupported';
+      for(const l of LANGS){ try{ const r=await SR.available({langs:[l],processLocally:true}); if(r!=='unavailable') return [r,l]; }catch(e){} }
+      return 'unavailable'; }
+    btn.onclick=async()=>{
+      if(rec){ try{ rec.stop(); }catch(e){} return; }
+      let lang='en-AU', onDevice=false; const L=await local();
+      if(Array.isArray(L)){ lang=L[1];
+        if(L[0]==='available') onDevice=true;
+        else if(navigator.onLine){ msg('Downloading the offline speech pack (once)…'); try{ onDevice=await SR.install({langs:[lang],processLocally:true}); }catch(e){} if(!onDevice) msg('Offline speech pack not installed yet; using online recognition.'); }
+        else { msg('Offline speech isn’t set up on this phone yet (it downloads once with signal). Use the keyboard mic instead.'); return; } }
+      else if(!navigator.onLine){ msg('This browser only does speech recognition online. Use the keyboard mic (Gboard works offline).'); return; }
+      rec=new SR(); rec.lang=lang; rec.interimResults=true; rec.maxAlternatives=5; rec.continuous=false;
+      if('processLocally' in rec) rec.processLocally=onDevice;
+      const inp=$('goIn'); btn.classList.add('on'); msg(onDevice?'Listening (on the phone)…':'Listening…');
+      rec.onresult=e=>{ const r=e.results[e.results.length-1]; let best=null;
+        for(let i=0;i<r.length;i++){ const tx=r[i].transcript, q=decodeSpoken(tx), top=searchPoints(q,1)[0]; const sc=top?top.sc:-1; if(!best||sc>best.sc) best={q,sc}; }
+        if(best){ inp.value=best.q; inp._voice=true; inp.dispatchEvent(new Event('input')); }
+        if(r.isFinal) msg(best&&best.sc>0? 'Heard “'+r[0].transcript.trim()+'”: tap the match below.' : 'Heard “'+r[0].transcript.trim()+'”: nothing matched.'); };
+      rec.onerror=e=>{ msg({'no-speech':'Didn’t hear anything.','not-allowed':'Microphone permission is off for this site.','network':'Speech recognition needs signal on this phone. Use the keyboard mic instead.','language-not-supported':'The offline speech pack isn’t installed.'}[e.error]||('Speech recognition: '+e.error)); };
+      rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+      try{ rec.start(); }catch(e){ btn.classList.remove('on'); rec=null; msg('Speech recognition could not start.'); } };
+  } }
 $('fpFile').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; $('fpErr').hidden=true;
   try{ const fp=parseGPX(await f.text()); $('fpToggle').setAttribute('aria-expanded','true'); fpSet(fp); }
   catch(err){ $('fpErr').textContent=err.message; $('fpErr').hidden=false; }
@@ -1391,9 +1437,13 @@ $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!l
   const redraw=()=>{ raf=0; if(MAP.last) drawMap(...MAP.last); };
   const zoomTo=r=>{ MAP.range=Math.min(80,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
   const spread=()=>{ const [a,b]=[...ptr.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
-  const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId}; };
+  let lpT=null; const lpCancel=()=>{ clearTimeout(lpT); lpT=null; };
+  const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId};
+    // press and hold (550 ms without moving): options for that point
+    lpCancel(); const r=cv.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
+    lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
   cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(ptr.size===2){ pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
+    if(ptr.size===2){ lpCancel(); pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
     if(ptr.size>2) return;
     // start from the current view centre (your position if not panned); dragging always works north up
     startDrag(e); });
@@ -1401,23 +1451,52 @@ $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!l
     if(pinch && ptr.size>=2){ zoomTo(pinch.r0*pinch.d0/spread()); return; }
     if(!drag||e.pointerId!==drag.id) return;
     const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(!drag.moved && Math.hypot(dx,dy)<6) return;
-    drag.moved=true; const sc=MAP.sc, cosl=MAP.cosl||1;
+    drag.moved=true; lpCancel(); if(!$('mapMenu').hidden) mapMenuClose(); const sc=MAP.sc, cosl=MAP.cosl||1;
     MAP.pan=[drag.c[0]+dy/sc/60, drag.c[1]-dx/sc/(60*cosl)];
     if(!raf) raf=requestAnimationFrame(redraw); });
-  const end=e=>{ ptr.delete(e.pointerId);
+  const end=e=>{ ptr.delete(e.pointerId); lpCancel();
     if(pinch){ if(ptr.size<2){ pinch=null; ls.set('mapRange',MAP.range); render(); drag=null; } return; }   // lift both fingers before panning again
     if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
+    if(d.long) return;   // the press-and-hold menu is open
     if(d.moved){ render(); return; }
+    if(!$('mapMenu').hidden){ mapMenuClose(); return; }   // a tap elsewhere closes the menu
     const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
     let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
     if(best){ if(best.k==='AD') st.pin=best.c;   // tapping an aerodrome also selects it (card, frequencies, calls)
       setGo(best); } };
+  cv.addEventListener('contextmenu',e=>{ e.preventDefault(); if(e.pointerType==='touch') return; const r=cv.getBoundingClientRect(); if(MAP.inv) mapMenu(e.clientX-r.left,e.clientY-r.top); });   // right-click on a computer
   cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',e=>{ ptr.delete(e.pointerId); if(ptr.size<2) pinch=null; drag=null; });
   // mouse wheel / trackpad pinch on a computer
   let wheelT=null;
   cv.addEventListener('wheel',e=>{ if(!MAP.last) return; e.preventDefault(); zoomTo(MAP.range*Math.exp(e.deltaY*(e.ctrlKey?0.01:0.002)));
     clearTimeout(wheelT); wheelT=setTimeout(()=>{ ls.set('mapRange',MAP.range); render(); },250); },{passive:false});
   $('mapHome').onclick=()=>{ MAP.pan=null; render(); };
+  $('mmClose').onclick=mapMenuClose;
+}
+/* Press and hold on the map: what's there and a go-to for that point.
+   Name: the nearest town, locality or suburb (ABS), "St Andrews" when within 1.5 NM, else "2.3 NM NE of St Andrews".
+   Also offered: go to the nearest aerodrome, VFR waypoint or navaid within 2 NM of the point. */
+const ddm=(v,pos,neg,w)=>{ const a=Math.abs(v), d=Math.floor(a), m=(a-d)*60; return `${String(d).padStart(w,'0')}°${m.toFixed(2).padStart(5,'0')}'${v<0?neg:pos}`; };
+const COMP=['N','NE','E','SE','S','SW','W','NW'];
+function mapMenuClose(){ $('mapMenu').hidden=true; MAP.press=null; if(MAP.last) drawMap(...MAP.last); }
+function mapMenu(px,py){
+  if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
+  let town=null; for(const t of TOWNS){ if(Math.abs(t.la-la)>0.2||Math.abs(t.lo-lo)>0.25) continue; const d=distBrg(t.la,t.lo,la,lo); if(!town||d[0]<town.d) town={t,d:d[0],b:d[1]}; }
+  let near=null; for(const it of searchIdx()){ const q=it.p; if(!q||!/^(AD|VFR|NAV)$/.test(q.k)||Math.abs(q.la-la)>0.05||Math.abs(q.lo-lo)>0.07) continue; const d=distBrg(la,lo,q.la,q.lo)[0]; if(d<=2&&(!near||d<near.d)) near={p:q,d}; }
+  const place= town? (town.d<1.5? town.t.n : `${town.d.toFixed(1)} NM ${COMP[Math.round(town.d===0?0:town.b/45)%8]} of ${town.t.n}`) : 'Map point';
+  const kind= town&&town.d<1.5? (town.t.t==='S'?'Suburb':town.t.t==='L'?'Locality':'Town')+(town.t.ste?', '+town.t.ste:'') : '';
+  const ll=`${la.toFixed(5)}, ${lo.toFixed(5)}`, dm=`${ddm(la,'N','S',2)} ${ddm(lo,'E','W',3)}`;
+  let sub=kind; if(st.pos){ const [d,b]=distBrg(st.pos[0],st.pos[1],la,lo); sub+=(sub?' · ':'')+`${d<10?d.toFixed(1):Math.round(d)} NM ${fmt3(b-variation(st.pos[0],st.pos[1]))}°M from you`; }
+  const t=terrainFt(la,lo); if(t!=null) sub+=` · terrain ${Math.round(t/10)*10} ft`;
+  $('mmName').textContent=place; $('mmSub').textContent=sub; $('mmLL').textContent=`${dm}  ·  ${ll}`;
+  const goPt={k:'USR',c:town&&town.d<1.5? town.t.n : dm,n:`${town&&town.d<1.5?(kind||'Map point'):place} · ${dm}`,la,lo};
+  const B=$('mmBtns'); B.innerHTML='';
+  const btn=(txt,fn,primary)=>{ const b=document.createElement('button'); b.className='btn'+(primary?' primary':''); b.textContent=txt; b.onclick=fn; B.appendChild(b); };
+  btn('Go to this point',()=>{ mapMenuClose(); setGo(goPt); },true);
+  if(near) btn(`Go to ${near.p.c} (${near.d.toFixed(1)} NM)`,()=>{ mapMenuClose(); if(near.p.k==='AD') st.pin=near.p.c; setGo(near.p); });
+  if(navigator.clipboard) btn('Copy lat/lon',()=>{ navigator.clipboard.writeText(ll).then(()=>{ B.lastChild.textContent='Copied'; },()=>{}); });
+  $('mapMenu').hidden=false; drawMap(...MAP.last);
+
 }
 $('unpin').onclick=()=>{st.pin=null;render()};
 

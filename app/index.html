@@ -186,7 +186,13 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 #ersaProcBody p{margin:0 0 2px}
 #ersaProcBody p.n{margin-top:6px;font-weight:600}
 #ersaProcBody mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:inherit;border-radius:3px}
-.mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
+.mapbox{position:relative}
+.mapmenu{position:absolute;left:8px;right:8px;bottom:8px;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13px}
+.mapmenu .mm-head{display:flex;align-items:center;gap:8px}.mapmenu .mm-head b{flex:1;font-size:15px}
+.mapmenu .mm-head .btn{padding:4px 9px}
+.mapmenu .mm-sub{color:var(--dim);margin-top:2px}.mapmenu .mm-ll{margin-top:4px;font-size:12px}
+.mapmenu .mm-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mapmenu .mm-btns .btn{font-size:12px;padding:8px 10px}
+.mapsec .mapwrap{border-top:0} .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
 #map{width:100%;height:min(94vw,56vh,520px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
@@ -286,6 +292,54 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
   </div>
 
+  <details class="notice warn fold" id="effBanner" hidden>
+    <summary><span id="effHead"></span><span class="fold-i" aria-hidden="true"></span></summary>
+    <div id="effBody" class="fold-body"></div>
+  </details>
+
+  <div class="notice" id="startBox">
+    <div style="margin-bottom:8px">Uses your GPS position (and compass when stationary) to find the closest aerodrome and the area frequency for where you are.</div>
+    <button class="btn primary" id="startBtn">Start GPS &amp; compass</button>
+  </div>
+
+  <section class="ad mapsec" id="mapSec">
+    <div class="mapwrap">
+      <div class="mapbox">
+      <canvas id="map" aria-label="Airspace map around your position. Drag to pan, pinch to zoom, press and hold for options at that point."></canvas>
+      <div class="mapmenu" id="mapMenu" hidden role="dialog" aria-label="Map point options">
+        <div class="mm-head"><b id="mmName"></b><button class="btn" id="mmClose" aria-label="Close">✕</button></div>
+        <div class="mm-sub" id="mmSub"></div>
+        <div class="mm-ll mono" id="mmLL"></div>
+        <div class="mm-btns" id="mmBtns"></div>
+      </div>
+      </div>
+      <div class="mapctl">
+        <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
+        <span class="lbl mono" id="mapRng">10 NM</span>
+        <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
+        <button class="btn" id="mapUp" style="margin-left:auto">Track up</button>
+        <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
+        <span class="brk"></span>
+        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
+        <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
+        <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
+        <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
+      </div>
+      <div class="legend ctafleg" id="ctafLeg" hidden></div>
+      <details class="chartbox" id="chartBox">
+        <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
+        <div class="chart-body">
+          <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
+            <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
+          <div class="chart-prog" id="chartProg" hidden></div>
+          <ul class="chart-list" id="chartList"></ul>
+          <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
+        </div>
+      </details>
+      <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
+    </div>
+  </section>
+
   <section class="go" id="goBox">
     <div class="go-row">
       <span class="lbl">Go to</span>
@@ -300,16 +354,6 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <ul class="sugg" id="goList" hidden></ul>
     <div class="err" id="goErr" hidden></div>
   </section>
-
-  <details class="notice warn fold" id="effBanner" hidden>
-    <summary><span id="effHead"></span><span class="fold-i" aria-hidden="true"></span></summary>
-    <div id="effBody" class="fold-body"></div>
-  </details>
-
-  <div class="notice" id="startBox">
-    <div style="margin-bottom:8px">Uses your GPS position (and compass when stationary) to find the closest aerodrome and the area frequency for where you are.</div>
-    <button class="btn primary" id="startBtn">Start GPS &amp; compass</button>
-  </div>
 
   <section class="sim" id="simBox" hidden>
     <div class="sim-h">
@@ -386,33 +430,6 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       </details>
     </details>
     <div class="stack" id="stack"></div>
-    <div class="mapwrap">
-      <canvas id="map" aria-label="Airspace map around your position. Drag to pan."></canvas>
-      <div class="mapctl">
-        <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
-        <span class="lbl mono" id="mapRng">10 NM</span>
-        <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
-        <button class="btn" id="mapUp" style="margin-left:auto">Track up</button>
-        <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
-        <span class="brk"></span>
-        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
-        <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
-        <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
-        <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
-      </div>
-      <div class="legend ctafleg" id="ctafLeg" hidden></div>
-      <details class="chartbox" id="chartBox">
-        <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
-        <div class="chart-body">
-          <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
-            <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
-          <div class="chart-prog" id="chartProg" hidden></div>
-          <ul class="chart-list" id="chartList"></ul>
-          <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
-        </div>
-      </details>
-      <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
-    </div>
   </section>
 
   <div class="sec-h"><span class="lbl">Nearby</span><span class="lbl" id="listMode"></span></div>
@@ -445,7 +462,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=4ae227dc82'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=1748003543'; document.body.appendChild(s);
 })();
 </script>
 

@@ -186,7 +186,13 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 #ersaProcBody p{margin:0 0 2px}
 #ersaProcBody p.n{margin-top:6px;font-weight:600}
 #ersaProcBody mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:inherit;border-radius:3px}
-.mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
+.mapbox{position:relative}
+.mapmenu{position:absolute;left:8px;right:8px;bottom:8px;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13px}
+.mapmenu .mm-head{display:flex;align-items:center;gap:8px}.mapmenu .mm-head b{flex:1;font-size:15px}
+.mapmenu .mm-head .btn{padding:4px 9px}
+.mapmenu .mm-sub{color:var(--dim);margin-top:2px}.mapmenu .mm-ll{margin-top:4px;font-size:12px}
+.mapmenu .mm-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mapmenu .mm-btns .btn{font-size:12px;padding:8px 10px}
+.mapsec .mapwrap{border-top:0} .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
 #map{width:100%;height:min(94vw,56vh,520px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
@@ -286,6 +292,54 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
   </div>
 
+  <details class="notice warn fold" id="effBanner" hidden>
+    <summary><span id="effHead"></span><span class="fold-i" aria-hidden="true"></span></summary>
+    <div id="effBody" class="fold-body"></div>
+  </details>
+
+  <div class="notice" id="startBox">
+    <div style="margin-bottom:8px">Uses your GPS position (and compass when stationary) to find the closest aerodrome and the area frequency for where you are.</div>
+    <button class="btn primary" id="startBtn">Start GPS &amp; compass</button>
+  </div>
+
+  <section class="ad mapsec" id="mapSec">
+    <div class="mapwrap">
+      <div class="mapbox">
+      <canvas id="map" aria-label="Airspace map around your position. Drag to pan, pinch to zoom, press and hold for options at that point."></canvas>
+      <div class="mapmenu" id="mapMenu" hidden role="dialog" aria-label="Map point options">
+        <div class="mm-head"><b id="mmName"></b><button class="btn" id="mmClose" aria-label="Close">✕</button></div>
+        <div class="mm-sub" id="mmSub"></div>
+        <div class="mm-ll mono" id="mmLL"></div>
+        <div class="mm-btns" id="mmBtns"></div>
+      </div>
+      </div>
+      <div class="mapctl">
+        <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
+        <span class="lbl mono" id="mapRng">10 NM</span>
+        <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
+        <button class="btn" id="mapUp" style="margin-left:auto">Track up</button>
+        <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
+        <span class="brk"></span>
+        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
+        <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
+        <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
+        <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
+      </div>
+      <div class="legend ctafleg" id="ctafLeg" hidden></div>
+      <details class="chartbox" id="chartBox">
+        <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
+        <div class="chart-body">
+          <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
+            <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
+          <div class="chart-prog" id="chartProg" hidden></div>
+          <ul class="chart-list" id="chartList"></ul>
+          <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
+        </div>
+      </details>
+      <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
+    </div>
+  </section>
+
   <section class="go" id="goBox">
     <div class="go-row">
       <span class="lbl">Go to</span>
@@ -300,16 +354,6 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <ul class="sugg" id="goList" hidden></ul>
     <div class="err" id="goErr" hidden></div>
   </section>
-
-  <details class="notice warn fold" id="effBanner" hidden>
-    <summary><span id="effHead"></span><span class="fold-i" aria-hidden="true"></span></summary>
-    <div id="effBody" class="fold-body"></div>
-  </details>
-
-  <div class="notice" id="startBox">
-    <div style="margin-bottom:8px">Uses your GPS position (and compass when stationary) to find the closest aerodrome and the area frequency for where you are.</div>
-    <button class="btn primary" id="startBtn">Start GPS &amp; compass</button>
-  </div>
 
   <section class="sim" id="simBox" hidden>
     <div class="sim-h">
@@ -386,33 +430,6 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       </details>
     </details>
     <div class="stack" id="stack"></div>
-    <div class="mapwrap">
-      <canvas id="map" aria-label="Airspace map around your position. Drag to pan."></canvas>
-      <div class="mapctl">
-        <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
-        <span class="lbl mono" id="mapRng">10 NM</span>
-        <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
-        <button class="btn" id="mapUp" style="margin-left:auto">Track up</button>
-        <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
-        <span class="brk"></span>
-        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
-        <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
-        <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
-        <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
-      </div>
-      <div class="legend ctafleg" id="ctafLeg" hidden></div>
-      <details class="chartbox" id="chartBox">
-        <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
-        <div class="chart-body">
-          <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
-            <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
-          <div class="chart-prog" id="chartProg" hidden></div>
-          <ul class="chart-list" id="chartList"></ul>
-          <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
-        </div>
-      </details>
-      <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
-    </div>
   </section>
 
   <div class="sec-h"><span class="lbl">Nearby</span><span class="lbl" id="listMode"></span></div>
@@ -626,7 +643,7 @@ function findPoint(q){
   if(byName) return byName.k?byName:{k:'AD',c:byName.i,n:byName.n,la:byName.la,lo:byName.lo};
   const f=searchPoints(q,1)[0]; return f&&f.sc>=60? f.p : null;
 }
-function ptDesc(p){ if(p.k==='FP') return p.n; if(p.k==='TOWN') return (p.t==='S'?'Suburb · ':'Town · ')+p.n+(p.ste?', '+p.ste:'')+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
+function ptDesc(p){ if(p.k==='FP'||p.k==='USR') return p.n; if(p.k==='TOWN') return (p.t==='S'?'Suburb · ':'Town · ')+p.n+(p.ste?', '+p.ste:'')+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
 function nearestVFR(la,lo,maxNm){ let best=null,bd=maxNm; for(const p of VW){ if(Math.abs(p.la-la)>maxNm/60+.02) continue; const d=distBrg(la,lo,p.la,p.lo)[0]; if(d<bd){bd=d;best=p;} } return best?{p:best,d:bd}:null; }
 let GO=ls.get('goto',null);
 /* ---------- flight plan (GPX) ---------- */
@@ -984,7 +1001,7 @@ function renderFP(h,varE){
 }
 
 
-function setGo(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
+function setGo(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
 function renderGo(h,varE){
   $('goClr').hidden=!GO; $('goRes').hidden=!GO||!st.pos;
   if(!GO||!st.pos) return;
@@ -1258,6 +1275,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const C={C:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),CTR:cssv('--as-d'),A:cssv('--as-c'),R:cssv('--as-r'),Q:cssv('--as-q'),FIA:cssv('--as-fia'),EF:cssv('--as-e'),ink:cssv('--ink'),dim:cssv('--dim'),bg:cssv('--panel'),acc:cssv('--accent'),fr:cssv('--freq')};
   const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
   const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
+  MAP.inv=invPx; MAP.P=P;
   const chartsShown=drawCharts(g,W,Hh,invPx);
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
   if(TER.ok && MAP.ter){
@@ -1429,6 +1447,9 @@ function drawMap(la,lo,h,pick,AS,altFt){
     FP.pts.forEach((p,k)=>{ const [x,y]=pts[k]; if(x<-20||y<-20||x>W+20||y>Hh+20) return;
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
       const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
+  // pressed point (map menu open): a crosshair
+  if(MAP.press && !$('mapMenu').hidden){ const [x,y]=P(MAP.press[0],MAP.press[1]); g.strokeStyle=cssv('--wp'); g.lineWidth=2;
+    g.beginPath(); g.arc(x,y,7,0,2*Math.PI); g.moveTo(x-12,y); g.lineTo(x-4,y); g.moveTo(x+4,y); g.lineTo(x+12,y); g.moveTo(x,y-12); g.lineTo(x,y-4); g.moveTo(x,y+4); g.lineTo(x,y+12); g.stroke(); }
   // go-to line
   if(GO){ const [gx,gy]=P(GO.la,GO.lo); g.strokeStyle=cssv('--wp'); g.lineWidth=2; g.setLineDash([2,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(gx,gy); g.stroke(); g.setLineDash([]); }
   // line to selected aerodrome
@@ -1826,9 +1847,13 @@ $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!l
   const redraw=()=>{ raf=0; if(MAP.last) drawMap(...MAP.last); };
   const zoomTo=r=>{ MAP.range=Math.min(80,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
   const spread=()=>{ const [a,b]=[...ptr.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
-  const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId}; };
+  let lpT=null; const lpCancel=()=>{ clearTimeout(lpT); lpT=null; };
+  const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId};
+    // press and hold (550 ms without moving): options for that point
+    lpCancel(); const r=cv.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
+    lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
   cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(ptr.size===2){ pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
+    if(ptr.size===2){ lpCancel(); pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
     if(ptr.size>2) return;
     // start from the current view centre (your position if not panned); dragging always works north up
     startDrag(e); });
@@ -1836,23 +1861,52 @@ $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!l
     if(pinch && ptr.size>=2){ zoomTo(pinch.r0*pinch.d0/spread()); return; }
     if(!drag||e.pointerId!==drag.id) return;
     const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(!drag.moved && Math.hypot(dx,dy)<6) return;
-    drag.moved=true; const sc=MAP.sc, cosl=MAP.cosl||1;
+    drag.moved=true; lpCancel(); if(!$('mapMenu').hidden) mapMenuClose(); const sc=MAP.sc, cosl=MAP.cosl||1;
     MAP.pan=[drag.c[0]+dy/sc/60, drag.c[1]-dx/sc/(60*cosl)];
     if(!raf) raf=requestAnimationFrame(redraw); });
-  const end=e=>{ ptr.delete(e.pointerId);
+  const end=e=>{ ptr.delete(e.pointerId); lpCancel();
     if(pinch){ if(ptr.size<2){ pinch=null; ls.set('mapRange',MAP.range); render(); drag=null; } return; }   // lift both fingers before panning again
     if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
+    if(d.long) return;   // the press-and-hold menu is open
     if(d.moved){ render(); return; }
+    if(!$('mapMenu').hidden){ mapMenuClose(); return; }   // a tap elsewhere closes the menu
     const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
     let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
     if(best){ if(best.k==='AD') st.pin=best.c;   // tapping an aerodrome also selects it (card, frequencies, calls)
       setGo(best); } };
+  cv.addEventListener('contextmenu',e=>{ e.preventDefault(); if(e.pointerType==='touch') return; const r=cv.getBoundingClientRect(); if(MAP.inv) mapMenu(e.clientX-r.left,e.clientY-r.top); });   // right-click on a computer
   cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',e=>{ ptr.delete(e.pointerId); if(ptr.size<2) pinch=null; drag=null; });
   // mouse wheel / trackpad pinch on a computer
   let wheelT=null;
   cv.addEventListener('wheel',e=>{ if(!MAP.last) return; e.preventDefault(); zoomTo(MAP.range*Math.exp(e.deltaY*(e.ctrlKey?0.01:0.002)));
     clearTimeout(wheelT); wheelT=setTimeout(()=>{ ls.set('mapRange',MAP.range); render(); },250); },{passive:false});
   $('mapHome').onclick=()=>{ MAP.pan=null; render(); };
+  $('mmClose').onclick=mapMenuClose;
+}
+/* Press and hold on the map: what's there and a go-to for that point.
+   Name: the nearest town, locality or suburb (ABS), "St Andrews" when within 1.5 NM, else "2.3 NM NE of St Andrews".
+   Also offered: go to the nearest aerodrome, VFR waypoint or navaid within 2 NM of the point. */
+const ddm=(v,pos,neg,w)=>{ const a=Math.abs(v), d=Math.floor(a), m=(a-d)*60; return `${String(d).padStart(w,'0')}°${m.toFixed(2).padStart(5,'0')}'${v<0?neg:pos}`; };
+const COMP=['N','NE','E','SE','S','SW','W','NW'];
+function mapMenuClose(){ $('mapMenu').hidden=true; MAP.press=null; if(MAP.last) drawMap(...MAP.last); }
+function mapMenu(px,py){
+  if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
+  let town=null; for(const t of TOWNS){ if(Math.abs(t.la-la)>0.2||Math.abs(t.lo-lo)>0.25) continue; const d=distBrg(t.la,t.lo,la,lo); if(!town||d[0]<town.d) town={t,d:d[0],b:d[1]}; }
+  let near=null; for(const it of searchIdx()){ const q=it.p; if(!q||!/^(AD|VFR|NAV)$/.test(q.k)||Math.abs(q.la-la)>0.05||Math.abs(q.lo-lo)>0.07) continue; const d=distBrg(la,lo,q.la,q.lo)[0]; if(d<=2&&(!near||d<near.d)) near={p:q,d}; }
+  const place= town? (town.d<1.5? town.t.n : `${town.d.toFixed(1)} NM ${COMP[Math.round(town.d===0?0:town.b/45)%8]} of ${town.t.n}`) : 'Map point';
+  const kind= town&&town.d<1.5? (town.t.t==='S'?'Suburb':town.t.t==='L'?'Locality':'Town')+(town.t.ste?', '+town.t.ste:'') : '';
+  const ll=`${la.toFixed(5)}, ${lo.toFixed(5)}`, dm=`${ddm(la,'N','S',2)} ${ddm(lo,'E','W',3)}`;
+  let sub=kind; if(st.pos){ const [d,b]=distBrg(st.pos[0],st.pos[1],la,lo); sub+=(sub?' · ':'')+`${d<10?d.toFixed(1):Math.round(d)} NM ${fmt3(b-variation(st.pos[0],st.pos[1]))}°M from you`; }
+  const t=terrainFt(la,lo); if(t!=null) sub+=` · terrain ${Math.round(t/10)*10} ft`;
+  $('mmName').textContent=place; $('mmSub').textContent=sub; $('mmLL').textContent=`${dm}  ·  ${ll}`;
+  const goPt={k:'USR',c:town&&town.d<1.5? town.t.n : dm,n:`${town&&town.d<1.5?(kind||'Map point'):place} · ${dm}`,la,lo};
+  const B=$('mmBtns'); B.innerHTML='';
+  const btn=(txt,fn,primary)=>{ const b=document.createElement('button'); b.className='btn'+(primary?' primary':''); b.textContent=txt; b.onclick=fn; B.appendChild(b); };
+  btn('Go to this point',()=>{ mapMenuClose(); setGo(goPt); },true);
+  if(near) btn(`Go to ${near.p.c} (${near.d.toFixed(1)} NM)`,()=>{ mapMenuClose(); if(near.p.k==='AD') st.pin=near.p.c; setGo(near.p); });
+  if(navigator.clipboard) btn('Copy lat/lon',()=>{ navigator.clipboard.writeText(ll).then(()=>{ B.lastChild.textContent='Copied'; },()=>{}); });
+  $('mapMenu').hidden=false; drawMap(...MAP.last);
+
 }
 $('unpin').onclick=()=>{st.pin=null;render()};
 

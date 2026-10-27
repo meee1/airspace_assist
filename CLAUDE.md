@@ -196,3 +196,20 @@ python3 assemble.py && cp dist/* ../app/
   - **Name:** the nearest `TOWNS` entry (towns, localities, suburbs): its name within 1.5 NM, else "x NM <compass point> of <name>".
   - **Go-to target:** `setGo` with `k:'USR'`, `c` = the name or DDM, and `n` = the description (`ptDesc` returns `n` for USR).
   - **Extra button:** the nearest AD/VFR/NAV within 2 NM.
+- **Page order** (owner's choice, 27 Oct 2026, option A of four):
+  1. status tiles
+  2. effective-date banner and Start notice (so first launch still shows Start on the first screen)
+  3. map, in `section.ad.mapsec#mapSec` (moved out of `#adCard`, which is `aria-live`)
+  4. Go to
+  5. simulator
+  6. flight plan
+  7. aerodrome card (header, runways, CTAF, radio calls, frequency stack)
+  8. Nearby, then settings
+- **Spoken / phonetic input** (`decodeSpoken`, table `SPOKEN`; note `PHON` is the callsign speller):
+  - Runs of 2+ phonetic words, single letters or digit words collapse into a code (alpha/alfa, juliet/juliett, x-ray, niner, tree, fife…). Other words pass through, and a leading "go to" / "direct (to)" / "fly to" is dropped.
+  - Used at the start of `searchPoints` and `findPoint`, so it applies to typing as well.
+- **Go to mic** (`#goMic`):
+  - Shown only when `SpeechRecognition` / `webkitSpeechRecognition` exists.
+  - On-device first: `SR.available({langs:['en-AU'|'en-US'], processLocally:true})`. `available` → `processLocally=true`. `downloadable` while online → `SR.install()`, falling back to online recognition. Not installed while offline → a message pointing to the Gboard mic. With no on-device API and offline → the same message.
+  - Recognition settings: `maxAlternatives=5`, `interimResults`. Each alternative is decoded and searched, and the one whose top match scores highest goes in the box. `inp._voice` lets `suggest` show the list without focusing the input (so no keyboard pops up), and the user taps to confirm.
+  - Test with a fake `window.SpeechRecognition` class in an init script. There's no real recognition in headless Chromium.
