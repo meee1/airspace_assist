@@ -8,7 +8,10 @@ const {chromium,devices}=require('playwright'); const fs=require('fs');
 const GPX=process.argv[2], START=Date.parse(process.argv[3]), OUT=process.argv[4];
 const LANDS=(process.argv[5]||'').split(',').filter(Boolean), BASE=process.argv[6]||'http://localhost:8811/index.html';
 (async()=>{
- const b=await chromium.launch(); const ctx=await b.newContext({...devices['iPhone 13']}); const p=await ctx.newPage();
+ // target phone: Pixel 9 Pro (427x952 CSS px at 3x, Chrome on Android; ~70 px of browser chrome)
+ const PX9={viewport:{width:427,height:880},screen:{width:427,height:952},deviceScaleFactor:3,isMobile:true,hasTouch:true,
+   userAgent:'Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36'};
+ const b=await chromium.launch(); const ctx=await b.newContext(PX9); const p=await ctx.newPage();
  const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error') errs.push('console: '+m.text()); });
  await p.clock.setFixedTime(START);
  await p.goto(BASE+'?sim=-30,135&alt=0&trk=&gs=0'); await p.waitForFunction(()=>typeof render==='function' && typeof FP!=='undefined'); await p.waitForTimeout(300);   // app.js starts after data.json loads

@@ -183,7 +183,10 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 The loader fetches `data.json`, then starts `app.js`. A data-only update changes just `data.json` (and the version tags in `index.html` and `sw.js`), so the phone picks it up the next time it has signal.
 
 ## Install on your phone
-Open https://meee1.github.io/airspace_assist/app/ on your phone, tap Start, then Add to Home Screen.
+The app is built for and tested on a **Google Pixel 9 Pro** (Chrome on Android); iPhones work too.
+
+- **Pixel / Android:** open https://meee1.github.io/airspace_assist/app/ in Chrome and tap **Install app** (in the buttons under the map, or Chrome's ⋮ menu → Install app). Tap **Start GPS & compass** and allow location (keep **Precise** on). The installed app runs full screen and Android keeps its stored data.
+- **iPhone:** open the same link in Safari, tap Start, then Share → Add to Home Screen.
 
 **Offline:** after one load with signal, everything runs without a connection:
 - **What's stored:** the page, the app code (`app.js`), the ERSA/DAH data (`data.json` and `data-next.json`, about 2 MB each), the urban areas and suburb names (`urban.json`, about 1.8 MB), all the SRTM terrain tiles (about 650 KB) and the VTC/VNC chart tiles (about 12 MB). Terrain and charts are stored straight away, not only for places you've visited.
@@ -192,6 +195,7 @@ Open https://meee1.github.io/airspace_assist/app/ on your phone, tap Start, then
 - **Updates:** they land the next time you open the app with signal. The app waits up to 3 seconds for the network, then starts from the stored copy, so a weak signal in flight doesn't hold it up.
 - **Not stored:** there are no NOTAMs or live weather, and there never were. Fonts fall back to the phone's own until they've been cached once.
 - **Terrain area:** the tiles currently cover 36–42°S, 140–148°E. Run `fetch_srtm.bat` with a bigger area for more.
+- **Compass in a cradle:** on Android the heading is worked out from the phone's full orientation, so it's right whether the phone lies flat (the top of the screen points ahead) or stands upright in a cradle (the back of the phone points ahead), in portrait or landscape. Compass alignment (above) takes out what's left of the cradle angle.
 - **iPhone:** use the Home Screen app rather than a Safari tab. Safari can clear a website's stored data after a few weeks without visits. It's served by GitHub Pages from this repo's [`app/`](app/) folder. GPS needs HTTPS, so any other static HTTPS host works too.
 
 **Keep screen on:** remembered between launches. The phone drops the lock whenever the app is hidden (screen off, app switch), so it's taken again when you come back, or on your next tap; the button says "Screen stays on" while it holds and "Screen on: tap to re-arm" if it has been lost. Where the Wake Lock API is missing or refused (older iPhones, and Home Screen apps before iOS 18.4) a tiny silent looping video keeps the screen awake instead.

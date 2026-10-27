@@ -919,7 +919,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   for(const r of [MAP.range/2,MAP.range]){ g.beginPath(); g.arc(ox,oy,r*sc,0,2*Math.PI); g.stroke(); }
   g.setLineDash([]); g.globalAlpha=1;
   g.fillStyle=C.dim; g.font='500 10px "IBM Plex Mono", monospace'; g.textAlign='left';
-  g.fillText(MAP.range+' NM',ox+MAP.range*sc*0.707+3,oy-MAP.range*sc*0.707);
+  g.fillText(rngTxt(MAP.range),ox+MAP.range*sc*0.707+3,oy-MAP.range*sc*0.707);
   // aerodromes
   g.font='600 10px "IBM Plex Mono", monospace';
   for(const ad of DATA.ap){
@@ -996,7 +996,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';
   g.beginPath(); g.moveTo(0,-11); g.lineTo(4,-3); g.lineTo(-4,-3); g.closePath(); g.fill(); g.fillText('N',0,8); g.restore();
   $('mapUp').textContent = MAP.pan ? 'North up' : MAP.up==='trk'&&h ? (h.src==='TRK'?'Track up':'Heading up') : 'North up';
-  $('mapRng').textContent=MAP.range+' NM';
+  $('mapRng').textContent=rngTxt(MAP.range);
   $('terLeg').hidden=!TER.ok;
 }
 
@@ -1323,8 +1323,10 @@ document.addEventListener('pointerdown',e=>{ if(e.target.closest&&e.target.close
 st.wakeWant=ls.get('wake',false); wakeSync(); wakeAcquire();   // the Wake Lock API needs no tap; the video fallback waits for the first one
 $('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); window.scrollTo({top:0,behavior:'smooth'})});
 const RANGES=[2.5,5,10,20,40,80];
-$('mapIn').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.max(0,(i<0?2:i)-1)]; ls.set('mapRange',MAP.range); render(); };
-$('mapOut').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.min(RANGES.length-1,(i<0?2:i)+1)]; ls.set('mapRange',MAP.range); render(); };
+// buttons step through RANGES; pinch (or the mouse wheel) zooms smoothly in between, so step to the next one either way
+$('mapIn').onclick=()=>{ MAP.range=[...RANGES].reverse().find(r=>r<MAP.range-0.01)||RANGES[0]; ls.set('mapRange',MAP.range); render(); };
+$('mapOut').onclick=()=>{ MAP.range=RANGES.find(r=>r>MAP.range+0.01)||RANGES[RANGES.length-1]; ls.set('mapRange',MAP.range); render(); };
+const rngTxt=r=>(r<10? (Math.round(r*10)/10) : Math.round(r))+' NM';
 $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf); render(); };
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
 $('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); render(); };
@@ -1352,25 +1354,37 @@ $('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); fpPick(Math.min(1,FP.
 $('fpClear').onclick=()=>{ fpSet(null); setGo(null); };
 $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; fpPick(+li.dataset.k); });
 // tap the map to pick a waypoint, navaid or aerodrome as go-to
-// drag to pan (one finger or mouse); a tap without movement still picks a point
-{ const cv=$('map'); let drag=null, raf=0;
+// drag to pan (one finger or mouse); pinch with two fingers to zoom; a tap without movement still picks a point
+{ const cv=$('map'); let drag=null, raf=0, pinch=null; const ptr=new Map();
   const redraw=()=>{ raf=0; if(MAP.last) drawMap(...MAP.last); };
-  cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId);
+  const zoomTo=r=>{ MAP.range=Math.min(80,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
+  const spread=()=>{ const [a,b]=[...ptr.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
+  const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId}; };
+  cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptr.size===2){ pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
+    if(ptr.size>2) return;
     // start from the current view centre (your position if not panned); dragging always works north up
-    const c=MAP.pan||[MAP.last[0],MAP.last[1]];
-    drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId}; });
-  cv.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id) return;
+    startDrag(e); });
+  cv.addEventListener('pointermove',e=>{ if(ptr.has(e.pointerId)) ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinch && ptr.size>=2){ zoomTo(pinch.r0*pinch.d0/spread()); return; }
+    if(!drag||e.pointerId!==drag.id) return;
     const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(!drag.moved && Math.hypot(dx,dy)<6) return;
     drag.moved=true; const sc=MAP.sc, cosl=MAP.cosl||1;
     MAP.pan=[drag.c[0]+dy/sc/60, drag.c[1]-dx/sc/(60*cosl)];
     if(!raf) raf=requestAnimationFrame(redraw); });
-  const end=e=>{ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
+  const end=e=>{ ptr.delete(e.pointerId);
+    if(pinch){ if(ptr.size<2){ pinch=null; ls.set('mapRange',MAP.range); render(); drag=null; } return; }   // lift both fingers before panning again
+    if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
     if(d.moved){ render(); return; }
     const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
     let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
     if(best){ if(best.k==='AD') st.pin=best.c;   // tapping an aerodrome also selects it (card, frequencies, calls)
       setGo(best); } };
-  cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',e=>{ drag=null; });
+  cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',e=>{ ptr.delete(e.pointerId); if(ptr.size<2) pinch=null; drag=null; });
+  // mouse wheel / trackpad pinch on a computer
+  let wheelT=null;
+  cv.addEventListener('wheel',e=>{ if(!MAP.last) return; e.preventDefault(); zoomTo(MAP.range*Math.exp(e.deltaY*(e.ctrlKey?0.01:0.002)));
+    clearTimeout(wheelT); wheelT=setTimeout(()=>{ ls.set('mapRange',MAP.range); render(); },250); },{passive:false});
   $('mapHome').onclick=()=>{ MAP.pan=null; render(); };
 }
 $('unpin').onclick=()=>{st.pin=null;render()};
