@@ -228,3 +228,7 @@ python3 assemble.py && cp dist/* ../app/
   - **What counts:** the first sample within 10 NM whose band at your altitude (exact band only, no last-band fallback) is A/C/D or CTR-as-D, or that is inside an active-limits R area, with a key different from where you are now (`clsKey`).
   - **What's ignored:** danger areas and G/E changes.
   - **Display:** a red full-width row: class or area name, limits, distance, unit and frequency, and "clearance" (or "restricted, check status" for R).
+- **Tower in the top tiles** (`twrPick`, shared with the radio calls):
+  - **CTAF tile:** during tower hours (`twrStatus(a).on`, or no CTAF published) it shows the TWR frequency. For a split tower (`x[4]` East/West from ERSA text) it shows your side, labelled "TWR E/W". It uses your bearing from the aerodrome, or on the field the next plan waypoint's side; with neither it shows the first entry and "see ATIS".
+  - **ATC tile:** when the band you're in has one of that aerodrome's TWR frequencies (the DAH lists only one for YMMB), it's replaced by your side's frequency.
+  - **Check:** at YMMB 2026-10-28T03:00Z, 2 NM west reads TWR W 123.0 and 2 NM east reads TWR E 118.1. At 12:30Z it's CTAF 118.1.

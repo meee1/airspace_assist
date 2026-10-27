@@ -1144,6 +1144,7 @@ function freqRow(k,v,who,cls=''){
 }
 
 function render(){
+  $('mapSec').hidden=!st.pos;
   if(!st.pos){ return; }
   const [la,lo]=st.pos, varE=variation(la,lo), h=heading();
   $('hdgLbl').textContent=h?h.src+' °M':'TRK';
@@ -1182,7 +1183,10 @@ function render(){
   if(CI.other) csub+=`<br><span class="tag w">${CI.other.src} says ${CI.other.f}</span>`;
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
-  $('sCtaf').textContent=CI.f||'—'; $('sCtafAd').textContent=a.i;
+  { const tp=twrPick(a,pick), ts=tp?twrStatus(a):null, open=tp&&(ts?ts.on:!a.c);
+    if(open){ const t=tp.tw; $('sCtafLbl').textContent=tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'; $('sCtaf').textContent=t[2]; $('sCtafAd').textContent=a.i+(tp.split&&!tp.side?' · see ATIS':''); }
+    else { $('sCtafLbl').textContent='CTAF'; $('sCtaf').textContent=CI.f||'—'; $('sCtafAd').textContent=a.i; }
+    st.twrTile=open? {a,tp} : null; }
   $('ctafRow').innerHTML=html; html='';
   renderRunways(a,pick,h);
   renderFP(h,varE);
@@ -1228,8 +1232,10 @@ function render(){
   } else html+=freqRow('AREA','', 'No airspace data here');
   nextFreqs(la,lo,altFt,CI.f,a,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
+    const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
+    if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
-    $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; }
+    $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; if(spl) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); }
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
   for(const p of AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H))
@@ -1378,7 +1384,7 @@ $('bWake').onclick=()=>{ st.wakeWant=!st.wakeWant; ls.set('wake',st.wakeWant); s
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') wakeAcquire(); });
 document.addEventListener('pointerdown',e=>{ if(e.target.closest&&e.target.closest('#bWake')) return; if(st.wakeWant && !(st.wake&&!st.wake.released) && !(wakeVid&&!wakeVid.paused)) wakeAcquire(); },true);
 st.wakeWant=ls.get('wake',false); wakeSync(); wakeAcquire();   // the Wake Lock API needs no tap; the video fallback waits for the first one
-$('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); window.scrollTo({top:0,behavior:'smooth'})});
+$('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); $('adCard').scrollIntoView({block:'start',behavior:'smooth'})});
 const RANGES=[2.5,5,10,20,40,80];
 // buttons step through RANGES; pinch (or the mouse wheel) zooms smoothly in between, so step to the next one either way
 $('mapIn').onclick=()=>{ MAP.range=[...RANGES].reverse().find(r=>r<MAP.range-0.01)||RANGES[0]; ls.set('mapRange',MAP.range); render(); };
@@ -1399,6 +1405,7 @@ $('goIn').addEventListener('change',()=>{ const p=findPoint($('goIn').value); if
 suggest($('goIn'),$('goList'),p=>{ if(p.k==='AD') st.pin=p.c; setGo(p); $('goIn').blur(); });
 suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFixed(5)+', '+p.lo.toFixed(5) : p.c; simApply(); $('simPos').blur(); });
 $('goClr').onclick=()=>setGo(null);
+$('goIn').addEventListener('focus',()=>setTimeout(()=>$('goBox').scrollIntoView({block:'start',behavior:'smooth'}),250));
 /* Mic for Go to. Uses the browser's speech recognition, on the phone when it can (processLocally, with the English
    pack downloaded once while online), else the online service when there's signal. Alternatives are tried in order and
    the one whose best search match scores highest goes into the box, with the pick list open, so you confirm with a tap. */
@@ -1528,6 +1535,15 @@ function firstSun(y,m){ const d=new Date(Date.UTC(y,m,1)); return 1+((7-d.getUTC
 function isHDS(state,now){ if(!['NSW','VIC','ACT','TAS','SA'].includes(state)) return false;
   const y=now.getUTCFullYear(), start=Date.UTC(y,9,firstSun(y,9),16), end=Date.UTC(y,3,firstSun(y,3),16); // ~2-3am local
   return now.getTime()>=start || now.getTime()<end; }
+/* Tower frequency for your side of a split tower (ERSA ties each frequency to departures/arrivals on that side,
+   e.g. Moorabbin East 118.1 / West 123.0): your bearing from the aerodrome, or on the aerodrome (< 0.5 NM) the
+   direction of your next flight plan waypoint. side=null when it can't be told (on the field, no plan). */
+function twrPick(a,pick){
+  const twrs=(a.x||[]).filter(x=>x[0]==='TWR'); if(!twrs.length) return null;
+  const fpT=FP&&FP.pts[FP.i], onAd=pick.d<0.5;
+  const sideBrg = !onAd ? norm(pick.b+180) : fpT ? distBrg(a.la,a.lo,fpT.la,fpT.lo)[1] : null;
+  const side = sideBrg==null ? null : sideBrg<180 ? 'East' : 'West';
+  return {twrs, side, tw: twrs.find(t=>t[4]===side)||twrs[0], split: twrs.some(t=>t[4]), onAd, fpT}; }
 function twrStatus(a,now=new Date()){
   const L=a.cnotes||[]; const i=L.findIndex(l=>/TWR HR/.test(l)); if(i<0 || a.utc==null) return null;
   const hds=isHDS(a.st,now), off=a.utc+(hds?1:0), loc=new Date(now.getTime()+off*3600e3);
@@ -1731,7 +1747,7 @@ function setSim(on){
     if(s){ $('simPos').value=s.p; $('simAlt').value=s.a; $('simTrk').value=s.t; $('simGs').value=s.g; }
     if(!$('simPos').value) $('simPos').value='YMAV';
     simApply(); simFold(ls.get('simOpen',true)); }
-  else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null;
+  else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null; $('mapSec').hidden=true;
     $('sAcc').textContent='—'; $('gpsDot').className='dot'; $('sGs').textContent='—'; $('sAlt').textContent='—';
     $('adId').textContent='----'; $('adName').textContent='Waiting for position'; $('stack').innerHTML=''; $('list').innerHTML='';
     if(!watching) $('startBox').hidden=false; }

@@ -309,7 +309,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <button class="btn primary" id="startBtn">Start GPS &amp; compass</button>
   </div>
 
-  <section class="ad mapsec" id="mapSec">
+  <section class="ad mapsec" id="mapSec" hidden>
     <div class="mapwrap">
       <div class="mapbox">
       <canvas id="map" aria-label="Airspace map around your position. Drag to pan, pinch to zoom, press and hold for options at that point."></canvas>
@@ -1605,6 +1605,7 @@ function freqRow(k,v,who,cls=''){
 }
 
 function render(){
+  $('mapSec').hidden=!st.pos;
   if(!st.pos){ return; }
   const [la,lo]=st.pos, varE=variation(la,lo), h=heading();
   $('hdgLbl').textContent=h?h.src+' °M':'TRK';
@@ -1839,7 +1840,7 @@ $('bWake').onclick=()=>{ st.wakeWant=!st.wakeWant; ls.set('wake',st.wakeWant); s
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') wakeAcquire(); });
 document.addEventListener('pointerdown',e=>{ if(e.target.closest&&e.target.closest('#bWake')) return; if(st.wakeWant && !(st.wake&&!st.wake.released) && !(wakeVid&&!wakeVid.paused)) wakeAcquire(); },true);
 st.wakeWant=ls.get('wake',false); wakeSync(); wakeAcquire();   // the Wake Lock API needs no tap; the video fallback waits for the first one
-$('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); window.scrollTo({top:0,behavior:'smooth'})});
+$('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); $('adCard').scrollIntoView({block:'start',behavior:'smooth'})});
 const RANGES=[2.5,5,10,20,40,80];
 // buttons step through RANGES; pinch (or the mouse wheel) zooms smoothly in between, so step to the next one either way
 $('mapIn').onclick=()=>{ MAP.range=[...RANGES].reverse().find(r=>r<MAP.range-0.01)||RANGES[0]; ls.set('mapRange',MAP.range); render(); };
@@ -1860,6 +1861,7 @@ $('goIn').addEventListener('change',()=>{ const p=findPoint($('goIn').value); if
 suggest($('goIn'),$('goList'),p=>{ if(p.k==='AD') st.pin=p.c; setGo(p); $('goIn').blur(); });
 suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFixed(5)+', '+p.lo.toFixed(5) : p.c; simApply(); $('simPos').blur(); });
 $('goClr').onclick=()=>setGo(null);
+$('goIn').addEventListener('focus',()=>setTimeout(()=>$('goBox').scrollIntoView({block:'start',behavior:'smooth'}),250));
 /* Mic for Go to. Uses the browser's speech recognition, on the phone when it can (processLocally, with the English
    pack downloaded once while online), else the online service when there's signal. Alternatives are tried in order and
    the one whose best search match scores highest goes into the box, with the pick list open, so you confirm with a tap. */
@@ -2192,7 +2194,7 @@ function setSim(on){
     if(s){ $('simPos').value=s.p; $('simAlt').value=s.a; $('simTrk').value=s.t; $('simGs').value=s.g; }
     if(!$('simPos').value) $('simPos').value='YMAV';
     simApply(); simFold(ls.get('simOpen',true)); }
-  else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null;
+  else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null; $('mapSec').hidden=true;
     $('sAcc').textContent='—'; $('gpsDot').className='dot'; $('sGs').textContent='—'; $('sAlt').textContent='—';
     $('adId').textContent='----'; $('adName').textContent='Waiting for position'; $('stack').innerHTML=''; $('list').innerHTML='';
     if(!watching) $('startBox').hidden=false; }
