@@ -59,6 +59,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.plan small.turn.off{color:var(--accent)}
 .st.cls b{font-family:var(--f-label);font-size:19px;letter-spacing:.02em}
 .st.cls .cap+.cap{margin-top:2px}
+.st.nxcls{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;padding:6px 9px;font:600 12px/1.2 var(--f-mono)}
+.st.nxcls b{font:700 15px/1 var(--f-label);margin:0;display:inline} .st.nxcls small,.st.nxcls>b{flex:none} .st.nxcls span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.fq small.nx b{display:inline;font:inherit;font-weight:700;color:var(--freq);margin:0}
@@ -249,6 +252,9 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .go-row{display:flex;align-items:center;gap:8px}
 .go-row input{flex:1;min-width:0;font:500 15px/1.2 var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);text-transform:uppercase}
 .go-row .btn{padding:6px 8px;font-size:11px}
+.go-row .btn.mic{padding:5px 7px;line-height:0}.go-row .btn.mic svg{width:18px;height:18px;fill:currentColor}
+.go-row .btn.mic.on{background:var(--warn);border-color:var(--warn);color:#fff;animation:micp 1s ease-in-out infinite}
+@keyframes micp{50%{opacity:.6}}
 .sugg{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:8px;background:var(--panel);max-height:300px;overflow:auto}
 .sugg li{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:baseline;padding:7px 9px;border-top:1px solid var(--rule);cursor:pointer}
 .sugg li:first-child{border-top:0} .sugg li.on,.sugg li:hover{background:color-mix(in srgb,var(--wp) 14%,transparent)}
@@ -290,6 +296,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
     <div class="st fq" title="CTAF of the aerodrome on screen"><small>CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
+    <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
   <details class="notice warn fold" id="effBanner" hidden>
@@ -344,8 +351,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="go-row">
       <span class="lbl">Go to</span>
       <input id="goIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Name or code: CARR, Lilydale, Geelong, AV">
+      <button class="btn mic" id="goMic" hidden aria-label="Say a place or code" title="Say a place, or spell a code in the phonetic alphabet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12Z"/></svg></button>
       <button class="btn" id="goClr" hidden>Clear</button>
     </div>
+    <div class="vnote" id="goMicMsg" hidden></div>
     <div class="go-res" id="goRes" hidden>
       <div class="arrow sm" aria-hidden="true"><svg viewBox="0 0 24 24" id="goArrow"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg></div>
       <div class="go-txt"><b id="goName"></b><span id="goSub"></span></div>
@@ -462,7 +471,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=1748003543'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=9ce7030aea'; document.body.appendChild(s);
 })();
 </script>
 

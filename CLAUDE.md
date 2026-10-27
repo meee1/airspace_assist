@@ -6,8 +6,8 @@ Phone web app for Australian VFR pilots, especially helicopters. Target phone: G
 - a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points
 - status tiles: GPS, TRK/HDG (compass auto-aligned to GPS track), PLAN (bearing and turn to the active waypoint), GS, ALT/AGL, CLASS (class here, cap, LL), and a second row with the CTAF of the aerodrome on screen and the AREA (or ATC) frequency at your position, each with the expected next frequency and its distance
 - the area frequency and the airspace stack for your position and altitude
-- an airspace map (pan, pinch zoom) with a 10 NM lead line, SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs (CTAF, Terrain, Charts and Lead toggle)
-- Go to with fuzzy search, and GPX flight plans with auto-sequencing, an elevation profile, suggested VFR altitudes and a flight log
+- an airspace map at the top of the page (pan, pinch zoom, track/north up) with a 10 NM lead line, SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs (CTAF, Terrain, Charts and Lead toggle)
+- Go to with fuzzy search, phonetic-alphabet decoding, a mic button and a press-and-hold map menu, and GPX flight plans with auto-sequencing, an elevation profile, suggested VFR altitudes and a flight log
 - all of it offline once loaded
 
 Live at https://meee1.github.io/airspace_assist/app/ (GitHub Pages, from `master`, repo `meee1/airspace_assist`).
@@ -205,6 +205,11 @@ python3 assemble.py && cp dist/* ../app/
   6. flight plan
   7. aerodrome card (header, runways, CTAF, radio calls, frequency stack)
   8. Nearby, then settings
+- **Consequences of the map being at the top** (fixed after the move):
+  - Tapping a Nearby row scrolls `#adCard` into view (it used to `scrollTo(0)`).
+  - Focusing Go to scrolls `#goBox` to the top, so the pick list isn't under the keyboard.
+  - `#mapSec` is hidden until there's a position (`render()` and `setSim(false)`), so first launch isn't a blank map.
+  - The canvas has `touch-action:none`, so the page can't be scrolled by swiping on the map.
 - **Spoken / phonetic input** (`decodeSpoken`, table `SPOKEN`; note `PHON` is the callsign speller):
   - Runs of 2+ phonetic words, single letters or digit words collapse into a code (alpha/alfa, juliet/juliett, x-ray, niner, tree, fife…). Other words pass through, and a leading "go to" / "direct (to)" / "fly to" is dropped.
   - Used at the start of `searchPoints` and `findPoint`, so it applies to typing as well.
@@ -213,3 +218,7 @@ python3 assemble.py && cp dist/* ../app/
   - On-device first: `SR.available({langs:['en-AU'|'en-US'], processLocally:true})`. `available` → `processLocally=true`. `downloadable` while online → `SR.install()`, falling back to online recognition. Not installed while offline → a message pointing to the Gboard mic. With no on-device API and offline → the same message.
   - Recognition settings: `maxAlternatives=5`, `interimResults`. Each alternative is decoded and searched, and the one whose top match scores highest goes in the box. `inp._voice` lets `suggest` show the list without focusing the input (so no keyboard pops up), and the user taps to confirm.
   - Test with a fake `window.SpeechRecognition` class in an init script. There's no real recognition in headless Chromium.
+- **NEXT CLASS alert** (`#sNxCls`, `clsNext`, `NX.cls` from the `nextFreqs` path loop; owner's pick D of four, 27 Oct 2026):
+  - **What counts:** the first sample within 10 NM whose band at your altitude (exact band only, no last-band fallback) is A/C/D or CTR-as-D, or that is inside an active-limits R area, with a key different from where you are now (`clsKey`).
+  - **What's ignored:** danger areas and G/E changes.
+  - **Display:** a red full-width row: class or area name, limits, distance, unit and frequency, and "clearance" (or "restricted, check status" for R).

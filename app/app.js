@@ -1093,9 +1093,17 @@ function nxPath(la,lo){
     for(let j=1;j<=n&&D+L*j/n<=MAX+0.01;j++) out.push([a0+(a1-a0)*j/n, o0+(o1-o0)*j/n, D+L*j/n]);
     D+=L; }
   return out; }
-function nextFreqs(la,lo,altFt,ctafNow,adNow,cur){
-  const key=[la.toFixed(3),lo.toFixed(3),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length:'-',FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,st.heli,st.all].join('|');
-  if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null;
+// class at your altitude at a point: band class (CTR -> its class) plus any restricted/danger area you'd be inside
+function clsKey(b,prd){ const k=b?(b.k==='CTR'?b.ctrCls:b.k):'?'; return {k, prd:prd||null, key:k+(prd?'|'+prd.n:'')}; }
+const clsCol=k=>k==='G'?'var(--ink)':`var(--as-${k==='A'?'c':String(k).toLowerCase()})`;
+function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace ahead within 10 NM at your altitude
+  const n=NX.cls, box=$('sNxCls'); if(!n){ box.hidden=true; box.innerHTML=''; return; }
+  const R_=!!n.prd, tgt=R_? n.prd.n.split(' ')[0] : n.k, lim=R_? `${limTxt(n.prd.L)}–${n.prd.hik==='NOTAM'?'NOTAM':limTxt(n.prd.H)}` : n.b?`${limTxt(n.b.L)}–${limTxt(n.b.H)}`:'';
+  box.hidden=false;
+  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?' · restricted, check status':(n.b&&n.b.unit?' · '+esc(unitShort(n.b.unit)):'')+(n.b&&n.b.f?' '+n.b.f:'')+' · clearance'}</span>`; }
+function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
+  const key=[la.toFixed(3),lo.toFixed(3),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length:'-',FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
+  if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
     const path=nxPath(la,lo);
     if(path.length){
       let la0=90,la1=-90,lo0=360,lo1=-360; for(const [a,o] of path){ la0=Math.min(la0,a); la1=Math.max(la1,a); lo0=Math.min(lo0,o); lo1=Math.max(lo1,o); }
@@ -1104,10 +1112,13 @@ function nextFreqs(la,lo,altFt,ctafNow,adNow,cur){
       for(const [pa,po,D] of path){
         if(!NX.ctaf){ let best=null; for(const a of ads){ if(Math.abs(a.la-pa)>0.17) continue; const d=distBrg(pa,po,a.la,a.lo)[0]; if(d<=10&&(!best||d<best.d)) best={a,d}; }
           if(best&&best.a!==adNow){ const f=ctafInfo(best.a).f; if(f&&f!==ctafNow) NX.ctaf={f,a:best.a,d:D}; } }
-        if(!NX.area){ const t=terrainFt(pa,po), AS=airStack(pa,po,t!=null?t:0), b=AS.bands.find(b=>altFt>=b.L-50&&altFt<b.H)||AS.bands[AS.bands.length-1];
-          if(b&&b.f&&b.f!==(cur&&cur.f)) NX.area={f:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:b.unit,d:D}; }
-        if(NX.ctaf&&NX.area) break; } } }
+        if(!NX.area||!NX.cls){ const t=terrainFt(pa,po), AS=airStack(pa,po,t!=null?t:0), b=AS.bands.find(b=>altFt>=b.L-50&&altFt<b.H)||AS.bands[AS.bands.length-1];
+          if(!NX.area && b&&b.f&&b.f!==(cur&&cur.f)) NX.area={f:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:b.unit,d:D};
+          const bx=AS.bands.find(q=>altFt>=q.L-50&&altFt<q.H);   // no fallback band here: a gap in the data is not a class change
+          if(!NX.cls && D<=10 && bx){ const ck=clsKey(bx,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')); if(ck.key!==clsNow && (ck.prd||/^(A|C|D)$/.test(ck.k))) NX.cls={...ck,b:bx,d:D}; } }
+        if(NX.ctaf&&NX.area&&NX.cls) break; } } }
   const dd=d=>d<10?d.toFixed(1):Math.round(d);
+  clsNext(dd);
   // distance before the name, so a narrow tile cuts the name, not the distance
   $('sCtafNx').innerHTML= NX.ctaf? `next <b>${NX.ctaf.f}</b> in ${dd(NX.ctaf.d)} NM · ${esc(NX.ctaf.a.i)}` : '';
   $('sAreaNx').innerHTML= NX.area? `next ${NX.area.k&&NX.area.k!=='G'&&NX.area.k!=='E'?'ATC ':''}<b>${NX.area.f}</b> in ${dd(NX.area.d)} NM · ${esc(unitShort(NX.area.unit))}` : '';
@@ -1215,7 +1226,7 @@ function render(){
     if(above) sub+=`<br>Above ${limTxt(above.L)}: class ${above.k==='CTR'?above.ctrCls:above.k}${above.f?` <b class="mono">${above.f}</b>`:''}`;
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
-  nextFreqs(la,lo,altFt,CI.f,a,cur);
+  nextFreqs(la,lo,altFt,CI.f,a,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
     $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; }

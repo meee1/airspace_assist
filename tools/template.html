@@ -59,6 +59,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.plan small.turn.off{color:var(--accent)}
 .st.cls b{font-family:var(--f-label);font-size:19px;letter-spacing:.02em}
 .st.cls .cap+.cap{margin-top:2px}
+.st.nxcls{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;padding:6px 9px;font:600 12px/1.2 var(--f-mono)}
+.st.nxcls b{font:700 15px/1 var(--f-label);margin:0;display:inline} .st.nxcls small,.st.nxcls>b{flex:none} .st.nxcls span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.fq small.nx b{display:inline;font:inherit;font-weight:700;color:var(--freq);margin:0}
@@ -249,6 +252,9 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .go-row{display:flex;align-items:center;gap:8px}
 .go-row input{flex:1;min-width:0;font:500 15px/1.2 var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);text-transform:uppercase}
 .go-row .btn{padding:6px 8px;font-size:11px}
+.go-row .btn.mic{padding:5px 7px;line-height:0}.go-row .btn.mic svg{width:18px;height:18px;fill:currentColor}
+.go-row .btn.mic.on{background:var(--warn);border-color:var(--warn);color:#fff;animation:micp 1s ease-in-out infinite}
+@keyframes micp{50%{opacity:.6}}
 .sugg{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:8px;background:var(--panel);max-height:300px;overflow:auto}
 .sugg li{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:baseline;padding:7px 9px;border-top:1px solid var(--rule);cursor:pointer}
 .sugg li:first-child{border-top:0} .sugg li.on,.sugg li:hover{background:color-mix(in srgb,var(--wp) 14%,transparent)}
@@ -290,6 +296,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
     <div class="st fq" title="CTAF of the aerodrome on screen"><small>CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
+    <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
   <details class="notice warn fold" id="effBanner" hidden>
@@ -344,8 +351,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="go-row">
       <span class="lbl">Go to</span>
       <input id="goIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Name or code: CARR, Lilydale, Geelong, AV">
+      <button class="btn mic" id="goMic" hidden aria-label="Say a place or code" title="Say a place, or spell a code in the phonetic alphabet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12Z"/></svg></button>
       <button class="btn" id="goClr" hidden>Clear</button>
     </div>
+    <div class="vnote" id="goMicMsg" hidden></div>
     <div class="go-res" id="goRes" hidden>
       <div class="arrow sm" aria-hidden="true"><svg viewBox="0 0 24 24" id="goArrow"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg></div>
       <div class="go-txt"><b id="goName"></b><span id="goSub"></span></div>
@@ -634,7 +643,7 @@ const VW=(DATA.vw||[]).map(([c,n,la,lo])=>({k:'VFR',c,n,la,lo}));
 const NA=(DATA.na||[]).map(([c,t,n,la,lo,f])=>({k:'NAV',c,t,n,la,lo,f}));
 const VWby=new Map(VW.map(p=>[p.c,p]));
 function findPoint(q){
-  q=q.trim().toUpperCase(); if(!q) return null;
+  q=decodeSpoken(q); if(!q) return null;
   const a=DATA.ap.find(x=>x.i===q); if(a) return {k:'AD',c:a.i,n:a.n,la:a.la,lo:a.lo};
   if(VWby.has(q)) return VWby.get(q);
   const nv=NA.filter(p=>p.c===q); if(nv.length){ const ref=st.pos||[-30,135]; return nv.sort((x,y)=>distBrg(ref[0],ref[1],x.la,x.lo)[0]-distBrg(ref[0],ref[1],y.la,y.lo)[0])[0]; }
@@ -861,7 +870,19 @@ function searchIdx(){ if(SEARCH) return SEARCH; SEARCH=[];
   for(const p of TOWNS) SEARCH.push({p,keys:p.t==='S'?[p.c]:[p.c,...p.c.split(' - ')],w:p.t==='S'?0.5:p.t==='L'?1:2.5,lite:p.t==='S'});   // "Ocean Grove - Barwon Heads" matches either
   for(const w of (DATA.iw||[])) SEARCH.push({p:{k:'IFR',c:w[0],n:'IFR waypoint',la:w[1],lo:w[2]},keys:[w[0]],w:0});
   return SEARCH; }
-function searchPoints(q,n=8){ q=q.trim().toUpperCase(); if(!q) return [];
+/* Spoken input: "go to yankee lima india lima" -> YLIL, "charlie alpha romeo romeo" -> CARR, "Y L I L" -> YLIL.
+   Runs of 2+ phonetic-alphabet words (or single letters / digit words) collapse into one code; other words are
+   kept, so "Lilydale" or "St Andrews" pass through. Leading "go to" / "direct (to)" is dropped. */
+const SPOKEN=(()=>{ const m={}; 'alpha alfa:A bravo:B charlie charley:C delta:D echo:E foxtrot:F golf:G hotel:H india:I juliet juliett:J kilo keylo:K lima leema:L mike:M november:N oscar:O papa:P quebec:Q romeo:R sierra:S tango:T uniform:U victor:V whiskey whisky:W xray:X yankee yankey:Y zulu:Z zero:0 one:1 two:2 three tree:3 four:4 five fife:5 six:6 seven:7 eight:8 nine niner:9'
+  .split(' ').reduce((acc,w)=>{ if(w.includes(':')){ const [k,v]=w.split(':'); acc.push(k); for(const x of acc) m[x]=v; acc.length=0; } else acc.push(w); return acc; },[]); return m; })();
+function decodeSpoken(q){
+  let t=String(q).toLowerCase().replace(/x[\s-]ray/g,'xray').replace(/[^a-z0-9\s]/g,' ').trim();
+  t=t.replace(/^(please\s+)?(go\s*to|goto|direct\s+to|direct|navigate\s+to|take\s+me\s+to|head\s+to|fly\s+to)\s+/,'');
+  const w=t.split(/\s+/).filter(Boolean), out=[]; let run=[];
+  const flush=()=>{ if(run.length>=2) out.push(run.map(x=>SPOKEN[x]||x.toUpperCase()).join('')); else out.push(...run); run=[]; };
+  for(const x of w){ if(SPOKEN[x]||/^[a-z]$/.test(x)||/^\d$/.test(x)) run.push(x); else { flush(); out.push(x); } }
+  flush(); return out.join(' ').toUpperCase(); }
+function searchPoints(q,n=8){ q=decodeSpoken(q); if(!q) return [];
   const ref=st.pos||(GO?[GO.la,GO.lo]:[-37.8,145]), out=[];
   for(const it of searchIdx()){ let sc=0; for(const k of it.keys){ const v=fuzzy(q,k,it.lite); if(v>sc) sc=v; } if(sc<36) continue;
     const d=distBrg(ref[0],ref[1],it.p.la,it.p.lo)[0]; out.push({p:it.p,sc:sc+it.w-Math.min(15,d/30),d}); }
@@ -870,12 +891,12 @@ function searchPoints(q,n=8){ q=q.trim().toUpperCase(); if(!q) return [];
 function suggest(inp,list,pick){ // dropdown under an input: type to search, tap or Enter to choose, Esc to close
   let res=[], on=0; const varE=()=>st.pos?variation(st.pos[0],st.pos[1]):0;
   const show=()=>{ const q=inp.value; res=/^[-\d\s.,°'"NSEW]+$/i.test(q)&&/\d/.test(q)? [] : searchPoints(q); on=0;
-    if(!res.length||document.activeElement!==inp){ list.hidden=true; return; }
+    if(!res.length||(document.activeElement!==inp&&!inp._voice)){ list.hidden=true; return; }
     list.innerHTML=res.map((o,i)=>{ const b=st.pos?distBrg(st.pos[0],st.pos[1],o.p.la,o.p.lo):null;
       return `<li data-i="${i}" class="${i===on?'on':''}"><span class="t">${o.p.k==='AD'?'AD':o.p.k==='VFR'?'VFR':o.p.k==='NAV'?esc(o.p.t||'NAV'):o.p.k==='TOWN'?(o.p.t==='S'?'Suburb':'Town'):'IFR'}</span><span><b>${esc(o.p.k==='TOWN'?o.p.n:o.p.c)}</b> <span class="n">${o.p.k==='TOWN'?esc(o.p.ste||''):esc(titleCase(o.p.n||''))}</span></span><span class="d">${b?(b[0]<10?b[0].toFixed(1):Math.round(b[0]))+' NM '+fmt3(b[1]-varE())+'°':''}</span></li>`; }).join('');
     list.hidden=false; };
-  const choose=i=>{ const o=res[i]; if(!o) return false; list.hidden=true; pick(o.p); return true; };
-  inp.addEventListener('input',show); inp.addEventListener('focus',show);
+  const choose=i=>{ const o=res[i]; if(!o) return false; list.hidden=true; inp._voice=false; pick(o.p); return true; };
+  inp.addEventListener('input',show); inp.addEventListener('focus',()=>{ inp._voice=false; show(); });
   inp.addEventListener('blur',()=>setTimeout(()=>{ list.hidden=true; },200));
   inp.addEventListener('keydown',e=>{ if(list.hidden) return;
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); on=(on+(e.key==='ArrowDown'?1:res.length-1))%res.length; [...list.children].forEach((li,i)=>li.classList.toggle('on',i===on)); }
@@ -1533,9 +1554,17 @@ function nxPath(la,lo){
     for(let j=1;j<=n&&D+L*j/n<=MAX+0.01;j++) out.push([a0+(a1-a0)*j/n, o0+(o1-o0)*j/n, D+L*j/n]);
     D+=L; }
   return out; }
-function nextFreqs(la,lo,altFt,ctafNow,adNow,cur){
-  const key=[la.toFixed(3),lo.toFixed(3),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length:'-',FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,st.heli,st.all].join('|');
-  if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null;
+// class at your altitude at a point: band class (CTR -> its class) plus any restricted/danger area you'd be inside
+function clsKey(b,prd){ const k=b?(b.k==='CTR'?b.ctrCls:b.k):'?'; return {k, prd:prd||null, key:k+(prd?'|'+prd.n:'')}; }
+const clsCol=k=>k==='G'?'var(--ink)':`var(--as-${k==='A'?'c':String(k).toLowerCase()})`;
+function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace ahead within 10 NM at your altitude
+  const n=NX.cls, box=$('sNxCls'); if(!n){ box.hidden=true; box.innerHTML=''; return; }
+  const R_=!!n.prd, tgt=R_? n.prd.n.split(' ')[0] : n.k, lim=R_? `${limTxt(n.prd.L)}–${n.prd.hik==='NOTAM'?'NOTAM':limTxt(n.prd.H)}` : n.b?`${limTxt(n.b.L)}–${limTxt(n.b.H)}`:'';
+  box.hidden=false;
+  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?' · restricted, check status':(n.b&&n.b.unit?' · '+esc(unitShort(n.b.unit)):'')+(n.b&&n.b.f?' '+n.b.f:'')+' · clearance'}</span>`; }
+function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
+  const key=[la.toFixed(3),lo.toFixed(3),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length:'-',FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
+  if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
     const path=nxPath(la,lo);
     if(path.length){
       let la0=90,la1=-90,lo0=360,lo1=-360; for(const [a,o] of path){ la0=Math.min(la0,a); la1=Math.max(la1,a); lo0=Math.min(lo0,o); lo1=Math.max(lo1,o); }
@@ -1544,10 +1573,13 @@ function nextFreqs(la,lo,altFt,ctafNow,adNow,cur){
       for(const [pa,po,D] of path){
         if(!NX.ctaf){ let best=null; for(const a of ads){ if(Math.abs(a.la-pa)>0.17) continue; const d=distBrg(pa,po,a.la,a.lo)[0]; if(d<=10&&(!best||d<best.d)) best={a,d}; }
           if(best&&best.a!==adNow){ const f=ctafInfo(best.a).f; if(f&&f!==ctafNow) NX.ctaf={f,a:best.a,d:D}; } }
-        if(!NX.area){ const t=terrainFt(pa,po), AS=airStack(pa,po,t!=null?t:0), b=AS.bands.find(b=>altFt>=b.L-50&&altFt<b.H)||AS.bands[AS.bands.length-1];
-          if(b&&b.f&&b.f!==(cur&&cur.f)) NX.area={f:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:b.unit,d:D}; }
-        if(NX.ctaf&&NX.area) break; } } }
+        if(!NX.area||!NX.cls){ const t=terrainFt(pa,po), AS=airStack(pa,po,t!=null?t:0), b=AS.bands.find(b=>altFt>=b.L-50&&altFt<b.H)||AS.bands[AS.bands.length-1];
+          if(!NX.area && b&&b.f&&b.f!==(cur&&cur.f)) NX.area={f:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:b.unit,d:D};
+          const bx=AS.bands.find(q=>altFt>=q.L-50&&altFt<q.H);   // no fallback band here: a gap in the data is not a class change
+          if(!NX.cls && D<=10 && bx){ const ck=clsKey(bx,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')); if(ck.key!==clsNow && (ck.prd||/^(A|C|D)$/.test(ck.k))) NX.cls={...ck,b:bx,d:D}; } }
+        if(NX.ctaf&&NX.area&&NX.cls) break; } } }
   const dd=d=>d<10?d.toFixed(1):Math.round(d);
+  clsNext(dd);
   // distance before the name, so a narrow tile cuts the name, not the distance
   $('sCtafNx').innerHTML= NX.ctaf? `next <b>${NX.ctaf.f}</b> in ${dd(NX.ctaf.d)} NM · ${esc(NX.ctaf.a.i)}` : '';
   $('sAreaNx').innerHTML= NX.area? `next ${NX.area.k&&NX.area.k!=='G'&&NX.area.k!=='E'?'ATC ':''}<b>${NX.area.f}</b> in ${dd(NX.area.d)} NM · ${esc(unitShort(NX.area.unit))}` : '';
@@ -1655,7 +1687,7 @@ function render(){
     if(above) sub+=`<br>Above ${limTxt(above.L)}: class ${above.k==='CTR'?above.ctrCls:above.k}${above.f?` <b class="mono">${above.f}</b>`:''}`;
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
-  nextFreqs(la,lo,altFt,CI.f,a,cur);
+  nextFreqs(la,lo,altFt,CI.f,a,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
     $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; }
@@ -1828,6 +1860,36 @@ $('goIn').addEventListener('change',()=>{ const p=findPoint($('goIn').value); if
 suggest($('goIn'),$('goList'),p=>{ if(p.k==='AD') st.pin=p.c; setGo(p); $('goIn').blur(); });
 suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFixed(5)+', '+p.lo.toFixed(5) : p.c; simApply(); $('simPos').blur(); });
 $('goClr').onclick=()=>setGo(null);
+/* Mic for Go to. Uses the browser's speech recognition, on the phone when it can (processLocally, with the English
+   pack downloaded once while online), else the online service when there's signal. Alternatives are tried in order and
+   the one whose best search match scores highest goes into the box, with the pick list open, so you confirm with a tap. */
+{ const SR=window.SpeechRecognition||window.webkitSpeechRecognition, btn=$('goMic'), msg=t=>{ $('goMicMsg').textContent=t||''; $('goMicMsg').hidden=!t; };
+  let rec=null;
+  if(SR){ btn.hidden=false;
+    const LANGS=['en-AU','en-US'];
+    async function local(){   // 'available' | 'downloadable' | 'downloading' | 'unavailable' | 'unsupported'
+      if(typeof SR.available!=='function') return 'unsupported';
+      for(const l of LANGS){ try{ const r=await SR.available({langs:[l],processLocally:true}); if(r!=='unavailable') return [r,l]; }catch(e){} }
+      return 'unavailable'; }
+    btn.onclick=async()=>{
+      if(rec){ try{ rec.stop(); }catch(e){} return; }
+      let lang='en-AU', onDevice=false; const L=await local();
+      if(Array.isArray(L)){ lang=L[1];
+        if(L[0]==='available') onDevice=true;
+        else if(navigator.onLine){ msg('Downloading the offline speech pack (once)…'); try{ onDevice=await SR.install({langs:[lang],processLocally:true}); }catch(e){} if(!onDevice) msg('Offline speech pack not installed yet; using online recognition.'); }
+        else { msg('Offline speech isn’t set up on this phone yet (it downloads once with signal). Use the keyboard mic instead.'); return; } }
+      else if(!navigator.onLine){ msg('This browser only does speech recognition online. Use the keyboard mic (Gboard works offline).'); return; }
+      rec=new SR(); rec.lang=lang; rec.interimResults=true; rec.maxAlternatives=5; rec.continuous=false;
+      if('processLocally' in rec) rec.processLocally=onDevice;
+      const inp=$('goIn'); btn.classList.add('on'); msg(onDevice?'Listening (on the phone)…':'Listening…');
+      rec.onresult=e=>{ const r=e.results[e.results.length-1]; let best=null;
+        for(let i=0;i<r.length;i++){ const tx=r[i].transcript, q=decodeSpoken(tx), top=searchPoints(q,1)[0]; const sc=top?top.sc:-1; if(!best||sc>best.sc) best={q,sc}; }
+        if(best){ inp.value=best.q; inp._voice=true; inp.dispatchEvent(new Event('input')); }
+        if(r.isFinal) msg(best&&best.sc>0? 'Heard “'+r[0].transcript.trim()+'”: tap the match below.' : 'Heard “'+r[0].transcript.trim()+'”: nothing matched.'); };
+      rec.onerror=e=>{ msg({'no-speech':'Didn’t hear anything.','not-allowed':'Microphone permission is off for this site.','network':'Speech recognition needs signal on this phone. Use the keyboard mic instead.','language-not-supported':'The offline speech pack isn’t installed.'}[e.error]||('Speech recognition: '+e.error)); };
+      rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+      try{ rec.start(); }catch(e){ btn.classList.remove('on'); rec=null; msg('Speech recognition could not start.'); } };
+  } }
 $('fpFile').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; $('fpErr').hidden=true;
   try{ const fp=parseGPX(await f.text()); $('fpToggle').setAttribute('aria-expanded','true'); fpSet(fp); }
   catch(err){ $('fpErr').textContent=err.message; $('fpErr').hidden=false; }

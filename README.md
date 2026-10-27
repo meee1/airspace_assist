@@ -5,9 +5,9 @@
 Phone web app for VFR pilots (built with helicopters in mind):
 - the closest aerodrome (or the next one on your flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies, runways and a radio call guide
 - the area frequency and airspace class for your position and altitude
-- an airspace map (pan and pinch zoom) with a 10 NM lead line ahead of you, terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
+- an airspace map at the top of the screen (pan, pinch zoom, track or north up) with a 10 NM lead line ahead of you, terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
 - GPX flight plans with auto-advancing waypoints, an elevation profile and suggested VFR altitudes
-- search and Go to for any aerodrome, waypoint, navaid, town or suburb
+- search and Go to for any aerodrome, waypoint, navaid, town or suburb, typed or spoken (mic button, phonetic alphabet), or by pressing and holding on the map
 
 It all runs offline once loaded. ERSA and the DAH are always the first source.
 
@@ -23,6 +23,7 @@ Always visible at the top of the screen:
 - **CTAF:** the CTAF of the aerodrome on screen, with its code.
 - **AREA:** the Class G/E area frequency at your position and altitude, or **ATC** (coloured by class) when you're in controlled airspace, with the unit ("Melbourne Ctr", "Moorabbin Twr"). Both are the same as the frequency list below, just always visible.
 - **Next CTAF / next AREA:** under each, the frequency you can expect next and how far away it changes, e.g. "next 121.6 in 9.0 NM · YMEL" or "next ATC 132.0 in 4.0 NM · Melbourne App". The path ahead is the rest of your flight plan, or a straight line along your track when there's no plan (nothing is shown when you're stationary), out to 80 NM at your current altitude. Next CTAF is the first ERSA aerodrome you'll come within 10 NM of whose CTAF differs from the one on screen (private strips and HLS are left out). Next AREA is the first point where the frequency for your altitude changes in the DAH. If you climb or descend, the answer changes with you.
+- **NEXT CLASS alert:** a red row under the top bar appears when controlled airspace (class A, C or D, including control zones) or a restricted area starts within 10 NM ahead at your current altitude. It shows the class or area, its limits and the distance, e.g. "C A025–FL180 in 4.0 NM · Melbourne App 132.0 · clearance" or "R330B SFC–A045 in 5.0 NM · restricted, check status". Ahead means along the flight plan, or along your track without one. Class G/E changes and anything further away don't show; the CLASS tile and the AREA "next" line cover those.
 
 ## Simulate locally (any lat/lng)
 No GPS needed. The app loads its data from `app/data.json`, so it has to be served over http (opening `index.html` as a file won't work):
