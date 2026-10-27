@@ -1,13 +1,14 @@
 # CLAUDE.md — airspace_assist (Radio Calls AU)
 
-Phone web app for Australian VFR pilots, especially helicopters. It shows:
-- the closest aerodrome, with CTAF, ATIS/AWIS, tower and approach frequencies
+Phone web app for Australian VFR pilots, especially helicopters. Target phone: Google Pixel 9 Pro (Chrome on Android); iPhones work too. It shows:
+- the closest aerodrome (or the next one on the flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies
 - the aerodrome's runways (list plus a small to-scale diagram) and ERSA right-hand circuits
 - a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points
-- status tiles: GPS, TRK/HDG, PLAN (bearing and turn to the active waypoint), GS, ALT/AGL, CLASS (class here, cap, LL), and a second row with the CTAF of the aerodrome on screen and the AREA (or ATC) frequency at your position
+- status tiles: GPS, TRK/HDG (compass auto-aligned to GPS track), PLAN (bearing and turn to the active waypoint), GS, ALT/AGL, CLASS (class here, cap, LL), and a second row with the CTAF of the aerodrome on screen and the AREA (or ATC) frequency at your position, each with the expected next frequency and its distance
 - the area frequency and the airspace stack for your position and altitude
-- an airspace map with SRTM terrain, a CTAF layer, runways, VFR waypoints and navaids
-- Go to (bearing/distance to any point) and GPX flight plan import with leg navigation
+- an airspace map (pan, pinch zoom) with SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs
+- Go to with fuzzy search, and GPX flight plans with auto-sequencing, an elevation profile, suggested VFR altitudes and a flight log
+- all of it offline once loaded
 
 Live at https://meee1.github.io/airspace_assist/app/ (GitHub Pages, from `master`, repo `meee1/airspace_assist`).
 
@@ -136,7 +137,7 @@ python3 assemble.py && cp dist/* ../app/
 - After copying files into the repo from another environment, compare checksums (`md5sum`) with the build. A copy has silently left a stale `app/index.html` once, and the live site shipped without the change. `app/index.html`, `app/app.js`, `app/data.json`, `app/sw.js` and `tools/template.html` must come from the same build. The loader fetches `data.json?v=<hash>` and `app.js?v=<hash>`, so a mismatch shows up as stale data, not an error.
 - Airservices, xcaustralia.org and the SRTM hosts may be unreachable from sandboxed shells. The owner downloads the PDFs and runs `fetch_srtm.bat` locally.
 - `data/aip` holds Airservices copyright material (ERSA, DAH, VTC/VNC) in a public repo. Consider `.gitignore`-ing `data/`, since only the generated app is needed for Pages. Ask the owner before changing this.
-- The ERSA/DAH in use are effective **26 NOV 2026**. The app shows a red banner before that date and warns when the data is more than two cycles old.
+- The app carries two AIRAC sets (see Two AIRAC data sets below). It shows a banner when the data isn't effective yet and warns when it's more than two cycles old.
 - Tower-hours logic parses ERSA "TWR HR" notes, using local times and HDS by state. It doesn't know about public holidays or NOTAMs, and the UI says so.
 - Outside tower hours, a Class D zone is shown as class G only where ERSA says it in one plain sentence ("Outside TWR HR airspace becomes Class G", `REV` in template.html). Avalon (becomes E) and zones whose wording has altitude limits or CTA conditions (Albury, Alice Springs, Gold Coast, Sunshine Coast, Broome, Tamworth, Hobart, Launceston, Canberra) stay as published. Don't widen this without reading each ERSA entry.
 - ERSA entries without `ELEV` on the name line (water aerodromes, offshore helidecks) are found from the state/UTC/ICAO line. Without that, their COMM lines merge into the entry before.
@@ -146,6 +147,9 @@ python3 assemble.py && cp dist/* ../app/
 - Airservices sells airspace as shapefiles (Shape Files, $5,950/yr) and CSV (Airspace Data, $1,950/yr) from data.airservicesaustralia.com, with no free download. The owner chose to stay on the free DAH PDF (Oct 2026). Don't add a shapefile path unless the owner provides the files.
 - Offline: `assemble.py` writes the service worker. It precaches all terrain tiles at install into `radio-au-terrain`, which survives app updates. The app shell (index.html, app.js, data.json) is network-first with a 3 s timeout, falling back to the per-build cache `radio-au-<hash>`. Fonts go in `radio-au-fonts`. The footer `#offl` shows what's stored. Test with Playwright `context.setOffline(true)` after the SW is ready. The SW registers on https or localhost only.
 - TAF decoder: abandoned (Oct 2026). The BOM TAF lookup (POST https://www.bom.gov.au/aviation/php/process.php, keyword=<ICAO>&type=search&page=TAF, returns HTML with TAF + METAR) sends no CORS headers, so it can't be fetched from meee1.github.io. aviationweather.gov was also blocked from the page. The options were a paste box with a BOM link, or a proxy (e.g. a Cloudflare Worker) hosted by the owner.
+
+## Feature notes
+
 - **Two AIRAC data sets.** `tools/data.json` is the current AIRAC and `tools/data-next.json` the next. `assemble.py` writes both, plus `urban.json`, to `app/`. The loader chooses by effective time: max(ERSA, DAH) date minus 8 h, i.e. 1600 UTC the day before (AIP GEN 3.1 4.3). In Oct 2026 the current set is ERSA 03 SEP 2026 with DAH 09 JUL 2026; the next is ERSA and DAH 26 NOV 2026. The DAH has its own cycle, so pair each ERSA with the DAH in force on the same date.
 - **Urban areas.** `tools/urban.py` reads the ABS UCL 2021 shapefile (`data/abs/`, CC BY 4.0) via `pip install pyshp`, using `--urban data/abs/UCL_2021_AUST_GDA2020` in `build_data.py`. It keeps Major Urban, Other Urban and Bounded Locality, drops holes and simplifies to 0.0005°. The output is about 1.3 MB.
 - **Suburbs.** `tools/suburbs.py` reads the ABS SAL 2021 shapefile (`data/abs/SAL_2021_AUST_GDA2020`, CC BY 4.0; git-ignored because the .shp is 143 MB, over GitHub's 100 MB limit) via `--sal` in `build_data.py`. Output: `sal` = [name, la x1e4, lo x1e4, state], one point per suburb at the centroid of its largest part, about 460 KB. `assemble.py` moves it into `urban.json` as `{urb, sal}`; the loader still accepts the old plain array. In the app, suburbs join `TOWNS` with `t:'S'`, and a suburb named like a town within 5 NM is dropped. Search gives them weight 0.5, skips letters-in-order matching (`lite`), and runs lev only when the first or second letter matches, which keeps a keystroke at about 15 ms on desktop with about 15k entries. Map labels appear at 5 NM range and below.
