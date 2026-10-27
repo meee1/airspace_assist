@@ -1249,14 +1249,26 @@ function onPosErr(e){
     ? 'Location permission was refused. Allow location for this site in your browser settings, then tap Start.'
     : 'Waiting for a GPS fix. Move clear of buildings or the aircraft roof if you can.';
 }
+/* Android (Chrome on a Pixel): deviceorientationabsolute gives alpha/beta/gamma (Z-X'-Y'' Euler angles, earth frame
+   x East, y North, z up), not a heading, and 360-alpha is only right with the phone lying flat. In a cradle the phone
+   stands nearly upright, so the heading comes from whichever is more horizontal: the top of the screen (phone flat)
+   or the back of the phone (phone upright, screen facing you), worked out from the full rotation. That matches what
+   iOS returns as webkitCompassHeading. Landscape: "top of the screen" follows the screen orientation. */
+function tiltHeading(al,be,ga,so){
+  const a=al*R,b=(be||0)*R,g=(ga||0)*R, ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b),cg=Math.cos(g),sg=Math.sin(g);
+  // R = Rz(a) Rx(b) Ry(g); columns are the device x, y, z axes in earth coordinates
+  const X=[ca*cg-sa*sb*sg, sa*cg+ca*sb*sg, -cb*sg], Y=[-sa*cb, ca*cb, sb], Z=[ca*sg+sa*sb*cg, sa*sg-ca*sb*cg, cb*cg];
+  const u=so*R, top=[0,1,2].map(i=>Math.sin(u)*X[i]+Math.cos(u)*Y[i]), back=Z.map(v=>-v);
+  const v= Math.hypot(top[0],top[1])>=Math.hypot(back[0],back[1]) ? top : back;
+  return norm(Math.atan2(v[0],v[1])/R); }
 let lastOri=0;
 function onOri(e){
-  let h=null, mag=true;
-  if(e.webkitCompassHeading!=null){ h=e.webkitCompassHeading; mag=true; }          // iOS, magnetic
-  else if(e.absolute && e.alpha!=null){ h=360-e.alpha; mag=true; }                 // Android, magnetometer north
-  if(h==null) return;
   const so=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
-  st.compass=norm(h+so); st.compassMag=mag; st.compassT=performance.now();
+  let h=null, mag=true;
+  if(e.webkitCompassHeading!=null){ h=norm(e.webkitCompassHeading+so); mag=true; }      // iOS: magnetic, tilt-compensated
+  else if(e.absolute && e.alpha!=null){ h=tiltHeading(e.alpha,e.beta,e.gamma,so); mag=true; }   // Android: magnetometer north
+  if(h==null) return;
+  st.compass=h; st.compassMag=mag; st.compassT=performance.now();
   const now=performance.now(); if(now-lastOri>400){lastOri=now; render();}
 }
 async function start(){
@@ -1315,6 +1327,11 @@ async function wakeRelease(){ if(st.wake){ try{await st.wake.release()}catch(e){
 function wakeSync(){ const b=$('bWake'), held=!!(st.wake&&!st.wake.released) || (st.wakeVia==='video'&&wakeVid&&!wakeVid.paused);
   b.setAttribute('aria-pressed',!!st.wakeWant);
   b.textContent= !st.wakeWant? 'Keep screen on' : held? 'Screen stays on' : 'Screen on: tap to re-arm'; }
+// Android/Chrome: offer "Install app" (the installed app runs full screen and keeps its offline data)
+let instEv=null;
+addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); instEv=e; $('bInstall').hidden=false; });
+addEventListener('appinstalled',()=>{ instEv=null; $('bInstall').hidden=true; });
+$('bInstall').onclick=async()=>{ if(!instEv) return; instEv.prompt(); try{ await instEv.userChoice; }catch(e){} instEv=null; $('bInstall').hidden=true; };
 $('bCmp').onclick=()=>{ Object.assign(CMP,{off:0,n:0,s:0,c:0}); cmpPrev=null; ls.set('cmp',CMP); cmpSync(); render(); };
 cmpSync();
 $('bWake').onclick=()=>{ st.wakeWant=!st.wakeWant; ls.set('wake',st.wakeWant); st.wakeWant? wakeAcquire() : wakeRelease(); };

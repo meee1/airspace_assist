@@ -47,6 +47,7 @@ The map sits under the frequencies. Pinch to zoom (2.5 to 80 NM; the mouse wheel
 - Each step is labelled chart-style: class, then upper over lower limit.
 - Area frequency boundaries are dotted green, with the frequency inside each area.
 - The airspace you're in at your altitude is shaded.
+- **Lead line:** an orange dashed line runs 10 NM ahead of your arrow along your track (or compass heading when slow), with a cross line every 1 NM and every second one numbered (2, 4 … 10), so you can judge distances to anything ahead at a glance.
 - **CTAF layer:** the CTAF button turns it on and off.
   - Each aerodrome gets a 10 NM area (the AIP CTAF call distance), along with any DAH broadcast areas.
   - Areas on the same frequency merge into one translucent shape with one outline and one colour.

@@ -187,7 +187,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 #ersaProcBody p.n{margin-top:6px;font-weight:600}
 #ersaProcBody mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:inherit;border-radius:3px}
 .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
-#map{width:100%;height:min(86vw,340px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
+#map{width:100%;height:min(94vw,56vh,520px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
@@ -425,6 +425,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <button class="btn" id="bWake" aria-pressed="false">Keep screen on</button>
     <button class="btn" id="bCmp" title="The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.">Compass: not aligned</button>
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
+    <button class="btn" id="bInstall" hidden title="Install as an app: full screen, its own icon, and Android keeps its stored data">Install app</button>
   </div>
 
   <div class="foot" id="foot"></div>
@@ -443,7 +444,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=87986021ed'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=b045f5703f'; document.body.appendChild(s);
 })();
 </script>
 
