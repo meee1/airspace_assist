@@ -218,7 +218,7 @@ function fpSet(fp){ FP=fp; ls.set('fp',FP); if(FP) fpGo(); render(); }
 function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto-advance undo it
   if(!FP) return; FP.i=Math.max(0,Math.min(FP.pts.length-1,i));
   const p=FP.pts[FP.i], d=st.pos&&p? distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0] : null;
-  FP.man={i:FP.i, armed: d==null||d>=0.5};   // if you're already on it, wait until you've moved 1 NM away
+  FP.man={i:FP.i, armed: d==null||d>=0.5, d0:d};   // if you're already on it, wait until you've moved 1 NM away
   ls.set('fp',FP); fpGo(); render();
 }
 function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGo({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
@@ -226,17 +226,48 @@ function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-trac
   const [d13,b13]=distBrg(a.la,a.lo,la,lo), [,b12]=distBrg(a.la,a.lo,b.la,b.lo);
   const x=Math.asin(Math.sin(d13/NM)*Math.sin((b13-b12)*R))*NM; return x;
 }
+// Waypoint sequencing (fly-by, like a GNSS navigator):
+//  - within 0.5 NM of the active waypoint, or
+//  - across the turn bisector at the active waypoint (inbound and outbound legs), within 5 NM of it; on a straight
+//    leg that is simply "abeam or past it", so cutting a corner or passing a mile or two off track still sequences;
+//  - catch-up: if the GPS was off (screen locked, app closed) and you are now clearly on a later leg, jump to it.
+// A waypoint chosen by hand (Prev/Next/leg tap) only sequences within 0.5 NM until you have flown 1 NM towards it,
+// so picking one behind you doesn't immediately skip forward again.
+function fpLocal(o,p){ const c=Math.cos(o.la*R); return [(p.lo-o.lo)*c*60,(p.la-o.la)*60]; }   // NM east/north of o
+function fpLeg(k,pos){ const P_=FP.pts, a=P_[k-1], b=P_[k], [bx,by]=fpLocal(a,b), [px,py]=fpLocal(a,{la:pos[0],lo:pos[1]}), L=Math.hypot(bx,by)||1e-9;
+  return {L, along:(px*bx+py*by)/L, xt:(px*by-py*bx)/L}; }   // xt + = right of course
 function fpAdvance(){
-  if(!FP||!st.pos) return; const p=FP.pts[FP.i]; if(!p) return;
-  const d=distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0];
-  const man=FP.man&&FP.man.i===FP.i? FP.man : null;
-  if(man && !man.armed){ if(d>1){ man.armed=true; ls.set('fp',FP); } return; }
-  let passed=false;
-  // 'passed it' only applies to the normal sequence, not a waypoint you chose by hand
-  if(FP.i>0 && !man){ const a=FP.pts[FP.i-1], [dab]=distBrg(a.la,a.lo,p.la,p.lo), [dap]=distBrg(a.la,a.lo,st.pos[0],st.pos[1]);
-    const xt=Math.abs(xte(st.pos[0],st.pos[1],a,p)); const along=Math.sqrt(Math.max(0,dap*dap-xt*xt)); passed = along>dab && d<3; }
-  if((d<0.5||passed) && FP.i<FP.pts.length-1){ FP.i++; FP.man=null; ls.set('fp',FP); fpGo(); }
+  if(!FP||!st.pos) return; const P_=FP.pts, i=FP.i, p=P_[i]; if(!p) return;
+  const pos=st.pos, d=distBrg(pos[0],pos[1],p.la,p.lo)[0], last=P_.length-1;
+  let man=FP.man&&FP.man.i===i? FP.man : null;
+  if(man && !man.armed){ if(d>1){ man.armed=true; man.d0=d; ls.set('fp',FP); } return; }
+  if(man && man.d0!=null && d<man.d0-1){ FP.man=man=null; ls.set('fp',FP); }   // heading for it: normal rules again
+  let next=null;
+  if(d<0.5) next=i+1;
+  else if(!man && i===0 && last>0){ const g=fpLeg(1,pos); if(g.along>0.3 && Math.abs(g.xt)<3) next=1; }   // left the start point
+  else if(!man && i>0 && i<last && d<5){
+    const [rx,ry]=fpLocal(p,{la:pos[0],lo:pos[1]}), [ax,ay]=fpLocal(P_[i-1],p), [cx_,cy_]=fpLocal(p,P_[i+1]);
+    const la_=Math.hypot(ax,ay)||1, lc=Math.hypot(cx_,cy_)||1, nx=ax/la_+cx_/lc, ny=ay/la_+cy_/lc, nn=Math.hypot(nx,ny);
+    if(nn>0.3 ? (rx*nx+ry*ny)/nn>0 : false) next=i+1;                                  // past the bisector
+  }
+  if(next==null && !man && i<last){                                                     // catch-up after a gap
+    const cur=i>0? fpLeg(i,pos) : null, onCur=cur? Math.abs(cur.xt)<2 && cur.along>-1 && cur.along<cur.L+1 : d<2;
+    const trkOk=k=>{ if(st.trk==null||!(st.gs>20)) return true; const lb=distBrg(P_[k-1].la,P_[k-1].lo,P_[k].la,P_[k].lo)[1]; return Math.abs(((st.trk-lb+540)%360)-180)<60; };
+    if(!onCur) for(let k=i+1;k<=last;k++){ const g=fpLeg(k,pos); if(Math.abs(g.xt)<2 && g.along>0 && g.along<g.L && trkOk(k)){ next=k; break; } }
+  }
+  if(next!=null && next<=last){ FP.i=next; FP.man=null; ls.set('fp',FP); fpLogEv('seq',i,next,d); fpGo(); }
 }
+/* flight log: every GPS fix (at most one per 5 s) for the last 6 h, exportable as GPX, to check sequencing after a flight */
+const TLOG={pts:ls.get('tlog',[]), last:0};
+function fpLogFix(){ if(st.sim||!st.pos) return; const t=Date.now(); if(t-TLOG.last<5000) return; TLOG.last=t;
+  TLOG.pts.push([t,+st.pos[0].toFixed(6),+st.pos[1].toFixed(6),st.alt!=null?Math.round(st.alt):null,st.gs!=null?Math.round(st.gs):null,st.trk!=null?Math.round(st.trk):null,st.acc!=null?Math.round(st.acc):null,FP?FP.i:null]);
+  const cut=t-6*3600e3; while(TLOG.pts.length&&TLOG.pts[0][0]<cut) TLOG.pts.shift(); if(TLOG.pts.length%6===0) ls.set('tlog',TLOG.pts); }
+function fpLogEv(kind,a,b,d){ if(st.sim) return; TLOG.pts.push([Date.now(),'ev',kind,a,b,+d.toFixed(2)]); ls.set('tlog',TLOG.pts); }
+function fpLogGpx(){ const fx=TLOG.pts.filter(p=>p[1]!=='ev'), ev=TLOG.pts.filter(p=>p[1]==='ev');
+  const x=s=>String(s).replace(/[<&]/g,'');
+  const pts=fx.map(p=>`<trkpt lat="${p[1]}" lon="${p[2]}">${p[3]!=null?`<ele>${(p[3]/3.28084).toFixed(1)}</ele>`:''}<time>${new Date(p[0]).toISOString()}</time><desc>gs ${p[4]} trk ${p[5]} acc ${p[6]} wp ${p[7]}</desc></trkpt>`).join('\n');
+  const wpts=ev.map(e=>{ const f=fx.reduce((m,p)=>Math.abs(p[0]-e[0])<Math.abs(m[0]-e[0])?p:m,fx[0]||[e[0],0,0]); return `<wpt lat="${f[1]}" lon="${f[2]}"><time>${new Date(e[0]).toISOString()}</time><name>${x(e[2])} ${e[3]}->${e[4]}</name><desc>${e[5]} NM from waypoint</desc></wpt>`; }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n<trk><name>Radio Calls AU log${FP?' · '+x(FP.name):''}</name><trkseg>\n${pts}\n</trkseg></trk></gpx>`; }
 // Flight plan aerodromes take priority over "closest" so the right calls are on screen in time:
 //  1. the next aerodrome in the plan, once within 10 NM (the CTAF inbound/overflying call point)
 //  2. when the active waypoint is one of that aerodrome's ERSA VFR reporting points (e.g. ACE for Moorabbin), within 15 NM,
@@ -1074,7 +1105,7 @@ function onPos(p){
   $('gpsDot').className='dot '+(c.accuracy<50?'ok':c.accuracy<300?'warn':'bad');
   $('sGs').textContent=st.gs!=null?Math.round(st.gs):'—';
   $('sAlt').textContent=st.alt!=null?Math.round(st.alt/10)*10:'—';
-  render();
+  fpLogFix(); render();
 }
 function onPosErr(e){
   if(st.sim) return;
@@ -1154,6 +1185,8 @@ $('fpToggle').onclick=()=>{ const open=$('fpToggle').getAttribute('aria-expanded
 $('fpToggle').setAttribute('aria-expanded',ls.get('fpOpen',true));
 $('fpPrev').onclick=()=>{ if(FP&&FP.i>0) fpPick(FP.i-1); };
 $('fpSkip').onclick=()=>{ if(FP&&FP.i<FP.pts.length-1) fpPick(FP.i+1); };
+$('fpLog').onclick=()=>{ ls.set('tlog',TLOG.pts); const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx()],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
 $('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); fpPick(Math.min(1,FP.pts.length-1)); };
 $('fpClear').onclick=()=>{ fpSet(null); setGo(null); };
 $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; fpPick(+li.dataset.k); });

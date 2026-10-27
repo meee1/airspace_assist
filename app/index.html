@@ -330,7 +330,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="prof-ctl"><span class="lbl">Buffer below C/D</span><select id="ctaBuf"><option value="500">500 ft</option><option value="300">300 ft</option><option value="200">200 ft</option><option value="100">100 ft</option></select></div><canvas id="fpProf" aria-label="Flight plan elevation profile: terrain and controlled airspace along the route"></canvas>
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
-      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button></div>
+      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
       <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route.</div>
     </div>
   </section>
@@ -426,7 +426,7 @@ window.__SETS=[[1788364800000, "data.json?v=f6db3df8c4", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=c236897b7f'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=ff12306b1a'; document.body.appendChild(s);
 })();
 </script>
 

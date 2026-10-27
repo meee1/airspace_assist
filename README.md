@@ -83,7 +83,14 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - **Flagged in red:** a leg that needs different levels along its length ("split" — add a waypoint), or where the minimum height is above the airspace limit ("!" — get a clearance or re-route).
   - **Obstacles:** masts and buildings are not in the data. Check the VTC/VNC.
 - **Leg list:** each leg's course and distance. Tap a leg to make it active; Prev, Next, Reverse and Remove are below the list.
-- **Auto-advance:** the next waypoint moves on within 0.5 NM or once you've passed it, and it drives **Go to**.
+- **Auto-advance:** the active waypoint moves on, like a GNSS navigator, in any of these cases:
+  - within 0.5 NM of it;
+  - when you cross the turn bisector at it, within 5 NM, so passing a mile or two off track or cutting the corner still counts;
+  - leaving the first point of the plan;
+  - catch-up: after a GPS gap (screen locked, app closed), if you're clearly on a later leg (within 2 NM of it and tracking along it), it jumps there.
+
+  A waypoint picked by hand with Prev, Next or a leg tap only sequences within 0.5 NM until you've flown 1 NM towards it. The active waypoint drives **Go to**.
+- **Flight log:** the app keeps every GPS fix (one per 5 s, last 6 hours) and each waypoint change. **Flight log** downloads it as a GPX, to check what happened after a flight. Simulation isn't logged.
 - **Aerodrome on screen:** with a plan loaded, the aerodrome card follows the plan instead of simply the closest:
   - the next aerodrome in the plan once you're within 10 NM, so the inbound or overflying call is ready at the CTAF call point
   - from 15 NM, when the active waypoint is one of that aerodrome's ERSA reporting points, so the tower inbound call is ready before you get there (e.g. ACE then YMMB)
