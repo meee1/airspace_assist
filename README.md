@@ -35,6 +35,13 @@ The map sits under the frequencies. Use − and + to zoom (2.5 to 80 NM) and the
 - **Runways:** at 5 NM and closer, runways are drawn on the map; at 2.5 NM they're labelled with their designators.
 - The map only shows airspace starting below FL125, or below 5,000 ft above you, so the high-level steps don't clutter it.
 - **Labels:** each airspace label sits wholly inside its own area. Controlled-airspace labels also avoid any part with lower controlled airspace, so a "C A045" label doesn't land inside the A025 step or a control zone. If a step has no room on screen, its label is left off.
+- **Chart underlay (VTC/VNC):** the Melbourne VNC and the Melbourne VTC (main map and Melbourne Basin inset) are shown under the map by default, with the VTC drawn above the VNC.
+  - **Download:** they come with the app as pre-rendered tiles in `app/charts/` (about 12 MB, built by `tools/chartiles.py`). They download in the background the first time the app opens with signal and are then stored for offline use; the footer counts the stored tiles.
+  - **Controls:** the **Charts** button turns the underlay on and off. The **Chart underlay** section below the map has an opacity slider.
+  - **Newer edition:** you can import an Airservices PDF on the phone (rendered there with pdf.js in `app/lib/pdfjs`). An imported chart replaces the built-in one for that sheet until you remove it.
+  - **Georeferencing:** by fitting each chart's printed controlled-airspace boundaries to the DAH (`tools/chartref.py`), with a median misfit of about 45 m on the VTC and 90 m on the VNC. Waypoints, airspace and frequencies drawn on top still come from the AIP data.
+  - **Terrain:** with a chart showing, the grey terrain relief is hidden, but the red and amber terrain warnings stay.
+  - **Copyright:** the charts are Airservices copyright. Publishing the tiles on this site is the owner's decision.
 - **Pan:** drag the map to look around. While panned it shows north up and stays put as you move; tap **◎ Centre** to go back to your position. A tap without dragging still picks a waypoint or aerodrome for Go to.
 
 ## Runways and aerodrome diagram

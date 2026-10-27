@@ -16,12 +16,16 @@ async function precacheTerrain(){
   }catch(e){}
 }
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))).then(precacheTerrain).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,'radio-au-charts'].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('message',e=>{ if(e.data==='precache') e.waitUntil(precacheTerrain()); });
 self.addEventListener('fetch',e=>{
   const req=e.request, u=new URL(req.url);
   if(req.method!=='GET') return;
-  if(u.origin===location.origin && /\/terrain\/[^/]+\.bin\.z$/.test(u.pathname)){
+  if(u.origin===location.origin && /\/charts\/.+\.jpg$/.test(u.pathname)){        // chart tiles: stored by the page in radio-au-charts
+    e.respondWith(caches.open('radio-au-charts').then(c=>c.match(req,{ignoreSearch:true}).then(r=>r||fetch(req))));
+  } else if(u.origin===location.origin && /\/charts\/index\.json$/.test(u.pathname)){
+    e.respondWith(timed(req,3000).catch(()=>caches.open('radio-au-charts').then(c=>c.match('charts/index.json'))));
+  } else if(u.origin===location.origin && /\/terrain\/[^/]+\.bin\.z$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));
   } else if(u.origin===location.origin && /\/terrain\/index\.json$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('terrain/index.json',n.clone()); return n; }).catch(()=>c.match('terrain/index.json'))));
@@ -62,6 +66,7 @@ tpl=open(os.path.join(here,'template.html')).read()
 i=tpl.index('<script>\n'); j=tpl.rindex('</script>')
 app=tpl[i+len('<script>\n'):j]
 assert 'const DATA = /*__DATA__*/null;' in app
+app=app.replace('/*__CHARTS__*/[]', json.dumps(json.load(open(os.path.join(here,'charts.json'))),separators=(',',':')) if os.path.exists(os.path.join(here,'charts.json')) else '[]')
 app=app.replace('const DATA = /*__DATA__*/null;','const DATA = window.__DATA;   // loaded from data.json / data-next.json by the loader in index.html')
 av=h(app)
 LOADER=f"""<script>

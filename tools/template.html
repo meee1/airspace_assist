@@ -203,6 +203,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .bootErr{margin:12px;padding:12px 14px;border-radius:8px;background:var(--panel);border:2px solid var(--warn);color:var(--ink);font-size:14px}
 .prof-ctl{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:4px} .prof-ctl .lbl{margin-right:auto} .prof-ctl .btn{padding:4px 9px;font-size:13px;min-width:30px} .prof-ctl select{font:500 13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
 .prof-ctl .mono{font-size:12px;min-width:52px;text-align:center}
+.chartbox{margin-top:8px;border-top:1px solid var(--rule);padding-top:6px} .chartbox summary{display:flex;gap:8px;align-items:center;cursor:pointer;list-style:none} .chartbox summary .mono{margin-left:auto;font-size:11px;color:var(--dim)}
+.chart-body{display:flex;flex-direction:column;gap:8px;padding-top:8px} .chart-op{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-left:auto} .chart-op input{width:110px}
+.chart-prog{font-size:12px;color:var(--accent)} .chart-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.chart-list li{display:flex;gap:8px;align-items:center} .chart-list li span{flex:1} .chart-list li .btn{padding:3px 8px;font-size:11px}
 #fpProf{width:100%;height:180px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation;cursor:crosshair}
 .fp-pinfo{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.4} .fp-pinfo b{color:var(--ink);font-family:var(--f-mono);font-weight:600} .fp-pinfo .w{color:var(--warn)}
 #adMap{width:100%;height:200px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule)}
@@ -377,8 +381,19 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
         <button class="btn" id="mapUp">Track up</button>
         <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
+        <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
+      <details class="chartbox" id="chartBox">
+        <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
+        <div class="chart-body">
+          <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
+            <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
+          <div class="chart-prog" id="chartProg" hidden></div>
+          <ul class="chart-list" id="chartList"></ul>
+          <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
+        </div>
+      </details>
       <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
     </div>
   </section>
@@ -969,6 +984,148 @@ function polyCentroid(p){ let A=0,x=0,y=0; for(let i=0,j=p.length-1;i<p.length;j
   A/=2; if(Math.abs(A)<1) return null; return [x/(6*A),y/(6*A),Math.abs(A)]; }
 function inScreenPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j=i++){ const a=p[i],b=p[j];
   if((a[1]>y)!==(b[1]>y) && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; }
+/* ---------- VTC/VNC underlay: imported on the device, rendered with pdf.js, stored in Cache Storage ---------- */
+// Georeference per chart sheet panel: chart pt (u,v) = similarity( Lambert conformal conic(lat,lon) ), LCC on a sphere with
+// standard parallels 36°S/39°S, origin 37.8°S 145°E. Fitted offline (tools/chartref.py) by matching the chart's printed
+// controlled-airspace boundaries to the DAH: median misfit 0.5 pt (about 45 m on the VTC, 90 m on the VNC).
+const CHART_SHEETS=/*__CHARTS__*/[];
+const CH={on:ls.get('mapCharts',true), op:ls.get('chartOp',0.7), idx:[], site:[], local:[], imgs:new Map(), busy:false, need:0, have:0};
+const CH_CACHE='radio-au-charts', CH_TILE=512;
+function lccFwd(la,lo){ const R_=6371008.8/1852, rad=Math.PI/180, p1=-36*rad, p2=-39*rad, p0=-37.8*rad, l0=145*rad;
+  const n=Math.log(Math.cos(p1)/Math.cos(p2))/Math.log(Math.tan(Math.PI/4+p2/2)/Math.tan(Math.PI/4+p1/2)), F=Math.cos(p1)*Math.pow(Math.tan(Math.PI/4+p1/2),n)/n;
+  const r0=R_*F/Math.pow(Math.tan(Math.PI/4+p0/2),n), r=R_*F/Math.pow(Math.tan(Math.PI/4+la*rad/2),n), th=n*(lo*rad-l0);
+  return [r*Math.sin(th), r0-r*Math.cos(th)]; }
+function chartPt(pan,la,lo){ const [x,y]=lccFwd(la,lo), [a,b,c,d]=pan.sim; return [a*x+b*y+c, -a*y+b*x+d]; }
+function affine3(src,dst){ // canvas = [a c e; b d f]·[u v 1] from three point pairs
+  const [[u1,v1],[u2,v2],[u3,v3]]=src, det=u1*(v2-v3)-v1*(u2-u3)+(u2*v3-u3*v2);
+  const sol=k=>{ const [y1,y2,y3]=dst.map(p=>p[k]); return [ (y1*(v2-v3)-v1*(y2-y3)+(y2*v3-y3*v2))/det, (u1*(y2-y3)-y1*(u2-u3)+(u2*y3-u3*y2))/det, (u1*(v2*y3-v3*y2)-v1*(u2*y3-u3*y2)+y1*(u2*v3-u3*v2))/det ]; };
+  const [a,c,e]=sol(0), [b,d,f]=sol(1); return [a,b,c,d,e,f]; }
+// Charts come from the site (app/charts/, pre-rendered by tools/chartiles.py, downloaded and cached by default) or from a
+// PDF imported on this device (stored the same way, and preferred for its sheet). Both live in Cache Storage CH_CACHE.
+function chartMerge(){ CH.idx=CH.site.filter(s=>!CH.local.some(l=>l.sheet===s.sheet)).concat(CH.local); }
+async function chartIndexLoad(){
+  const c=await caches.open(CH_CACHE);
+  try{ const r=await c.match('charts/local.json'); CH.local=r? await r.json() : []; }catch(e){ CH.local=[]; }
+  try{ const r=await fetch('charts/index.json',{cache:'no-cache'}); if(!r.ok) throw 0; CH.site=await r.clone().json(); await c.put('charts/index.json',r); }
+  catch(e){ try{ const r=await c.match('charts/index.json'); CH.site=r? await r.json() : []; }catch(e2){ CH.site=[]; } }
+  chartMerge(); chartUI(); render(); chartsPrecache();
+}
+async function chartIndexSave(){ const c=await caches.open(CH_CACHE); await c.put('charts/local.json', new Response(JSON.stringify(CH.local),{headers:{'Content-Type':'application/json'}})); chartMerge(); }
+const chartUrl=(e,L,i,j)=>`charts/${e.dir}/${L}/${i}_${j}.jpg`;
+async function chartsPrecache(){ // download every site tile not yet stored (4 at a time), and drop tiles of old editions
+  if(CH.pre) return; CH.pre=true;
+  try{
+    const c=await caches.open(CH_CACHE), keys=(await c.keys()).map(k=>new URL(k.url).pathname), have=new Set(keys.map(p=>p.slice(p.indexOf('/charts/')+1)));
+    const dirs=new Set(CH.idx.map(e=>e.dir));
+    for(const p of keys){ const rel=p.slice(p.indexOf('/charts/')+1), d=rel.split('/')[1]; if(rel.split('/').length>2 && !dirs.has(d)) await c.delete(p); }
+    const todo=[]; let need=0;
+    for(const e of CH.idx) if(e.src==='site') e.levels.forEach((lv,L)=>(lv.tiles||[]).forEach(([i,j])=>{ need++; const u=chartUrl(e,L,i,j); if(!have.has(u)) todo.push(u); }));
+    CH.need=need; CH.have=need-todo.length; chartUI();
+    let k=0; const worker=async()=>{ while(k<todo.length){ const u=todo[k++];
+      try{ const r=await fetch(u); if(r.ok){ await c.put(u,r); CH.have++; } }catch(e){ break; }
+      if(CH.have%10===0) chartUI(); } };
+    if(todo.length && navigator.onLine!==false) await Promise.all([worker(),worker(),worker(),worker()]);
+  }catch(e){}
+  CH.pre=false; chartUI(); offlineStatus();
+}
+function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
+  if(v instanceof ImageBitmap || (v&&v.width)) { CH.imgs.delete(k); CH.imgs.set(k,v); return v; }   // LRU touch
+  if(v==='loading'||v==='none') return null;
+  CH.imgs.set(k,'loading');
+  const u='charts/'+k+'.jpg';
+  caches.open(CH_CACHE).then(async c=>{ let r=await c.match(u);
+      if(!r && e.src==='site'){ try{ const n=await fetch(u); if(n.ok){ await c.put(u,n.clone()); r=n; } }catch(er){} }
+      return r? r.blob() : null; })
+    .then(b=>b?createImageBitmap(b):null).then(img=>{
+    CH.imgs.set(k,img||'none');
+    if(CH.imgs.size>180){ for(const [kk,vv] of CH.imgs){ if(CH.imgs.size<=150) break; if(vv&&vv.close) vv.close(); CH.imgs.delete(kk); } }
+    if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
+  }).catch(()=>CH.imgs.set(k,'none'));
+  return null; }
+function drawCharts(g,W,Hh,inv){
+  if(!CH.on||!CH.idx.length) return false;
+  const cv=[[0,0],[W,0],[0,Hh],[W,Hh]], geo=cv.map(([x,y])=>inv(x,y));
+  const pans=[]; for(const sh of CHART_SHEETS){ const st_=CH.idx.find(s=>s.sheet===sh.sheet); if(st_) for(const p of sh.panels) pans.push([p,sh,st_]); }
+  pans.sort((a,b)=>a[0].order-b[0].order);
+  let drew=false;
+  for(const [pan,sh,stx] of pans){
+    const pc=geo.map(([qa,qo])=>chartPt(pan,qa,qo)), M=affine3(pc.slice(0,3),cv.slice(0,3));
+    let u0=1e9,v0=1e9,u1=-1e9,v1=-1e9; for(const [u,v] of pc){ u0=Math.min(u0,u); v0=Math.min(v0,v); u1=Math.max(u1,u); v1=Math.max(v1,v); }
+    let cu0=1e9,cv0=1e9,cu1=-1e9,cv1=-1e9; for(const [u,v] of pan.clip){ cu0=Math.min(cu0,u); cv0=Math.min(cv0,v); cu1=Math.max(cu1,u); cv1=Math.max(cv1,v); }
+    u0=Math.max(u0,cu0); v0=Math.max(v0,cv0); u1=Math.min(u1,cu1); v1=Math.min(v1,cv1); if(u0>=u1||v0>=v1) continue;
+    const need=Math.hypot(M[0],M[1])*(window.devicePixelRatio||1);   // device px per chart pt
+    g.save(); g.transform(...M); g.beginPath(); pan.clip.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v)); g.closePath(); g.clip(); g.globalAlpha=CH.op;
+    const levels=stx.levels.map((lv,L)=>{ if(lv.tiles&&!lv.tset) lv.tset=new Set(lv.tiles.map(t=>t[0]+'_'+t[1])); return {...lv,L}; }), lo_=levels[0], hi_=levels.find(l=>l.s>=need*0.7)||levels[levels.length-1];
+    for(const lv of (hi_===lo_?[lo_]:[lo_,hi_])){
+      const ts=CH_TILE/lv.s; // tile size in chart pt
+      for(let j=Math.max(0,Math.floor(v0/ts)); j<=Math.min(lv.rows-1,Math.floor(v1/ts)); j++)
+        for(let i=Math.max(0,Math.floor(u0/ts)); i<=Math.min(lv.cols-1,Math.floor(u1/ts)); i++){
+          if(lv.tset && !lv.tset.has(i+'_'+j)) continue;      // site tiles outside every panel were never made
+          const img=chartTile(stx,lv.L,i,j); if(img){ g.drawImage(img,i*ts,j*ts,img.width/lv.s,img.height/lv.s); drew=true; } }
+    }
+    g.restore();
+  }
+  return drew; }
+function chartUI(){
+  const n=CH.idx.length, dl=CH.need&&CH.have<CH.need? ` · downloading ${CH.have}/${CH.need}` : CH.need? ' · stored' : '';
+  $('chartSum').textContent= n? CH.idx.map(s=>s.name+(s.ed?' '+s.ed:'')).join(' · ')+dl : 'none';
+  $('chartList').innerHTML=CH.idx.map(s=>`<li><span><b>${esc(s.name)}</b> ${esc(s.ed||'')} · ${(s.bytes/1048576).toFixed(1)} MB · ${s.src==='site'?'from the app':'imported on this device'}${s.edT&&s.edT>Date.now()?' · <span class="w">effective '+esc(s.ed)+'</span>':''}</span>${s.src==='site'?'':`<button class="btn" data-del="${s.sheet}">Remove</button>`}</li>`).join('');
+  $('mapChart').setAttribute('aria-pressed',CH.on&&n>0); $('chartOp').value=CH.op; }
+function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>no(new Error('could not load '+src)); document.head.appendChild(s); }); }
+async function chartImport(files){
+  if(CH.busy) return; CH.busy=true; const prog=$('chartProg'); prog.hidden=false;
+  const say=t=>{ prog.textContent=t; };
+  try{
+    if(!window.pdfjsLib){ say('Loading the PDF renderer…'); await loadScript('lib/pdfjs/pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdfjs/pdf.worker.min.js'; }
+    try{ navigator.storage&&navigator.storage.persist&&navigator.storage.persist(); }catch(e){}
+    for(const f of files){
+      say('Opening '+f.name+'…');
+      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise, page=await pdf.getPage(1), vp=page.getViewport({scale:1});
+      let title=''; try{ const md=await pdf.getMetadata(); title=(md.info&&md.info.Title)||''; }catch(e){}
+      const key=(f.name+' '+title).toLowerCase();
+      const sh=CHART_SHEETS.find(s=>Math.abs(vp.width-s.page[0])<2&&Math.abs(vp.height-s.page[1])<2&&key.includes(s.kind.toLowerCase())&&new RegExp(s.re,'i').test(key))
+             || CHART_SHEETS.find(s=>Math.abs(vp.width-s.page[0])<2&&Math.abs(vp.height-s.page[1])<2&&new RegExp(s.re,'i').test(key));
+      if(!sh){ say(f.name+': not a chart this app is calibrated for (Melbourne VTC or VNC). Nothing stored.'); continue; }
+      const em=key.match(/(\d{2})\s?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s?(\d{4})/i), ed=em?(em[1]+' '+em[2].toUpperCase()+' '+em[3]):'';
+      const c=await caches.open(CH_CACHE); let bytes=0; const levels=[];
+      const dir=sh.sheet+'-local';
+      for(const k of (await c.keys())) if(new URL(k.url).pathname.includes('/charts/'+dir+'/')) await c.delete(k);
+      for(let L=0;L<sh.levels.length;L++){
+        const s=sh.levels[L], Wp=Math.ceil(vp.width*s), Hp=Math.ceil(vp.height*s), B=2048, cols=Math.ceil(Wp/CH_TILE), rows=Math.ceil(Hp/CH_TILE);
+        levels.push({s,cols,rows});
+        const nb=Math.ceil(Wp/B)*Math.ceil(Hp/B); let done=0;
+        for(let by=0;by<Hp;by+=B) for(let bx=0;bx<Wp;bx+=B){
+          say(`${sh.name}: rendering ${L?'detail':'overview'} ${++done}/${nb}…`);
+          const bw=Math.min(B,Wp-bx), bh=Math.min(B,Hp-by), cv=document.createElement('canvas'); cv.width=bw; cv.height=bh;
+          const ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,bw,bh);
+          await page.render({canvasContext:ctx, viewport:page.getViewport({scale:s, offsetX:-bx, offsetY:-by})}).promise;
+          for(let ty=0;ty<bh;ty+=CH_TILE) for(let tx=0;tx<bw;tx+=CH_TILE){
+            const tw=Math.min(CH_TILE,bw-tx), th=Math.min(CH_TILE,bh-ty), t=document.createElement('canvas'); t.width=tw; t.height=th;
+            t.getContext('2d').drawImage(cv,tx,ty,tw,th,0,0,tw,th);
+            const blob=await new Promise(r=>t.toBlob(r,'image/jpeg',0.82)); bytes+=blob.size;
+            await c.put(`charts/${dir}/${L}/${(bx+tx)/CH_TILE}_${(by+ty)/CH_TILE}.jpg`, new Response(blob,{headers:{'Content-Type':'image/jpeg'}}));
+          }
+          cv.width=cv.height=0;
+        }
+      }
+      const edT=ed? Date.parse(ed+' 00:00 UTC')-8*3600e3 : 0;
+      CH.local=CH.local.filter(s=>s.sheet!==sh.sheet).concat([{sheet:sh.sheet,name:sh.name,ed,edT,bytes,levels,dir,src:'local'}]);
+      for(const k of [...CH.imgs.keys()]) if(k.startsWith(dir+'/')) CH.imgs.delete(k);
+      await chartIndexSave(); CH.on=true; ls.set('mapCharts',true);
+      say(`${sh.name} ${ed} stored (${(bytes/1048576).toFixed(1)} MB). Works offline.`);
+      pdf.destroy();
+    }
+  }catch(e){ say('Import failed: '+(e.message||e)); }
+  CH.busy=false; chartUI(); render();
+}
+$('chartFile').addEventListener('change',e=>{ const fs=[...e.target.files]; e.target.value=''; if(fs.length) chartImport(fs); });
+$('chartList').addEventListener('click',async e=>{ const b=e.target.closest('[data-del]'); if(!b) return; const sh=b.dataset.del;
+  const dir=sh+'-local', c=await caches.open(CH_CACHE); for(const k of (await c.keys())) if(new URL(k.url).pathname.includes('/charts/'+dir+'/')) await c.delete(k);
+  CH.local=CH.local.filter(s=>s.sheet!==sh); for(const k of [...CH.imgs.keys()]) if(k.startsWith(dir+'/')) CH.imgs.delete(k); await chartIndexSave(); chartUI(); render(); chartsPrecache(); });
+$('chartOp').addEventListener('input',()=>{ CH.op=+$('chartOp').value; ls.set('chartOp',CH.op); if(MAP.last) drawMap(...MAP.last); });
+$('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; $('chartBox').scrollIntoView({block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
+if(window.caches) chartIndexLoad();
+
 function drawMap(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
   MAP.last=[la,lo,h,pick,AS,altFt];
@@ -987,7 +1144,9 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const reach=MAP.range*1.6/60, bbHit=bb=>!(bb[1]<la-reach||bb[0]>la+reach||bb[3]<lo-reach/cosl||bb[2]>lo+reach/cosl);
   const C={C:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),CTR:cssv('--as-d'),A:cssv('--as-c'),R:cssv('--as-r'),Q:cssv('--as-q'),FIA:cssv('--as-fia'),EF:cssv('--as-e'),ink:cssv('--ink'),dim:cssv('--dim'),bg:cssv('--panel'),acc:cssv('--accent'),fr:cssv('--freq')};
   const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
-  // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise
+  const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
+  const chartsShown=drawCharts(g,W,Hh,invPx);
+  // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
   if(TER.ok){
     const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
     const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink');
@@ -995,7 +1154,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
       const [qa,qo]=inv(px+step/2,py+step/2), t=terrainFt(qa,qo); if(t==null||t<=0) continue;
       if(st.alt!=null && t>=altFt-100){ g.fillStyle=red; g.globalAlpha=.42; }
       else if(st.alt!=null && t>=altFt-500){ g.fillStyle=amb; g.globalAlpha=.32; }
-      else { g.fillStyle=rel; g.globalAlpha=Math.min(.16,t/12000); }
+      else { if(chartsShown) continue; g.fillStyle=rel; g.globalAlpha=Math.min(.16,t/12000); }
       g.fillRect(px,py,step,step);
     }
     g.globalAlpha=1;
@@ -1122,7 +1281,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   drawL.forEach(f=>f());
   // navigation points (VFR waypoints like the VTC, navaids), within 20 NM range
   MAP.hits=[];
-  for(const ad of DATA.ap){ if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue; const [x,y]=P(ad.la,ad.lo); if(x>=0&&y>=0&&x<=W&&y<=Hh) MAP.hits.push({x,y,p:{k:'AD',c:ad.i,n:ad.n,la:ad.la,lo:ad.lo}}); }
+  for(const ad of DATA.ap){ if(ad.t==='H'&&!st.heli) continue; if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue; const [x,y]=P(ad.la,ad.lo); if(x>=0&&y>=0&&x<=W&&y<=Hh) MAP.hits.push({x,y,p:{k:'AD',c:ad.i,n:ad.n,la:ad.la,lo:ad.lo}}); }
   if(MAP.range<=20){
     const wpC=cssv('--wp');
     g.font='600 9.5px "IBM Plex Mono", monospace'; g.textAlign='left';
@@ -1431,7 +1590,8 @@ $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!l
     if(d.moved){ render(); return; }
     const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
     let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
-    if(best) setGo(best); };
+    if(best){ if(best.k==='AD') st.pin=best.c;   // tapping an aerodrome also selects it (card, frequencies, calls)
+      setGo(best); } };
   cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',e=>{ drag=null; });
   $('mapHome').onclick=()=>{ MAP.pan=null; render(); };
 }
@@ -1713,7 +1873,7 @@ async function offlineStatus(){
   try{ const ks=(await caches.keys()).filter(k=>/^radio-au-[0-9a-f]{10}$/.test(k)); let app=false;
     for(const k of ks){ const c=await caches.open(k); if(await c.match('data.json',{ignoreSearch:true}) && await c.match('app.js',{ignoreSearch:true}) && await c.match('urban.json',{ignoreSearch:true}) && (!META.next || await c.match('data-next.json',{ignoreSearch:true}))) app=true; }
     const tc=await caches.open('radio-au-terrain'), n=(await tc.keys()).filter(k=>/\.bin\.z$/.test(k.url)).length, want=TER.have.size;
-    el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${app&&(!TER.ok||n>=want)?' — ready to fly without signal.':'.'}`;
+    el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${CH.need?`, charts ${CH.have}/${CH.need} tiles`:''}${app&&(!TER.ok||n>=want)&&CH.have>=CH.need?' — ready to fly without signal.':'.'}`;
   }catch(e){ el.textContent=''; } }
 </script>
 </body>
