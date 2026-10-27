@@ -1184,7 +1184,7 @@ function render(){
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
   { const tp=twrPick(a,pick), ts=tp?twrStatus(a):null, open=tp&&(ts?ts.on:!a.c);
-    if(open){ const t=tp.tw; $('sCtafLbl').textContent=tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'; $('sCtaf').textContent=t[2]; $('sCtafAd').textContent=a.i+(tp.split&&!tp.side?' · see ATIS':''); }
+    if(open){ const t=tp.tw; $('sCtafLbl').textContent=tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'; $('sCtaf').textContent=t[2]; $('sCtafAd').textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
     else { $('sCtafLbl').textContent='CTAF'; $('sCtaf').textContent=CI.f||'—'; $('sCtafAd').textContent=a.i; }
     st.twrTile=open? {a,tp} : null; }
   $('ctafRow').innerHTML=html; html='';
@@ -1542,8 +1542,23 @@ function twrPick(a,pick){
   const twrs=(a.x||[]).filter(x=>x[0]==='TWR'); if(!twrs.length) return null;
   const fpT=FP&&FP.pts[FP.i], onAd=pick.d<0.5;
   const sideBrg = !onAd ? norm(pick.b+180) : fpT ? distBrg(a.la,a.lo,fpT.la,fpT.lo)[1] : null;
-  const side = sideBrg==null ? null : sideBrg<180 ? 'East' : 'West';
-  return {twrs, side, tw: twrs.find(t=>t[4]===side)||twrs[0], split: twrs.some(t=>t[4]), onAd, fpT}; }
+  let side = sideBrg==null ? null : sideBrg<180 ? 'East' : 'West', tw=twrs.find(t=>t[4]===side)||twrs[0], via=null;
+  // ERSA can tie an arrival reporting point to one frequency regardless of bearing, e.g. Moorabbin:
+  // "When RWY 17 or 35 in use, ARR VFR ACFT from the S should track via and report at CARR on 123.0" (CARR is
+  // just east of south, but it's the West frequency). Applies when the active waypoint is that point, you're within
+  // 3 NM of it, or you're in that sector of the aerodrome; not when the runway picked in Radio calls is another one.
+  const sel=$('cRwy'), rwySel=sel&&sel.dataset.ad===a.i? sel.value : '';
+  for(const r of twrRules(a)){
+    if(rwySel && r.rwys.length && !r.rwys.some(x=>rwySel.startsWith(x))) continue;
+    const P=VWby.get(r.rp), dP=P&&st.pos? distBrg(st.pos[0],st.pos[1],P.la,P.lo)[0] : 99;
+    const sec={N:0,E:90,S:180,W:270}[r.from], inSec= !onAd && sec!=null && Math.abs(((norm(pick.b+180)-sec)+540)%360-180)<=45;
+    if((fpT&&(fpT.c||'').toUpperCase()===r.rp) || dP<3 || inSec){ const t=twrs.find(t=>t[2]===r.f); if(t){ tw=t; side=t[4]||side; via=r; break; } } }
+  return {twrs, side, tw, split: twrs.some(t=>t[4]), onAd, fpT, via}; }
+function twrRules(a){   // "[When RWY 17 or 35 in use,] ARR ... from the S ... report at CARR on 123.0" in the TWR evidence text
+  if(a._twrRules) return a._twrRules; const out=[];
+  for(const x of (a.x||[]).filter(x=>x[0]==='TWR'&&x[5])) for(const m of x[5].matchAll(/(?:When RWY ([0-9LRC]+(?:\s*(?:,|or|and)\s*[0-9LRC]+)*) in use,?\s*)?ARR[^/]*?from the ([NSEW])\b[^/]*?report at ([A-Z]{3,5}) on (\d{3}\.\d{1,3})/g))
+    out.push({rwys:m[1]?m[1].split(/\s*(?:,|or|and)\s*/):[], from:m[2], rp:m[3], f:m[4], text:m[0]});
+  return a._twrRules=out; }
 function twrStatus(a,now=new Date()){
   const L=a.cnotes||[]; const i=L.findIndex(l=>/TWR HR/.test(l)); if(i<0 || a.utc==null) return null;
   const hds=isHDS(a.st,now), off=a.utc+(hds?1:0), loc=new Date(now.getTime()+off*3600e3);
@@ -1607,10 +1622,7 @@ function renderCalls(a,pick,varE){
     const gn=gnd?titleCase(gnd[1]):null;
     // East/West tower split (from ERSA text): suggest the side you are on
     // which side of the field: your position, or (on the aerodrome) the direction of your next flight plan waypoint
-    const fpT=FP&&FP.pts[FP.i], onAd=pick.d<0.5;
-    const sideBrg = !onAd ? norm(pick.b+180) : fpT ? distBrg(a.la,a.lo,fpT.la,fpT.lo)[1] : null;
-    const sideNow = sideBrg==null ? null : sideBrg<180 ? 'East' : 'West';
-    const twSide = twrs.find(t=>t[4]===sideNow) || twrs[0];
+    const TP=twrPick(a,pick), fpT=TP.fpT, onAd=TP.onAd, sideNow=TP.side, twSide=TP.tw;
     const tw=titleCase(twSide[1]||loc+' Tower');
     const tf=twSide[2];
     const twAll=twrs.map(t=>`${titleCase(t[1])}${t[4]?' '+t[4]:''} ${t[2]}`).join(' · ');
@@ -1633,7 +1645,8 @@ function renderCalls(a,pick,varE){
     if(/report turning downwind/i.test(JSON.stringify(a.proc||{}))) calls.push(['Turning downwind (ERSA requires)',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
     else calls.push(['Circuit',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
     calls.push(['Leaving the CTR',`Follow ATC instructions. ${a.fia?`For class G, ERSA lists ${T(titleCase(a.fia[0][0]))} ${a.fia[0][1]}.`:''}`]);
-    note='Controlled aerodrome calls (AIP ENR 1.1). Read back clearances, runway and QNH. Words in brackets are yours to fill.'+sideNote;
+    const viaNote = TP.via ? ` Arriving via ${TP.via.rp}: ERSA says “${esc(TP.via.text)}”, so ${twSide[4]||''} ${twSide[2]}${TP.via.rwys.length?` when RWY ${TP.via.rwys.join(' or ')} is in use (pick the runway above if it's another one)`:''}.` : '';
+    note='Controlled aerodrome calls (AIP ENR 1.1). Read back clearances, runway and QNH. Words in brackets are yours to fill.'+(TP.via?viaNote:sideNote);
   } else {
     const id=`${T(loc)} traffic, ${type} ${cs}`, end=`, ${T(loc)}`;
     $('callsAt').textContent=loc+' traffic · '+(CI.f||'—');
