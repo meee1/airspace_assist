@@ -114,6 +114,8 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - **Ranking:** aerodromes, then VFR waypoints, navaids, towns, localities and suburbs; nearer places rank higher.
 - **Town names on the map:** urban centres at 20 NM range and below, localities at 10 NM and below, suburbs at 5 NM and below, placed clear of other labels. They're hidden while a chart is showing, since the chart names them.
 
+- **Keep screen on:** remembered between launches. The phone drops the lock whenever the app is hidden (screen off, app switch), so it's taken again when you come back, or on your next tap; the button says "Screen stays on" while it holds and "Screen on: tap to re-arm" if it has been lost. Where the Wake Lock API is missing or refused (older iPhones, and Home Screen apps before iOS 18.4) a tiny silent looping video keeps the screen awake instead.
+
 ## Terrain (SRTM)
 The app uses SRTM terrain for three things:
 - **Height above ground:** the ALT tile shows AGL under the GPS altitude.
