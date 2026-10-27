@@ -34,6 +34,7 @@ The map sits under the frequencies. Use − and + to zoom (2.5 to 80 NM) and the
   - The legend lists the frequencies in view, and each aerodrome's frequency is printed beside it.
 - **Runways:** at 5 NM and closer, runways are drawn on the map; at 2.5 NM they're labelled with their designators.
 - The map only shows airspace starting below FL125, or below 5,000 ft above you, so the high-level steps don't clutter it.
+- **Labels:** each airspace label sits wholly inside its own area. Controlled-airspace labels also avoid any part with lower controlled airspace, so a "C A045" label doesn't land inside the A025 step or a control zone. If a step has no room on screen, its label is left off.
 - **Pan:** drag the map to look around. While panned it shows north up and stays put as you move; tap **◎ Centre** to go back to your position. A tap without dragging still picks a waypoint or aerodrome for Go to.
 
 ## Runways and aerodrome diagram
@@ -58,6 +59,7 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - **You:** your position and GPS altitude, shown while you're within 5 NM of the route.
   - **Red line:** wherever terrain comes within 1,000 ft of the airspace base above it.
   - **Summary:** the highest terrain, the lowest controlled-airspace base, any control zones from the surface you cross (shown as class G when ERSA says the tower is closed), and the tightest terrain-to-base gap.
+  - **Altitude zoom:** + and − above the chart set the top altitude, from 1,000 ft up to 25,000 ft, and **Auto** goes back to fitting the route. A red note shows when terrain is above the top.
   - **Tap:** shows the distance, leg, terrain height and the airspace stack at that point.
   - **Accuracy:** terrain is along straight legs, and the 30″ grid can miss a narrow peak or mast. It's for planning awareness, not obstacle clearance.
 - **Leg list:** each leg's course and distance. Tap a leg to make it active; Prev, Next, Reverse and Remove are below the list.

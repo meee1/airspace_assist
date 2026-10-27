@@ -256,7 +256,11 @@ function fpAerodrome(la,lo){
   return null;
 }
 /* ---------- flight plan elevation profile (SRTM terrain + DAH airspace along the route) ---------- */
-let PROF=null, profSel=null;
+let PROF=null, profSel=null, PROF_TOP=ls.get('profTop',null);
+const PROF_STEPS=[1000,1500,2000,2500,3000,4000,5000,6000,8000,10000,12500,15000,20000,25000];
+function profZoom(dir){ const cur=PROF_TOP||(PROF&&PROF.auto)||5000;
+  const nx = dir<0 ? [...PROF_STEPS].reverse().find(v=>v<cur) : PROF_STEPS.find(v=>v>cur);
+  PROF_TOP = nx || (dir<0?PROF_STEPS[0]:PROF_STEPS[PROF_STEPS.length-1]); ls.set('profTop',PROF_TOP); drawProf(); }
 const PROF_TERR='#9c7a4a';
 function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),TER.ok,TER.tiles.size,Math.floor(Date.now()/60000)].join('|'); }
 function profBuild(){
@@ -303,11 +307,15 @@ function drawProf(){
   let top=Math.max(maxT+1500, alt!=null?alt+1000:0, 3000);
   if(pr.lo && pr.lo.base<12000) top=Math.max(top,pr.lo.base+1500);
   top=Math.min(Math.ceil(top/1000)*1000, 15000);
+  PROF.auto=top; if(PROF_TOP) top=PROF_TOP;      // altitude zoom: fixed top chosen with +/−
+  $('profTop').textContent=(PROF_TOP?'':'auto ')+(top>=1000?(top/1000)+'k':top)+' ft'; $('profAuto').hidden=!PROF_TOP;
   const l=34, r=8, t=16, b=16, x=d=>l+(pr.total?d/pr.total:0)*(W-l-r), y=f=>t+(1-Math.min(f,top)/top)*(H-t-b);
   // altitude grid
-  const gs=top>8000?2000:1000; g.font='10px '+cssv('--f-mono'); g.textBaseline='middle'; g.textAlign='right';
+  const gs=top>12000?5000:top>8000?2000:top>3000?1000:500; g.font='10px '+cssv('--f-mono'); g.textBaseline='middle'; g.textAlign='right';
   for(let f=0;f<=top;f+=gs){ g.strokeStyle=C.rule; g.lineWidth=1; g.beginPath(); g.moveTo(l,y(f)); g.lineTo(W-r,y(f)); g.stroke();
     g.fillStyle=C.dim; g.fillText(f?(f>=1000?(f/1000)+'k':f):'0',l-4,y(f)); }
+  // anything above the top of the chart: mark it so a zoomed-in view doesn't hide terrain or your altitude
+  if(maxT>top){ g.fillStyle=C.warn; g.font='600 10px '+cssv('--f-mono'); g.textAlign='left'; g.fillText('terrain above '+(top/1000)+'k ▲',l+4,t+10); g.textAlign='right'; }
   // controlled airspace and restricted/danger areas: one column per sample, base edge drawn solid
   for(let i=0;i<S.length;i++){ const q=S[i], x0=x(i?(S[i-1].x+q.x)/2:q.x), x1=x(i<S.length-1?(q.x+S[i+1].x)/2:q.x), w=Math.max(1,x1-x0);
     for(const a of q.b.concat(q.p)){ if(a.L>=top) continue; const c=C[a.k]||C.C;
@@ -355,6 +363,8 @@ function drawProf(){
   tx+='Colours as on the airspace map; red line: terrain within 1,000 ft of the base above it. Terrain is the highest SRTM point per 30″ cell; airspace is from the DAH along the straight legs. Tap for details.';
   $('fpPInfo').innerHTML=tx;
 }
+$('profIn').onclick=()=>profZoom(-1); $('profOut').onclick=()=>profZoom(1);
+$('profAuto').onclick=()=>{ PROF_TOP=null; ls.set('profTop',null); drawProf(); };
 $('fpProf').addEventListener('click',e=>{ if(!PROF) return; const cv=$('fpProf'), rc=cv.getBoundingClientRect(), l=34, r=8;
   const d=(e.clientX-rc.left-l)/(rc.width-l-r)*PROF.total; profSel = profSel!=null&&Math.abs(profSel-d)<PROF.total/80 ? null : Math.max(0,Math.min(PROF.total,d)); drawProf(); });
 function renderFP(h,varE){
@@ -545,9 +555,12 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const order={FIA:0,E:1,C:2,A:2,D:3,CTR:4,Q:5,R:6};
   vis.sort((a,b)=>order[a.k]-order[b.k]);
   const labels=[[ox-16,oy-16,32,32],[W-34,2,32,32]], drawL=[];
+  // screen polygons up front: label placement needs the others to keep each label inside its own step
+  const SPX=new Map(); for(const x of vis){ const sp=x.p.map(q=>P(q[0],q[1])); let a=1e9,b=1e9,c=-1e9,d=-1e9; for(const q of sp){ a=Math.min(a,q[0]); b=Math.min(b,q[1]); c=Math.max(c,q[0]); d=Math.max(d,q[1]); } SPX.set(x,{sp,bb:[a,b,c,d]}); }
+  const CTLK=new Set(['C','D','CTR','E']), baseOf=x=>x.lok==='AGL'?x.lo:(x.lo||0);
   g.lineJoin='round';
   for(const x of vis){
-    const sp=x.p.map(q=>P(q[0],q[1]));
+    const sp=SPX.get(x).sp;
     g.beginPath(); sp.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.closePath();
     const col=C[x.k]||C.dim;
     if(x.k==='FIA'){ g.setLineDash([2,4]); g.lineWidth=1.2; g.strokeStyle=col; g.stroke(); g.setLineDash([]); }
@@ -557,10 +570,10 @@ function drawMap(la,lo,h,pick,AS,altFt){
       g.setLineDash(x.k==='D'||x.k==='CTR'?[6,3]:x.k==='Q'?[3,3]:[]);
       g.lineWidth= here?2.4:(x.k==='E'?1:1.6); g.strokeStyle=col; g.stroke(); g.setLineDash([]);
     }
-    // label at the centroid of the visible part
+    // label: the whole box must sit inside the visible part of this airspace and, for controlled airspace, where no
+    // lower controlled airspace overlaps (otherwise e.g. a C A045 label lands inside the A025 step or a CTR)
     const cl=clipRect(sp,W,Hh); if(cl.length<3) continue;
     const c=polyCentroid(cl); if(!c||c[2]<900) continue;
-    let [lx,ly]=c; if(!inScreenPoly(lx,ly,cl)){ lx=cl.reduce((s,q)=>s+q[0],0)/cl.length; ly=cl.reduce((s,q)=>s+q[1],0)/cl.length; if(!inScreenPoly(lx,ly,cl)) continue; }
     let lines;
     if(x.k==='FIA'){ if(!x.f) continue; lines=[x.f]; }
     else{
@@ -570,6 +583,16 @@ function drawMap(la,lo,h,pick,AS,altFt){
     }
     g.font='600 10.5px "IBM Plex Mono", ui-monospace, monospace';
     const w=Math.max(...lines.map(t=>g.measureText(t).width))+8, hh=lines.length*12+4;
+    const lower=CTLK.has(x.k)? vis.filter(o=>o!==x&&CTLK.has(o.k)&&baseOf(o)<baseOf(x)).map(o=>SPX.get(o)) : [];
+    const okPt=(px,py)=>inScreenPoly(px,py,cl) && !lower.some(o=>px>=o.bb[0]&&px<=o.bb[2]&&py>=o.bb[1]&&py<=o.bb[3]&&inScreenPoly(px,py,o.sp));
+    const S9=[[0,0],[-w/2,-hh/2],[w/2,-hh/2],[-w/2,hh/2],[w/2,hh/2],[0,-hh/2],[0,hh/2],[-w/2,0],[w/2,0]];
+    const fits=(px,py)=>S9.every(([dx,dy])=>okPt(px+dx,py+dy)) && !labels.some(b=>!(px-w/2>b[0]+b[2]+2||px+w/2<b[0]-2||py-hh/2>b[1]+b[3]+2||py+hh/2<b[1]-2));
+    let lx=null, ly=null;
+    if(fits(c[0],c[1])){ lx=c[0]; ly=c[1]; }
+    else { let bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9; for(const q of cl){ bx0=Math.min(bx0,q[0]); by0=Math.min(by0,q[1]); bx1=Math.max(bx1,q[0]); by1=Math.max(by1,q[1]); }
+      const cand=[]; for(let py=by0+hh/2;py<=by1-hh/2;py+=14) for(let px=bx0+w/2;px<=bx1-w/2;px+=14) cand.push([px,py,(px-c[0])**2+(py-c[1])**2]);
+      cand.sort((a,b)=>a[2]-b[2]); for(const [px,py] of cand){ if(fits(px,py)){ lx=px; ly=py; break; } } }
+    if(lx==null) continue;
     const box=[lx-w/2,ly-hh/2,w,hh];
     if(labels.some(b=>!(box[0]>b[0]+b[2]+2||box[0]+box[2]<b[0]-2||box[1]>b[1]+b[3]+2||box[1]+box[3]<b[1]-2))) continue;
     labels.push(box);
