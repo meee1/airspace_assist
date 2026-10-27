@@ -7,8 +7,9 @@ Source precedence (first wins, every value carries its source):
   3. VATPAC vatSys australia-dataset (flight-sim, AIRAC-aligned)
   4. OurAirports (community)
 Separately: ABS urban centres and localities (--urban data/abs/UCL_2021_AUST_GDA2020), used as populous areas for
-the CASR 91.265 minimum height in flight-plan altitude suggestions (see urban.py).
-Usage: build_data.py DATA_DIR OUT.json [--ersa ERSA.pdf] [--dah DAH.pdf] [--xc openair.txt] [--urban UCL shapefile]
+the CASR 91.265 minimum height in flight-plan altitude suggestions (see urban.py); ABS suburbs and localities
+(--sal data/abs/SAL_2021_AUST_GDA2020) as named points for search and map labels (see suburbs.py).
+Usage: build_data.py DATA_DIR OUT.json [--ersa ERSA.pdf] [--dah DAH.pdf] [--xc openair.txt] [--urban UCL shapefile] [--sal SAL shapefile]
 """
 import csv, json, re, sys, os, subprocess, collections, argparse
 import xml.etree.ElementTree as ET
@@ -16,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 ap_ = argparse.ArgumentParser()
 ap_.add_argument('data'); ap_.add_argument('out')
-ap_.add_argument('--ersa'); ap_.add_argument('--dah'); ap_.add_argument('--xc'); ap_.add_argument('--urban')
+ap_.add_argument('--ersa'); ap_.add_argument('--dah'); ap_.add_argument('--xc'); ap_.add_argument('--urban'); ap_.add_argument('--sal')
 ARGS = ap_.parse_args()
 D = ARGS.data
 OUT = ARGS.out
@@ -415,6 +416,11 @@ if ARGS.urban:
     data['urb'] = urban.load(ARGS.urban, 0.0005)
     meta['urban'] = 'ABS UCL 2021'
     print('urban areas', len(data['urb']))
+if ARGS.sal:
+    import suburbs
+    data['sal'] = suburbs.load(ARGS.sal)
+    meta['sal'] = 'ABS SAL 2021'
+    print('suburbs', len(data['sal']))
 json.dump(data, open(OUT, 'w'), separators=(',', ':'))
 A = data['ap']
 cnt = lambda f, v=None: sum(1 for a in A if (a.get(f) == v if v else f in a))

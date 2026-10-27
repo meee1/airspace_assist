@@ -35,7 +35,7 @@ app/                  published site (GitHub Pages serves this folder)
   app.js              GENERATED: the <script> body of template.html
   data.json           GENERATED: current AIRAC (from tools/data.json, ~2 MB)
   data-next.json      GENERATED: next AIRAC (from tools/data-next.json), optional
-  urban.json          GENERATED: ABS urban areas (populous areas for altitude suggestions)
+  urban.json          GENERATED: {urb: ABS urban areas (populous areas for altitude suggestions), sal: suburb names}
   sw.js               GENERATED (cache name changes with each build)
   manifest.webmanifest, icon-*.png
   lib/pdfjs/          pdf.js (Apache 2.0), used only when importing a chart PDF
@@ -53,6 +53,7 @@ tools/
   openair.py          parses the XC Australia OpenAir file (fallback airspace)
   assemble.py         template.html + data.json -> dist/ (index.html, app.js, data.json, sw.js, manifest, icons)
   urban.py            ABS UCL shapefile -> urban polygons (data.json 'urb', split to app/urban.json)
+  suburbs.py          ABS SAL shapefile -> suburb name points (data.json 'sal', split to app/urban.json)
   fetch_srtm.py       builds app/terrain from SRTM (download from AWS skadi, or --from-dir)
   chartref.py         georeferences a VTC/VNC PDF -> tools/charts.json entry
   chartiles.py        renders the calibrated charts into app/charts/ tiles (run each chart edition)
@@ -143,6 +144,7 @@ python3 assemble.py && cp dist/* ../app/
 - TAF decoder: abandoned (Oct 2026). The BOM TAF lookup (POST https://www.bom.gov.au/aviation/php/process.php, keyword=<ICAO>&type=search&page=TAF, returns HTML with TAF + METAR) sends no CORS headers, so it can't be fetched from meee1.github.io. aviationweather.gov was also blocked from the page. The options were a paste box with a BOM link, or a proxy (e.g. a Cloudflare Worker) hosted by the owner.
 - **Two AIRAC data sets.** `tools/data.json` is the current AIRAC and `tools/data-next.json` the next. `assemble.py` writes both, plus `urban.json`, to `app/`. The loader chooses by effective time: max(ERSA, DAH) date minus 8 h, i.e. 1600 UTC the day before (AIP GEN 3.1 4.3). In Oct 2026 the current set is ERSA 03 SEP 2026 with DAH 09 JUL 2026; the next is ERSA and DAH 26 NOV 2026. The DAH has its own cycle, so pair each ERSA with the DAH in force on the same date.
 - **Urban areas.** `tools/urban.py` reads the ABS UCL 2021 shapefile (`data/abs/`, CC BY 4.0) via `pip install pyshp`, using `--urban data/abs/UCL_2021_AUST_GDA2020` in `build_data.py`. It keeps Major Urban, Other Urban and Bounded Locality, drops holes and simplifies to 0.0005°. The output is about 1.3 MB.
+- **Suburbs.** `tools/suburbs.py` reads the ABS SAL 2021 shapefile (`data/abs/SAL_2021_AUST_GDA2020`, CC BY 4.0; git-ignored because the .shp is 143 MB, over GitHub's 100 MB limit) via `--sal` in `build_data.py`. Output: `sal` = [name, la x1e4, lo x1e4, state], one point per suburb at the centroid of its largest part, about 460 KB. `assemble.py` moves it into `urban.json` as `{urb, sal}`; the loader still accepts the old plain array. In the app, suburbs join `TOWNS` with `t:'S'`, and a suburb named like a town within 5 NM is dropped. Search gives them weight 0.5, skips letters-in-order matching (`lite`), and runs lev only when the first or second letter matches, which keeps a keystroke at about 15 ms on desktop with about 15k entries. Map labels appear at 5 NM range and below.
 - **Altitude suggestions.** These are `legPlan()` in template.html, which uses the profile samples:
   - VFR levels from ENR 1.7 Table B, which applies at 3,000 ft AMSL or above (3.1.4).
   - Minimum height from CASR 91.265/91.267 and the MOS 12.01 note: 1,000 ft within 600 m over populous areas (300 m for rotorcraft), 500 ft within 300 m elsewhere. Terrain comes from the SRTM grid; there are no obstacles.

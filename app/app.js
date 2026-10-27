@@ -191,7 +191,7 @@ function findPoint(q){
   if(byName) return byName.k?byName:{k:'AD',c:byName.i,n:byName.n,la:byName.la,lo:byName.lo};
   const f=searchPoints(q,1)[0]; return f&&f.sc>=60? f.p : null;
 }
-function ptDesc(p){ if(p.k==='FP') return p.n; if(p.k==='TOWN') return 'Town · '+p.n+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
+function ptDesc(p){ if(p.k==='FP') return p.n; if(p.k==='TOWN') return (p.t==='S'?'Suburb · ':'Town · ')+p.n+(p.ste?', '+p.ste:'')+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
 function nearestVFR(la,lo,maxNm){ let best=null,bd=maxNm; for(const p of VW){ if(Math.abs(p.la-la)>maxNm/60+.02) continue; const d=distBrg(la,lo,p.la,p.lo)[0]; if(d<bd){bd=d;best=p;} } return best?{p:best,d:bd}:null; }
 let GO=ls.get('goto',null);
 /* ---------- flight plan (GPX) ---------- */
@@ -383,25 +383,35 @@ const URB=(DATA.urb||[]).map(([n,c,bb,rings])=>({n,c,bb:bb.map(v=>v/1e4),r:rings
 const TOWNS=URB.map(u=>{ let best=null,ba=-1; for(const r of u.r){ let A=0,x=0,y=0; for(let i=0,j=r.length-1;i<r.length;j=i++){ const f=r[j][1]*r[i][0]-r[i][1]*r[j][0]; A+=f; x+=(r[j][1]+r[i][1])*f; y+=(r[j][0]+r[i][0])*f; }
     if(Math.abs(A)>ba){ ba=Math.abs(A); best=A? [y/(3*A), x/(3*A)] : [r[0][0],r[0][1]]; } }
   const n=u.n.replace(/\s*\([^)]*\)\s*$/,'').trim(); return {k:'TOWN',c:n.toUpperCase(),n,t:u.c,la:best[0],lo:best[1],area:ba}; });
+// suburbs: ABS suburbs and localities (data.json "sal"), t:'S'; skipped where a town of the same name is within 5 NM
+//  ("Ocean Grove" is dropped next to the town "Ocean Grove - Barwon Heads")
+(()=>{ const near=new Map(); for(const t of TOWNS) for(const k of [t.c,...t.c.split(' - ')]){ if(!near.has(k)) near.set(k,[]); near.get(k).push(t); }
+  for(const [n,a,b,ste] of (DATA.sal||[])){ const la=a/1e4, lo=b/1e4, c=n.toUpperCase();
+    if((near.get(c)||[]).some(t=>Math.abs(t.la-la)<0.1&&distBrg(t.la,t.lo,la,lo)[0]<5)) continue;
+    TOWNS.push({k:'TOWN',c,n,t:'S',ste:ste||'',la,lo,area:0}); } })();
 /* fuzzy search over aerodromes, VFR waypoints, navaids, towns and IFR waypoints */
 function lev(a,b,max){ if(Math.abs(a.length-b.length)>max) return max+1; let p=Array.from({length:b.length+1},(_,j)=>j);
   for(let i=1;i<=a.length;i++){ const c=[i]; let m=i; for(let j=1;j<=b.length;j++){ c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1)); m=Math.min(m,c[j]); } if(m>max) return max+1; p=c; } return p[b.length]; }
-function fuzzy(q,s){ if(!s) return 0; if(s===q) return 100; if(s.startsWith(q)) return 92-Math.min(12,(s.length-q.length)/2);
-  const w=s.split(/[\s\/\-()]+/); if(w.some(x=>x.startsWith(q))) return 78; if(s.includes(q)) return 64;
-  if(q.length>=4){ const e=Math.min(...w.concat([s]).map(x=>lev(q,x.slice(0,q.length+1),2))); if(e<=1) return 56; if(e===2&&q.length>=6) return 44; }
-  if(q.length>=3){ let i=0; for(const ch of s) if(ch===q[i]) i++; if(i===q.length) return 36; }
+const FZ=new Map();
+function fuzzy(q,s,lite){ if(!s) return 0; if(s===q) return 100; if(s.startsWith(q)) return 92-Math.min(12,(s.length-q.length)/2);
+  const k=FZ.get(s)||(FZ.set(s,{c:s.indexOf(' ')>0?s.replace(/ /g,''):null,w:s.split(/[\s\/\-()]+/)}),FZ.get(s));   // per-string work, done once
+  if(k.c){ const c=k.c; if(c===q) return 98; if(q.length>=4&&c.startsWith(q)) return 88-Math.min(12,(c.length-q.length)/2); }   // typed without spaces: STKILDA
+  const w=k.w; if(w.some(x=>x.startsWith(q))) return 78; if(s.includes(q)) return 64;
+  if(q.length>=4){ const L=x=>x[0]===q[0]||x[1]===q[1]? lev(q,x.slice(0,q.length+1),2) : 3;   // a typo rarely hits both of the first two letters
+    let e=L(s); for(const x of w) if(e>1) e=Math.min(e,L(x)); if(e<=1) return 56; if(e===2&&q.length>=6) return 44; }
+  if(q.length>=3&&!lite){ let i=0; for(const ch of s) if(ch===q[i]) i++; if(i===q.length) return 36; }   // letters in order: suburbs skip this (too many)
   return 0; }
 let SEARCH=null;
 function searchIdx(){ if(SEARCH) return SEARCH; SEARCH=[];
   for(const a of DATA.ap){ if(a.t==='H'&&!st.heli) continue; SEARCH.push({p:{k:'AD',c:a.i,n:a.n,la:a.la,lo:a.lo},keys:[a.i,a.n.toUpperCase(),...a.n.toUpperCase().split('/')],w:4}); }
   for(const p of VW) SEARCH.push({p,keys:[p.c,p.n.toUpperCase()],w:3});
   for(const p of NA) SEARCH.push({p,keys:[p.c,(p.n||'').toUpperCase()],w:2});
-  for(const p of TOWNS) SEARCH.push({p,keys:[p.c,...p.c.split(' - ')],w:p.t==='L'?1:2.5});   // "Ocean Grove - Barwon Heads" matches either
+  for(const p of TOWNS) SEARCH.push({p,keys:p.t==='S'?[p.c]:[p.c,...p.c.split(' - ')],w:p.t==='S'?0.5:p.t==='L'?1:2.5,lite:p.t==='S'});   // "Ocean Grove - Barwon Heads" matches either
   for(const w of (DATA.iw||[])) SEARCH.push({p:{k:'IFR',c:w[0],n:'IFR waypoint',la:w[1],lo:w[2]},keys:[w[0]],w:0});
   return SEARCH; }
 function searchPoints(q,n=8){ q=q.trim().toUpperCase(); if(!q) return [];
   const ref=st.pos||(GO?[GO.la,GO.lo]:[-37.8,145]), out=[];
-  for(const it of searchIdx()){ let sc=0; for(const k of it.keys){ const v=fuzzy(q,k); if(v>sc) sc=v; } if(sc<36) continue;
+  for(const it of searchIdx()){ let sc=0; for(const k of it.keys){ const v=fuzzy(q,k,it.lite); if(v>sc) sc=v; } if(sc<36) continue;
     const d=distBrg(ref[0],ref[1],it.p.la,it.p.lo)[0]; out.push({p:it.p,sc:sc+it.w-Math.min(15,d/30),d}); }
   out.sort((a,b)=>b.sc-a.sc||a.d-b.d);
   const seen=new Set(); return out.filter(o=>{ const k=o.p.k+o.p.c+o.p.la.toFixed(3); if(seen.has(k)) return false; seen.add(k); return true; }).slice(0,n); }
@@ -410,7 +420,7 @@ function suggest(inp,list,pick){ // dropdown under an input: type to search, tap
   const show=()=>{ const q=inp.value; res=/^[-\d\s.,°'"NSEW]+$/i.test(q)&&/\d/.test(q)? [] : searchPoints(q); on=0;
     if(!res.length||document.activeElement!==inp){ list.hidden=true; return; }
     list.innerHTML=res.map((o,i)=>{ const b=st.pos?distBrg(st.pos[0],st.pos[1],o.p.la,o.p.lo):null;
-      return `<li data-i="${i}" class="${i===on?'on':''}"><span class="t">${o.p.k==='AD'?'AD':o.p.k==='VFR'?'VFR':o.p.k==='NAV'?esc(o.p.t||'NAV'):o.p.k==='TOWN'?'Town':'IFR'}</span><span><b>${esc(o.p.k==='TOWN'?o.p.n:o.p.c)}</b> <span class="n">${o.p.k==='TOWN'?'':esc(titleCase(o.p.n||''))}</span></span><span class="d">${b?(b[0]<10?b[0].toFixed(1):Math.round(b[0]))+' NM '+fmt3(b[1]-varE())+'°':''}</span></li>`; }).join('');
+      return `<li data-i="${i}" class="${i===on?'on':''}"><span class="t">${o.p.k==='AD'?'AD':o.p.k==='VFR'?'VFR':o.p.k==='NAV'?esc(o.p.t||'NAV'):o.p.k==='TOWN'?(o.p.t==='S'?'Suburb':'Town'):'IFR'}</span><span><b>${esc(o.p.k==='TOWN'?o.p.n:o.p.c)}</b> <span class="n">${o.p.k==='TOWN'?esc(o.p.ste||''):esc(titleCase(o.p.n||''))}</span></span><span class="d">${b?(b[0]<10?b[0].toFixed(1):Math.round(b[0]))+' NM '+fmt3(b[1]-varE())+'°':''}</span></li>`; }).join('');
     list.hidden=false; };
   const choose=i=>{ const o=res[i]; if(!o) return false; list.hidden=true; pick(o.p); return true; };
   inp.addEventListener('input',show); inp.addEventListener('focus',show);
@@ -955,12 +965,12 @@ function drawMap(la,lo,h,pick,AS,altFt){
         if(p.t.includes('DME')||p.t==='TAC') g.strokeRect(x-6,y-5.2,12,10.4); g.beginPath(); g.arc(x,y,1.4,0,2*Math.PI); g.fill(); }
       g.fillStyle=C.dim; g.fillText(p.c+(p.f&&MAP.range<=10?' '+p.f:''),x+8,y+10); }
   }
-  // towns (ABS urban centres; localities when zoomed in) — the chart already names them when it's showing
+  // towns (ABS urban centres; localities, then suburbs, as you zoom in; towns are listed first so they win label space) — the chart already names them when it's showing
   if(!chartsShown && MAP.range<=20){ g.font='italic 500 10.5px '+cssv('--f-body'); g.fillStyle=C.dim; g.textAlign='center';
-    const tb=labels.slice(); tb.push([ox-14,oy-14,28,28]);     // keep clear of airspace labels, you, and aerodrome codes
+    const tb=labels.slice(); tb.push([ox-14,oy-14,28,28]); { const rx=ox+MAP.range*sc*0.707+3, ry=oy-MAP.range*sc*0.707; tb.push([rx,ry-11,52,14]); }   // + the range ring label     // keep clear of airspace labels, you, and aerodrome codes
     for(const ad of DATA.ap){ if(ad.t==='H'&&!st.heli) continue; if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue; const [x,y]=P(ad.la,ad.lo); tb.push([x-5,y-8,44,14]); }
     for(const p of VW){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue; const [x,y]=P(p.la,p.lo); tb.push([x-7,y-12,48,22]); }
-    for(const t of TOWNS){ if(t.t==='L'&&MAP.range>10) continue; if(Math.abs(t.la-la)>reach||Math.abs(t.lo-lo)>reach/cosl) continue;
+    for(const t of TOWNS){ if(t.t==='L'&&MAP.range>10||t.t==='S'&&MAP.range>5) continue; if(Math.abs(t.la-la)>reach||Math.abs(t.lo-lo)>reach/cosl) continue;
       const [x0,y0]=P(t.la,t.lo); if(x0<0||y0<8||x0>W||y0>Hh) continue; const w=g.measureText(t.n).width;
       for(const [dx,dy] of [[0,0],[0,14],[0,-14],[w/2+12,0],[-w/2-12,0]]){ const x=x0+dx, y=y0+dy, bx=[x-w/2-2,y-9,w+4,12];
         if(bx[0]<0||bx[0]+bx[2]>W||bx[1]<0||bx[1]+bx[3]>Hh) continue;

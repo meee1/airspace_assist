@@ -108,11 +108,11 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - Position reports start with "over <waypoint>" when you're within 1.5 NM of a VFR waypoint, e.g. "over Carrum, 5 miles south".
   - At tower aerodromes, the ERSA reporting points are shown as chips with full name, bearing and distance, nearest first. Tap a chip to go to it. The inbound call says "over Carrum" once you're within 3 NM of a reporting point.
 - **Search:** typing in **Go to** (or the simulator's Position) shows a pick list as you type.
-  - **What it searches:** aerodromes (ICAO or name), VFR waypoints, navaids, IFR waypoints, and towns from the ABS urban centres and localities (e.g. "Ocean Grove - Barwon Heads" matches either name).
-  - **Fuzzy matching:** prefix, any word, substring, small typos ("geelng") and letters in order. Aerodromes and nearby places rank first.
+  - **What it searches:** aerodromes (ICAO or name), VFR waypoints, navaids, IFR waypoints, towns from the ABS urban centres and localities (e.g. "Ocean Grove - Barwon Heads" matches either name), and suburbs from the ABS suburbs and localities (shown with their state, e.g. "Belmont, Vic"; a suburb with the same name as a town within 5 NM is left out).
+  - **Fuzzy matching:** prefix, any word, substring, small typos ("geelng", "belmomt"), names typed without spaces ("stkilda") and letters in order (not for suburbs: too many). Aerodromes and nearby places rank first.
   - **Each row** shows the type, name, and distance and bearing from you. Tap a row or press Enter to pick it; choosing an aerodrome also selects it as the aerodrome on screen.
-  - **Suburbs:** not included yet (they're part of the city in the ABS urban data).
-- **Town names on the map:** urban centres at 20 NM range and below, localities at 10 NM and below, placed clear of other labels. They're hidden while a chart is showing, since the chart names them.
+  - **Ranking:** aerodromes, then VFR waypoints, navaids, towns, localities and suburbs; nearer places rank higher.
+- **Town names on the map:** urban centres at 20 NM range and below, localities at 10 NM and below, suburbs at 5 NM and below, placed clear of other labels. They're hidden while a chart is showing, since the chart names them.
 
 ## Terrain (SRTM)
 The app uses SRTM terrain for three things:
@@ -153,7 +153,7 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - `index.html`: the page, plus a small loader
 - `app.js`: the app code
 - `data.json` / `data-next.json`: all ERSA, DAH, waypoint and variation data for the current and next AIRAC
-- `urban.json`: ABS urban centres and localities (populous areas), shared by both
+- `urban.json`: ABS urban centres and localities (populous areas) and suburb names, shared by both
 - `sw.js`: the service worker that stores everything for offline use
 - `terrain/`: the SRTM tiles
 
@@ -181,10 +181,11 @@ B=https://raw.githubusercontent.com/vatSys/australia-dataset/master
 for f in Sectors Airspace Volumes ATIS; do curl -sSLo vs_$f.xml $B/$f.xml; done
 O=https://raw.githubusercontent.com/davidmegginson/ourairports-data/main
 curl -sSLo airports.csv $O/airports.csv; curl -sSLo airport-frequencies.csv $O/airport-frequencies.csv
-cd ../tools && pip install pygeomag pillow pymupdf      # also needs pdftotext (poppler)
+cd ../tools && pip install pygeomag pillow pymupdf pyshp      # also needs pdftotext (poppler)
 python3 build_data.py ../data data.json \
   --ersa ../data/aip/<ersa>.pdf --dah ../data/aip/DAH_<date>.pdf \
-  --xc "../data/xcaustralia/<openair>.txt"
+  --xc "../data/xcaustralia/<openair>.txt" \
+  --urban ../data/abs/UCL_2021_AUST_GDA2020.shp --sal ../data/abs/SAL_2021_AUST_GDA2020.shp
 python3 - <<'P'
 from pygeomag import GeoMag; import json, datetime
 g=GeoMag(); t=datetime.date.today().year+0.9

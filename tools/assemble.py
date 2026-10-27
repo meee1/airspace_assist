@@ -41,7 +41,7 @@ here=os.path.dirname(os.path.abspath(__file__)); out=os.path.join(here,'dist'); 
 # Output: index.html (page + small loader), app.js (the app code) and the data:
 #   data.json       current AIRAC (tools/data.json)
 #   data-next.json  next AIRAC, if tools/data-next.json exists; the app switches to it by itself at its effective time
-#   urban.json      ABS urban areas, shared by both
+#   urban.json      ABS urban areas and suburbs {urb, sal}, shared by both
 # The loader picks the dataset in force now (AIRAC data takes effect at 1600 UTC the day before the nominated date,
 # AIP GEN 3.1 4.3), fetches it and urban.json, then starts app.js. The service worker stores everything for offline use.
 import datetime
@@ -51,16 +51,18 @@ def eff_ms(meta):
     d=max(ds).replace(tzinfo=datetime.timezone.utc)-datetime.timedelta(hours=8)    # 1600 UTC the day before
     return int(d.timestamp()*1000)
 h=lambda t: hashlib.sha1(t.encode()).hexdigest()[:10]
-sets=[]; urb=None
+sets=[]; urb=None; sal=None
 for name in ('data.json','data-next.json'):
     p=os.path.join(here,name)
     if not os.path.exists(p): continue
     d=json.load(open(p)); u=d.pop('urb',None)
     if u is not None: urb=u
+    s_=d.pop('sal',None)
+    if s_ is not None: sal=s_
     txt=json.dumps(d,separators=(',',':')); open(os.path.join(out,name),'w').write(txt)
     sets.append([eff_ms(d['meta']), name+'?v='+h(txt), d['meta'].get('ersa','')])
 sets.sort()
-urbt=json.dumps(urb or [],separators=(',',':')); open(os.path.join(out,'urban.json'),'w').write(urbt)
+urbt=json.dumps({'urb':urb or [],'sal':sal or []},separators=(',',':')); open(os.path.join(out,'urban.json'),'w').write(urbt)
 data=''.join(s_[1] for s_ in sets)+h(urbt)          # for the build version hash
 tpl=open(os.path.join(here,'template.html')).read()
 i=tpl.index('<script>\n'); j=tpl.rindex('</script>')
@@ -77,7 +79,7 @@ window.__SETS={json.dumps(sets)};   // [effective ms (1600 UTC day before), file
   const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
   try{{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v={h(urbt)}').catch(()=>null)]);
     if(!r.ok) throw new Error('HTTP '+r.status); window.__DATA=await r.json();
-    try{{ window.__DATA.urb = u&&u.ok ? await u.json() : []; }}catch(e){{ window.__DATA.urb=[]; }}
+    try{{ const x = u&&u.ok ? await u.json() : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }}catch(e){{ window.__DATA.urb=[]; window.__DATA.sal=[]; }}
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null; }}
   catch(e){{ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';

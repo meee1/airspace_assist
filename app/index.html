@@ -422,17 +422,17 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 <script>
 // Loader: pick the AIP dataset in force now, fetch it and the urban areas, then start the app (all cached for offline).
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{});
-window.__SETS=[[1788364800000, "data.json?v=f6db3df8c4", "03 SEP 2026"], [1795622400000, "data-next.json?v=1363f52191", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
+window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [1795622400000, "data-next.json?v=002bd2afa1", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
 (async()=>{
   const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
-  try{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v=84c6db3427').catch(()=>null)]);
+  try{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v=b7ee073b12').catch(()=>null)]);
     if(!r.ok) throw new Error('HTTP '+r.status); window.__DATA=await r.json();
-    try{ window.__DATA.urb = u&&u.ok ? await u.json() : []; }catch(e){ window.__DATA.urb=[]; }
+    try{ const x = u&&u.ok ? await u.json() : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null; }
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=946c9c85d4'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=a5444f4c8d'; document.body.appendChild(s);
 })();
 </script>
 
