@@ -3,11 +3,11 @@
 Phone web app for Australian VFR pilots, especially helicopters. Target phone: Google Pixel 9 Pro (Chrome on Android); iPhones work too. It shows:
 - the closest aerodrome (or the next one on the flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies
 - the aerodrome's runways (list plus a small to-scale diagram) and ERSA right-hand circuits
-- a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points
+- a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points (split towers follow your side and ERSA's reporting-point rules, e.g. Moorabbin via CARR on 123.0)
 - status tiles: GPS, TRK/HDG (compass auto-aligned to GPS track), PLAN (bearing and turn to the active waypoint), GS, ALT/AGL, CLASS (class here, cap, LL), and a second row with the CTAF of the aerodrome on screen and the AREA (or ATC) frequency at your position, each with the expected next frequency and its distance; a red NEXT CLASS row when class A/C/D or a restricted area starts within 10 NM ahead at your altitude
 - the area frequency and the airspace stack for your position and altitude
 - an airspace map at the top of the page (pan, pinch zoom, track/north up) with a 10 NM lead line, SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs (CTAF, Terrain, Charts and Lead toggle)
-- Go to with fuzzy search, phonetic-alphabet decoding, a mic button and a press-and-hold map menu, and GPX flight plans with auto-sequencing, an elevation profile, suggested VFR altitudes and a flight log
+- Go to with fuzzy search, phonetic-alphabet decoding, a mic button and a press-and-hold map menu (place, lat/lon, and ERSA SUA details for any R/D areas there), and GPX flight plans with auto-sequencing, an elevation profile, suggested VFR altitudes and a flight log
 - all of it offline once loaded
 
 Live at https://meee1.github.io/airspace_assist/app/ (GitHub Pages, from `master`, repo `meee1/airspace_assist`).
@@ -55,6 +55,7 @@ tools/
   assemble.py         template.html + data.json -> dist/ (index.html, app.js, data.json, sw.js, manifest, icons)
   urban.py            ABS UCL shapefile -> urban polygons (data.json 'urb', split to app/urban.json)
   suburbs.py          ABS SAL shapefile -> suburb name points (data.json 'sal', split to app/urban.json)
+  sua.py              ERSA SUA tables -> status, hours, authority, phone, activity per R/D/M area (data.json 'sua')
   fetch_srtm.py       builds app/terrain from SRTM (download from AWS skadi, or --from-dir)
   chartref.py         georeferences a VTC/VNC PDF -> tools/charts.json entry
   chartiles.py        renders the calibrated charts into app/charts/ tiles (run each chart edition)

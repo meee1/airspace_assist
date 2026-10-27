@@ -7,7 +7,7 @@ Phone web app for VFR pilots (built with helicopters in mind):
 - the area frequency and airspace class for your position and altitude, with an alert when controlled or restricted airspace is within 10 NM ahead
 - an airspace map at the top of the screen (pan, pinch zoom, track or north up) with a 10 NM lead line ahead of you, terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
 - GPX flight plans with auto-advancing waypoints, an elevation profile and suggested VFR altitudes
-- search and Go to for any aerodrome, waypoint, navaid, town or suburb, typed or spoken (mic button, phonetic alphabet), or by pressing and holding on the map
+- search and Go to for any aerodrome, waypoint, navaid, town or suburb, typed or spoken (mic button, phonetic alphabet), or by pressing and holding on the map, which also shows any restricted or danger areas there with their ERSA status, hours and contact
 
 It all runs offline once loaded. ERSA and the DAH are always the first source.
 
@@ -219,6 +219,7 @@ The app is built for and tested on a **Google Pixel 9 Pro** (Chrome on Android);
 
 ## Refresh data each AIRAC
 1. From the Airservices AIP page, download the current **complete ERSA** PDF and the **DAH** PDF into `data/aip/`.
+   The ERSA also supplies the SUA tables (restricted and danger area status, hours, contacts), read by `tools/sua.py` during the build.
 2. Optionally, download the XC Australia "All Classes" OpenAir file into `data/xcaustralia/`. It's only used where the AIP has nothing.
 3. Run:
 ```
