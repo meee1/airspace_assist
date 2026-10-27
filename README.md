@@ -4,7 +4,7 @@
 
 Phone web app for VFR pilots (built with helicopters in mind):
 - the closest aerodrome (or the next one on your flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies, runways and a radio call guide
-- the area frequency and airspace class for your position and altitude
+- the area frequency and airspace class for your position and altitude, with an alert when controlled or restricted airspace is within 10 NM ahead
 - an airspace map at the top of the screen (pan, pinch zoom, track or north up) with a 10 NM lead line ahead of you, terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
 - GPX flight plans with auto-advancing waypoints, an elevation profile and suggested VFR altitudes
 - search and Go to for any aerodrome, waypoint, navaid, town or suburb, typed or spoken (mic button, phonetic alphabet), or by pressing and holding on the map
