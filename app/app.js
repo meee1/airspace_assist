@@ -1503,7 +1503,7 @@ function simStatus(){
 let flyTimer=null, flyLast=0;
 function flyStep(){
   const now=performance.now(), dt=(now-flyLast)/3600000; flyLast=now; // hours
-  if(FP && FP.pts[FP.i]){ const p=FP.pts[FP.i], [dd,bb]=distBrg(st.pos[0],st.pos[1],p.la,p.lo); if(dd>0.05){ st.trk=bb; $('simTrk').value=fmt3(bb-variation(st.pos[0],st.pos[1])); } }
+  if(FP && FP.pts[FP.i] && !st.simManual){ const p=FP.pts[FP.i], [dd,bb]=distBrg(st.pos[0],st.pos[1],p.la,p.lo); if(dd>0.05){ st.trk=bb; $('simTrk').value=fmt3(bb-variation(st.pos[0],st.pos[1])); } }
   if(st.trk==null||!st.gs) return;
   const d=st.gs*dt/60*R, b=st.trk*R, p1=st.pos[0]*R, l1=st.pos[1]*R; // d in radians of arc (NM/60 deg)
   const p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(b));
@@ -1516,7 +1516,7 @@ function setFly(on){
   clearInterval(flyTimer); flyTimer=null; $('simFly').setAttribute('aria-pressed',on);
   if(on){ if(!simApply()){ $('simFly').setAttribute('aria-pressed',false); return; }
     if((st.trk==null&&!FP)||!st.gs){ $('simErr').textContent='Set a track (or load a flight plan) and a ground speed to fly.'; $('simErr').hidden=false; $('simFly').setAttribute('aria-pressed',false); return; }
-    flyLast=performance.now(); flyTimer=setInterval(flyStep,1000); }
+    st.simManual=false; flyLast=performance.now(); flyTimer=setInterval(flyStep,1000); }
   simSummary();
 }
 function setSim(on){
@@ -1545,6 +1545,13 @@ $('simOff').onclick=()=>setSim(false);
 $('simGo').onclick=()=>{ setFly(false); simApply(); };
 $('simFly').onclick=()=>setFly($('simFly').getAttribute('aria-pressed')!=='true');
 for(const id of ['simPos','simAlt','simTrk','simGs']) $(id).addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); simApply(); } });
+// track, speed and altitude take effect as you type (a phone's number pad has no Enter key); a track typed while
+// flying a plan takes over from the plan until Fly is pressed again
+let simEditT=null;
+for(const id of ['simAlt','simTrk','simGs']) $(id).addEventListener('input',()=>{ clearTimeout(simEditT);
+  simEditT=setTimeout(()=>{ const v=$(id).value.trim(); if(v!=='' && isNaN(parseFloat(v))) return;
+    if(id==='simTrk' && FP && flyTimer) st.simManual=true;
+    simApply(); },350); });
 
 function setFoot(){ $('foot').innerHTML=`<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). Data built ${DATA.built}.${META.next?` Next AIRAC (ERSA ${META.next[2]}) is stored and takes over at ${new Date(META.next[0]).toISOString().slice(0,16).replace('T',' ')} UTC.`:''}${URB.length?' Populous areas: ABS Urban Centres and Localities 2021 (CC BY 4.0).':''}<span id="offl"></span>`; offlineStatus(); }
 setFoot();

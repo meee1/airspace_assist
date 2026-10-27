@@ -101,6 +101,7 @@ python3 assemble.py && cp dist/* ../app/
   - `effOpen_<date>`
   - `cType`, `cSign`, `cCat`, `cMode`
   - `ahead`, `heli`, `all`, `theme`, `started`, `wake` (keep screen on)
+  - `cmp`: compass alignment `{off, n, s, c}`
   - `tlog`: flight log (GPS fixes every 5 s for 6 h, plus waypoint-change events)
 
 ## Test
@@ -176,3 +177,4 @@ python3 assemble.py && cp dist/* ../app/
 - **Simulator inputs:** Alt, Track and GS apply on `input` (350 ms debounce), because a phone number pad has no Enter. When Fly is on with a flight plan, `flyStep` steers to the active waypoint unless `st.simManual` is set; typing a track while flying sets it, and pressing Fly again clears it. In sim mode `heading()` always uses the sim track, never the compass.
 - **Top bar CTAF / AREA:** `#sCtaf` takes `ctafInfo(a).f` for the aerodrome on the card; `#sArea` takes the band at your altitude from `airStack` (label ATC and the class colour when it's C/D/CTR). Unit names are shortened (Ctr, App, Twr, Dep, Gnd). On screens 370 px and narrower the status grid is 3 columns and each of these takes a full row.
 - **Search:** `searchPoints` (fuzzy: exact, prefix, no-space compact, word prefix, substring, Levenshtein ≤1/≤2, letters in order) over aerodromes, VFR waypoints, navaids, towns, suburbs and IFR waypoints, with type weights and a distance penalty of `min(15, NM/30)`. Per-string work (word split, compact form) is cached in `FZ`.
+- **Compass alignment** (`cmpLearn`, `CMP`, button `#bCmp`): on each GPS fix with GS ≥ 20 kt, a compass reading under 2 s old, and track and compass both steady (change under about 3°/s plus 3° / 6° of jitter), the track − compass difference (true) goes into a circular mean: running mean for the first 30 samples, then a 30-sample EMA. After `CMP_MIN` (20) samples `heading()` adds `CMP.off` to the compass. It's saved in `rc_cmp`, reset by tapping the button, and not learnt in sim. It also absorbs the wind correction angle at the time of learning. Test by calling `onOri({webkitCompassHeading})` and `onPos({coords})` directly on a page loaded without `?sim`.

@@ -14,7 +14,9 @@ It all runs offline once loaded. ERSA and the DAH are always the first source.
 ## Top bar
 Always visible at the top of the screen:
 - **GPS:** fix accuracy (SIM in simulation).
-- **TRK / HDG:** your GPS track in °M, or the compass heading when you're too slow for a track.
+- **TRK / HDG:** your GPS track in °M, or the compass heading when you're too slow for a track (hovering, taxiing, on the ground).
+
+**Compass alignment:** a phone in a cradle rarely points exactly along the aircraft, and the airframe bends the compass too. While you fly straight and steady at 20 kt or more, the app averages the difference between GPS track and compass (about 20 s to align) and adds it to the compass whenever it falls back to it, so HDG lines up with where the nose points. The button below the map shows "Compass aligned +12°" (or "aligning …%"); tap it to reset after moving the phone. The offset also takes in the wind correction angle at the time, so it's best learnt into wind or in light wind. It's kept on the phone until you reset it. Simulation doesn't change it.
 - **PLAN:** the magnetic bearing to the active flight plan waypoint (or the Go to point when there's no plan), with the waypoint name and the turn from your current track (L/R in degrees; orange at 10° or more). No wind correction, so it's the planned track rather than a heading to steer.
 - **GS** in knots, and **ALT** (GPS, ft) with height above the terrain under it.
 - **CLASS:** the airspace class at your position and altitude, the top of that band (cap) and its lower limit (LL); a restricted or danger area you're in is added.
