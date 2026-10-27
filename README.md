@@ -41,7 +41,7 @@ The position field accepts:
 The area frequency depends on altitude. The app builds the airspace stack above your position from the DAH steps. Class G uses the area (FIA) frequency, class E uses the E frequency boundary, and C and D use the controlling unit. Your current band is highlighted. At Avalon, for example, it lists SFC–A025 D Avalon Tower 120.1, then A025–A045 E Avalon 133.55, then A045+ C Melbourne Approach 132.0. GPS altitude is geometric, not pressure altitude, so near a band boundary go by the altimeter and the chart.
 
 ## Airspace map
-The map sits under the frequencies. Use − and + to zoom (2.5 to 80 NM) and the button to switch between track up and north up.
+The map sits under the frequencies. Use − and + to zoom (2.5 to 80 NM) and the button to switch between track up and north up. Below them, **CTAF**, **Terrain** and **Charts** turn those layers on and off (remembered on the phone).
 - Lines follow chart conventions: C solid blue, D and CTR dashed blue, E violet, restricted areas red, danger areas dashed orange.
 - Each step is labelled chart-style: class, then upper over lower limit.
 - Area frequency boundaries are dotted green, with the frequency inside each area.
@@ -138,7 +138,7 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
 The app uses SRTM terrain for three things:
 - **Height above ground:** the ALT tile shows AGL under the GPS altitude.
 - **AGL limits:** limits such as "700 AGL" are measured from the terrain at your position.
-- **Map shading:** terrain at or above your altitude is red, and terrain within 500 ft below you is amber.
+- **Map shading:** terrain at or above your altitude is red, and terrain within 500 ft below you is amber. The **Terrain** button under the map turns the shading (warnings included) off and on; AGL in the top bar and the elevation profile aren't affected.
 
 Terrain is a 30 arc-second grid (about 900 m). Each cell holds the highest SRTM point inside it, so AGL errs low. It's for awareness, not terrain clearance.
 

@@ -418,6 +418,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <button class="btn" id="bAll" aria-pressed="true">Include non-ERSA strips</button>
     <button class="btn" id="bTheme">Theme: auto</button>
     <button class="btn" id="bWake" aria-pressed="false">Keep screen on</button>
+    <button class="btn" id="bCmp" title="The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.">Compass: not aligned</button>
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
   </div>
 
@@ -437,7 +438,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=463820d215'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=25c0eda256'; document.body.appendChild(s);
 })();
 </script>
 

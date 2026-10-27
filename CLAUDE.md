@@ -96,7 +96,7 @@ python3 assemble.py && cp dist/* ../app/
 - Browser storage keys are all prefixed `rc_`:
   - `fp`: flight plan
   - `goto`
-  - `mapRange`, `mapUp`, `mapCtaf`
+  - `mapRange`, `mapUp`, `mapCtaf`, `mapTer` (terrain shading on the map, default on), `mapCharts`, `chartOp`
   - `sim`, `simOn`, `simOpen`
   - `effOpen_<date>`
   - `cType`, `cSign`, `cCat`, `cMode`

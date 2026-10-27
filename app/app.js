@@ -1018,10 +1018,36 @@ function candidates(){
   out.sort((x,y)=>x.d-y.d);
   return out.slice(0,40);
 }
+/* Compass alignment. A phone in a cradle rarely points exactly along the aircraft, and the airframe bends the
+   compass too, so the raw compass can be well off the aircraft's heading. While you fly straight and steady at
+   20 kt or more, the difference between GPS track and compass is averaged (about a 30 s time constant) and then
+   added to the compass whenever the app falls back to it (slow, hovering, on the ground). The learnt offset also
+   takes in the wind correction angle at the time, so it's best learnt into wind or in light wind. Kept on the
+   phone until reset (the cradle usually stays put). */
+const CMP_MIN=20;   // samples (about 20 s of fixes) before the offset is used
+const CMP=Object.assign({off:0,n:0,s:0,c:0}, ls.get('cmp',{}));
+let cmpPrev=null;
+function cmpTrue(){ const v=st.pos?variation(st.pos[0],st.pos[1]):0; return st.compassMag? st.compass+v : st.compass; }
+function cmpLearn(){
+  const now=performance.now();
+  if(st.sim||st.compass==null||st.trk==null||!(st.gs>=20)||now-(st.compassT||0)>2000){ cmpPrev=null; return; }
+  const raw=cmpTrue(), d=((st.trk-raw+540)%360)-180;
+  // steady: track and compass each changed less than about 3 deg/s since the last fix
+  const ok=cmpPrev && now-cmpPrev.t<5000 && Math.abs(((st.trk-cmpPrev.trk+540)%360)-180)<3*(now-cmpPrev.t)/1000+3
+    && Math.abs(((raw-cmpPrev.raw+540)%360)-180)<3*(now-cmpPrev.t)/1000+6;   // compass jitters more than GPS track
+  cmpPrev={t:now,trk:st.trk,raw};
+  if(!ok) return;
+  const a=1/Math.min(30,CMP.n+1);   // running mean at first, then a 30-sample EMA
+  CMP.s=CMP.s*(1-a)+Math.sin(d*R)*a; CMP.c=CMP.c*(1-a)+Math.cos(d*R)*a; CMP.n++;
+  CMP.off=Math.atan2(CMP.s,CMP.c)/R;
+  if(CMP.n%10===0||CMP.n===CMP_MIN) ls.set('cmp',CMP);
+  cmpSync(); }
+function cmpSync(){ const b=$('bCmp'); if(!b) return;
+  b.textContent= CMP.n>=CMP_MIN? `Compass aligned ${CMP.off>=0?'+':'−'}${Math.abs(Math.round(CMP.off))}°` : CMP.n? `Compass: aligning ${Math.round(100*CMP.n/CMP_MIN)}%` : 'Compass: not aligned';
+  b.setAttribute('aria-pressed', CMP.n>=CMP_MIN); }
 function heading(){ // returns {deg(true), src}
   if(st.trk!=null && (st.sim || (st.gs!=null && st.gs>5))) return {deg:st.trk, src:'TRK'};
-  if(st.compass!=null){ const v=st.pos?variation(st.pos[0],st.pos[1]):0;
-    return {deg: st.compassMag? st.compass+v : st.compass, src:'HDG'}; }
+  if(st.compass!=null) return {deg: norm(cmpTrue()+(CMP.n>=CMP_MIN?CMP.off:0)), src:'HDG'};
   return null;
 }
 function score(c,h){
@@ -1168,6 +1194,7 @@ function onPos(p){
   st.alt = c.altitude!=null? c.altitude*3.28084 : null;
   st.gs = c.speed!=null? c.speed*1.943844 : st.gs;
   if(c.heading!=null && !isNaN(c.heading) && (c.speed||0)>2) st.trk=c.heading;
+  cmpLearn();
   $('sAcc').textContent='±'+Math.round(c.accuracy)+' m';
   $('gpsDot').className='dot '+(c.accuracy<50?'ok':c.accuracy<300?'warn':'bad');
   $('sGs').textContent=st.gs!=null?Math.round(st.gs):'—';
@@ -1190,7 +1217,7 @@ function onOri(e){
   else if(e.absolute && e.alpha!=null){ h=360-e.alpha; mag=true; }                 // Android, magnetometer north
   if(h==null) return;
   const so=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
-  st.compass=norm(h+so); st.compassMag=mag;
+  st.compass=norm(h+so); st.compassMag=mag; st.compassT=performance.now();
   const now=performance.now(); if(now-lastOri>400){lastOri=now; render();}
 }
 async function start(){
@@ -1249,6 +1276,8 @@ async function wakeRelease(){ if(st.wake){ try{await st.wake.release()}catch(e){
 function wakeSync(){ const b=$('bWake'), held=!!(st.wake&&!st.wake.released) || (st.wakeVia==='video'&&wakeVid&&!wakeVid.paused);
   b.setAttribute('aria-pressed',!!st.wakeWant);
   b.textContent= !st.wakeWant? 'Keep screen on' : held? 'Screen stays on' : 'Screen on: tap to re-arm'; }
+$('bCmp').onclick=()=>{ Object.assign(CMP,{off:0,n:0,s:0,c:0}); cmpPrev=null; ls.set('cmp',CMP); cmpSync(); render(); };
+cmpSync();
 $('bWake').onclick=()=>{ st.wakeWant=!st.wakeWant; ls.set('wake',st.wakeWant); st.wakeWant? wakeAcquire() : wakeRelease(); };
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') wakeAcquire(); });
 document.addEventListener('pointerdown',e=>{ if(e.target.closest&&e.target.closest('#bWake')) return; if(st.wakeWant && !(st.wake&&!st.wake.released) && !(wakeVid&&!wakeVid.paused)) wakeAcquire(); },true);
