@@ -53,7 +53,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
 /* status strip */
-.status{display:grid;grid-template-columns:.9fr 1fr 1fr .9fr 1.1fr 1.15fr;gap:5px}
+.status{display:grid;grid-template-columns:.95fr 1fr 1fr .85fr 1.15fr 1.15fr;gap:5px}
 .st>small:first-child{display:block;white-space:nowrap;overflow:hidden}
 .st.plan b{color:var(--wp)} .st.plan small.turn{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.plan small.turn.off{color:var(--accent)}
@@ -118,7 +118,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 
 /* controls */
 .ctl{display:flex;flex-wrap:wrap;gap:8px}
-.btn{font:600 13px/1 var(--f-label);letter-spacing:.07em;text-transform:uppercase;padding:11px 12px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn{min-height:40px;font:600 13px/1 var(--f-label);letter-spacing:.07em;text-transform:uppercase;padding:11px 12px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);cursor:pointer}
 .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn.primary{background:var(--freq);color:var(--bg);border-color:var(--freq)}
@@ -202,7 +202,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapmenu .mm-sub{color:var(--dim);margin-top:2px}.mapmenu .mm-ll{margin-top:4px;font-size:12px}
 .mapmenu .mm-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mapmenu .mm-btns .btn{font-size:12px;padding:8px 10px}
 .mapsec .mapwrap{border-top:0} .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
-#map{width:100%;height:min(94vw,56vh,520px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
+#map{width:100%;height:min(94vw,56vh,520px);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
@@ -409,7 +409,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     </div>
   </section>
 
-  <section class="ad" id="adCard" aria-live="polite">
+  <section class="ad" id="adCard">
     <div class="ad-head">
       <div style="min-width:0">
         <div class="ad-mode"><span id="adMode">Closest aerodrome</span><button class="btn" id="unpin" hidden style="padding:5px 7px;font-size:11px">Back to auto</button></div>
@@ -547,7 +547,7 @@ function inRing(la,lo,p){ let c=false;
     if((a[0]>la)!==(b[0]>la) && lo<(b[1]-a[1])*(la-a[0])/(b[0]-a[0])+a[1]) c=!c; }
   return c; }
 function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&lo<=bb[3]&&inRing(la,lo,x.p); }
-function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?99999:v; return v==null?0:v; }
+function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
 const META=DATA.meta||{}, ASRC=META.airspace==='DAH'?'DAH':'XC';
@@ -605,7 +605,8 @@ function airStack(la,lo,gnd){
     if(!fias.length) bands.push({k:'G',n:'Class G',L:0,H:bcta,f:null,unit:null});
   }
   const ba=hit.filter(x=>x.k==='BA').map(x=>({...x,L:L(x),H:H(x)}));
-  const prd=hit.filter(x=>x.k==='R'||x.k==='Q').map(x=>({...x,L:L(x),H:H(x)})).filter(x=>x.L<20000);
+  // R/D areas with 'NOTAM' limits (activated by NOTAM, extent set by NOTAM): keep them, from SFC and to UNL as a worst case, flagged
+  const prd=hit.filter(x=>x.k==='R'||x.k==='Q').map(x=>({...x,L:x.lok==='NOTAM'?0:L(x),H:x.hik==='NOTAM'?99999:H(x),ntm:x.lok==='NOTAM'||x.hik==='NOTAM'})).filter(x=>x.L<20000);
   // resolve vertical overlaps: CTR > D > C > A > E > G, then merge
   const PR={CTR:6,D:5,C:4,A:3,E:2,G:1};
   const cuts=[...new Set(bands.flatMap(b=>[b.L,b.H]))].sort((a,b)=>a-b), segs=[];
@@ -630,7 +631,7 @@ async function terLoad(n){
   if(TER.busy.has(n)) return; TER.busy.add(n);
   try{ const r=await fetch('terrain/'+n+'.bin.z'); if(!r.ok) throw 0;
     const buf=await new Response(r.body.pipeThrough(new DecompressionStream('deflate'))).arrayBuffer();
-    TER.tiles.set(n,new Int16Array(buf)); render(); }catch(e){ TER.tiles.set(n,null); }
+    TER.tiles.set(n,new Int16Array(buf)); render(); }catch(e){ TER.tiles.set(n,null); setTimeout(()=>{ if(TER.tiles.get(n)===null){ TER.tiles.delete(n); TER.busy.delete(n); } },30000); }   // failed (no signal yet?): try again in 30 s
 }
 function terrainFt(la,lo){ // max of the 4 surrounding 30" posts, feet; null = unknown
   if(!TER.ok) return null;
@@ -655,8 +656,10 @@ function findPoint(q){
   if(VWby.has(q)) return VWby.get(q);
   const nv=NA.filter(p=>p.c===q); if(nv.length){ const ref=st.pos||[-30,135]; return nv.sort((x,y)=>distBrg(ref[0],ref[1],x.la,x.lo)[0]-distBrg(ref[0],ref[1],y.la,y.lo)[0])[0]; }
   const iw=(DATA.iw||[]).find(w=>w[0]===q); if(iw) return {k:'IFR',c:iw[0],n:'IFR waypoint',la:iw[1],lo:iw[2]};
-  const byName=VW.find(p=>p.n===q)||VW.find(p=>p.n.startsWith(q)&&q.length>=4)||DATA.ap.find(x=>x.n.toUpperCase()===q);
-  if(byName) return byName.k?byName:{k:'AD',c:byName.i,n:byName.n,la:byName.la,lo:byName.lo};
+  const ref=st.pos||(GO?[GO.la,GO.lo]:[-37.8,145]), near=L=>L.length? L.map(p=>[distBrg(ref[0],ref[1],p.la,p.lo)[0],p]).sort((x,y)=>x[0]-y[0])[0][1] : null;
+  const exact=[...VW.filter(p=>p.n===q), ...DATA.ap.filter(x=>x.n.toUpperCase()===q).map(x=>({k:'AD',c:x.i,n:x.n,la:x.la,lo:x.lo})), ...TOWNS.filter(t=>t.c===q)];
+  const byName=near(exact)||near(VW.filter(p=>p.n.startsWith(q)&&q.length>=4));   // 'LILYDALE' is a Tasmanian VFR waypoint as well as the town: the nearest wins
+  if(byName) return byName;
   const f=searchPoints(q,1)[0]; return f&&f.sc>=60? f.p : null;
 }
 function ptDesc(p){ if(p.k==='FP'||p.k==='USR') return p.n; if(p.k==='TOWN') return (p.t==='S'?'Suburb · ':'Town · ')+p.n+(p.ste?', '+p.ste:'')+(p.t==='M'?' (major urban)':p.t==='L'?' (locality)':''); return p.k==='VFR'?'VFR waypoint · '+titleCase(p.n) : p.k==='NAV'?`${p.t} · ${titleCase(p.n)}${p.f?' · '+p.f:''}` : p.k==='AD'?'Aerodrome · '+titleCase(p.n) : 'IFR waypoint'; }
@@ -673,13 +676,15 @@ function parseGPX(xml){
   let pts=nodes.map((n,k)=>{ const la=parseFloat(n.getAttribute('lat')), lo=parseFloat(n.getAttribute('lon'));
     const nm=(n.getElementsByTagName('name')[0]?.textContent||'').trim(), ds=(n.getElementsByTagName('desc')[0]?.textContent||'').trim();
     return {n:nm||('WP'+(k+1)), la, lo, gd:ds}; }).filter(p=>isFinite(p.la)&&isFinite(p.lo));
+  if(!pts.length) throw new Error('No usable coordinates in that GPX file.');
   if(kind==='track' && pts.length>60){ const step=Math.ceil(pts.length/60); pts=pts.filter((p,k)=>k%step===0||k===pts.length-1); }
   // label from the AIP where the name or position matches
   for(const p of pts){ const m=findPoint(p.n.split(/[\s(]/)[0]);
     if(m && distBrg(p.la,p.lo,m.la,m.lo)[0]<2){ p.desc=ptDesc(m); p.c=m.c; }
     else if(p.gd) p.desc=p.gd+' (from GPX)';
     else { const nv=nearestVFR(p.la,p.lo,1); p.desc= nv? `user point, ${nv.d.toFixed(1)} NM from ${titleCase(nv.p.n)}` : 'user point'; } }
-  const nm=(doc.getElementsByTagName('rte')[0]?.getElementsByTagName('name')[0]?.textContent||doc.getElementsByTagName('name')[0]?.textContent||'').trim();
+  const own=el=>el&&[...el.children].find(c=>c.localName==='name')?.textContent;   // the element's own <name>, not a point's
+  const nm=(own(doc.getElementsByTagName('rte')[0])||own(doc.getElementsByTagName('trk')[0])||own(doc.getElementsByTagName('metadata')[0])||'').trim();
   return {name: nm || pts[0].n+' – '+pts[pts.length-1].n, kind, pts, i: pts.length>1?1:0};
 }
 function fpSet(fp){ FP=fp; ls.set('fp',FP); if(FP) fpGo(); render(); }
@@ -709,9 +714,10 @@ function fpAdvance(){
   const pos=st.pos, d=distBrg(pos[0],pos[1],p.la,p.lo)[0], last=P_.length-1;
   let man=FP.man&&FP.man.i===i? FP.man : null;
   if(man && !man.armed){ if(d>1){ man.armed=true; man.d0=d; ls.set('fp',FP); } return; }
-  if(man && man.d0!=null && d<man.d0-1){ FP.man=man=null; ls.set('fp',FP); }   // heading for it: normal rules again
+  if(man && man.d0!=null && !man.near && d<man.d0-1){ man.near=true; ls.set('fp',FP); }   // heading for it: only the 0.5 NM rule until you get there (the bisector would re-skip a point behind you)
   let next=null;
   if(d<0.5) next=i+1;
+  else if(man && man.near){ /* flying to a point you picked: wait for it */ }
   else if(!man && i===0 && last>0){ const g=fpLeg(1,pos); if(g.along>0.3 && Math.abs(g.xt)<3) next=1; }   // left the start point
   else if(!man && i>0 && i<last && d<5){
     const [rx,ry]=fpLocal(p,{la:pos[0],lo:pos[1]}), [ax,ay]=fpLocal(P_[i-1],p), [cx_,cy_]=fpLocal(p,P_[i+1]);
@@ -761,7 +767,7 @@ function profZoom(dir){ const cur=PROF_TOP||(PROF&&PROF.auto)||5000;
   const nx = dir<0 ? [...PROF_STEPS].reverse().find(v=>v<cur) : PROF_STEPS.find(v=>v>cur);
   PROF_TOP = nx || (dir<0?PROF_STEPS[0]:PROF_STEPS[PROF_STEPS.length-1]); ls.set('profTop',PROF_TOP); drawProf(); }
 const PROF_TERR='#9c7a4a';
-function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),TER.ok,TER.tiles.size,Math.floor(Date.now()/60000),$('cCat').value].join('|'); }
+function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),TER.ok,TER.tiles.size,REV.map(r=>{ const t=twrStatus(r.a); return t?+t.on:'?'; }).join(''),CTA_BUF,$('cCat').value].join('|'); }   // tower open/closed states, not the clock: a rebuild costs ~0.5 s on the phone
 function profEnsure(){ if(!FP||FP.pts.length<2) return null; const key=profKey(); if(!PROF||PROF.key!==key){ PROF=profBuild(); PROF.key=key; } return PROF; }
 function profBuild(){
   const P_=FP.pts, cum=[0];
@@ -801,15 +807,18 @@ function legPlan(pr,k){
   const P_=FP.pts, a=P_[k-1], b=P_[k], ss=pr.S.filter(q=>q.leg===k); if(!ss.length) return null;
   const mid=[(a.la+b.la)/2,(a.lo+b.lo)/2], trk=norm(distBrg(a.la,a.lo,b.la,b.lo)[1]-variation(mid[0],mid[1])), east=trk<180;
   const ends=[fpAd(a),fpAd(b)].filter(Boolean), endW=ends.map(x=>callName(x.n).split(' ')[0].toUpperCase()+' ');
+  // the zone of the aerodrome at either end (you'll be talking to its tower): matched by name, or by the zone containing the aerodrome
+  const endZN=new Set(ASP.filter(x=>(x.k==='D'||x.k==='C'||x.k==='CTR') && ends.some(e=>inAsp(x,e.la,e.lo))).map(x=>x.n));
+  const endZone=z=>(z.k==='D'||z.k==='C') && z.L<=0 && (endW.some(w=>z.n.startsWith(w)) || endZN.has(z.n));
   const exempt=[k===1?fpAd(P_[0]):null, k===P_.length-1?fpAd(P_[P_.length-1]):null].filter(Boolean);
   let need=null, needQ=null, base=null, baseQ=null, eBase=null, unknown=0; const zones=new Set();
   let hard=null;   // a single point where the minimum height is above the airspace limit right there
   for(const q of ss){
     const ex=exempt.some(e=>distBrg(q.la,q.lo,e.la,e.lo)[0]<2);
     if(!ex){ if(q.need==null) unknown++; else if(need==null||q.need>need){ need=q.need; needQ=q; } }
-    let qb=null; for(const z of q.b){ if(z.k==='E') continue; if((z.k==='D'||z.k==='C') && z.L<=0 && endW.some(w=>z.n.startsWith(w))) continue; if(qb==null||z.L<qb) qb=z.L; }
+    let qb=null; for(const z of q.b){ if(z.k==='E') continue; if(endZone(z)) continue; if(qb==null||z.L<qb) qb=z.L; }
     if(!ex && q.need!=null && qb!=null && q.need>qb-CTA_BUF && (!hard||q.need-(qb-CTA_BUF)>hard.over)) hard={q,over:q.need-(qb-CTA_BUF),cap:qb};
-    for(const z of q.b){ if((z.k==='D'||z.k==='C') && z.L<=0 && endW.some(w=>z.n.startsWith(w))){ zones.add(z.n); continue; }
+    for(const z of q.b){ if(endZone(z)){ zones.add(z.n); continue; }
       if(z.k==='E'){ if(eBase==null||z.L<eBase) eBase=z.L; continue; }          // class E: VFR needs no clearance
       if(base==null||z.L<base){ base=z.L; baseQ=q; } } }
   const minA=need==null?null:Math.ceil(need/100)*100, maxA=base==null?null:base-CTA_BUF;
@@ -903,7 +912,8 @@ function suggest(inp,list,pick){ // dropdown under an input: type to search, tap
       return `<li data-i="${i}" class="${i===on?'on':''}"><span class="t">${o.p.k==='AD'?'AD':o.p.k==='VFR'?'VFR':o.p.k==='NAV'?esc(o.p.t||'NAV'):o.p.k==='TOWN'?(o.p.t==='S'?'Suburb':'Town'):'IFR'}</span><span><b>${esc(o.p.k==='TOWN'?o.p.n:o.p.c)}</b> <span class="n">${o.p.k==='TOWN'?esc(o.p.ste||''):esc(titleCase(o.p.n||''))}</span></span><span class="d">${b?(b[0]<10?b[0].toFixed(1):Math.round(b[0]))+' NM '+fmt3(b[1]-varE())+'°':''}</span></li>`; }).join('');
     list.hidden=false; };
   const choose=i=>{ const o=res[i]; if(!o) return false; list.hidden=true; inp._voice=false; pick(o.p); return true; };
-  inp.addEventListener('input',show); inp.addEventListener('focus',()=>{ inp._voice=false; show(); });
+  let showT=null; inp.addEventListener('input',()=>{ clearTimeout(showT); showT=setTimeout(show,120); });   // a keystroke is ~100 ms of search on the phone
+  inp.addEventListener('focus',()=>{ inp._voice=false; show(); });
   inp.addEventListener('blur',()=>setTimeout(()=>{ list.hidden=true; },200));
   inp.addEventListener('keydown',e=>{ if(list.hidden) return;
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); on=(on+(e.key==='ArrowDown'?1:res.length-1))%res.length; [...list.children].forEach((li,i)=>li.classList.toggle('on',i===on)); }
@@ -1012,6 +1022,7 @@ $('fpProf').addEventListener('click',e=>{ if(!PROF) return; const cv=$('fpProf')
 function renderFP(h,varE){
   $('fpBody').hidden=!FP||$('fpToggle').getAttribute('aria-expanded')==='false'; $('fpImport').textContent=FP?'New GPX':'Import GPX';
   if(!FP){ $('fpSum').textContent='none loaded'; return; }
+  if($('fpBody').hidden){ return; }   // collapsed: nothing below is visible, and the profile build is the dear part
   const P_=FP.pts, i=FP.i, nx=P_[i], here=st.pos;
   let dNext=null,bNext=null,rem=0;
   if(here&&nx){ [dNext,bNext]=distBrg(here[0],here[1],nx.la,nx.lo); rem=dNext; for(let k=i;k<P_.length-1;k++) rem+=distBrg(P_[k].la,P_[k].lo,P_[k+1].la,P_[k+1].lo)[0]; }
@@ -1332,7 +1343,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
     for(const x of ASP) if(x.k==='BA' && x.f && bbHit(x.bb)) add(x.f,{p:x.p.map(q=>P(q[0],q[1]))});
     ctafAssign([...groups.keys()]);
     if(!ctafOff) ctafOff=document.createElement('canvas');
-    ctafOff.width=cv.width; ctafOff.height=cv.height; const o=ctafOff.getContext('2d');
+    if(ctafOff.width!==cv.width||ctafOff.height!==cv.height){ ctafOff.width=cv.width; ctafOff.height=cv.height; } const o=ctafOff.getContext('2d'); o.setTransform(1,0,0,1,0,0); o.clearRect(0,0,ctafOff.width,ctafOff.height);
     const R_=CTAF_NM*sc, shapePath=sh=>{ o.beginPath(); if(sh.c) o.arc(sh.c[0],sh.c[1],R_,0,2*Math.PI); else { sh.p.forEach((q,i)=>i?o.lineTo(q[0],q[1]):o.moveTo(q[0],q[1])); o.closePath(); } };
     const leg=[];
     for(const [f,shapes] of groups){
@@ -1570,7 +1581,7 @@ function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace 
   box.hidden=false;
   box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?' · restricted, check status':(n.b&&n.b.unit?' · '+esc(unitShort(n.b.unit)):'')+(n.b&&n.b.f?' '+n.b.f:'')+' · clearance'}</span>`; }
 function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
-  const key=[la.toFixed(3),lo.toFixed(3),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length:'-',FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
+  const key=[la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la:'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
   if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
     const path=nxPath(la,lo);
     if(path.length){
@@ -1651,7 +1662,7 @@ function render(){
   if(CI.other) csub+=`<br><span class="tag w">${CI.other.src} says ${CI.other.f}</span>`;
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
-  { const tp=twrPick(a,pick), ts=tp?twrStatus(a):null, open=tp&&(ts?ts.on:!a.c);
+  { const tp=twrPick(a,pick), ts=tp?twrStatus(a):null, open=tp&&(ts?ts.on:true);   // hours unknown: assume the tower is active
     if(open){ const t=tp.tw; $('sCtafLbl').textContent=tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'; $('sCtaf').textContent=t[2]; $('sCtafAd').textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
     else { $('sCtafLbl').textContent='CTAF'; $('sCtaf').textContent=CI.f||'—'; $('sCtafAd').textContent=a.i; }
     st.twrTile=open? {a,tp} : null; }
@@ -1663,7 +1674,7 @@ function render(){
   if(a.a) html+=freqRow('ATIS',a.a[0],`Aerodrome terminal information${a.a.length>1?' · also '+a.a.slice(1).join(', '):''}${a.an?' · VOR '+a.an.join(', '):''} ${chip(SRC[a.aS])}`);
   if(a.w && !(a.a||[]).includes(a.w)) html+=freqRow('AWIS',a.w,`Automatic weather ${chip(SRC[a.wS])}`);
   if(a.x){ const seen=new Set();
-    for(const x of a.x.filter(x=>['TWR','GND','SMC','DEL','APP','DEP','UNICOM'].includes(x[0]))){
+    for(const x of a.x.filter(x=>['TWR','GND','SMC','DEL','APP','DEP','UNICOM','AFIS'].includes(x[0]))){
       const key=x[0]+x[2]; if(seen.has(key)) continue; seen.add(key);
       const nm=esc(x[1]?titleCase(x[1]):a.i+' '+x[0].toLowerCase())+(x[4]?' <em>'+x[4]+'</em>':'');
       const ev=x[5]?`<br><span class="ev">ERSA: “${esc(x[5].split(' / ')[0])}”</span>`:'';
@@ -1707,7 +1718,7 @@ function render(){
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
   for(const p of AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H))
-    html+=freqRow(p.k==='R'?'R AREA':'DANGER','',`<em>${esc(p.n)}</em><br><span class="tag w">${limTxt(p.L)}–${p.hik==='NOTAM'?'NOTAM':limTxt(p.H)}</span> check status`,'prd');
+    html+=freqRow(p.k==='R'?'R AREA':'DANGER','',`<em>${esc(p.n)}</em><br><span class="tag w">${p.lok==='NOTAM'?'NTM':limTxt(p.L)}–${p.hik==='NOTAM'?'NTM':limTxt(p.H)}</span> ${p.ntm?'limits set by NOTAM · ':''}check status`,'prd');
   // the selected aerodrome's own approach unit
   const adName=callName(a.n).toLowerCase(), shown=new Set([cur&&cur.f]);
   for(const x of (a.x||[]).filter(x=>x[0]==='APP'||x[0]==='DEP')) shown.add(x[2]);
@@ -1748,7 +1759,7 @@ function onPos(p){
   st.gs = c.speed!=null? c.speed*1.943844 : st.gs;
   if(c.heading!=null && !isNaN(c.heading) && (c.speed||0)>2) st.trk=c.heading;
   cmpLearn();
-  $('sAcc').textContent='±'+Math.round(c.accuracy)+' m';
+  $('sAcc').textContent='±'+Math.round(c.accuracy)+'m';
   $('gpsDot').className='dot '+(c.accuracy<50?'ok':c.accuracy<300?'warn':'bad');
   $('sGs').textContent=st.gs!=null?Math.round(st.gs):'—';
   $('sAlt').textContent=st.alt!=null?Math.round(st.alt/10)*10:'—';
@@ -1869,7 +1880,7 @@ addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';
 $('goIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preventDefault(); const p=findPoint($('goIn').value);
   if(p) setGo(p); else { $('goErr').textContent=`${$('goIn').value.trim().toUpperCase()} not found. Use a VFR waypoint code (CARR), navaid ident (AV), IFR waypoint or aerodrome code.`; $('goErr').hidden=false; } });
-$('goIn').addEventListener('change',()=>{ const p=findPoint($('goIn').value); if(p) setGo(p); });
+$('goIn').addEventListener('change',()=>{ if(GO&&$('goIn').value.trim().toUpperCase()===(GO.c||'').toUpperCase()) return; const p=findPoint($('goIn').value); if(p) setGo(p); });
 suggest($('goIn'),$('goList'),p=>{ if(p.k==='AD') st.pin=p.c; setGo(p); $('goIn').blur(); });
 suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFixed(5)+', '+p.lo.toFixed(5) : p.c; simApply(); $('simPos').blur(); });
 $('goClr').onclick=()=>setGo(null);
@@ -1897,6 +1908,7 @@ $('goIn').addEventListener('focus',()=>setTimeout(()=>$('goBox').scrollIntoView(
       if('processLocally' in rec) rec.processLocally=onDevice;
       const inp=$('goIn'); btn.classList.add('on'); msg(onDevice?'Listening (on the phone)…':'Listening…');
       rec.onresult=e=>{ const r=e.results[e.results.length-1]; let best=null;
+        if(!r.isFinal){ inp.value=decodeSpoken(r[0].transcript); return; }   // interim: show the words, score only the final result
         for(let i=0;i<r.length;i++){ const tx=r[i].transcript, q=decodeSpoken(tx), top=searchPoints(q,1)[0]; const sc=top?top.sc:-1; if(!best||sc>best.sc) best={q,sc}; }
         if(best){ inp.value=best.q; inp._voice=true; inp.dispatchEvent(new Event('input')); }
         if(r.isFinal) msg(best&&best.sc>0? 'Heard “'+r[0].transcript.trim()+'”: tap the match below.' : 'Heard “'+r[0].transcript.trim()+'”: nothing matched.'); };
@@ -1951,7 +1963,9 @@ $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!l
     if(best){ if(best.k==='AD') st.pin=best.c;   // tapping an aerodrome also selects it (card, frequencies, calls)
       setGo(best); } };
   cv.addEventListener('contextmenu',e=>{ e.preventDefault(); if(e.pointerType==='touch') return; const r=cv.getBoundingClientRect(); if(MAP.inv) mapMenu(e.clientX-r.left,e.clientY-r.top); });   // right-click on a computer
-  cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',e=>{ ptr.delete(e.pointerId); if(ptr.size<2) pinch=null; drag=null; });
+  cv.addEventListener('pointerup',end);
+  const lost=e=>{ ptr.delete(e.pointerId); lpCancel(); if(pinch&&ptr.size<2){ pinch=null; ls.set('mapRange',MAP.range); render(); } if(!ptr.size) pinch=null; drag=null; };
+  cv.addEventListener('pointercancel',lost); cv.addEventListener('lostpointercapture',e=>{ if(!ptr.has(e.pointerId)) return; lost(e); });
   // mouse wheel / trackpad pinch on a computer
   let wheelT=null;
   cv.addEventListener('wheel',e=>{ if(!MAP.last) return; e.preventDefault(); zoomTo(MAP.range*Math.exp(e.deltaY*(e.ctrlKey?0.01:0.002)));
@@ -1968,7 +1982,7 @@ const COMP=['N','NE','E','SE','S','SW','W','NW'];
    conditional status (RA1/2/3 with ERSA's meaning), hours, controlling authority or contact and phone, activity.
    Limits come from the DAH (as drawn); ERSA's are quoted only if they differ. */
 const HRS={H24:'continuous',HJ:'sunrise to sunset',HN:'sunset to sunrise',NOTAM:'only when activated by NOTAM'};
-const aspLim=(v,k)=> k==='NOTAM'?'NOTAM': k==='BCTA'?'BCTA': limTxt(v);
+const aspLim=(v,k)=> k==='NOTAM'?'NTM': k==='BCTA'?'BCTA': limTxt(v);
 function suaHere(la,lo){
   const S=(DATA.sua&&DATA.sua.areas)||{}, RA=(DATA.sua&&DATA.sua.ra)||{};
   const hits=ASP.filter(x=>(x.k==='R'||x.k==='Q'||x.k==='P')&&inAsp(x,la,lo)).sort((a,b)=>(a.lo||0)-(b.lo||0));
@@ -1984,6 +1998,7 @@ function suaHere(la,lo){
       (st&&RA[st]? `<div class="ra">${esc(st)}: ${esc(RA[st].charAt(0).toUpperCase()+RA[st].slice(1))} (ERSA SUA)</div>` : '')+
       (e? '' : '<div class="ra">Not in the ERSA SUA list: check NOTAMs.</div>')+`</div>`; }).join('')+
     (hits.length? `<div class="ra" style="margin-top:4px;color:var(--dim);font-size:11px">ERSA SUA ${esc(META.ersa||'')} · limits from the DAH. Activation, hours and status can change by NOTAM.</div>` : ''); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('mapMenu').hidden) mapMenuClose(); });
 function mapMenuClose(){ $('mapMenu').hidden=true; MAP.press=null; if(MAP.last) drawMap(...MAP.last); }
 function mapMenu(px,py){
   if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
@@ -2022,7 +2037,8 @@ function sayLevel(ft){ if(ft==null) return '<i>[level]</i>'; if(ft>10500) return
 const DOW=['SUN','MON','TUE','WED','THU','FRI','SAT'];
 function firstSun(y,m){ const d=new Date(Date.UTC(y,m,1)); return 1+((7-d.getUTCDay())%7); }
 function isHDS(state,now){ if(!['NSW','VIC','ACT','TAS','SA'].includes(state)) return false;
-  const y=now.getUTCFullYear(), start=Date.UTC(y,9,firstSun(y,9),16), end=Date.UTC(y,3,firstSun(y,3),16); // ~2-3am local
+  // DST starts 0200 standard time on the first Sunday of October = Saturday 1600 UTC; ends 0300 DST on the first Sunday of April = Saturday 1600 UTC
+  const y=now.getUTCFullYear(), start=Date.UTC(y,9,firstSun(y,9)-1,16), end=Date.UTC(y,3,firstSun(y,3)-1,16);
   return now.getTime()>=start || now.getTime()<end; }
 /* Tower frequency for your side of a split tower (ERSA ties each frequency to departures/arrivals on that side,
    e.g. Moorabbin East 118.1 / West 123.0): your bearing from the aerodrome, or on the aerodrome (< 0.5 NM) the
@@ -2048,28 +2064,53 @@ function twrRules(a){   // "[When RWY 17 or 35 in use,] ARR ... from the S ... r
   for(const x of (a.x||[]).filter(x=>x[0]==='TWR'&&x[5])) for(const m of x[5].matchAll(/(?:When RWY ([0-9LRC]+(?:\s*(?:,|or|and)\s*[0-9LRC]+)*) in use,?\s*)?ARR[^/]*?from the ([NSEW])\b[^/]*?report at ([A-Z]{3,5}) on (\d{3}\.\d{1,3})/g))
     out.push({rwys:m[1]?m[1].split(/\s*(?:,|or|and)\s*/):[], from:m[2], rp:m[3], f:m[4], text:m[0]});
   return a._twrRules=out; }
+/* Tower hours from the ERSA "TWR HR" (or "TWR and APP HR") note. Handles:
+   - several ranges on one line ("MON-FRI 2300-1200 UTC. SAT-SUN 0000-1000 UTC" / "2200-1300 UTC MON-THU, 2200-0830 UTC FRI-SUN")
+   - a "During HDS:" sub-list with its own ranges (Moorabbin), used only in daylight saving
+   - "(1HR earlier during HDS)" on the line or as a note for the block: the UTC times move an hour earlier in DST,
+     so the local clock hours stay the same (Bankstown, Parafield, Camden, Coffs Harbour, Richmond, Hobart)
+   - seasonal qualifiers "JUN-AUG:" / "SEP-MAY:" (Jandakot), "DLY", "JF" (weekends)
+   Returns null when nothing parses; callers then assume the tower is active. */
+const MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 function twrStatus(a,now=new Date()){
-  const L=a.cnotes||[]; const i=L.findIndex(l=>/TWR HR/.test(l)); if(i<0 || a.utc==null) return null;
+  const L=a.cnotes||[]; if(a.utc==null) return null;
+  const isHdr=l=>/\bTWR(?: and APP|\/APP)? HRS?\b/.test(l);
   const hds=isHDS(a.st,now), off=a.utc+(hds?1:0), loc=new Date(now.getTime()+off*3600e3);
-  const dow=DOW[loc.getUTCDay()], mins=loc.getUTCHours()*60+loc.getUTCMinutes();
-  const ent=[]; let hctx=false;
-  for(let j=i;j<Math.min(L.length,i+14);j++){
-    const l=L[j]; if(j>i && /^\d+\.\s/.test(l)) break;
-    if(/During HDS/i.test(l)) hctx=true;
-    const u=l.match(/(\d{4})\s*-\s*(\d{4})\s*UTC/); if(!u) continue;
-    const lm=l.match(/\((\d{4})\s*-\s*(\d{4})\s*Local\)/);
-    const dm=l.match(/\b(MON|TUE|WED|THU|FRI|SAT|SUN)(?:\s*-\s*(MON|TUE|WED|THU|FRI|SAT|SUN))?\b/);
-    let days=DOW; if(dm){ const a0=DOW.indexOf(dm[1]), b0=DOW.indexOf(dm[2]||dm[1]); days=[]; for(let k=a0;;k=(k+1)%7){ days.push(DOW[k]); if(k===b0) break; } }
-    if(/\bJF\b/.test(l)&&!dm) days=['SAT','SUN'];
-    const tm=x=>Math.floor(x/100)*60+x%100;
-    let s0,e0; if(lm){ s0=tm(+lm[1]); e0=tm(+lm[2]); } else { s0=(tm(+u[1])+off*60)%1440; e0=(tm(+u[2])+off*60)%1440; }
-    ent.push({days,s0,e0,hds:hctx||/\bHDS\b/.test(l)});
-  }
+  const dow=DOW[loc.getUTCDay()], mins=loc.getUTCHours()*60+loc.getUTCMinutes(), mon=loc.getUTCMonth();
+  const tm=x=>Math.floor(x/100)*60+x%100, seq=(A,a0,b0)=>{ const o=[]; for(let k=a0;;k=(k+1)%A.length){ o.push(A[k]); if(k===b0) break; } return o; };
+  let ent=[], blockShift=false;
+  for(let i=0;i<L.length;i++){
+    if(!isHdr(L[i])) continue;
+    const blk=[]; for(let j=i;j<Math.min(L.length,i+16);j++){ if(j>i && /^\d+\.\s/.test(L[j])) break; blk.push(L[j]); }
+    if(!blk.some(l=>/\d{4}\s*-\s*\d{4}\s*UTC/.test(l))) continue;   // "(1) DRG TWR HR": no times here
+    blockShift=blk.some(l=>/1\s*HR earlier/i.test(l));
+    let hctx=false;
+    for(const l of blk){
+      if(/During HDS/i.test(l)) hctx=true;
+      const rs=[...l.matchAll(/(\d{4})\s*-\s*(\d{4})\s*UTC/g)]; if(!rs.length) continue;
+      const dayRe=/\b(MON|TUE|WED|THU|FRI|SAT|SUN)(?:\s*(?:-|and|to)\s*(MON|TUE|WED|THU|FRI|SAT|SUN))?\b/g;
+      const toks=[...l.matchAll(dayRe)].map(m=>({i:m.index, days: m[2]? seq(DOW,DOW.indexOf(m[1]),DOW.indexOf(m[2])) : [m[1]]}));
+      const mm=l.match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*-\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\b/);
+      const months=mm? seq(MON,MON.indexOf(mm[1]),MON.indexOf(mm[2])).map(x=>MON.indexOf(x)) : null;
+      const before=toks.length&&toks[0].i<rs[0].index;   // "DAYS range" layout, else "range DAYS"
+      rs.forEach((u,k)=>{
+        if(/^\s*(?:\S+\s+){0,3}?(?:O\/R|ON REQ|BY ARR|PN\b)/i.test(l.slice(u.index+u[0].length))) return;   // 'on request' / 'prior notice' extensions aren't standing hours
+        let days=null;
+        if(toks.length){ const cand= before ? toks.filter(t=>t.i<u.index) : toks.filter(t=>t.i>u.index);
+          const t= before ? cand[cand.length-1] : cand[0]; if(t) days=t.days; }
+        if(!days) days= /\bJF\b/.test(l)? ['SAT','SUN'] : DOW;
+        ent.push({days, months, sU:tm(+u[1]), eU:tm(+u[2]), hdsOnly:hctx||/\bHDS\b/.test(l)&&!/1\s*HR earlier/i.test(l), shift:/1\s*HR earlier/i.test(l)});
+      }); }
+    break; }
   if(!ent.length) return null;
-  let use=ent.filter(e=>e.hds===hds); if(!use.length) use=ent.filter(e=>!e.hds);
-  const inside=e=> e.s0<e.e0 ? mins>=e.s0&&mins<e.e0 : mins>=e.s0||mins<e.e0;
+  ent=ent.filter(e=>!e.months||e.months.includes(mon));
+  let use= hds ? (ent.some(e=>e.hdsOnly)? ent.filter(e=>e.hdsOnly) : ent) : ent.filter(e=>!e.hdsOnly);
+  if(!use.length) use=ent;
+  const local=e=>{ const sh= hds&&(e.shift||blockShift) ? 60 : 0; return [((e.sU-sh)+off*60+1440)%1440, ((e.eU-sh)+off*60+1440)%1440]; };
+  const inside=e=>{ const [s0,e0]=local(e); return s0<e0 ? mins>=s0&&mins<e0 : mins>=s0||mins<e0; };
   const on=use.some(e=>e.days.includes(dow)&&inside(e));
-  const today=use.filter(e=>e.days.includes(dow)).map(e=>`${String(Math.floor(e.s0/60)).padStart(2,'0')}${String(e.s0%60).padStart(2,'0')}–${String(Math.floor(e.e0/60)).padStart(2,'0')}${String(e.e0%60).padStart(2,'0')}`);
+  const hhmm=m=>String(Math.floor(m/60)).padStart(2,'0')+String(m%60).padStart(2,'0');
+  const today=use.filter(e=>e.days.includes(dow)).map(e=>{ const [s0,e0]=local(e); return hhmm(s0)+'–'+hhmm(e0); });
   return {on, today:today.join(', '), hds};
 }
 function ersaProcHtml(a,heli){
@@ -2103,7 +2144,7 @@ function renderCalls(a,pick,varE){
   const lvl=sayLevel(st.alt), rwy= rv? `runway ${rv}` : 'runway <i>[XX]</i>';
   const X=a.x||[], twrs=X.filter(x=>x[0]==='TWR'), gnd=X.find(x=>x[0]==='GND'), towered=twrs.length>0;
   const ts=towered?twrStatus(a):null, K=a.keys||{};
-  let mode=$('cMode').value; if(mode==='auto') mode = towered && (ts? ts.on : !a.c) ? 'twr' : 'ctaf';
+  let mode=$('cMode').value; if(mode==='auto') mode = towered && (ts? ts.on : true) ? 'twr' : 'ctaf';   // hours unknown: assume active
   if(!towered && mode==='twr') mode='ctaf';
   const CI=ctafInfo(a);
   let calls=[], modeTxt='', note='';
@@ -2125,7 +2166,7 @@ function renderCalls(a,pick,varE){
     const inAlt = heli&&K.hel ? ft(K.hel) : K.entry ? ft(K.entry) : lvl;
     $('callsAt').textContent=tw+' · '+tf;
     modeTxt=`<b>Tower procedures (Class D)</b> · ${twAll}${gn?` · ${gn} ${gnd[2]}`:''}${a.a?` · ATIS ${a.a[0]}`:''}<br>`+
-      (ts? `ERSA tower hours today ${ts.today||'none'} local${ts.hds?' (daylight saving)':''}: <b>${ts.on?'tower likely active':'tower likely closed'}</b>. Public holidays and NOTAMs not included; confirm on the ATIS.` : 'Tower hours not parsed: confirm on the ATIS.');
+      (ts? `ERSA tower hours today ${ts.today||'none'} local${ts.hds?' (daylight saving)':''}: <b>${ts.on?'tower likely active':'tower likely closed'}</b>. Public holidays and NOTAMs not included; confirm on the ATIS.` : 'Tower hours not found in ERSA: <b>tower assumed active</b>; confirm on the ATIS or switch to CTAF below.');
     if(a.a) calls.push(['Before first contact',`Listen to ATIS ${a.a[0]} and note the information letter${heli?'. Nominate your landing site or aiming point on first contact if ERSA requires it':''}.`]);
     if(gn) calls.push(['Taxi · '+gn+' '+gnd[2],`${T(gn)}, ${cs}, ${type}, <i>[position on aerodrome]</i>, received ${atisL||'<i>[ATIS]</i>'}, request taxi ${heli?'<i>[for aiming point / HLS]</i> ':''}for <i>[circuits / VFR departure to the …]</i>.`]);
     const twOf=side=>{ const t=twrs.find(t=>t[4]===side)||twSide; return [titleCase(t[1]), t[2], t[4]||'']; };

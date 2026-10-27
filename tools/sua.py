@@ -36,10 +36,16 @@ def _assign(line, cols):
     act = dict(cols).get('act')
     runs = []
     for start, txt in _runs(line):   # "(19) FLTCDR ..." starts the authority even when only one space follows the hours
-        for k, part in enumerate(re.split(r' (?=\(\d+\) )', txt)):
+        for part in re.split(r' (?=\(\d+\) )', txt):
             runs.append((line.index(part, start), part))
+    if runs:   # 'R560A(WWX) RA2' has one space between ident and status: split the ident off
+        s0, t0 = runs[0]
+        m = re.match(r'^([PRDM]\d+[A-Z]?(?:\([A-Z]+\))?)\s+(\S.*)$', t0)
+        if m: runs[0:1] = [(s0, m.group(1)), (s0 + m.start(2), m.group(2))]
     for start, txt in runs:
         end = start + len(txt)
+        if re.match(r'^\(\d+\)\s', txt):   # '(6) DOTAM RCO Majura' is the authority wherever it starts
+            out.setdefault('auth', []).append(txt); continue
         if act is not None and start < act - 2 and end > act + 2:   # authority and activity run together: split later
             out.setdefault('authact', []).append(txt); continue
         out.setdefault(_nearest(cols, start), []).append(txt)

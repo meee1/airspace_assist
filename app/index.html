@@ -53,7 +53,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
 /* status strip */
-.status{display:grid;grid-template-columns:.9fr 1fr 1fr .9fr 1.1fr 1.15fr;gap:5px}
+.status{display:grid;grid-template-columns:.95fr 1fr 1fr .85fr 1.15fr 1.15fr;gap:5px}
 .st>small:first-child{display:block;white-space:nowrap;overflow:hidden}
 .st.plan b{color:var(--wp)} .st.plan small.turn{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.plan small.turn.off{color:var(--accent)}
@@ -118,7 +118,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 
 /* controls */
 .ctl{display:flex;flex-wrap:wrap;gap:8px}
-.btn{font:600 13px/1 var(--f-label);letter-spacing:.07em;text-transform:uppercase;padding:11px 12px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn{min-height:40px;font:600 13px/1 var(--f-label);letter-spacing:.07em;text-transform:uppercase;padding:11px 12px;border-radius:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);cursor:pointer}
 .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn.primary{background:var(--freq);color:var(--bg);border-color:var(--freq)}
@@ -202,7 +202,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapmenu .mm-sub{color:var(--dim);margin-top:2px}.mapmenu .mm-ll{margin-top:4px;font-size:12px}
 .mapmenu .mm-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mapmenu .mm-btns .btn{font-size:12px;padding:8px 10px}
 .mapsec .mapwrap{border-top:0} .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
-#map{width:100%;height:min(94vw,56vh,520px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
+#map{width:100%;height:min(94vw,56vh,520px);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
@@ -409,7 +409,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     </div>
   </section>
 
-  <section class="ad" id="adCard" aria-live="polite">
+  <section class="ad" id="adCard">
     <div class="ad-head">
       <div style="min-width:0">
         <div class="ad-mode"><span id="adMode">Closest aerodrome</span><button class="btn" id="unpin" hidden style="padding:5px 7px;font-size:11px">Back to auto</button></div>
@@ -468,17 +468,21 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 <script>
 // Loader: pick the AIP dataset in force now, fetch it and the urban areas, then start the app (all cached for offline).
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{});
-window.__SETS=[[1788364800000, "data.json?v=6f4a0562c3", "03 SEP 2026"], [1795622400000, "data-next.json?v=a3c5ca7afc", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
+window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [1795622400000, "data-next.json?v=71a6d18728", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
 (async()=>{
   const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
   try{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v=b7ee073b12').catch(()=>null)]);
-    if(!r.ok) throw new Error('HTTP '+r.status); window.__DATA=await r.json();
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!/json/i.test(r.headers.get('content-type')||'')) throw new Error('not JSON (a sign-in page or captive portal?)');
+    window.__DATA=await r.json();
     try{ const x = u&&u.ok ? await u.json() : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null; }
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=cb5c0d2486'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=7f02979ba4';
+  s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
+  document.body.appendChild(s);
 })();
 </script>
 

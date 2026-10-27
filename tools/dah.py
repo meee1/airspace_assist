@@ -87,10 +87,18 @@ def parse(lines):
                 name = re.sub(r'\s*(EFREQUENCY|BROADCAST AREA)?\s*1\d\d\.\d+\w*$', '', name).strip()
             cur = dict(cls=cls, name=name, fir=m.group(1), al='', ah='', lat=[], freq=freq, status='',
                        section=sec, ctrcls=('C' if sec == 2 else 'D' if sec == 3 else None))
-            field = None
+            field = 'HDR'
             continue
         if cur is None: continue
         f = next((f for f in FIELDS if ln.startswith(f)), None)
+        if field == 'HDR' and not f and cur['cls'] in ('FIA', 'EF', 'BA') and re.fullmatch(r'[A-Z0-9 .\'()/&-]+', ln.strip()):   # SUA entries have an activity line here instead
+            # a header wrapped onto more lines ("YBBB/BATHURST" / "IS/GARDEN" / "PT/SNAKE" / "BAY" / "BROADCAST AREA 126.5")
+            cur['name'] = (cur['name'] + ' ' + ln.strip()).strip()
+            fm = re.search(r'\s(1\d\d\.\d+)\w*$', cur['name'])
+            if fm and cur['cls'] in ('FIA', 'EF', 'BA'):
+                cur['freq'] = fm.group(1)
+                cur['name'] = re.sub(r'\s*(EFREQUENCY|BROADCAST AREA)?\s*1\d\d\.\d+\w*$', '', cur['name']).strip()
+            continue
         if f:
             field = f; rest = ln[len(f):].strip()
             if f == 'VERTICAL LIMITS:':
@@ -133,7 +141,7 @@ def thresholds(lines):
         split += [m.group(1), m.group(2)] if m else [l]
     txt = '|' + '|'.join(split)
     out = {}
-    for m in re.finditer(r'\|([A-Z][A-Z /\'()-]*?(?:\|[A-Z][A-Z /\'()-]*?)?)\|(\d{1,3}\.\d{2})\|(\d{2}[LRC]?)\|(\d{6}(?:\.\d+)?)([NS])\|(\d{7}(?:\.\d+)?)([EW])', txt):
+    for m in re.finditer(r'\|([A-Z][A-Z /\'()-]*?(?:\|[A-Z(][A-Z /\'()-]*?)?)\|(\d{1,3}\.\d{2})\|(\d{2}[LRC]?)\|(\d{6}(?:\.\d+)?)([NS])\|(\d{7}(?:\.\d+)?)([EW])', txt):
         name = re.sub(r'\s*/\s*', '/', m.group(1).replace('|', ' ')).strip()
         la, lo = dms((m.group(4), m.group(5), m.group(6), m.group(7)))
         out.setdefault(name, []).append([m.group(3), float(m.group(2)), la, lo])

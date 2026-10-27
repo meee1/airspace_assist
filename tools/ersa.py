@@ -8,12 +8,14 @@ import re
 HDR = re.compile(r'^(\S.*?)\s{3,}ELEV\s+(-?\d+)\s*$')
 PAGE = re.compile(r'^\s*(AIP Australia\s+\d{1,2} [A-Z]{3} \d{4}\s+FAC.*|\d{1,2} [A-Z]{3} \d{4}(\s+Information may be continued.*)?|Information may be continued.*)\s*$')
 COMM_START = 'ATS AND AERODROME COMMUNICATION FACILITIES'
-TYPES = r'(FIA|APP/DEP|APP|DEP|ATIS|TWR|SMCV|SMC|ACD|UNICOM|GND|FSS|ARO)'
-COMM = re.compile(r'^' + TYPES + r'\s+(.*)$')
+TYPES = r'(FIA|APP/DEP|APP|DEP|ATIS|AFIS|TWR|SMCV|SMC|ACD|UNICOM|GND|FSS|ARO)'
+COMM = re.compile(r'^' + TYPES + r'(?: [EWNS]/(?:DEP|APP)?|\s)\s*(.*)$')   # 'APP E/DEPDARWIN APP E/DEP 125.2' (pdftotext ran the type into the name)
 FREQ = re.compile(r'(?<![\d.])(1[0-3]\d\.\d{1,3})(?![\d.])')
 CTAF = re.compile(r'^\s*CTAF(\s*-\s*AFRU)?\s+(1\d\d\.\d{1,3})\b')
-AWIS = re.compile(r'\bAWIS\s+(?:FREQ\s+)?(1\d\d\.\d{1,3})\b')
+AWIS = re.compile(r'\bAWIS\b[^\d\n]{0,12}?(1[0-3]\d\.\d{1,3})(?!\d)')   # 'AWIS 128.1', 'AWIS FREQ: 133.45MHz', 'AWIS - 125.4'
 HEAD_LINE = re.compile(r'^[A-Z][A-Z ,/&()\'-]{8,}$')
+CONT_LINE = re.compile(r'^[A-Z][A-Z /&()\'-]{2,}$')      # a wrapped service-name continuation, e.g. 'GROUND', 'TOWER', 'DEPARTURES'
+STATE = r'(?<![A-Z])(NSW|VIC|QLD|SA|WA|TAS|NT|ACT|OTH)\b'   # no leading \b: diagram digits can be glued on ('19NSW')
 
 def com(f):  # VHF COM band
     v = float(f); return 118.0 <= v <= 136.975
@@ -46,7 +48,7 @@ def parse(text):
         m = HDR.match(l)
         if not m: continue
         icao = None
-        for j in range(i + 1, min(i + 6, len(lines))):
+        for j in range(i + 1, min(i + 13, len(lines))):
             mm = re.search(r'\bUTC\b.*?\s(Y[A-Z0-9]{3})\s*$', lines[j])
             if mm: icao = mm.group(1); break
         if icao: heads.append((i, m.group(1).strip(), int(m.group(2)), icao))
@@ -54,11 +56,11 @@ def parse(text):
     # nearest all-caps line above the state/UTC/ICAO line. Without this they merge into the entry before.
     have = {h[0] for h in heads}
     for j, l in enumerate(lines):
-        mm = re.search(r'\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT|OTH)\b\s+UTC\s*[+-].*?\s(Y[A-Z0-9]{3})\s*$', l)
-        if not mm or any(i in have for i in range(max(0, j - 6), j)): continue
-        for i in range(j - 1, max(0, j - 5), -1):
+        mm = re.search(STATE + r'\s+UTC\s*[+-].*?\s(Y[A-Z0-9]{3})\s*$', l)
+        if not mm or any(i in have for i in range(max(0, j - 13), j)): continue
+        for i in range(j - 1, max(0, j - 12), -1):
             s = lines[i].strip()
-            if not s or s.startswith(('FULL NOTAM', 'AVFAX')): continue
+            if not s or s.startswith(('FULL NOTAM', 'AVFAX')) or re.fullmatch(r'[A-Z0-9 ]{1,3}', s): continue
             if re.fullmatch(r"[A-Z][A-Z0-9 '()/&.-]{2,}", s): heads.append((i, s, None, mm.group(2)))
             break
     heads.sort()
@@ -66,8 +68,9 @@ def parse(text):
     for k, (i, name, elev, icao) in enumerate(heads):
         end = heads[k + 1][0] if k + 1 < len(heads) else len(lines)
         body = lines[i:end]
-        rec = dict(n=name, e=elev, fia=[], atis=[], atisnav=[], twr=[], smc=[], acd=[], app=[], dep=[], unicom=[], gnd=[])
-        for l in body[:14]:
+        rec = dict(n=name, e=elev, fia=[], atis=[], atisnav=[], twr=[], smc=[], acd=[], app=[], dep=[], unicom=[], gnd=[], afis=[])
+        for l in body[:40]:
+            if l.strip().startswith(COMM_START): break
             m = re.search(r'(?<![\d.])(\d{5,6})S\s+(\d{6,7})E\b(.*)$', l)
             if m:
                 rec['la'] = -round(dd(m.group(1), 2), 5); rec['lo'] = round(dd(m.group(2), 3), 5)
@@ -77,15 +80,15 @@ def parse(text):
                 if c: rec['cat'] = c.group(1)
                 break
         if 'la' not in rec: continue
-        for l in body[:8]:
-            m = re.search(r'\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT|OTH)\b\s+UTC\s*\+(\d+)(?::(\d+))?', l)
+        for l in body[:14]:
+            m = re.search(STATE + r'\s+UTC\s*\+(\d+)(?::(\d+))?', l)
             if m:
                 rec['st'] = m.group(1); rec['utc'] = int(m.group(2)) + (int(m.group(3) or 0) / 60); break
         in_comm = False; last_comm = None
         sec = None; secs = {}; notes = []
         for l in body:
             s = l.strip()
-            if HEAD_LINE.match(s) and not COMM.match(s):
+            if HEAD_LINE.match(s) and not COMM.match(s) and not l.startswith(' '):
                 sec = s if s in KEEP else None
                 if sec: secs.setdefault(sec, [])
             elif sec and s and not s.startswith('Information may be continued'):
@@ -94,7 +97,7 @@ def parse(text):
             # section headings start in column 0; an indented all-caps line is a wrapped service name
             # ("DEP  MELBOURNE  118.9" / "     DEPARTURES"), which must not end the COMM block
             if in_comm and HEAD_LINE.match(s) and not COMM.match(s) and not l.startswith(' '): in_comm = False
-            if in_comm and s and not COMM.match(s) and l.startswith(' ') and HEAD_LINE.match(s) and not FREQ.search(s) and last_comm:
+            if in_comm and s and not COMM.match(s) and l.startswith(' ') and CONT_LINE.match(s) and not FREQ.search(s) and last_comm:
                 for e in last_comm: e[0] = (e[0] + ' ' + s).strip()
                 continue
             if in_comm and s and not COMM.match(s): notes.append(s)
@@ -113,8 +116,8 @@ def parse(text):
             svc = re.sub(r'\s*\(\d+\)\s*$', '', rest[:first.start()]).strip()
             svc = re.sub(r'^[A-Z0-9]{1,2}\s{2,}', '', svc).strip()
             note = rest[FREQ.finditer(rest).__iter__().__next__().start():]
-            note = re.sub(FREQ, '', note)
-            note = re.sub(r'\b\d{3}(\.\d)?\b', '', note)        # NDB kHz etc
+            note = re.sub(r'(?<![\d.])1[0-3]\d\.\d{1,3}[A-Z]?(?![\d.])', '', note)
+            note = re.sub(r'(?<![\d.])\d{3}(?:\.\d{1,3})?[A-Z]?(?![\d.])', '', note)        # UHF, NDB kHz, '125.8S' sector suffix etc
             note = re.sub(r'\s+', ' ', note).strip(' ,')
             coms = [fq(f) for f in fr if com(f)]
             navs = [fq(f) for f in fr if not com(f)]

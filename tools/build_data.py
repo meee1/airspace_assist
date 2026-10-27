@@ -240,11 +240,13 @@ if ARGS.ersa:
             if ap.get('a') and ap['a'][0] not in r['atis']: conflict(ap, 'a', r['atis'][0], ap['a'][0], ap.get('aS'))
             ap['a'] = r['atis']; ap['aS'] = 'E'
             if r.get('atisnav'): ap['an'] = r['atisnav']
+        elif ap.get('aS') in ('V', 'O'):
+            ap.pop('a', None); ap.pop('aS', None); ap.pop('an', None)   # ERSA publishes no VHF ATIS: a sim/OurAirports one isn't real
         if r.get('awis'):
             conflict(ap, 'w', r['awis'], ap.get('w'), ap.get('wS'))
             ap['w'] = r['awis']; ap['wS'] = 'E'
         x = []
-        for key, T in (('twr', 'TWR'), ('smc', 'GND'), ('acd', 'DEL'), ('app', 'APP'), ('dep', 'DEP'), ('unicom', 'UNICOM')):
+        for key, T in (('twr', 'TWR'), ('smc', 'GND'), ('acd', 'DEL'), ('app', 'APP'), ('dep', 'DEP'), ('unicom', 'UNICOM'), ('afis', 'AFIS')):
             for svc, f, note in r.get(key, []):
                 x.append([T, svc, f, note])
         # label multiple tower frequencies East/West from the ERSA procedure text (e.g. YMMB 118.1 / 123.0)
@@ -276,10 +278,11 @@ def ersa_unit(name, cls, lo=None):
     best = None
     for icao, r in ersa_idx.items():
         segs = [x.strip() for x in r['n'].split('/')]
-        if r['n'] == base: score = 0
-        elif base in segs: score = 1 + segs.index(base)
+        alias = {'HAMILTON IS': 'HAMILTON ISLAND', 'WESTERN SYDNEY': 'NANCY-BIRD WALTON', 'KINGSFORD SMITH': 'SYDNEY'}.get(base, base)
+        if r['n'] in (base, alias): score = 0
+        elif base in segs or alias in segs: score = 1 + (segs.index(base) if base in segs else segs.index(alias))
         else: continue
-        lst = r.get(want) or (r.get('app') if want == 'twr' else None)
+        lst = r.get(want) or r.get('twr') or r.get('app')   # a C step controlled by a tower (Albury, Tamworth...), or a CTR by approach
         if not lst: continue
         if want == 'twr' and not r.get('twr'): score += 5
         if not any(e[0].upper().startswith(base.split()[0]) for e in lst): score += 3
