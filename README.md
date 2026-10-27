@@ -34,6 +34,7 @@ The map sits under the frequencies. Use − and + to zoom (2.5 to 80 NM) and the
   - The legend lists the frequencies in view, and each aerodrome's frequency is printed beside it.
 - **Runways:** at 5 NM and closer, runways are drawn on the map; at 2.5 NM they're labelled with their designators.
 - The map only shows airspace starting below FL125, or below 5,000 ft above you, so the high-level steps don't clutter it.
+- **Pan:** drag the map to look around. While panned it shows north up and stays put as you move; tap **◎ Centre** to go back to your position. A tap without dragging still picks a waypoint or aerodrome for Go to.
 
 ## Runways and aerodrome diagram
 The aerodrome card shows a small runway diagram and a runway list.

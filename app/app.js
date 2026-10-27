@@ -478,6 +478,10 @@ function inScreenPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j
   if((a[1]>y)!==(b[1]>y) && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; }
 function drawMap(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
+  MAP.last=[la,lo,h,pick,AS,altFt];
+  // panned: the view is centred on MAP.pan (fixed lat/lon, north up); otherwise on you
+  const own=[la,lo]; if(MAP.pan){ la=MAP.pan[0]; lo=MAP.pan[1]; h=null; }
+  $('mapHome').hidden=!MAP.pan;
   const W=cv.clientWidth, Hh=cv.clientHeight, dpr=window.devicePixelRatio||1;
   if(!W||!Hh) return;   // map not laid out (hidden tab/pane): nothing to draw
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(Hh*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(Hh*dpr); }
@@ -486,6 +490,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const cx=W/2, cy= MAP.up==='trk'&&h ? Hh*0.62 : Hh/2;
   const sc=Math.min(W,Hh)*0.46/MAP.range, cosl=Math.cos(la*R), cr=Math.cos(-rot*R), sr=Math.sin(-rot*R);
   const P=(pla,plo)=>{ const x=(plo-lo)*cosl*60, y=(pla-la)*60; return [cx+(x*cr-y*sr)*sc, cy-(x*sr+y*cr)*sc]; };
+  const [ox,oy]=P(own[0],own[1]); MAP.sc=sc; MAP.cosl=cosl;
   const reach=MAP.range*1.6/60, bbHit=bb=>!(bb[1]<la-reach||bb[0]>la+reach||bb[3]<lo-reach/cosl||bb[2]>lo+reach/cosl);
   const C={C:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),CTR:cssv('--as-d'),A:cssv('--as-c'),R:cssv('--as-r'),Q:cssv('--as-q'),FIA:cssv('--as-fia'),EF:cssv('--as-e'),ink:cssv('--ink'),dim:cssv('--dim'),bg:cssv('--panel'),acc:cssv('--accent'),fr:cssv('--freq')};
   const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
@@ -539,7 +544,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const vis=ASP.filter(x=>bbHit(x.bb) && x.k!=='EF' && x.k!=='A' && (x.k==='FIA' || (x.lok==='AGL'?x.lo:(x.lo||0))<ceil) && !((x.k==='R'||x.k==='Q') && (x.lo||0)>=10000));
   const order={FIA:0,E:1,C:2,A:2,D:3,CTR:4,Q:5,R:6};
   vis.sort((a,b)=>order[a.k]-order[b.k]);
-  const labels=[[cx-16,cy-16,32,32],[W-34,2,32,32]], drawL=[];
+  const labels=[[ox-16,oy-16,32,32],[W-34,2,32,32]], drawL=[];
   g.lineJoin='round';
   for(const x of vis){
     const sp=x.p.map(q=>P(q[0],q[1]));
@@ -579,10 +584,10 @@ function drawMap(la,lo,h,pick,AS,altFt){
   }
   // range rings
   g.strokeStyle=C.dim; g.globalAlpha=.5; g.lineWidth=1; g.setLineDash([1,3]);
-  for(const r of [MAP.range/2,MAP.range]){ g.beginPath(); g.arc(cx,cy,r*sc,0,2*Math.PI); g.stroke(); }
+  for(const r of [MAP.range/2,MAP.range]){ g.beginPath(); g.arc(ox,oy,r*sc,0,2*Math.PI); g.stroke(); }
   g.setLineDash([]); g.globalAlpha=1;
   g.fillStyle=C.dim; g.font='500 10px "IBM Plex Mono", monospace'; g.textAlign='left';
-  g.fillText(MAP.range+' NM',cx+MAP.range*sc*0.707+3,cy-MAP.range*sc*0.707);
+  g.fillText(MAP.range+' NM',ox+MAP.range*sc*0.707+3,oy-MAP.range*sc*0.707);
   // aerodromes
   g.font='600 10px "IBM Plex Mono", monospace';
   for(const ad of DATA.ap){
@@ -636,18 +641,18 @@ function drawMap(la,lo,h,pick,AS,altFt){
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
       const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
   // go-to line
-  if(GO){ const [gx,gy]=P(GO.la,GO.lo); g.strokeStyle=cssv('--wp'); g.lineWidth=2; g.setLineDash([2,4]); g.beginPath(); g.moveTo(cx,cy); g.lineTo(gx,gy); g.stroke(); g.setLineDash([]); }
+  if(GO){ const [gx,gy]=P(GO.la,GO.lo); g.strokeStyle=cssv('--wp'); g.lineWidth=2; g.setLineDash([2,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(gx,gy); g.stroke(); g.setLineDash([]); }
   // line to selected aerodrome
   const [sx,sy]=P(pick.a.la,pick.a.lo);
-  g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,4]); g.beginPath(); g.moveTo(cx,cy); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]);
+  g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]);
   // ownship
-  g.save(); g.translate(cx,cy); g.rotate(((h?h.deg:0)-rot)*R);
+  { const hd=heading(); g.save(); g.translate(ox,oy); g.rotate(((hd?hd.deg:0)-rot)*R); }
   g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,4); g.lineTo(-7,8); g.closePath();
   g.fillStyle=C.fr; g.strokeStyle=C.bg; g.lineWidth=2; g.stroke(); g.fill(); g.restore();
   // north pointer
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';
   g.beginPath(); g.moveTo(0,-11); g.lineTo(4,-3); g.lineTo(-4,-3); g.closePath(); g.fill(); g.fillText('N',0,8); g.restore();
-  $('mapUp').textContent = MAP.up==='trk'&&h ? (h.src==='TRK'?'Track up':'Heading up') : 'North up';
+  $('mapUp').textContent = MAP.pan ? 'North up' : MAP.up==='trk'&&h ? (h.src==='TRK'?'Track up':'Heading up') : 'North up';
   $('mapRng').textContent=MAP.range+' NM';
   $('terLeg').hidden=!TER.ok;
 }
@@ -897,9 +902,26 @@ $('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); fpPick(Math.min(1,FP.
 $('fpClear').onclick=()=>{ fpSet(null); setGo(null); };
 $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; fpPick(+li.dataset.k); });
 // tap the map to pick a waypoint, navaid or aerodrome as go-to
-$('map').addEventListener('click',e=>{ const r=$('map').getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
-  let best=null,bd=22; for(const it of (MAP.hits||[])){ const d=Math.hypot(it.x-x,it.y-y); if(d<bd){bd=d;best=it.p;} }
-  if(best) setGo(best); });
+// drag to pan (one finger or mouse); a tap without movement still picks a point
+{ const cv=$('map'); let drag=null, raf=0;
+  const redraw=()=>{ raf=0; if(MAP.last) drawMap(...MAP.last); };
+  cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId);
+    // start from the current view centre (your position if not panned); dragging always works north up
+    const c=MAP.pan||[MAP.last[0],MAP.last[1]];
+    drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId}; });
+  cv.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id) return;
+    const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(!drag.moved && Math.hypot(dx,dy)<6) return;
+    drag.moved=true; const sc=MAP.sc, cosl=MAP.cosl||1;
+    MAP.pan=[drag.c[0]+dy/sc/60, drag.c[1]-dx/sc/(60*cosl)];
+    if(!raf) raf=requestAnimationFrame(redraw); });
+  const end=e=>{ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
+    if(d.moved){ render(); return; }
+    const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+    let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
+    if(best) setGo(best); };
+  cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',e=>{ drag=null; });
+  $('mapHome').onclick=()=>{ MAP.pan=null; render(); };
+}
 $('unpin').onclick=()=>{st.pin=null;render()};
 
 

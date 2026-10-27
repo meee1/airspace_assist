@@ -178,7 +178,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 #ersaProcBody p.n{margin-top:6px;font-weight:600}
 #ersaProcBody mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:inherit;border-radius:3px}
 .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
-#map{width:100%;height:min(86vw,340px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation}
+#map{width:100%;height:min(86vw,340px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 12px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
@@ -261,6 +261,20 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
   </div>
 
+  <section class="go" id="goBox">
+    <div class="go-row">
+      <span class="lbl">Go to</span>
+      <input id="goIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CARR · SHOL · AV · YMAV · tap map">
+      <button class="btn" id="goClr" hidden>Clear</button>
+    </div>
+    <div class="go-res" id="goRes" hidden>
+      <div class="arrow sm" aria-hidden="true"><svg viewBox="0 0 24 24" id="goArrow"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg></div>
+      <div class="go-txt"><b id="goName"></b><span id="goSub"></span></div>
+      <div class="go-num mono"><b id="goDist"></b><span id="goBrg"></span></div>
+    </div>
+    <div class="err" id="goErr" hidden></div>
+  </section>
+
   <details class="notice warn fold" id="effBanner" hidden>
     <summary><span id="effHead"></span><span class="fold-i" aria-hidden="true"></span></summary>
     <div id="effBody" class="fold-body"></div>
@@ -307,20 +321,6 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     </div>
   </section>
 
-  <section class="go" id="goBox">
-    <div class="go-row">
-      <span class="lbl">Go to</span>
-      <input id="goIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CARR · SHOL · AV · YMAV · tap map">
-      <button class="btn" id="goClr" hidden>Clear</button>
-    </div>
-    <div class="go-res" id="goRes" hidden>
-      <div class="arrow sm" aria-hidden="true"><svg viewBox="0 0 24 24" id="goArrow"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg></div>
-      <div class="go-txt"><b id="goName"></b><span id="goSub"></span></div>
-      <div class="go-num mono"><b id="goDist"></b><span id="goBrg"></span></div>
-    </div>
-    <div class="err" id="goErr" hidden></div>
-  </section>
-
   <section class="ad" id="adCard" aria-live="polite">
     <div class="ad-head">
       <div style="min-width:0">
@@ -359,13 +359,14 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     </details>
     <div class="stack" id="stack"></div>
     <div class="mapwrap">
-      <canvas id="map" aria-label="Airspace map around your position"></canvas>
+      <canvas id="map" aria-label="Airspace map around your position. Drag to pan."></canvas>
       <div class="mapctl">
         <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
         <span class="lbl mono" id="mapRng">10 NM</span>
         <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
         <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
         <button class="btn" id="mapUp">Track up</button>
+        <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
@@ -395,7 +396,7 @@ if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostn
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Couldn\'t load the aerodrome and airspace data</b> (data.json: '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=20c407ce34'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=601f5345c7'; document.body.appendChild(s);
 })();
 </script>
 
