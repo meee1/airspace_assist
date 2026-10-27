@@ -185,10 +185,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 #ersaProcBody mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:inherit;border-radius:3px}
 .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
 #map{width:100%;height:min(86vw,340px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
-.mapctl{display:flex;gap:6px;align-items:center}
-.mapctl .btn{padding:8px 12px;font-size:14px}
+.mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl #mapCtaf{margin-left:auto;font-size:12px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart{font-size:12px;flex:1}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -389,9 +389,11 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
         <span class="lbl mono" id="mapRng">10 NM</span>
         <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
-        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
-        <button class="btn" id="mapUp">Track up</button>
+        <button class="btn" id="mapUp" style="margin-left:auto">Track up</button>
         <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
+        <span class="brk"></span>
+        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
+        <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
@@ -438,7 +440,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=25c0eda256'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=c601f1e7ff'; document.body.appendChild(s);
 })();
 </script>
 

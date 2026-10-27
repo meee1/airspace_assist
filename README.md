@@ -22,6 +22,7 @@ Always visible at the top of the screen:
 - **CLASS:** the airspace class at your position and altitude, the top of that band (cap) and its lower limit (LL); a restricted or danger area you're in is added.
 - **CTAF:** the CTAF of the aerodrome on screen, with its code.
 - **AREA:** the Class G/E area frequency at your position and altitude, or **ATC** (coloured by class) when you're in controlled airspace, with the unit ("Melbourne Ctr", "Moorabbin Twr"). Both are the same as the frequency list below, just always visible.
+- **Next CTAF / next AREA:** under each, the frequency you can expect next and how far away it changes, e.g. "next 121.6 in 9.0 NM · YMEL" or "next ATC 132.0 in 4.0 NM · Melbourne App". The path ahead is the rest of your flight plan, or a straight line along your track when there's no plan (nothing is shown when you're stationary), out to 80 NM at your current altitude. Next CTAF is the first ERSA aerodrome you'll come within 10 NM of whose CTAF differs from the one on screen (private strips and HLS are left out). Next AREA is the first point where the frequency for your altitude changes in the DAH. If you climb or descend, the answer changes with you.
 
 ## Simulate locally (any lat/lng)
 No GPS needed. The app loads its data from `app/data.json`, so it has to be served over http (opening `index.html` as a file won't work):

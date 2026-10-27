@@ -616,7 +616,7 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false)};
+const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
@@ -814,7 +814,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
   const chartsShown=drawCharts(g,W,Hh,invPx);
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
-  if(TER.ok){
+  if(TER.ok && MAP.ter){
     const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
     const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink');
     for(let py=0;py<Hh;py+=step) for(let px=0;px<W;px+=step){
@@ -1045,6 +1045,44 @@ function cmpLearn(){
 function cmpSync(){ const b=$('bCmp'); if(!b) return;
   b.textContent= CMP.n>=CMP_MIN? `Compass aligned ${CMP.off>=0?'+':'−'}${Math.abs(Math.round(CMP.off))}°` : CMP.n? `Compass: aligning ${Math.round(100*CMP.n/CMP_MIN)}%` : 'Compass: not aligned';
   b.setAttribute('aria-pressed', CMP.n>=CMP_MIN); }
+const unitShort=u=>titleCase(u||'').replace(/\s*\(E Frequency\)/i,' E').replace(/\s*\([^)]*\)/g,'').replace(/ Centre$/,' Ctr').replace(/ Approach$/,' App').replace(/ Departures?$/,' Dep').replace(/ Tower$/,' Twr').replace(/ Ground$/,' Gnd');
+/* Expected next CTAF and area frequency, with the distance to where each changes. The path ahead is the rest of
+   the flight plan (to the active waypoint, then on), or else a straight line along your track while you're moving
+   (GS over 5 kt); up to 80 NM, sampled every 0.5 NM at your current altitude. Next CTAF: the first point on the path
+   within 10 NM of an ERSA aerodrome (the CTAF call distance; private strips and HLS are left out) whose CTAF differs from the one on screen. Next area
+   frequency: the first point where the band at your altitude has a different frequency (DAH, as in the stack). */
+const NX={key:'',ctaf:null,area:null};
+function nxPath(la,lo){
+  const pts=[[la,lo]], MAX=80;
+  if(FP&&FP.pts[FP.i]){ for(let k=FP.i;k<FP.pts.length;k++) pts.push([FP.pts[k].la,FP.pts[k].lo]); }
+  else if(st.trk!=null && st.gs>5){ const d=MAX/60*R, b=st.trk*R, p1=la*R, l1=lo*R;
+    const p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(b));
+    pts.push([p2/R,(l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(p1),Math.cos(d)-Math.sin(p1)*Math.sin(p2)))/R]); }
+  else return [];
+  const out=[]; let D=0;
+  for(let k=1;k<pts.length&&D<MAX;k++){ const [a0,o0]=pts[k-1],[a1,o1]=pts[k], L=distBrg(a0,o0,a1,o1)[0], n=Math.max(1,Math.ceil(L/0.5));
+    for(let j=1;j<=n&&D+L*j/n<=MAX+0.01;j++) out.push([a0+(a1-a0)*j/n, o0+(o1-o0)*j/n, D+L*j/n]);
+    D+=L; }
+  return out; }
+function nextFreqs(la,lo,altFt,ctafNow,adNow,cur){
+  const key=[la.toFixed(3),lo.toFixed(3),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length:'-',FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,st.heli,st.all].join('|');
+  if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null;
+    const path=nxPath(la,lo);
+    if(path.length){
+      let la0=90,la1=-90,lo0=360,lo1=-360; for(const [a,o] of path){ la0=Math.min(la0,a); la1=Math.max(la1,a); lo0=Math.min(lo0,o); lo1=Math.max(lo1,o); }
+      const pad=10/60, padl=pad/Math.cos(la*R);
+      const ads=DATA.ap.filter(a=>a.s==='E' && a.t!=='H' && a.la>la0-pad&&a.la<la1+pad&&a.lo>lo0-padl&&a.lo<lo1+padl);
+      for(const [pa,po,D] of path){
+        if(!NX.ctaf){ let best=null; for(const a of ads){ if(Math.abs(a.la-pa)>0.17) continue; const d=distBrg(pa,po,a.la,a.lo)[0]; if(d<=10&&(!best||d<best.d)) best={a,d}; }
+          if(best&&best.a!==adNow){ const f=ctafInfo(best.a).f; if(f&&f!==ctafNow) NX.ctaf={f,a:best.a,d:D}; } }
+        if(!NX.area){ const t=terrainFt(pa,po), AS=airStack(pa,po,t!=null?t:0), b=AS.bands.find(b=>altFt>=b.L-50&&altFt<b.H)||AS.bands[AS.bands.length-1];
+          if(b&&b.f&&b.f!==(cur&&cur.f)) NX.area={f:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:b.unit,d:D}; }
+        if(NX.ctaf&&NX.area) break; } } }
+  const dd=d=>d<10?d.toFixed(1):Math.round(d);
+  // distance before the name, so a narrow tile cuts the name, not the distance
+  $('sCtafNx').innerHTML= NX.ctaf? `next <b>${NX.ctaf.f}</b> in ${dd(NX.ctaf.d)} NM · ${esc(NX.ctaf.a.i)}` : '';
+  $('sAreaNx').innerHTML= NX.area? `next ${NX.area.k&&NX.area.k!=='G'&&NX.area.k!=='E'?'ATC ':''}<b>${NX.area.f}</b> in ${dd(NX.area.d)} NM · ${esc(unitShort(NX.area.unit))}` : '';
+}
 function heading(){ // returns {deg(true), src}
   if(st.trk!=null && (st.sim || (st.gs!=null && st.gs>5))) return {deg:st.trk, src:'TRK'};
   if(st.compass!=null) return {deg: norm(cmpTrue()+(CMP.n>=CMP_MIN?CMP.off:0)), src:'HDG'};
@@ -1148,9 +1186,10 @@ function render(){
     if(above) sub+=`<br>Above ${limTxt(above.L)}: class ${above.k==='CTR'?above.ctrCls:above.k}${above.f?` <b class="mono">${above.f}</b>`:''}`;
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
+  nextFreqs(la,lo,altFt,CI.f,a,cur);
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
-    $('sAreaWho').textContent=cur? titleCase(cur.unit||'').replace(/ Centre$/,' Ctr').replace(/ Approach$/,' App').replace(/ Departures?$/,' Dep').replace(/ Tower$/,' Twr').replace(/ Ground$/,' Gnd') : ''; }
+    $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; }
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
   for(const p of AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H))
@@ -1288,6 +1327,8 @@ $('mapIn').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Mat
 $('mapOut').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.min(RANGES.length-1,(i<0?2:i)+1)]; ls.set('mapRange',MAP.range); render(); };
 $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf); render(); };
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
+$('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); render(); };
+$('mapTer').setAttribute('aria-pressed',MAP.ter);
 $('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
 addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';

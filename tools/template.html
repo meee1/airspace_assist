@@ -185,10 +185,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 #ersaProcBody mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:inherit;border-radius:3px}
 .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
 #map{width:100%;height:min(86vw,340px);display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
-.mapctl{display:flex;gap:6px;align-items:center}
-.mapctl .btn{padding:8px 12px;font-size:14px}
+.mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl #mapCtaf{margin-left:auto;font-size:12px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart{font-size:12px;flex:1}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -389,9 +389,11 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
         <span class="lbl mono" id="mapRng">10 NM</span>
         <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
-        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
-        <button class="btn" id="mapUp">Track up</button>
+        <button class="btn" id="mapUp" style="margin-left:auto">Track up</button>
         <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
+        <span class="brk"></span>
+        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
+        <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
@@ -1044,7 +1046,7 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false)};
+const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
@@ -1242,7 +1244,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
   const chartsShown=drawCharts(g,W,Hh,invPx);
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
-  if(TER.ok){
+  if(TER.ok && MAP.ter){
     const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
     const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink');
     for(let py=0;py<Hh;py+=step) for(let px=0;px<W;px+=step){
@@ -1716,6 +1718,8 @@ $('mapIn').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Mat
 $('mapOut').onclick=()=>{ const i=RANGES.indexOf(MAP.range); MAP.range=RANGES[Math.min(RANGES.length-1,(i<0?2:i)+1)]; ls.set('mapRange',MAP.range); render(); };
 $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf); render(); };
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
+$('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); render(); };
+$('mapTer').setAttribute('aria-pressed',MAP.ter);
 $('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
 addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';
