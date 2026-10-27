@@ -51,6 +51,7 @@ The aerodrome card shows a small runway diagram and a runway list.
 Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. Tested with an OzRunways export: YBRS – NAV2 – YBSS – RLR – … – PIPS – YBRS, 14 points.
 - **What it reads:** the route points (`rtept`). If the file has no route it uses the waypoints (`wpt`), then a track (`trkpt`, thinned to 60 points).
 - **AIP labels:** each point is matched against the AIP by name and position, e.g. "RLR VFR waypoint · Rosslynne Resv" or "YBSS Aerodrome · Bacchus Marsh". Unmatched points keep the description from the GPX, or show as a user point with the nearest VFR waypoint.
+- **PLAN in the top bar:** the magnetic bearing to the active waypoint (or the Go to point when there's no plan), with the waypoint name and the turn from your current track (L/R in degrees; orange at 10° or more). No wind correction, so it's the planned track rather than a heading to steer.
 - **Next waypoint:** a panel shows it with bearing °M, distance, cross-track error (L/R), ETE at your ground speed, leg course, and distance and time to go.
 - **Elevation profile:** under the next-waypoint panel, the whole route drawn side-on:
   - **Terrain:** from the SRTM tiles, the highest point in each 30″ cell.

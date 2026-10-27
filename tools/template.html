@@ -53,7 +53,10 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
 /* status strip */
-.status{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.status{display:grid;grid-template-columns:.9fr 1fr 1fr .9fr 1.1fr 1.15fr;gap:5px}
+.st>small:first-child{display:block;white-space:nowrap;overflow:hidden}
+.st.plan b{color:var(--wp)} .st.plan small.turn{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.plan small.turn.off{color:var(--accent)}
 .st.cls b{font-family:var(--f-label);font-size:19px;letter-spacing:.02em}
 .st.cls .cap+.cap{margin-top:2px}
 .st.cls .cap{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim)}
@@ -250,6 +253,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .vb.on{background:var(--chip);color:var(--ink)} .vb.on .f{color:var(--freq)}
 .vnote{font-size:12px;color:var(--dim);margin-top:4px}
 @media (max-width:370px){.ad-id{font-size:34px}.fr.hero .v{font-size:34px}.fr .v{font-size:22px}.fr{grid-template-columns:64px 1fr auto}.status{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:420px){.status{gap:4px}.st{padding:6px 5px}.st>small:first-child{letter-spacing:0}.st small.agl,.st.cls .cap{font-size:10px}.st.plan small.turn{font-size:10px}}
 @media (max-width:420px){.st{padding:6px 6px}.st b{font-size:15px}.st small{font-size:10px}}
 @media (prefers-reduced-motion:reduce){.arrow svg{transition:none}}
 </style>
@@ -260,6 +264,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
   <div class="status" aria-live="off">
     <div class="st"><small><span class="dot" id="gpsDot"></span>GPS</small><b id="sAcc">—</b></div>
     <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
+    <div class="st plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
     <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
@@ -1202,6 +1207,13 @@ function render(){
   const [la,lo]=st.pos, varE=variation(la,lo), h=heading();
   $('hdgLbl').textContent=h?h.src+' °M':'TRK';
   $('sHdg').textContent=h?fmt3(h.deg-varE):'—';
+  { // planned heading: to the active flight plan waypoint, else the Go to point; turn shown against your track/heading
+    const fpT=FP&&FP.pts[FP.i], tg=fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO;
+    if(tg){ const b=distBrg(la,lo,tg.la,tg.lo)[1]; $('sPlan').textContent=fmt3(b-varE);
+      let turn=''; if(h){ const d=((b-h.deg+540)%360)-180; turn= Math.abs(d)<3? 'on track' : (d<0?'L ':'R ')+Math.round(Math.abs(d))+'°'; }
+      $('sPlanTo').textContent='→ '+(tg.c||''); $('sPlanTurn').textContent=turn; $('sPlanTurn').classList.toggle('off', !!h && Math.abs(((b-h.deg+540)%360)-180)>=10); }
+    else { $('sPlan').textContent='—'; $('sPlanTo').textContent=''; $('sPlanTurn').textContent=''; }
+  }
 
   const cands=candidates();
   let pick=null;

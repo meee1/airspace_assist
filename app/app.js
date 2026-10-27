@@ -806,6 +806,13 @@ function render(){
   const [la,lo]=st.pos, varE=variation(la,lo), h=heading();
   $('hdgLbl').textContent=h?h.src+' °M':'TRK';
   $('sHdg').textContent=h?fmt3(h.deg-varE):'—';
+  { // planned heading: to the active flight plan waypoint, else the Go to point; turn shown against your track/heading
+    const fpT=FP&&FP.pts[FP.i], tg=fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO;
+    if(tg){ const b=distBrg(la,lo,tg.la,tg.lo)[1]; $('sPlan').textContent=fmt3(b-varE);
+      let turn=''; if(h){ const d=((b-h.deg+540)%360)-180; turn= Math.abs(d)<3? 'on track' : (d<0?'L ':'R ')+Math.round(Math.abs(d))+'°'; }
+      $('sPlanTo').textContent='→ '+(tg.c||''); $('sPlanTurn').textContent=turn; $('sPlanTurn').classList.toggle('off', !!h && Math.abs(((b-h.deg+540)%360)-180)>=10); }
+    else { $('sPlan').textContent='—'; $('sPlanTo').textContent=''; $('sPlanTurn').textContent=''; }
+  }
 
   const cands=candidates();
   let pick=null;
