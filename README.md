@@ -2,7 +2,24 @@
 
 **Open the app: https://meee1.github.io/airspace_assist/app/** (source: [`app/`](app/))
 
-Phone web app: closest aerodrome, CTAF with a radio call guide, ATIS/AWIS, the area frequency for your position and altitude, and a small airspace map showing classes and CTA steps.
+Phone web app for VFR pilots (built with helicopters in mind):
+- the closest aerodrome (or the next one on your flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies, runways and a radio call guide
+- the area frequency and airspace class for your position and altitude
+- an airspace map with terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
+- GPX flight plans with auto-advancing waypoints, an elevation profile and suggested VFR altitudes
+- search and Go to for any aerodrome, waypoint, navaid, town or suburb
+
+It all runs offline once loaded. ERSA and the DAH are always the first source.
+
+## Top bar
+Always visible at the top of the screen:
+- **GPS:** fix accuracy (SIM in simulation).
+- **TRK / HDG:** your GPS track in °M, or the compass heading when you're too slow for a track.
+- **PLAN:** the magnetic bearing to the active flight plan waypoint (or the Go to point when there's no plan), with the waypoint name and the turn from your current track (L/R in degrees; orange at 10° or more). No wind correction, so it's the planned track rather than a heading to steer.
+- **GS** in knots, and **ALT** (GPS, ft) with height above the terrain under it.
+- **CLASS:** the airspace class at your position and altitude, the top of that band (cap) and its lower limit (LL); a restricted or danger area you're in is added.
+- **CTAF:** the CTAF of the aerodrome on screen, with its code.
+- **AREA:** the Class G/E area frequency at your position and altitude, or **ATC** (coloured by class) when you're in controlled airspace, with the unit ("Melbourne Ctr", "Moorabbin Twr"). Both are the same as the frequency list below, just always visible.
 
 ## Simulate locally (any lat/lng)
 No GPS needed. The app loads its data from `app/data.json`, so it has to be served over http (opening `index.html` as a file won't work):
@@ -16,7 +33,7 @@ The position field accepts:
 - an aerodrome code: `YMAV`
 - a VFR waypoint (`CARR`), navaid ident (`AV`) or IFR waypoint, or a VFR waypoint name (`CARRUM`)
 
-**Fly** moves the position along the track at the ground speed, so you can watch the frequencies change as you go. URL form: `index.html?sim=YBTH&alt=3000&trk=320&gs=90`.
+**Fly** moves the position along the track at the ground speed, so you can watch the frequencies change as you go. With a flight plan loaded it flies the route; typing a track takes over until you press Fly again. Track, ground speed and altitude apply as you type. On the phone, the **Simulate** button opens the same panel. URL form: `index.html?sim=YBTH&alt=3000&trk=320&gs=90`.
 
 ## Area frequency and altitude
 The area frequency depends on altitude. The app builds the airspace stack above your position from the DAH steps. Class G uses the area (FIA) frequency, class E uses the E frequency boundary, and C and D use the controlling unit. Your current band is highlighted. At Avalon, for example, it lists SFC–A025 D Avalon Tower 120.1, then A025–A045 E Avalon 133.55, then A045+ C Melbourne Approach 132.0. GPS altitude is geometric, not pressure altitude, so near a band boundary go by the altimeter and the chart.
@@ -58,8 +75,6 @@ The aerodrome card shows a small runway diagram and a runway list.
 Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. Tested with an OzRunways export: YBRS – NAV2 – YBSS – RLR – … – PIPS – YBRS, 14 points.
 - **What it reads:** the route points (`rtept`). If the file has no route it uses the waypoints (`wpt`), then a track (`trkpt`, thinned to 60 points).
 - **AIP labels:** each point is matched against the AIP by name and position, e.g. "RLR VFR waypoint · Rosslynne Resv" or "YBSS Aerodrome · Bacchus Marsh". Unmatched points keep the description from the GPX, or show as a user point with the nearest VFR waypoint.
-- **PLAN in the top bar:** the magnetic bearing to the active waypoint (or the Go to point when there's no plan), with the waypoint name and the turn from your current track (L/R in degrees; orange at 10° or more). No wind correction, so it's the planned track rather than a heading to steer.
-- **CTAF and AREA in the top bar:** a second row under the status tiles. CTAF is the one for the aerodrome on screen; AREA is the Class G/E area frequency at your position and altitude, or ATC (coloured by class) when you're in controlled airspace, with the unit ("Melbourne Ctr", "Moorabbin Twr"). They're the same as the main frequency list below, just always visible.
 - **Next waypoint:** a panel shows it with bearing °M, distance, cross-track error (L/R), ETE at your ground speed, leg course, and distance and time to go.
 - **Elevation profile:** under the next-waypoint panel, the whole route drawn side-on:
   - **Terrain:** from the SRTM tiles, the highest point in each 30″ cell.
@@ -91,6 +106,8 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - catch-up: after a GPS gap (screen locked, app closed), if you're clearly on a later leg (within 2 NM of it and tracking along it), it jumps there.
 
   A waypoint picked by hand with Prev, Next or a leg tap only sequences within 0.5 NM until you've flown 1 NM towards it. The active waypoint drives **Go to**.
+
+  Checked against a real flight of the example route (27 Oct 2026, from its Flightradar24 track): all 13 points sequence, including YRSY and WAN passed about 3 NM abeam. YTYA, which was skipped, catches up once you're on the next leg.
 - **Flight log:** the app keeps every GPS fix (one per 5 s, last 6 hours) and each waypoint change. **Flight log** downloads it as a GPX, to check what happened after a flight. Simulation isn't logged.
 - **Aerodrome on screen:** with a plan loaded, the aerodrome card follows the plan instead of simply the closest:
   - the next aerodrome in the plan once you're within 10 NM, so the inbound or overflying call is ready at the CTAF call point
@@ -114,8 +131,6 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - **Each row** shows the type, name, and distance and bearing from you. Tap a row or press Enter to pick it; choosing an aerodrome also selects it as the aerodrome on screen.
   - **Ranking:** aerodromes, then VFR waypoints, navaids, towns, localities and suburbs; nearer places rank higher.
 - **Town names on the map:** urban centres at 20 NM range and below, localities at 10 NM and below, suburbs at 5 NM and below, placed clear of other labels. They're hidden while a chart is showing, since the chart names them.
-
-- **Keep screen on:** remembered between launches. The phone drops the lock whenever the app is hidden (screen off, app switch), so it's taken again when you come back, or on your next tap; the button says "Screen stays on" while it holds and "Screen on: tap to re-arm" if it has been lost. Where the Wake Lock API is missing or refused (older iPhones, and Home Screen apps before iOS 18.4) a tiny silent looping video keeps the screen awake instead.
 
 ## Terrain (SRTM)
 The app uses SRTM terrain for three things:
@@ -159,6 +174,8 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - `urban.json`: ABS urban centres and localities (populous areas) and suburb names, shared by both
 - `sw.js`: the service worker that stores everything for offline use
 - `terrain/`: the SRTM tiles
+- `charts/`: the VTC/VNC tiles and their index
+- `lib/pdfjs/`: pdf.js, used only when importing a chart PDF on the phone
 
 The loader fetches `data.json`, then starts `app.js`. A data-only update changes just `data.json` (and the version tags in `index.html` and `sw.js`), so the phone picks it up the next time it has signal.
 
@@ -166,13 +183,15 @@ The loader fetches `data.json`, then starts `app.js`. A data-only update changes
 Open https://meee1.github.io/airspace_assist/app/ on your phone, tap Start, then Add to Home Screen.
 
 **Offline:** after one load with signal, everything runs without a connection:
-- **What's stored:** the page, the app code (`app.js`), the ERSA/DAH data (`data.json`, about 2 MB), and all the SRTM terrain tiles (about 650 KB). The terrain is stored straight away, not only for places you've visited.
-- **Needs nothing online:** GPS, compass, the map, the elevation profile and flight plans.
+- **What's stored:** the page, the app code (`app.js`), the ERSA/DAH data (`data.json` and `data-next.json`, about 2 MB each), the urban areas and suburb names (`urban.json`, about 1.8 MB), all the SRTM terrain tiles (about 650 KB) and the VTC/VNC chart tiles (about 12 MB). Terrain and charts are stored straight away, not only for places you've visited.
+- **Needs nothing online:** GPS, compass, the map, charts, search, the elevation profile and flight plans.
 - **Check:** the footer says "Offline: app and AIP data stored, terrain 42/42 tiles — ready to fly without signal" once it's ready.
 - **Updates:** they land the next time you open the app with signal. The app waits up to 3 seconds for the network, then starts from the stored copy, so a weak signal in flight doesn't hold it up.
 - **Not stored:** there are no NOTAMs or live weather, and there never were. Fonts fall back to the phone's own until they've been cached once.
 - **Terrain area:** the tiles currently cover 36–42°S, 140–148°E. Run `fetch_srtm.bat` with a bigger area for more.
 - **iPhone:** use the Home Screen app rather than a Safari tab. Safari can clear a website's stored data after a few weeks without visits. It's served by GitHub Pages from this repo's [`app/`](app/) folder. GPS needs HTTPS, so any other static HTTPS host works too.
+
+**Keep screen on:** remembered between launches. The phone drops the lock whenever the app is hidden (screen off, app switch), so it's taken again when you come back, or on your next tap; the button says "Screen stays on" while it holds and "Screen on: tap to re-arm" if it has been lost. Where the Wake Lock API is missing or refused (older iPhones, and Home Screen apps before iOS 18.4) a tiny silent looping video keeps the screen awake instead.
 
 ## Refresh data each AIRAC
 1. From the Airservices AIP page, download the current **complete ERSA** PDF and the **DAH** PDF into `data/aip/`.
@@ -206,6 +225,7 @@ The AIP always comes first. Every value in the app carries a source tag: green f
 2. **DAH:** all airspace (C, D, E, A, control zones, restricted and danger areas) with step limits, area (FIA) frequency boundaries, class E frequency boundaries and broadcast areas. Arcs and circles are computed from the published centres and radii. Boundaries that follow a coastline, river or road are drawn as straight lines between the published points.
 3. **AIP default:** an aerodrome not in ERSA gets CTAF 126.7, or the broadcast-area frequency if it sits inside one.
 4. **Fallbacks, tagged:** VATPAC names the controlling unit where ERSA has none, for example class A. OurAirports supplies strips that aren't in ERSA, and any frequency it disagrees on is shown as "OurAirports says …". XC Australia is only used if no DAH is loaded.
+5. **Other data:** terrain is NASA SRTM. Populous areas, towns and suburbs are the ABS Urban Centres and Localities and Suburbs and Localities 2021 (CC BY 4.0). The VTC/VNC charts are Airservices copyright.
 - Where ERSA lists several approach frequencies for a TMA (Sydney, for example), the app picks one by sector and lists the others.
 - GPS altitude is geometric, so near a step boundary go by the altimeter.
 - This is not an authoritative source. Confirm against the current ERSA, charts and NOTAMs.

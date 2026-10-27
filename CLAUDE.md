@@ -4,7 +4,7 @@ Phone web app for Australian VFR pilots, especially helicopters. It shows:
 - the closest aerodrome, with CTAF, ATIS/AWIS, tower and approach frequencies
 - the aerodrome's runways (list plus a small to-scale diagram) and ERSA right-hand circuits
 - a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points
-- a CLASS status tile: the class at your position and altitude, its cap and LL
+- status tiles: GPS, TRK/HDG, PLAN (bearing and turn to the active waypoint), GS, ALT/AGL, CLASS (class here, cap, LL), and a second row with the CTAF of the aerodrome on screen and the AREA (or ATC) frequency at your position
 - the area frequency and the airspace stack for your position and altitude
 - an airspace map with SRTM terrain, a CTAF layer, runways, VFR waypoints and navaids
 - Go to (bearing/distance to any point) and GPX flight plan import with leg navigation
@@ -100,6 +100,8 @@ python3 assemble.py && cp dist/* ../app/
   - `sim`, `simOn`, `simOpen`
   - `effOpen_<date>`
   - `cType`, `cSign`, `cCat`, `cMode`
+  - `ahead`, `heli`, `all`, `theme`, `started`, `wake` (keep screen on)
+  - `tlog`: flight log (GPS fixes every 5 s for 6 h, plus waypoint-change events)
 
 ## Test
 
@@ -127,8 +129,8 @@ python3 assemble.py && cp dist/* ../app/
 ## Gotchas
 
 - `fetch_srtm.py` arguments with negative numbers need `=`: `--around=-38.15,144.36,300`, `--bbox=-39.5,140.5,-33.5,150.5`.
-- Line endings: `fetch_srtm.bat` and the XC `.txt` show CRLF-only diffs from Linux/WSL shells. Don't commit those as changes.
-- Git push needs the owner's GitHub credentials. Commit from any shell, but push from Windows (cmd or GitHub Desktop). Check what's live with `git ls-remote origin master` and the `radio-au-<hash>` cache name in the served `sw.js`.
+- Line endings: `fetch_srtm.bat`, the XC `.txt` and `data/abs/UCL_2021_AUST_GDA2020.xml` show CRLF-only diffs from Linux/WSL shells. Don't commit those as changes; `git add` the files you changed by name.
+- **Commit and push only when the owner says so.** Commit identity: `git -c user.name="Michael Oborne" -c user.email="mich146@hotmail.com" commit …` (the shell has none set), ending the message with the Co-Authored-By line. Push: the owner keeps a fine-grained PAT in the claude.ai project doc "GitHub pat". Read it with the Projects tool and push from the owner's computer shell with `git -c http.extraHeader="Authorization: Basic $(printf 'x-access-token:%s' "$T" | base64 -w0)" push origin master`, filtering the token out of any output. Never write it to git config, a file or a commit. The cloud session's own GitHub token has no access to this repo. The owner can also push from Windows (cmd, TortoiseGit). Check what's live with `git ls-remote origin master` and the `radio-au-<hash>` cache name in the served `sw.js`.
 - After copying files into the repo from another environment, compare checksums (`md5sum`) with the build. A copy has silently left a stale `app/index.html` once, and the live site shipped without the change. `app/index.html`, `app/app.js`, `app/data.json`, `app/sw.js` and `tools/template.html` must come from the same build. The loader fetches `data.json?v=<hash>` and `app.js?v=<hash>`, so a mismatch shows up as stale data, not an error.
 - Airservices, xcaustralia.org and the SRTM hosts may be unreachable from sandboxed shells. The owner downloads the PDFs and runs `fetch_srtm.bat` locally.
 - `data/aip` holds Airservices copyright material (ERSA, DAH, VTC/VNC) in a public repo. Consider `.gitignore`-ing `data/`, since only the generated app is needed for Pages. Ask the owner before changing this.
@@ -152,7 +154,7 @@ python3 assemble.py && cp dist/* ../app/
   - Endpoint-aerodrome control zones are excluded.
   - `split` means no constant altitude works for the leg; `conflict` means some point needs more than the cap.
 - **ERSA COMM parsing.** Section headings start in column 0. An indented all-caps line inside COMM is a wrapped service name (`DEP MELBOURNE` / `DEPARTURES`). Before this fix it ended the block and lost Essendon's TWR/SMC in the 03 SEP ERSA.
-\n- **Chart underlay.** The owner chose to publish pre-rendered tiles (Oct 2026), even though the charts are Airservices copyright and the PDFs are marked copy:no.
+- **Chart underlay.** The owner chose to publish pre-rendered tiles (Oct 2026), even though the charts are Airservices copyright and the PDFs are marked copy:no.
   - **Built-in tiles:** `tools/chartiles.py OUT chart.pdf…` writes `app/charts/<sheet>-<edition>/<level>/<i>_<j>.jpg` plus `app/charts/index.json`, skipping tiles outside the panels. The page downloads them all by default (`chartsPrecache`, 4 at a time) into Cache Storage `radio-au-charts` and drops old-edition dirs. The service worker serves `/charts/*.jpg` cache-first from that cache.
   - **Imports:** users can still import a PDF on the phone. It is stored as `<sheet>-local`, listed in `charts/local.json`, and preferred over the built-in sheet.
   - **Rendering:** pdf.js 3.11.174 legacy build is vendored in `app/lib/pdfjs` and loaded only on import. It renders two levels (overview 0.5×; detail 2.5× VTC / 2.0× VNC) in 2048 px blocks, cut into 512 px JPEG tiles stored in Cache Storage `radio-au-charts` (`charts/<sheet>/<level>/<i>_<j>.jpg` plus `charts/index.json`). The service worker must keep that cache on activate.
@@ -160,3 +162,17 @@ python3 assemble.py && cp dist/* ../app/
   - **Model:** chart pt = similarity(LCC on a sphere, standard parallels 36S/39S, origin 37.8S 145E). JS `lccFwd` and `tools/chartref.py` must stay identical.
   - **New chart or edition:** run `tools/chartref.py` (label RANSAC, then a chamfer fit of the cyan C/D/A boundaries (fill 0,0.681,0.938) to the DAH). Expect a median misfit around 0.5 pt. Melbourne VTC: main 21.02 pt/NM (1:250k), Basin inset 35.02 pt/NM (1:150k). Melbourne VNC: 10.51 pt/NM (1:500k).
   - **Drawing:** `drawCharts()` maps three canvas corners to chart pt for an affine `ctx.transform`, clips to the panel polygon, and draws the overview tiles then the detail tiles.
+- **Waypoint sequencing** (`fpAdvance`, like a GNSS navigator's fly-by):
+  - within 0.5 NM of the active waypoint;
+  - point 0 (departure): sequenced once you're more than 0.3 NM along leg 1 and within 3 NM of it;
+  - past the turn bisector at the active waypoint, within 5 NM of it (on a straight leg that's simply abeam);
+  - catch-up after a gap or a skipped point: if you're off the current leg, the first later leg you're within 2 NM of, part-way along, with your track within 60° of it;
+  - a waypoint picked by hand (`FP.man`) arms once you're more than 1 NM from it and isn't skipped by the bisector or catch-up rules until you've closed 1 NM on it.
+  Every change is logged in `tlog` (`fpLogEv`), and **Flight log** exports fixes and events as GPX for post-flight checks.
+- **Real-flight check (27 Oct 2026, VH-EAN, Bell 206B, the example YBRS round trip).** Track from Flightradar24: open https://www.flightradar24.com/data/aircraft/vh-ean in the built-in browser and run `fetch('https://api.flightradar24.com/common/v1/flight-playback.json?flightId=<id>')` in the page (WebFetch and curl are blocked); about 2,800 fixes as `[ts, lat, lon, alt ft, kt, hdg]`. Replaying it through `fpAdvance`:
+  - Before cc41743, sequencing stuck at YRSY for the rest of the flight: it needed "past it" and "within 3 NM" at once, and YRSY was passed 2.9 NM abeam.
+  - Now all 13 points sequence: YRSY and WAN by the bisector (about 3 NM abeam), YTYA (skipped, flown along the coast about 7 NM away) by catch-up once on the YTYA→NAV1 leg, about 11 min later. Widening the bisector range to 8 NM would gain about 4 min there but risks early sequencing on sharp turns, so it was left at 5 NM.
+- **Keep screen on** (`wakeAcquire`): the wish is `st.wakeWant` (`rc_wake`). The browser releases a wake lock whenever the page is hidden, so the lock is re-requested on `visibilitychange` and on any tap, and the button shows "Screen stays on" or "Screen on: tap to re-arm". Without the Wake Lock API (older iOS, Home Screen apps before iOS 18.4) a 16×16 silent looping H.264 video (data URI, about 1.5 KB) is played instead. Test with a fake `navigator.wakeLock` via `Object.defineProperty` in an init script; Chromium headless doesn't grant the real one.
+- **Simulator inputs:** Alt, Track and GS apply on `input` (350 ms debounce), because a phone number pad has no Enter. When Fly is on with a flight plan, `flyStep` steers to the active waypoint unless `st.simManual` is set; typing a track while flying sets it, and pressing Fly again clears it. In sim mode `heading()` always uses the sim track, never the compass.
+- **Top bar CTAF / AREA:** `#sCtaf` takes `ctafInfo(a).f` for the aerodrome on the card; `#sArea` takes the band at your altitude from `airStack` (label ATC and the class colour when it's C/D/CTR). Unit names are shortened (Ctr, App, Twr, Dep, Gnd). On screens 370 px and narrower the status grid is 3 columns and each of these takes a full row.
+- **Search:** `searchPoints` (fuzzy: exact, prefix, no-space compact, word prefix, substring, Levenshtein ≤1/≤2, letters in order) over aerodromes, VFR waypoints, navaids, towns, suburbs and IFR waypoints, with type weights and a distance penalty of `min(15, NM/30)`. Per-string work (word split, compact form) is cached in `FZ`.
