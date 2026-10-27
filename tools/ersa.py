@@ -81,7 +81,7 @@ def parse(text):
             m = re.search(r'\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT|OTH)\b\s+UTC\s*\+(\d+)(?::(\d+))?', l)
             if m:
                 rec['st'] = m.group(1); rec['utc'] = int(m.group(2)) + (int(m.group(3) or 0) / 60); break
-        in_comm = False
+        in_comm = False; last_comm = None
         sec = None; secs = {}; notes = []
         for l in body:
             s = l.strip()
@@ -91,7 +91,12 @@ def parse(text):
             elif sec and s and not s.startswith('Information may be continued'):
                 secs[sec].append(s)
             if s.startswith(COMM_START): in_comm = True; continue
-            if in_comm and HEAD_LINE.match(s) and not COMM.match(s): in_comm = False
+            # section headings start in column 0; an indented all-caps line is a wrapped service name
+            # ("DEP  MELBOURNE  118.9" / "     DEPARTURES"), which must not end the COMM block
+            if in_comm and HEAD_LINE.match(s) and not COMM.match(s) and not l.startswith(' '): in_comm = False
+            if in_comm and s and not COMM.match(s) and l.startswith(' ') and HEAD_LINE.match(s) and not FREQ.search(s) and last_comm:
+                for e in last_comm: e[0] = (e[0] + ' ' + s).strip()
+                continue
             if in_comm and s and not COMM.match(s): notes.append(s)
             m = CTAF.match(l)
             if m and 'ctaf' not in rec:
@@ -115,11 +120,13 @@ def parse(text):
             navs = [fq(f) for f in fr if not com(f)]
             key = {'APP/DEP': 'app', 'SMCV': 'smc'}.get(typ, typ.lower())
             if key not in rec: continue
+            last_comm = None
             if key == 'atis':
                 rec['atis'] += coms; rec['atisnav'] += navs
             else:
+                last_comm = []
                 for f in coms or navs:
-                    rec[key].append([svc, f, note])
+                    rec[key].append([svc, f, note]); last_comm.append(rec[key][-1])
         if notes: rec['cnotes'] = clip(notes)
         # runways from PHYSICAL CHARACTERISTICS: designators, magnetic bearing, length (x100 ft), surface, width
         try:

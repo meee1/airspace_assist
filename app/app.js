@@ -1,4 +1,4 @@
-const DATA = window.__DATA;   // loaded from data.json by the loader in index.html
+const DATA = window.__DATA;   // loaded from data.json / data-next.json by the loader in index.html
 const $ = id => document.getElementById(id);
 const R = Math.PI/180, NM = 3440.065;
 const ls = {get(k,d){try{const v=localStorage.getItem('rc_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
@@ -262,17 +262,22 @@ function profZoom(dir){ const cur=PROF_TOP||(PROF&&PROF.auto)||5000;
   const nx = dir<0 ? [...PROF_STEPS].reverse().find(v=>v<cur) : PROF_STEPS.find(v=>v>cur);
   PROF_TOP = nx || (dir<0?PROF_STEPS[0]:PROF_STEPS[PROF_STEPS.length-1]); ls.set('profTop',PROF_TOP); drawProf(); }
 const PROF_TERR='#9c7a4a';
-function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),TER.ok,TER.tiles.size,Math.floor(Date.now()/60000)].join('|'); }
+function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),TER.ok,TER.tiles.size,Math.floor(Date.now()/60000),$('cCat').value].join('|'); }
+function profEnsure(){ if(!FP||FP.pts.length<2) return null; const key=profKey(); if(!PROF||PROF.key!==key){ PROF=profBuild(); PROF.key=key; } return PROF; }
 function profBuild(){
   const P_=FP.pts, cum=[0];
   for(let k=1;k<P_.length;k++) cum.push(cum[k-1]+distBrg(P_[k-1].la,P_[k-1].lo,P_[k].la,P_[k].lo)[0]);
-  const total=cum[cum.length-1]||0, step=Math.max(0.2,total/500), S=[];
+  const total=cum[cum.length-1]||0, step=Math.max(0.2,total/500), S=[], heli=$('cCat').value==='H';
   let missing=0;
   for(let k=1;k<P_.length;k++){ const a=P_[k-1], b=P_[k], L=cum[k]-cum[k-1], n=Math.max(1,Math.ceil(L/step));
     for(let j=(k===1?0:1);j<=n;j++){ const f=j/n, la=a.la+(b.la-a.la)*f, lo=a.lo+(b.lo-a.lo)*f;
       const t=terrainFt(la,lo); if(t==null&&TER.ok) missing++;
       const AS=airStack(la,lo,t||0);
-      S.push({x:cum[k-1]+L*f, leg:k, la, lo, t,
+      // minimum height (CASR 91.265 / 91.267, MOS 12.01 note): 1,000 ft over a populous area within 600 m (rotorcraft 300 m),
+      // otherwise 500 ft within 300 m. Terrain only: the SRTM grid has no buildings, masts or other obstacles.
+      const u=urbanAt(la,lo), rm=u?(heli?300:600):300, dla=rm/1852/60, dlo=dla/Math.cos(la*R);
+      let tr=t; for(const [p,q] of RING8){ const v=terrainFt(la+p*dla,lo+q*dlo); if(v!=null&&(tr==null||v>tr)) tr=v; }
+      S.push({x:cum[k-1]+L*f, leg:k, la, lo, t, u:u&&u.n, tr, need:tr==null?null:tr+(u?1000:500),
         b:AS.bands.filter(x=>x.k!=='G').map(x=>({k:x.k==='CTR'?(x.ctrCls||'D'):x.k, L:x.L, H:x.H, n:x.n})),
         p:AS.prd.map(x=>({k:x.k, L:x.L, H:x.H, n:x.n}))}); } }
   // summary: highest terrain, lowest controlled-airspace base, and where terrain comes within 1,000 ft of that base
@@ -282,8 +287,68 @@ function profBuild(){
     if(base!=null && base>0 && (!lo||base<lo.base)) lo=q;
     if(q.t!=null && base!=null && base>0 && base-q.t<1000 && (!tight||base-q.t<tight.base-tight.t)) tight=q; }
   const zones=new Map(); for(const q of S) for(const a of q.b) if(a.L<=0 && !zones.has(a.n)) zones.set(a.n,{...a,x:q.x});
-  return {S,cum,total,missing,hi,lo,tight,zones:[...zones.values()]};
+  const pr={S,cum,total,missing,hi,lo,tight,zones:[...zones.values()]};
+  pr.legs=P_.map((_,k)=>k?legPlan(pr,k):null);
+  return pr;
 }
+let CTA_BUF=ls.get('ctaBuf',500);
+const RING8=[[1,0],[-1,0],[0,1],[0,-1],[.707,.707],[.707,-.707],[-.707,.707],[-.707,-.707]];
+// suggested VFR altitude for one leg: the lowest level from AIP ENR 1.7 Table B (magnetic track 000-179: 1,500 3,500 5,500 7,500 9,500;
+// 180-359: 2,500 4,500 6,500 8,500) that is at or above the minimum height and at least 500 ft below the base of controlled
+// airspace. Below 3,000 ft AMSL the table applies "whenever practicable" (ENR 1.7 3.1.4, CASR 91.275), so a non-table
+// altitude is offered there when no table level fits. Control zones of the aerodromes at either end of the leg are left out
+// (you'll be in contact with the tower), and so is the minimum height within 2 NM of the plan's first and last aerodrome.
+function legPlan(pr,k){
+  const P_=FP.pts, a=P_[k-1], b=P_[k], ss=pr.S.filter(q=>q.leg===k); if(!ss.length) return null;
+  const mid=[(a.la+b.la)/2,(a.lo+b.lo)/2], trk=norm(distBrg(a.la,a.lo,b.la,b.lo)[1]-variation(mid[0],mid[1])), east=trk<180;
+  const ends=[fpAd(a),fpAd(b)].filter(Boolean), endW=ends.map(x=>callName(x.n).split(' ')[0].toUpperCase()+' ');
+  const exempt=[k===1?fpAd(P_[0]):null, k===P_.length-1?fpAd(P_[P_.length-1]):null].filter(Boolean);
+  let need=null, needQ=null, base=null, baseQ=null, eBase=null, unknown=0; const zones=new Set();
+  let hard=null;   // a single point where the minimum height is above the airspace limit right there
+  for(const q of ss){
+    const ex=exempt.some(e=>distBrg(q.la,q.lo,e.la,e.lo)[0]<2);
+    if(!ex){ if(q.need==null) unknown++; else if(need==null||q.need>need){ need=q.need; needQ=q; } }
+    let qb=null; for(const z of q.b){ if(z.k==='E') continue; if((z.k==='D'||z.k==='C') && z.L<=0 && endW.some(w=>z.n.startsWith(w))) continue; if(qb==null||z.L<qb) qb=z.L; }
+    if(!ex && q.need!=null && qb!=null && q.need>qb-CTA_BUF && (!hard||q.need-(qb-CTA_BUF)>hard.over)) hard={q,over:q.need-(qb-CTA_BUF),cap:qb};
+    for(const z of q.b){ if((z.k==='D'||z.k==='C') && z.L<=0 && endW.some(w=>z.n.startsWith(w))){ zones.add(z.n); continue; }
+      if(z.k==='E'){ if(eBase==null||z.L<eBase) eBase=z.L; continue; }          // class E: VFR needs no clearance
+      if(base==null||z.L<base){ base=z.L; baseQ=q; } } }
+  const minA=need==null?null:Math.ceil(need/100)*100, maxA=base==null?null:base-CTA_BUF;
+  const table=east?[1500,3500,5500,7500,9500]:[2500,4500,6500,8500];
+  let alt=null, kind;
+  const fits=v=>(minA==null||v>=minA)&&(maxA==null||v<=maxA);
+  const lvl=table.find(fits);
+  if(lvl!=null){ alt=lvl; kind='level'; }
+  else if(minA!=null && maxA!=null && minA<3000 && Math.min(maxA,2900)>=minA){   // at 3,000 ft AMSL or more the table is mandatory
+    alt=Math.min(maxA,2900,Math.max(minA,Math.ceil(minA/500)*500)); kind='low'; }
+  else if(minA!=null && maxA!=null && maxA>=minA){ kind='nolevel'; }
+  else if(minA!=null && maxA!=null){ kind= hard? 'conflict' : 'split'; }
+  else { kind='none'; }
+  const entry=ends.filter(e=>e.keys&&(e.keys.entry||e.keys.hel)&&[...zones].some(n=>n.startsWith(callName(e.n).split(' ')[0].toUpperCase()+' '))).map(e=>({i:e.i,entry:e.keys.entry,hel:e.keys.hel}));
+  return {k,trk,east,need,needQ,minA,base,baseQ,maxA,alt,kind,zones:[...zones],entry,unknown,exempt:exempt.map(e=>e.i),hard, legStart:pr.cum[k-1], inE:eBase!=null&&alt!=null&&alt>=eBase?eBase:null,
+    belowE: eBase!=null&&alt!=null&&alt>=eBase&&minA!=null&&minA<3000&&Math.min(eBase-CTA_BUF,2900)>=minA ? Math.floor(Math.min(eBase-CTA_BUF,2900)/100)*100 : null};
+}
+function legAltTxt(lp){ if(!lp) return ''; return lp.alt!=null? lp.alt.toLocaleString('en-AU') : lp.kind==='conflict'||lp.kind==='nolevel'? '!' : lp.kind==='split'? 'split' : '—'; }
+function legAltNote(lp){
+  if(!lp) return ''; const f=v=>Math.round(v).toLocaleString('en-AU')+' ft';
+  const hemi=`track ${fmt3(lp.trk)}°M, ${lp.east?'east: 1,500 / 3,500 / 5,500…':'west: 2,500 / 4,500 / 6,500…'}`;
+  const why=lp.needQ? `min ${f(lp.minA)} (terrain ${f(lp.needQ.tr)} + ${lp.needQ.u?'1,000 over '+esc(titleCase(lp.needQ.u)):'500'})` : 'min height unknown (no terrain)';
+  const cap=(lp.base!=null&&lp.base>=18000? `no class C/D below ${limTxt(lp.base)}` : lp.base!=null? `below the ${limTxt(lp.base)} C/D/A base with ${CTA_BUF} ft buffer (max ${f(lp.maxA)})` : 'no C/D/A airspace above')+(lp.inE!=null?` · in class E above ${limTxt(lp.inE)} (no clearance needed; transponder on)${lp.belowE!=null?`, or ${f(lp.belowE)} to stay below the E (not a table level; allowed below 3,000 ft)`:''}`:'');
+  let head;
+  if(lp.kind==='level') head=`Suggested <b>${f(lp.alt)}</b>`;
+  else if(lp.kind==='low') head=`Suggested <b>${f(lp.alt)}</b> <span class="w">(no table level fits below the airspace; below 3,000 ft the table applies only when practicable)</span>`;
+  else if(lp.kind==='nolevel') head=`<span class="w"><b>No VFR level fits</b> between ${f(lp.minA)} and ${f(lp.maxA)}: get a clearance or change the route</span>`;
+  else if(lp.kind==='conflict') head=`<span class="w"><b>At ${(lp.hard.q.x-lp.legStart).toFixed(1)} NM along the leg${lp.hard.q.u?' ('+esc(titleCase(lp.hard.q.u))+')':''} the minimum height ${f(lp.hard.q.need)} is above ${f(lp.hard.cap-CTA_BUF)} (${limTxt(lp.hard.cap)} base less buffer)</b>: get a clearance or change the route</span>`;
+  else if(lp.kind==='split') head=`<span class="w"><b>No single altitude fits the whole leg</b>: ${f(lp.minA)} needed at ${(lp.needQ.x-lp.legStart).toFixed(1)} NM${lp.needQ.u?' ('+esc(titleCase(lp.needQ.u))+')':''}, but max ${f(lp.maxA)} under the ${limTxt(lp.base)} base at ${(lp.baseQ.x-lp.legStart).toFixed(1)} NM. Add a waypoint between them and change level there.</span>`;
+  else head='Suggested level unavailable';
+  const heli=$('cCat').value==='H';
+  const z=lp.zones.length? ` · ${lp.zones.map(n=>esc(titleCase(n))).join(', ')}: with tower clearance${lp.entry.map(e=>` (ERSA ${e.i}: ${heli&&e.hel?'helicopters '+esc(e.hel):'CTR entry '+esc(e.entry||'')})`).join('')}` : '';
+  const ex=lp.exempt.length? ` · climb/descent within 2 NM of ${lp.exempt.join('/')} not counted` : '';
+  return `${head} · ${hemi} · ${why} · ${cap}${z}${ex}`;
+}
+/* ABS urban centres and localities (populous areas for CASR 91.265), from data.json "urb" */
+const URB=(DATA.urb||[]).map(([n,c,bb,rings])=>({n,c,bb:bb.map(v=>v/1e4),r:rings.map(f=>{ const o=[]; for(let i=0;i<f.length;i+=2) o.push([f[i]/1e4,f[i+1]/1e4]); return o; })}));
+function urbanAt(la,lo){ for(const u of URB){ const b=u.bb; if(la<b[0]||la>b[1]||lo<b[2]||lo>b[3]) continue; if(u.r.some(r=>inRing(la,lo,r))) return u; } return null; }
 function profAlong(){ // your distance along the plan (projected onto the active leg)
   if(!st.pos||!FP||!PROF) return null; const i=FP.i, P_=FP.pts;
   if(i===0) return distBrg(st.pos[0],st.pos[1],P_[0].la,P_[0].lo)[0]<5? 0 : null;
@@ -297,7 +362,7 @@ function legName(k){ const P_=FP.pts; return `${P_[k-1].c||P_[k-1].n}→${P_[k].
 function drawProf(){
   const cv=$('fpProf'); if(!FP||$('fpBody').hidden||FP.pts.length<2) return;
   const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return;
-  const key=profKey(); if(!PROF||PROF.key!==key){ PROF=profBuild(); PROF.key=key; }
+  profEnsure();
   const pr=PROF, S=pr.S, dpr=window.devicePixelRatio||1;
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
   const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
@@ -341,6 +406,17 @@ function drawProf(){
     g.fillStyle=on?C.wp:C.ink; g.fillText(lab,LX,t-4); }
   g.font='10px '+cssv('--f-mono'); g.fillStyle=C.dim; g.textAlign='right'; g.fillText(Math.round(pr.total)+' NM',W-r,H-4);
   g.textAlign='left'; g.fillText('ft AMSL',l+2,H-4);
+  // populous areas along the route: strip along the bottom
+  g.fillStyle=C.ink; g.globalAlpha=.35;
+  for(let i=0;i<S.length;i++){ const q=S[i]; if(!q.u) continue; const x0=x(i?(S[i-1].x+q.x)/2:q.x), x1=x(i<S.length-1?(q.x+S[i+1].x)/2:q.x); g.fillRect(x0,y(0)-4,Math.max(1,x1-x0),4); }
+  g.globalAlpha=1;
+  // minimum height (thin dashed) and suggested VFR level per leg (solid)
+  g.strokeStyle=C.warn; g.lineWidth=1; g.setLineDash([3,3]); g.beginPath(); let on=false;
+  for(const q of S){ if(q.need==null){ on=false; continue; } const X=x(q.x), Y=y(q.need); if(on) g.lineTo(X,Y); else { g.moveTo(X,Y); on=true; } }
+  g.stroke(); g.setLineDash([]);
+  for(const lp of (pr.legs||[])){ if(!lp||lp.alt==null) continue; const X0=x(pr.cum[lp.k-1]), X1=x(pr.cum[lp.k]), Y=y(lp.alt);
+    g.strokeStyle=C.wp; g.lineWidth=2.5; g.beginPath(); g.moveTo(X0,Y); g.lineTo(X1,Y); g.stroke();
+    if(X1-X0>34 && lp.alt<=top){ g.fillStyle=C.wp; g.font='600 9.5px '+cssv('--f-mono'); g.textAlign='center'; g.fillText(String(lp.alt),(X0+X1)/2,Y-4); } }
   // you: position along the plan and GPS altitude
   const al=profAlong();
   if(al!=null){ const X=x(al); g.strokeStyle=C.acc; g.lineWidth=2; g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke();
@@ -360,9 +436,12 @@ function drawProf(){
   if(pr.lo) tx+=`Lowest controlled airspace <b>${limTxt(pr.lo.base)}</b> at ${nm(pr.lo.x)} NM. `;
   if(pr.tight) tx+=`<span class="w">Terrain within ${ft(pr.tight.base-pr.tight.t).toLocaleString('en-AU')} ft of the ${limTxt(pr.tight.base)} base at ${nm(pr.tight.x)} NM (${esc(legName(pr.tight.leg))}).</span> `;
   for(const z of pr.zones) tx+=`Crosses <b>${esc(titleCase(z.n))}</b>${/\(/.test(z.n)?"":" ("+z.k+")"} SFC–${limTxt(z.H)} at ${nm(z.x)} NM. `;
+  tx+=`Purple: suggested VFR level per leg (ENR 1.7 Table B by magnetic track, ${CTA_BUF} ft below class C/D; class E needs no clearance). Red dashed: minimum height from terrain (CASR 91.265/91.267: 1,000 ft over populous areas${URB.length?' (ABS urban areas, grey strip)':' — urban areas not loaded, so 500 ft used everywhere'}, else 500 ft; radius for ${$('cCat').value==='H'?'helicopters':'aeroplanes'} as set in Radio calls). Obstacles such as masts and buildings are not included: check the VTC/VNC. `;
   tx+='Colours as on the airspace map; red line: terrain within 1,000 ft of the base above it. Terrain is the highest SRTM point per 30″ cell; airspace is from the DAH along the straight legs. Tap for details.';
   $('fpPInfo').innerHTML=tx;
 }
+$('ctaBuf').value=String(CTA_BUF); $('ctaBuf').onchange=()=>{ CTA_BUF=+$('ctaBuf').value; ls.set('ctaBuf',CTA_BUF); PROF=null; render(); };
+$('cCat').addEventListener('change',()=>{ PROF=null; });
 $('profIn').onclick=()=>profZoom(-1); $('profOut').onclick=()=>profZoom(1);
 $('profAuto').onclick=()=>{ PROF_TOP=null; ls.set('profTop',null); drawProf(); };
 $('fpProf').addEventListener('click',e=>{ if(!PROF) return; const cv=$('fpProf'), rc=cv.getBoundingClientRect(), l=34, r=8;
@@ -378,9 +457,12 @@ function renderFP(h,varE){
   const legT = i>0 ? fmt3(distBrg(P_[i-1].la,P_[i-1].lo,nx.la,nx.lo)[1]-varE) : null;
   $('fpSum').textContent=`${FP.name} · ${i+1}/${P_.length}${nx?' → '+(nx.c||nx.n):''}`;
   $('fpNext').innerHTML=nx&&here?`<div><small>Next ${i+1}/${P_.length}</small><b>${esc(nx.c||nx.n)}</b></div><div><small>°M · NM</small><b>${fmt3(bNext-varE)} ${dNext<10?dNext.toFixed(1):Math.round(dNext)}</b></div><div><small>XTE</small><b>${xt==null?'—':Math.abs(xt).toFixed(1)+(Math.abs(xt)<0.05?'':xt>0?'R':'L')}</b></div><div><small>ETE</small><b>${ete(dNext)}</b></div><p class="fp-line">${legT?'Leg course '+legT+'°M · ':''}${rem<10?rem.toFixed(1):Math.round(rem)} NM to go${gs>20?' · total '+ete(rem):''}</p>`:'';
+  profEnsure();
+  const lpA=PROF&&PROF.legs&&i>0?PROF.legs[i]:null;
+  if(lpA && $('fpNext').innerHTML) $('fpNext').insertAdjacentHTML('beforeend',`<p class="fp-line fp-alt">${legAltNote(lpA)}</p>`);
   drawProf();
-  $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null;
-    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span></li>`; }).join('');
+  $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
+    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span></li>`; }).join('');
 }
 
 
@@ -1188,17 +1270,20 @@ $('simGo').onclick=()=>{ setFly(false); simApply(); };
 $('simFly').onclick=()=>setFly($('simFly').getAttribute('aria-pressed')!=='true');
 for(const id of ['simPos','simAlt','simTrk','simGs']) $(id).addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); simApply(); } });
 
-function setFoot(){ $('foot').innerHTML=`<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). Data built ${DATA.built}.<span id="offl"></span>`; offlineStatus(); }
+function setFoot(){ $('foot').innerHTML=`<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). Data built ${DATA.built}.${META.next?` Next AIRAC (ERSA ${META.next[2]}) is stored and takes over at ${new Date(META.next[0]).toISOString().slice(0,16).replace('T',' ')} UTC.`:''}${URB.length?' Populous areas: ABS Urban Centres and Localities 2021 (CC BY 4.0).':''}<span id="offl"></span>`; offlineStatus(); }
 setFoot();
-(function(){ // effective-date check
+(function(){ // effective-date check: the loader picked the dataset in force (META.eff = 1600 UTC the day before the AIRAC date)
   const eff=META.ersa||META.dah; if(!eff) return;
-  const d=new Date(eff+' 00:00 UTC'); if(isNaN(d)) return;
+  const d=META.eff? new Date(META.eff) : new Date(eff+' 00:00 UTC'); if(isNaN(d)) return;
   const now=new Date();
   const b=$('effBanner'), key='effOpen_'+eff;
   const show=(head,body)=>{ b.hidden=false; $('effHead').innerHTML=head; $('effBody').textContent=body;
     b.open=ls.get(key,true); b.addEventListener('toggle',()=>ls.set(key,b.open)); };
   if(now<d) show(`<b>AIP data effective ${eff}</b>`,'Until then the current ERSA and DAH apply, and some frequencies or steps here may not be in force yet.');
-  else if((now-d)/864e5>56) show(`<b>AIP data from ${eff} may be out of date</b>`,'Rebuild with the current ERSA and DAH.');
+  else if(!META.next && (now-d)/864e5>56) show(`<b>AIP data from ${eff} may be out of date</b>`,'Rebuild with the current ERSA and DAH.');
+  // the next AIRAC is already stored: when it takes effect while the app is open, offer a reload
+  if(META.next){ const t=setInterval(()=>{ if(Date.now()>=META.next[0]){ clearInterval(t);
+    show('<b>New AIP data is now in force</b> <button class="btn" onclick="location.reload()" style="margin-left:8px;padding:4px 8px;font-size:11px">Reload</button>',`ERSA ${META.next[2]} took effect at 1600 UTC yesterday. Reload to switch; it is already stored on this device.`); } },60000); }
 })();
 syncBtns();
 if(ls.get('started',false) && navigator.permissions){
@@ -1218,7 +1303,7 @@ async function offlineStatus(){
   const el=$('offl'); if(!el) return;
   if(!('serviceWorker' in navigator)||!navigator.serviceWorker.controller||!window.caches){ el.innerHTML=' <b>Offline:</b> not set up yet (open once online over https).'; return; }
   try{ const ks=(await caches.keys()).filter(k=>/^radio-au-[0-9a-f]{10}$/.test(k)); let app=false;
-    for(const k of ks){ const c=await caches.open(k); if(await c.match('data.json',{ignoreSearch:true}) && await c.match('app.js',{ignoreSearch:true})) app=true; }
+    for(const k of ks){ const c=await caches.open(k); if(await c.match('data.json',{ignoreSearch:true}) && await c.match('app.js',{ignoreSearch:true}) && await c.match('urban.json',{ignoreSearch:true}) && (!META.next || await c.match('data-next.json',{ignoreSearch:true}))) app=true; }
     const tc=await caches.open('radio-au-terrain'), n=(await tc.keys()).filter(k=>/\.bin\.z$/.test(k.url)).length, want=TER.have.size;
     el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${app&&(!TER.ok||n>=want)?' — ready to fly without signal.':'.'}`;
   }catch(e){ el.textContent=''; } }

@@ -62,6 +62,18 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
   - **Altitude zoom:** + and − above the chart set the top altitude, from 1,000 ft up to 25,000 ft, and **Auto** goes back to fitting the route. A red note shows when terrain is above the top.
   - **Tap:** shows the distance, leg, terrain height and the airspace stack at that point.
   - **Accuracy:** terrain is along straight legs, and the 30″ grid can miss a narrow peak or mast. It's for planning awareness, not obstacle clearance.
+- **Suggested altitude per leg:** shown in the leg list, as a purple line on the profile, and spelled out under the next-waypoint panel for the active leg.
+  - **VFR levels:** taken from AIP ENR 1.7 Table B by the leg's magnetic track. Tracks 000–179° use 1,500, 3,500, 5,500…; tracks 180–359° use 2,500, 4,500, 6,500…
+  - **Minimum height** (red dashed line on the profile), from CASR 91.265/91.267 and the MOS 12.01 note:
+    - over populous areas, 1,000 ft above the highest terrain within 600 m (300 m for helicopters);
+    - elsewhere, 500 ft above the highest terrain within 300 m.
+  - **Populous areas:** the ABS Urban Centres and Localities 2021, drawn as a grey strip along the bottom of the profile. Helicopter or aeroplane follows the category set in Radio calls.
+  - **Ceiling:** the base of class C, D or A airspace, less a buffer you choose (500 ft by default). Class E needs no clearance for VFR, so it doesn't limit the suggestion; the note says when you'd be in E, and offers an altitude below it where one fits.
+  - **Control zones:** a control zone of the aerodrome at either end of a leg is left out, because you'll be talking to the tower. The ERSA CTR entry or helicopter altitude is quoted instead.
+  - **Climb and descent:** the minimum height isn't counted within 2 NM of the plan's first and last aerodrome.
+  - **Below 3,000 ft:** the table applies only "whenever practicable" (ENR 1.7 3.1.4), so a non-table altitude is offered when no table level fits (shown orange).
+  - **Flagged in red:** a leg that needs different levels along its length ("split" — add a waypoint), or where the minimum height is above the airspace limit ("!" — get a clearance or re-route).
+  - **Obstacles:** masts and buildings are not in the data. Check the VTC/VNC.
 - **Leg list:** each leg's course and distance. Tap a leg to make it active; Prev, Next, Reverse and Remove are below the list.
 - **Auto-advance:** the next waypoint moves on within 0.5 NM or once you've passed it, and it drives **Go to**.
 - **Aerodrome on screen:** with a plan loaded, the aerodrome card follows the plan instead of simply the closest:
@@ -112,11 +124,15 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - **Key values** from ERSA are shown as chips: CTR entry altitude, circuit altitude, helicopter altitude, reporting points.
 - **ERSA local procedures:** the full text from ERSA (communications notes, local traffic regulations, flight procedures). With Helicopter selected, helicopter items are highlighted.
 
+## AIRAC data sets
+`app/data.json` is the AIRAC in force when the app was built. `app/data-next.json`, if present, is the next one. The loader picks whichever is in force on the phone's clock: AIRAC data takes effect at 1600 UTC the day before the nominated date (AIP GEN 3.1 4.3). Both are stored for offline use. If the change happens while the app is open, a banner offers a reload. Build each one with `build_data.py` (current → `tools/data.json`, next → `tools/data-next.json`), then run `assemble.py`.
+
 ## Files
 `app/` holds:
 - `index.html`: the page, plus a small loader
 - `app.js`: the app code
-- `data.json`: all ERSA, DAH, waypoint and variation data, rebuilt each AIRAC
+- `data.json` / `data-next.json`: all ERSA, DAH, waypoint and variation data for the current and next AIRAC
+- `urban.json`: ABS urban centres and localities (populous areas), shared by both
 - `sw.js`: the service worker that stores everything for offline use
 - `terrain/`: the SRTM tiles
 

@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 #  - SRTM terrain tiles: all precached at install into a cache that survives app updates, then cache first
 #  - Google Fonts: cached on first use (system fonts are used until then)
 SW=r"""const C='radio-au-__VER__', T='radio-au-terrain', F='radio-au-fonts';
-const CORE=['./','./index.html','./app.js','./data.json','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CORE=['./','./index.html','./app.js','./data.json','./urban.json','./manifest.webmanifest','./icon-192.png','./icon-512.png'__NEXT__];
 const timed=(req,ms)=>new Promise((res,rej)=>{const t=setTimeout(()=>rej(new Error('timeout')),ms); fetch(req).then(r=>{clearTimeout(t);res(r)},e=>{clearTimeout(t);rej(e)})});
 async function precacheTerrain(){
   const c=await caches.open(T);
@@ -34,23 +34,48 @@ self.addEventListener('fetch',e=>{
 });
 """
 here=os.path.dirname(os.path.abspath(__file__)); out=os.path.join(here,'dist'); os.makedirs(out,exist_ok=True)
-# Output: index.html (page + small loader), app.js (the app code), data.json (ERSA/DAH/etc data, replaced each AIRAC).
-# The loader fetches data.json, then starts app.js; the service worker stores all three for offline use.
-data=json.dumps(json.load(open(os.path.join(here,'data.json'))),separators=(',',':'))
+# Output: index.html (page + small loader), app.js (the app code) and the data:
+#   data.json       current AIRAC (tools/data.json)
+#   data-next.json  next AIRAC, if tools/data-next.json exists; the app switches to it by itself at its effective time
+#   urban.json      ABS urban areas, shared by both
+# The loader picks the dataset in force now (AIRAC data takes effect at 1600 UTC the day before the nominated date,
+# AIP GEN 3.1 4.3), fetches it and urban.json, then starts app.js. The service worker stores everything for offline use.
+import datetime
+def eff_ms(meta):
+    ds=[datetime.datetime.strptime(meta[k],'%d %b %Y') for k in ('ersa','dah') if meta.get(k)]
+    if not ds: return 0
+    d=max(ds).replace(tzinfo=datetime.timezone.utc)-datetime.timedelta(hours=8)    # 1600 UTC the day before
+    return int(d.timestamp()*1000)
+h=lambda t: hashlib.sha1(t.encode()).hexdigest()[:10]
+sets=[]; urb=None
+for name in ('data.json','data-next.json'):
+    p=os.path.join(here,name)
+    if not os.path.exists(p): continue
+    d=json.load(open(p)); u=d.pop('urb',None)
+    if u is not None: urb=u
+    txt=json.dumps(d,separators=(',',':')); open(os.path.join(out,name),'w').write(txt)
+    sets.append([eff_ms(d['meta']), name+'?v='+h(txt), d['meta'].get('ersa','')])
+sets.sort()
+urbt=json.dumps(urb or [],separators=(',',':')); open(os.path.join(out,'urban.json'),'w').write(urbt)
+data=''.join(s_[1] for s_ in sets)+h(urbt)          # for the build version hash
 tpl=open(os.path.join(here,'template.html')).read()
 i=tpl.index('<script>\n'); j=tpl.rindex('</script>')
 app=tpl[i+len('<script>\n'):j]
 assert 'const DATA = /*__DATA__*/null;' in app
-app=app.replace('const DATA = /*__DATA__*/null;','const DATA = window.__DATA;   // loaded from data.json by the loader in index.html')
-h=lambda t: hashlib.sha1(t.encode()).hexdigest()[:10]
-dv, av = h(data), h(app)
+app=app.replace('const DATA = /*__DATA__*/null;','const DATA = window.__DATA;   // loaded from data.json / data-next.json by the loader in index.html')
+av=h(app)
 LOADER=f"""<script>
-// Loader: fetch the AIP data, then start the app. Both come from the service worker cache when offline.
+// Loader: pick the AIP dataset in force now, fetch it and the urban areas, then start the app (all cached for offline).
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{{}});
+window.__SETS={json.dumps(sets)};   // [effective ms (1600 UTC day before), file, ERSA date]
 (async()=>{{
-  try{{ const r=await fetch('data.json?v={dv}'); if(!r.ok) throw new Error('HTTP '+r.status); window.__DATA=await r.json(); }}
+  const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
+  try{{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v={h(urbt)}').catch(()=>null)]);
+    if(!r.ok) throw new Error('HTTP '+r.status); window.__DATA=await r.json();
+    try{{ window.__DATA.urb = u&&u.ok ? await u.json() : []; }}catch(e){{ window.__DATA.urb=[]; }}
+    window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null; }}
   catch(e){{ const d=document.createElement('div'); d.className='bootErr';
-    d.innerHTML='<b>Couldn\\'t load the aerodrome and airspace data</b> (data.json: '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
+    d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }}
   const s=document.createElement('script'); s.src='app.js?v={av}'; document.body.appendChild(s);
 }})();
@@ -59,9 +84,10 @@ if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostn
 html=tpl[:i]+LOADER+tpl[j+len('</script>'):]
 open(os.path.join(out,'index.html'),'w').write(html)
 open(os.path.join(out,'app.js'),'w').write(app)
-open(os.path.join(out,'data.json'),'w').write(data)
+nx=os.path.join(out,'data-next.json')
+if not any(s_[1].startswith('data-next.json') for s_ in sets) and os.path.exists(nx): os.remove(nx)
 ver=h(html+app+data+SW)
-open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver))
+open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver).replace('__NEXT__',",'./data-next.json'" if len(sets)>1 else ''))
 json.dump({"name":"Radio Calls AU","short_name":"Radio AU","start_url":"./","display":"standalone","orientation":"portrait",
   "background_color":"#0d1417","theme_color":"#0d1417",
   "icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]},
@@ -71,4 +97,4 @@ for sz in (192,512):
     d.ellipse([96*s,96*s,416*s,416*s],outline='#5fe0a8',width=int(18*s))
     d.polygon([(256*s,120*s),(330*s,370*s),(256*s,325*s),(182*s,370*s)],fill='#ffad4d')
     im.save(os.path.join(out,f'icon-{sz}.png'))
-print('ok',ver,{f:os.path.getsize(os.path.join(out,f)) for f in ('index.html','app.js','data.json')})
+print('ok',ver,{f:os.path.getsize(os.path.join(out,f)) for f in os.listdir(out) if f.endswith(('.html','.js','.json'))}, [(datetime.datetime.utcfromtimestamp(a/1000).isoformat(),b) for a,b,c in sets])
