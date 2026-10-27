@@ -191,7 +191,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart{font-size:12px;flex:1}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -398,6 +398,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
         <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
+        <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <details class="chartbox" id="chartBox">
@@ -444,7 +445,7 @@ window.__SETS=[[1788364800000, "data.json?v=149fc78d1e", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=2cda622eb2'; document.body.appendChild(s);
+  const s=document.createElement('script'); s.src='app.js?v=4ae227dc82'; document.body.appendChild(s);
 })();
 </script>
 

@@ -5,7 +5,7 @@
 Phone web app for VFR pilots (built with helicopters in mind):
 - the closest aerodrome (or the next one on your flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies, runways and a radio call guide
 - the area frequency and airspace class for your position and altitude
-- an airspace map with terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
+- an airspace map (pan and pinch zoom) with a 10 NM lead line ahead of you, terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
 - GPX flight plans with auto-advancing waypoints, an elevation profile and suggested VFR altitudes
 - search and Go to for any aerodrome, waypoint, navaid, town or suburb
 
@@ -64,6 +64,11 @@ The map sits under the frequencies. Pinch to zoom (2.5 to 80 NM; the mouse wheel
   - **Terrain:** with a chart showing, the grey terrain relief is hidden, but the red and amber terrain warnings stay.
   - **Copyright:** the charts are Airservices copyright. Publishing the tiles on this site is the owner's decision.
 - **Pan and zoom:** drag the map with one finger to look around; pinch with two to zoom (about the centre of the view). While panned it shows north up and stays put as you move; tap **◎ Centre** to go back to your position. A tap without dragging still picks a waypoint or aerodrome for Go to.
+- **Press and hold** anywhere on the map (right-click on a computer) for that point's details, with a crosshair marking it:
+  - **Where it is:** the nearest town, locality or suburb ("St Andrews", or "1.6 NM N of Seville East").
+  - **Its position:** degrees and decimal minutes plus decimal lat/lon, its distance and bearing from you, and the terrain height there.
+  - **What you can do:** **Go to this point**, **Go to** the nearest aerodrome, VFR waypoint or navaid within 2 NM, or **Copy lat/lon**.
+  - **Closing it:** tap elsewhere, drag the map or tap ✕.
 
 ## Runways and aerodrome diagram
 The aerodrome card shows a small runway diagram and a runway list.

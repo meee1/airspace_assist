@@ -579,7 +579,7 @@ function drawAdMap(a,pick,h){
   const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
   const C={ink:cssv('--ink'),dim:cssv('--dim'),acc:cssv('--accent'),fr:cssv('--freq'),bg:cssv('--panel'),rule:cssv('--rule')};
   const la0=a.la, lo0=a.lo, cosl=Math.cos(la0*R);
-  const rot = MAP.up==='trk'&&h ? h.deg : 0, cr=Math.cos(-rot*R), sr=Math.sin(-rot*R);
+  const rot = MAP.up==='trk'&&h ? h.deg : 0, cr=Math.cos(rot*R), sr=Math.sin(rot*R);   // track up: rotate the world by +rot so your heading points up
   // metres from ARP
   const xy=(la,lo)=>{ const x=(lo-lo0)*cosl*111320, y=(la-la0)*110540; return [x*cr-y*sr, x*sr+y*cr]; };
   const ends=a.rw.map(r=>[xy(r[2],r[3]),xy(r[4],r[5])]);
@@ -616,7 +616,7 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true)};
+const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
@@ -816,7 +816,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
   const rot = MAP.up==='trk' && h ? h.deg : 0;
   const cx=W/2, cy= MAP.up==='trk'&&h ? Hh*0.62 : Hh/2;
-  const sc=Math.min(W,Hh)*0.46/MAP.range, cosl=Math.cos(la*R), cr=Math.cos(-rot*R), sr=Math.sin(-rot*R);
+  const sc=Math.min(W,Hh)*0.46/MAP.range, cosl=Math.cos(la*R), cr=Math.cos(rot*R), sr=Math.sin(rot*R);   // +rot: your heading ends up pointing up the screen
   const P=(pla,plo)=>{ const x=(plo-lo)*cosl*60, y=(pla-la)*60; return [cx+(x*cr-y*sr)*sc, cy-(x*sr+y*cr)*sc]; };
   const [ox,oy]=P(own[0],own[1]); MAP.sc=sc; MAP.cosl=cosl;
   const reach=MAP.range*1.6/60, bbHit=bb=>!(bb[1]<la-reach||bb[0]>la+reach||bb[3]<lo-reach/cosl||bb[2]>lo+reach/cosl);
@@ -1000,7 +1000,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const [sx,sy]=P(pick.a.la,pick.a.lo);
   g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]);
   // lead line: 10 NM out along your track/heading, a cross line every 1 NM
-  { const hd=heading(); if(hd){ g.save(); g.translate(ox,oy); g.rotate((hd.deg-rot)*R); drawLead(g,sc,C); g.restore(); } }
+  { const hd=heading(); if(hd&&MAP.lead){ g.save(); g.translate(ox,oy); g.rotate((hd.deg-rot)*R); drawLead(g,sc,C); g.restore(); } }
   // ownship
   { const hd=heading(); g.save(); g.translate(ox,oy); g.rotate(((hd?hd.deg:0)-rot)*R); }
   g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,4); g.lineTo(-7,8); g.closePath();
@@ -1361,6 +1361,8 @@ $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('ma
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
 $('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); render(); };
 $('mapTer').setAttribute('aria-pressed',MAP.ter);
+$('mapLead').onclick=()=>{ MAP.lead=!MAP.lead; ls.set('mapLead',MAP.lead); $('mapLead').setAttribute('aria-pressed',MAP.lead); render(); };
+$('mapLead').setAttribute('aria-pressed',MAP.lead);
 $('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
 addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';

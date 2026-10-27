@@ -6,7 +6,7 @@ Phone web app for Australian VFR pilots, especially helicopters. Target phone: G
 - a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points
 - status tiles: GPS, TRK/HDG (compass auto-aligned to GPS track), PLAN (bearing and turn to the active waypoint), GS, ALT/AGL, CLASS (class here, cap, LL), and a second row with the CTAF of the aerodrome on screen and the AREA (or ATC) frequency at your position, each with the expected next frequency and its distance
 - the area frequency and the airspace stack for your position and altitude
-- an airspace map (pan, pinch zoom) with SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs
+- an airspace map (pan, pinch zoom) with a 10 NM lead line, SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs (CTAF, Terrain, Charts and Lead toggle)
 - Go to with fuzzy search, and GPX flight plans with auto-sequencing, an elevation profile, suggested VFR altitudes and a flight log
 - all of it offline once loaded
 
@@ -189,3 +189,10 @@ python3 assemble.py && cp dist/* ../app/
 - **Install app** (`#bInstall`): shown on Chrome/Android when `beforeinstallprompt` fires, hidden after `appinstalled`.
 - **Map height:** `min(94vw, 56vh, 520px)`, which is 399 px on the Pixel 9 Pro.
 - **Lead line** (`drawLead`, drawn in the ownship frame before the arrow): 10 NM along `heading()`, in the accent colour, dashed, with a panel-colour halo, a 12 px cross line each NM and labels at the even NM. The owner picked this from four styles (A ruler, B orange dashed, C green in minutes, D dotted) on 27 Oct 2026. It shares the accent orange with the line to the selected aerodrome, which is thinner and has no ticks. The `#mapLead` button toggles `MAP.lead`. The four layer buttons share one row (`flex:1 1 0`, 4 px side padding) so they fit on a 375 px iPhone SE.
+- **Map rotation** (fixed 27 Oct 2026): track up rotates the world by **+rot**, with `cr=cos(rot)`, `sr=sin(rot)` in `P()`/`invPx` and in the runway diagram's `xy()`. It was `-rot`, which mirrored the rotation: the map turned the wrong way, so the arrow looked wrong against the ground features. Canvas rotations (arrow `hd-rot`, north pointer `-rot`) were already right. Check with `play`-style tests: for every point in `MAP.hits`, the screen angle from the ownship should equal bearing − heading (track up) or the bearing (north up); 0.2° is the expected residual.
+- **Press-and-hold map menu** (`mapMenu`, `#mapMenu` inside `.mapbox`):
+  - **Trigger:** a 550 ms hold with no movement (6 px) and a single pointer, or `contextmenu` from a mouse. A drag or a second finger cancels it, and `drag.long` stops the release being treated as a tap.
+  - **Point:** `MAP.inv` (the `invPx` of the last draw) turns the press into lat/lon, kept in `MAP.press` and drawn as a crosshair while the menu is open.
+  - **Name:** the nearest `TOWNS` entry (towns, localities, suburbs): its name within 1.5 NM, else "x NM <compass point> of <name>".
+  - **Go-to target:** `setGo` with `k:'USR'`, `c` = the name or DDM, and `n` = the description (`ptDesc` returns `n` for USR).
+  - **Extra button:** the nearest AD/VFR/NAV within 2 NM.
