@@ -67,6 +67,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.ctl span b{display:inline;margin:0 0 0 4px;font:600 15px/1.2 var(--f-mono);color:var(--freq)} .st.ctl span i{font:600 11px var(--f-mono);font-style:normal;color:var(--dim);margin-left:1px}
 .st.ctl span.off b{color:var(--dim);text-decoration:line-through}
 .st.gt{border-style:dashed;border-color:color-mix(in srgb,var(--wp) 70%,var(--rule))} .st.fq.gt>small:first-child{color:var(--wp)}
+.foot .upd{margin-bottom:6px}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -212,7 +213,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -311,7 +312,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
     <div class="st plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
-    <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
+    <div class="st" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
     <div class="st fq" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
@@ -355,6 +356,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
+        <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <details class="chartbox" id="chartBox">
@@ -428,8 +430,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="prof-ctl"><span class="lbl">Buffer below C/D</span><select id="ctaBuf"><option value="500">500 ft</option><option value="300">300 ft</option><option value="200">200 ft</option><option value="100">100 ft</option></select></div><canvas id="fpProf" aria-label="Flight plan elevation profile: terrain and controlled airspace along the route"></canvas>
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
-      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
-      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
+      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
+      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Save GPX downloads the plan as it is now, edits included. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
 
@@ -574,6 +576,16 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
+const APP_BUILT=/*__BUILT__*/0;
+/* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
+   the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
+   +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
+const GEOID=/*__GEOID__*/null;
+const GEO=(()=>{ if(!GEOID) return null; const b=atob(GEOID.cm), a=new Int16Array(b.length>>1); for(let i=0;i<a.length;i++) a[i]=((b.charCodeAt(2*i)|b.charCodeAt(2*i+1)<<8)<<16)>>16; return {...GEOID,a}; })();
+function geoidN(la,lo){ const G=GEO; if(!G) return null; const y=(G.la0-la)/G.step, x=(lo-G.lo0)/G.step; if(!(y>=0&&x>=0&&y<=G.rows-1&&x<=G.cols-1)) return null;
+  const r=Math.min(G.rows-2,Math.floor(y)), c=Math.min(G.cols-2,Math.floor(x)), fy=y-r, fx=x-c, v=(i,j)=>G.a[(r+i)*G.cols+c+j];
+  return ((v(0,0)*(1-fx)+v(0,1)*fx)*(1-fy)+(v(1,0)*(1-fx)+v(1,1)*fx)*fy)/100; }
+const GPS_ELLIPSOID=!/iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);   // ms, set by assemble.py
 const META=DATA.meta||{}, ASRC=META.airspace==='DAH'?'DAH':'XC';
 const SRC={E:'ERSA',X:'XC Aus',V:'VATPAC',O:'OurAirports'};
 function chip(src){ if(!src) return ''; const off=['ERSA','DAH','AIP'].includes(src); return `<span class="src ${off?'off':'unv'}">${src}</span>`; }
@@ -780,7 +792,9 @@ function fpAdvance(){
 }
 /* flight log: every GPS fix (at most one per 5 s) for the last 6 h, exportable as GPX, to check sequencing after a flight */
 const TLOG={pts:ls.get('tlog',[]), last:0};
-function fpLogFix(){ if(st.sim||!st.pos) return; const t=Date.now(); if(t-TLOG.last<5000) return; TLOG.last=t;
+const SIMT=[];   // simulated fixes, this session only (shown by Log on the map, never stored or exported)
+function fpLogFix(){ if(!st.pos) return; const t=Date.now();
+  if(st.sim){ const q=SIMT[SIMT.length-1]; if(!q||Math.abs(q[1]-st.pos[0])+Math.abs(q[2]-st.pos[1])>2e-4){ SIMT.push([t,st.pos[0],st.pos[1]]); if(SIMT.length>5000) SIMT.shift(); } return; } if(t-TLOG.last<5000) return; TLOG.last=t;
   TLOG.pts.push([t,+st.pos[0].toFixed(6),+st.pos[1].toFixed(6),st.alt!=null?Math.round(st.alt):null,st.gs!=null?Math.round(st.gs):null,st.trk!=null?Math.round(st.trk):null,st.acc!=null?Math.round(st.acc):null,FP?FP.i:null]);
   const cut=t-6*3600e3; while(TLOG.pts.length&&TLOG.pts[0][0]<cut) TLOG.pts.shift(); if(TLOG.pts.length%6===0) ls.set('tlog',TLOG.pts); }
 function fpLogEv(kind,a,b,d){ if(st.sim) return; TLOG.pts.push([Date.now(),'ev',kind,a,b,+d.toFixed(2)]); ls.set('tlog',TLOG.pts); }
@@ -1209,7 +1223,7 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true)};
+const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
@@ -1396,6 +1410,29 @@ function drawLead(g,sc,C){   // in the ownship frame: forward is -y, 1 NM = sc p
   for(let k=1;k<=10;k++){ tick(k,4.5,halo); tick(k,2,acc);
     if(k%2===0){ g.lineWidth=3; g.strokeStyle=halo; g.strokeText(String(k),10,-k*sc); g.fillStyle=acc; g.fillText(String(k),10,-k*sc); } }
   g.lineCap='butt'; g.textBaseline='alphabetic';
+}
+function drawTrail(g,P,C,W,Hh){ // flight log on the map: fixes joined where they're under 60 s and 1.5 NM apart; older is fainter
+  const now=Date.now(), fx=TLOG.pts.filter(p=>p[1]!=='ev'), runs=[[fx,1]];
+  if(st.sim&&SIMT.length) runs.push([SIMT,0]);
+  for(const [pts,real] of runs){ if(pts.length<2) continue;
+    let prev=null, path=null; const segs=[];
+    for(const p of pts){ const xy=P(p[1],p[2]);
+      if(!prev || p[0]-prev[0]>60e3 || Math.abs(p[1]-prev[1])>0.025 || Math.abs(p[2]-prev[2])>0.032){ path=[]; segs.push(path); }
+      path.push([xy[0],xy[1],p[0]]); prev=p; }
+    g.lineJoin='round'; g.lineCap='round';
+    for(const halo of [1,0]) for(const sg of segs){ if(sg.length<2) continue;
+      // one path per run of points with the same fade step (every ~20 min), so joins don't double up
+      let k=0; while(k<sg.length-1){ const step=real? Math.min(17,Math.floor((now-sg[k][2])/(20*60e3))) : 0; let j=k+1;
+        while(j<sg.length-1 && (real? Math.min(17,Math.floor((now-sg[j][2])/(20*60e3))) : 0)===step) j++;
+        g.globalAlpha= halo? .55 : real? .95-.6*step/17 : .85; g.strokeStyle= halo? C.bg : real? C.ink : C.dim; g.lineWidth= halo? 4.5 : 2;
+        g.beginPath(); g.moveTo(sg[k][0],sg[k][1]); for(let q=k+1;q<=j;q++) g.lineTo(sg[q][0],sg[q][1]); g.stroke(); k=j; } }
+    g.globalAlpha=1; g.lineCap='butt'; }
+  // waypoint sequencing events: a ring at the nearest fix, labelled with the new waypoint number
+  g.font='700 9.5px "IBM Plex Mono", monospace'; g.textAlign='left';
+  for(const e of TLOG.pts){ if(e[1]!=='ev') continue; let f=null, dt=1e18; for(const p of fx){ const d=Math.abs(p[0]-e[0]); if(d<dt){ dt=d; f=p; } } if(!f||dt>120e3) continue;
+    const [x,y]=P(f[1],f[2]); if(x<-10||y<-10||x>W+10||y>Hh+10) continue;
+    g.beginPath(); g.arc(x,y,4,0,2*Math.PI); g.fillStyle=C.bg; g.fill(); g.strokeStyle=C.ink; g.lineWidth=1.5; g.stroke();
+    g.fillStyle=C.ink; g.fillText('→'+(e[4]+1),x+6,y+3); }
 }
 function drawMap(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
@@ -1588,6 +1625,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
     FP.pts.forEach((p,k)=>{ const [x,y]=pts[k]; if(x<-20||y<-20||x>W+20||y>Hh+20) return;
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
       const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
+  if(MAP.log) drawTrail(g,P,C,W,Hh);
   // pressed point (map menu open): a crosshair
   if(MAP.press && !$('mapMenu').hidden){ const [x,y]=P(MAP.press[0],MAP.press[1]); g.strokeStyle=cssv('--wp'); g.lineWidth=2;
     g.beginPath(); g.arc(x,y,7,0,2*Math.PI); g.moveTo(x-12,y); g.lineTo(x-4,y); g.moveTo(x+4,y); g.lineTo(x+12,y); g.moveTo(x,y-12); g.lineTo(x,y-4); g.moveTo(x,y+4); g.lineTo(x,y+12); g.stroke(); }
@@ -1865,7 +1903,9 @@ function onPos(p){
   if(st.sim) return;
   const c=p.coords;
   st.pos=[c.latitude,c.longitude]; st.acc=c.accuracy;
-  st.alt = c.altitude!=null? c.altitude*3.28084 : null;
+  const N=GPS_ELLIPSOID&&c.altitude!=null? geoidN(c.latitude,c.longitude) : null; st.geoidN=N;
+  st.alt = c.altitude!=null? (c.altitude-(N||0))*3.28084 : null;   // ellipsoid -> EGM96 (~MSL), the datum of SRTM and the AIP
+  $('sAltBox').title=N==null? 'GPS altitude'+(GPS_ELLIPSOID?' (no geoid correction outside Australia)':'') : `GPS altitude above mean sea level: the phone's WGS84 ellipsoid height ${N>=0?'minus':'plus'} the EGM96 geoid height here (${Math.abs(N).toFixed(0)} m, ${Math.round(Math.abs(N)*3.28084)} ft)`;
   st.gs = c.speed!=null? c.speed*1.943844 : st.gs;
   if(c.heading!=null && !isNaN(c.heading) && (c.speed||0)>2) st.trk=c.heading;
   cmpLearn();
@@ -1985,6 +2025,8 @@ $('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer'
 $('mapTer').setAttribute('aria-pressed',MAP.ter);
 $('mapLead').onclick=()=>{ MAP.lead=!MAP.lead; ls.set('mapLead',MAP.lead); $('mapLead').setAttribute('aria-pressed',MAP.lead); render(); };
 $('mapLead').setAttribute('aria-pressed',MAP.lead);
+$('mapLog').onclick=()=>{ MAP.log=!MAP.log; ls.set('mapLog',MAP.log); $('mapLog').setAttribute('aria-pressed',MAP.log); render(); };
+$('mapLog').setAttribute('aria-pressed',MAP.log);
 $('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
 addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';
@@ -2034,6 +2076,14 @@ $('fpToggle').onclick=()=>{ const open=$('fpToggle').getAttribute('aria-expanded
 $('fpToggle').setAttribute('aria-expanded',ls.get('fpOpen',true));
 $('fpPrev').onclick=()=>{ if(FP&&FP.i>0) fpPick(FP.i-1); };
 $('fpSkip').onclick=()=>{ if(FP&&FP.i<FP.pts.length-1) fpPick(FP.i+1); };
+function dlFile(name,text,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); }
+function fpGpx(){ // the plan as a GPX 1.1 route: name = the AIP code where matched, else the point's own name
+  const x=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const pts=FP.pts.map(p=>`  <rtept lat="${p.la.toFixed(6)}" lon="${p.lo.toFixed(6)}"><name>${x(p.c||p.n)}</name>${p.desc||p.gd?`<desc>${x(p.gd||p.desc)}</desc>`:''}</rtept>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${x(FP.name)}</name><time>${new Date().toISOString()}</time></metadata>\n<rte><name>${x(FP.name)}</name>\n${pts}\n</rte>\n</gpx>\n`; }
+$('fpSave').onclick=()=>{ if(!FP||!FP.pts.length) return; const P_=FP.pts, nm=q=>String(q.c||q.n).replace(/[^A-Za-z0-9]+/g,'').slice(0,12)||'WP';
+  dlFile(`${nm(P_[0])}-${nm(P_[P_.length-1])}-${new Date().toISOString().slice(0,10)}.gpx`,fpGpx(),'application/gpx+xml');
+  const b=$('fpSave'); b.textContent='Saved'; setTimeout(()=>b.textContent='Save GPX',2000); };
 $('fpLog').onclick=()=>{ ls.set('tlog',TLOG.pts); const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx()],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
 $('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
@@ -2460,7 +2510,10 @@ for(const id of ['simAlt','simTrk','simGs']) $(id).addEventListener('input',()=>
     if(id==='simTrk' && FP && flyTimer) st.simManual=true;
     simApply(); },350); });
 
-function setFoot(){ $('foot').innerHTML=`<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). Data built ${DATA.built}.${META.next?` Next AIRAC (ERSA ${META.next[2]}) is stored and takes over at ${new Date(META.next[0]).toISOString().slice(0,16).replace('T',' ')} UTC.`:''}${URB.length?' Populous areas: ABS Urban Centres and Localities 2021 (CC BY 4.0).':''}<span id="offl"></span>`; offlineStatus(); }
+function appUpdated(){ if(!APP_BUILT) return ''; const d=new Date(APP_BUILT), m=(Date.now()-APP_BUILT)/60000;
+  const ago= m<1?'just now' : m<60?Math.round(m)+' min ago' : m<48*60?Math.round(m/60)+' h ago' : Math.round(m/1440)+' days ago';
+  return d.toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})+' ('+ago+')'; }
+function setFoot(){ $('foot').innerHTML=`${APP_BUILT?`<div class="upd">App updated <b>${appUpdated()}</b></div>`:''}<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). ${GEO&&GPS_ELLIPSOID?'GPS altitude: the phone gives height above the WGS84 ellipsoid, converted to height above mean sea level with the EGM96 geoid (0.25° grid, Australia), the datum of the SRTM terrain and the AIP. ':''} Data built ${DATA.built}.${META.next?` Next AIRAC (ERSA ${META.next[2]}) is stored and takes over at ${new Date(META.next[0]).toISOString().slice(0,16).replace('T',' ')} UTC.`:''}${URB.length?' Populous areas: ABS Urban Centres and Localities 2021 (CC BY 4.0).':''}<span id="offl"></span>`; offlineStatus(); }
 setFoot();
 (function(){ // effective-date check: the loader picked the dataset in force (META.eff = 1600 UTC the day before the AIRAC date)
   const eff=META.ersa||META.dah; if(!eff) return;

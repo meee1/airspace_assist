@@ -67,6 +67,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.ctl span b{display:inline;margin:0 0 0 4px;font:600 15px/1.2 var(--f-mono);color:var(--freq)} .st.ctl span i{font:600 11px var(--f-mono);font-style:normal;color:var(--dim);margin-left:1px}
 .st.ctl span.off b{color:var(--dim);text-decoration:line-through}
 .st.gt{border-style:dashed;border-color:color-mix(in srgb,var(--wp) 70%,var(--rule))} .st.fq.gt>small:first-child{color:var(--wp)}
+.foot .upd{margin-bottom:6px}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -212,7 +213,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -311,7 +312,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
     <div class="st plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
-    <div class="st"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
+    <div class="st" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
     <div class="st fq" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
@@ -355,6 +356,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
+        <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <details class="chartbox" id="chartBox">
@@ -428,8 +430,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="prof-ctl"><span class="lbl">Buffer below C/D</span><select id="ctaBuf"><option value="500">500 ft</option><option value="300">300 ft</option><option value="200">200 ft</option><option value="100">100 ft</option></select></div><canvas id="fpProf" aria-label="Flight plan elevation profile: terrain and controlled airspace along the route"></canvas>
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
-      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
-      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
+      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
+      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Save GPX downloads the plan as it is now, edits included. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
 
@@ -504,7 +506,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=e3092171ec';
+  const s=document.createElement('script'); s.src='app.js?v=e4027b45c8';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();

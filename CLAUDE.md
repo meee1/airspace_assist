@@ -55,6 +55,7 @@ tools/
   assemble.py         template.html + data.json -> dist/ (index.html, app.js, data.json, sw.js, manifest, icons)
   urban.py            ABS UCL shapefile -> urban polygons (data.json 'urb', split to app/urban.json)
   suburbs.py          ABS SAL shapefile -> suburb name points (data.json 'sal', split to app/urban.json)
+  geoid.py            EGM96 15' grid (from npm egm96-universal, MIT) -> tools/egm96_au.json, 0.25 deg over 8-46S 104-170E; injected at /*__GEOID__*/
   sua.py              ERSA SUA tables -> status, hours, authority, phone, activity per R/D/M area (data.json 'sua')
   fetch_srtm.py       builds app/terrain from SRTM (download from AWS skadi, or --from-dir)
   chartref.py         georeferences a VTC/VNC PDF -> tools/charts.json entry
@@ -99,7 +100,7 @@ python3 assemble.py && cp dist/* ../app/
 - Browser storage keys are all prefixed `rc_`:
   - `fp`: flight plan (`rev` counts edits), `fpAddAt` (where the Edit search adds: end / best / next)
   - `goto`
-  - `mapRange`, `mapUp`, `mapCtaf`, `mapLead` (lead line, default on), `mapTer` (terrain shading on the map, default on), `mapCharts`, `chartOp`
+  - `mapRange`, `mapUp`, `mapCtaf`, `mapLead` (lead line, default on), `mapLog` (flight log on the map, default off), `mapTer` (terrain shading on the map, default on), `mapCharts`, `chartOp`
   - `sim`, `simOn`, `simOpen`
   - `effOpen_<date>`
   - `cType`, `cSign`, `cCat`, `cMode`
@@ -159,6 +160,7 @@ python3 assemble.py && cp dist/* ../app/
 
 ## Feature notes
 
+- **GPS altitude datum** (`GEOID`, `GEO`, `geoidN`, `GPS_ELLIPSOID`, in `onPos`): the W3C Geolocation API and Android's `Location.getAltitude()` give height above the WGS84 ellipsoid; SRTM heights and AIP limits are above the EGM96 geoid. `onPos` subtracts N = `geoidN(lat,lon)` (bilinear on the 0.25° nodes of `tools/egm96_au.json`, int16 cm, base64, 153×265 nodes, ~108 KB in app.js) unless the UA is iOS (Core Location's `altitude` is already MSL). Outside the grid N is null and nothing is subtracted. `st.geoidN` keeps the value; the ALT tile's title shows it. Checked against the egm96-universal reference to 0.1 m at YBRS +2.0, YMMB +4.2, Sydney +22.2, Cairns +62.2, Perth −31.7, Darwin +50.9 (`play` test feeds a Cairns fix of 162.2 m ellipsoid and gets 328 ft). Simulation altitudes are taken as MSL and not corrected. Before 28 Oct 2026 there was no correction.
 - **Two AIRAC data sets.** `tools/data.json` is the current AIRAC and `tools/data-next.json` the next. `assemble.py` writes both, plus `urban.json`, to `app/`. The loader chooses by effective time: max(ERSA, DAH) date minus 8 h, i.e. 1600 UTC the day before (AIP GEN 3.1 4.3). In Oct 2026 the current set is ERSA 03 SEP 2026 with DAH 09 JUL 2026; the next is ERSA and DAH 26 NOV 2026. The DAH has its own cycle, so pair each ERSA with the DAH in force on the same date.
 - **Urban areas.** `tools/urban.py` reads the ABS UCL 2021 shapefile (`data/abs/`, CC BY 4.0) via `pip install pyshp`, using `--urban data/abs/UCL_2021_AUST_GDA2020` in `build_data.py`. It keeps Major Urban, Other Urban and Bounded Locality, drops holes and simplifies to 0.0005°. The output is about 1.3 MB.
 - **Suburbs.** `tools/suburbs.py` reads the ABS SAL 2021 shapefile (`data/abs/SAL_2021_AUST_GDA2020`, CC BY 4.0; git-ignored because the .shp is 143 MB, over GitHub's 100 MB limit) via `--sal` in `build_data.py`. Output: `sal` = [name, la x1e4, lo x1e4, state], one point per suburb at the centroid of its largest part, about 460 KB. `assemble.py` moves it into `urban.json` as `{urb, sal}`; the loader still accepts the old plain array. In the app, suburbs join `TOWNS` with `t:'S'`, and a suburb named like a town within 5 NM is dropped. Search gives them weight 0.5, skips letters-in-order matching (`lite`), and runs lev only when the first or second letter matches, which keeps a keystroke at about 15 ms on desktop with about 15k entries. Map labels appear at 5 NM range and below.
@@ -198,6 +200,7 @@ python3 assemble.py && cp dist/* ../app/
 - **Install app** (`#bInstall`): shown on Chrome/Android when `beforeinstallprompt` fires, hidden after `appinstalled`.
 - **Map height:** `min(94vw, 56vh, 520px)`, which is 399 px on the Pixel 9 Pro.
 - **Lead line** (`drawLead`, drawn in the ownship frame before the arrow): 10 NM along `heading()`, in the accent colour, dashed, with a panel-colour halo, a 12 px cross line each NM and labels at the even NM. The owner picked this from four styles (A ruler, B orange dashed, C green in minutes, D dotted) on 27 Oct 2026. It shares the accent orange with the line to the selected aerodrome, which is thinner and has no ticks. The `#mapLead` button toggles `MAP.lead`. The four layer buttons share one row (`flex:1 1 0`, 4 px side padding) so they fit on a 375 px iPhone SE.
+- **Log on the map** (`drawTrail`, `MAP.log`, button `#mapLog`): draws `TLOG` fixes after the flight plan route, split into segments at gaps over 60 s or ~1.5 NM, with a panel-colour halo; one path per 20-minute age step so the fade doesn't double up at joins (alpha .95 now to .35 at 6 h). Sequencing events (`'ev'`) get a ring at the nearest fix within 2 min, labelled →(new index+1). In simulation, `SIMT` (in memory, this session, ≤5,000 points) is drawn in `--dim`; `fpLogFix` never writes simulated fixes to `TLOG`. ~2–4 ms per draw with 545 fixes.
 - **Map rotation** (fixed 27 Oct 2026): track up rotates the world by **+rot**, with `cr=cos(rot)`, `sr=sin(rot)` in `P()`/`invPx` and in the runway diagram's `xy()`. It was `-rot`, which mirrored the rotation: the map turned the wrong way, so the arrow looked wrong against the ground features. Canvas rotations (arrow `hd-rot`, north pointer `-rot`) were already right. Check with `play`-style tests: for every point in `MAP.hits`, the screen angle from the ownship should equal bearing − heading (track up) or the bearing (north up); 0.2° is the expected residual.
 - **Press-and-hold map menu** (`mapMenu`, `#mapMenu` inside `.mapbox`):
   - **Trigger:** a 550 ms hold with no movement (6 px) and a single pointer, or `contextmenu` from a mouse. A drag or a second finger cancels it, and `drag.long` stops the release being treated as a tap.
@@ -210,6 +213,7 @@ python3 assemble.py && cp dist/* ../app/
   - `fpEdit(fn)` applies `fn(FP.pts)`, bumps `FP.rev` (part of the `nextFreqs` key), and re-picks the same active point object (`indexOf`), else the same index; an empty list removes the plan.
   - **Edit** shows ▲ ▼ ⇄ ✕ per row (`.fp-legs.edit`) and the Add row `#fpAddRow`, which `renderFP` moves above `#fpLegs` when a plan exists (above `#fpBody` when not). **New plan** (`#fpNew`) opens it with no plan.
   - Add uses `suggest()` on `#fpAddIn` (same fuzzy search as Go to) and Enter → `findPoint`. `#fpAddAt`: end, best (`fpBestSlot`), next (insert at `FP.i` and `fpPick` it). A one-point plan you're within 1 NM of advances to the added point.
+  - **Save GPX** (`#fpSave`, `fpGpx`, `dlFile`): GPX 1.1 `rte` with `rtept` name = `c||n` and desc = `gd||desc`, XML-escaped. Round trip through `parseGPX` gives the same points in the same order (a free-text name may come back AIP-labelled).
   - ⇄ sets `FP_REPL`; the next pick replaces that point (and becomes active if it was). Moves and deletes keep `FP_REPL` on the same point.
 - **Go to tiles** (`renderGoTiles`, `goTarget`, ids `gCtaf*`, `gArea*`, `gCtl`; class `.gt`, not `.go`, which is the Go to section):
   - Target: `GO` (flight plans set it via `fpGo`). Aerodrome: `GO` itself if `k==='AD'`, else the nearest within 10 NM of the point from the `candidates()` set.
