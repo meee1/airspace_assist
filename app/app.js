@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793228523793;
+const APP_BUILT=1793229399320;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -299,38 +299,13 @@ function fpAdvance(){
 }
 /* flight log: every GPS fix (at most one per 5 s) for the last 6 h, exportable as GPX, to check sequencing after a flight */
 const TLOG={pts:ls.get('tlog',[]), last:0};
-/* ---------- NOTAMs (via the user's proxy, tools/notam-worker) ---------- */
-let NT=ls.get('notam',null);   // {t: fetched ms, src, at:[la,lo], locs, items:[{id,loc,fir,q,lo,hi,la,lon,r,from,to,est,sch,text}]}
-const NTS={busy:false, last:0, err:null, fail:0};
-const NT_DEFAULT='https://test.mission.workers.dev';   // default proxy; the setting overrides it, an empty setting turns it off
+/* ---------- NOTAMs (NAIPS briefing only; the proxy is for traffic) ---------- */
+try{ ls.set('notam',null); }catch(e){}   // proxy NOTAMs were removed 29 Oct 2026: drop any stored copy
+const NT_DEFAULT='https://test.mission.workers.dev';   // default traffic proxy; the setting overrides it, an empty setting turns it off
 const ntUrl=()=>{ const v=ls.get('notamUrl',null); return (v==null?NT_DEFAULT:v).trim().replace(/\/+$/,''); };
 const ntTime=v=>v==='PERM'? Infinity : v? Date.parse(v) : NaN;
 function ntActive(n,now=Date.now(),ahead=0){ const a=ntTime(n.from), b=ntTime(n.to); if(!((isNaN(a)||a<=now+ahead) && (isNaN(b)||b>now))) return false;
   return !n.per || n.per.some(([p,q])=>Date.parse(p)<=now+ahead&&Date.parse(q)>now); }   // NAIPS lists the active periods of a scheduled NOTAM
-function ntLocs(here){ const s=new Set(); if(here) s.add(here.i);
-  if(FP) for(const p of FP.pts){ const c=(p.c||'').toUpperCase(); if(/^[A-Z]{4}$/.test(c)&&DATA.ap.some(a=>a.i===c)) s.add(c); }
-  const g=typeof goTarget==='function'? goTarget() : null; if(g&&g.ad) s.add(g.ad.i);
-  return [...s].slice(0,25); }
-async function ntRefresh(force){
-  const u=ntUrl(); if(!u||!st.pos||NTS.busy) return; if(!force&&!navigator.onLine) return;
-  const now=Date.now(), locs=ntLocs(st.ntHere);
-  const moved= !NT||!NT.at? 1e9 : distBrg(NT.at[0],NT.at[1],st.pos[0],st.pos[1])[0], newLoc=!NT||locs.some(l=>!(NT.locs||[]).includes(l));
-  if(!force){ if(now-NTS.last<(NTS.fail?120e3:60e3)) return; if(NT&&now-NT.t<15*60e3&&moved<25&&!newLoc) return; }
-  NTS.busy=true; NTS.last=now; ntStatus();
-  try{ const q=`${u}/notams?lat=${st.pos[0].toFixed(3)}&lon=${st.pos[1].toFixed(3)}&nm=60&loc=${locs.join(',')}`;
-    const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),15000);
-    const r=await fetch(q,{signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(tm)); const j=await r.json().catch(()=>({}));
-    if(!r.ok||!Array.isArray(j.items)) throw new Error(j.error||('HTTP '+r.status));
-    NT={t:Date.now(), src:j.src||'proxy', at:[+st.pos[0].toFixed(3),+st.pos[1].toFixed(3)], locs, items:j.items.filter(n=>ntActive(n,Date.now(),48*3600e3)).slice(0,600), part:j.errors&&j.errors.length||0};
-    try{ ls.set('notam',NT); }catch(e){} NTS.err=null; NTS.fail=0;
-  }catch(e){ NTS.err=String(e&&e.message||e).slice(0,120); NTS.fail++; }
-  NTS.busy=false; ntStatus(); render(); }
-function ntAge(){ if(!NT) return ''; const m=(Date.now()-NT.t)/60000; return m<1?'just now':m<90?Math.round(m)+' min ago':(m/60).toFixed(1)+' h ago'; }
-function ntStatus(){ const u=ntUrl();
-  $('ntSum').textContent= !u? 'not set up' : NTS.busy? 'fetching…' : NT? `${NT.items.filter(n=>ntActive(n)).length} active · ${ntAge()}` : NTS.err? 'error' : 'none yet';
-  $('ntStat').innerHTML= !u? 'Enter the address of your NOTAM proxy (see tools/notam-worker/README.md).' :
-    (NT? `${NT.items.filter(n=>ntActive(n)).length} active NOTAMs from ${esc(NT.src)}, fetched ${new Date(NT.t).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})} (${ntAge()}) for 60 NM around ${NT.at.map(v=>v.toFixed(2)).join(', ')}${NT.locs.length?' and '+esc(NT.locs.join(', ')):''}.${NT.part?' Some locations failed.':''}` : 'No NOTAMs fetched yet.')+
-    (NTS.err? `<br><span class="w">Last attempt failed: ${esc(NTS.err)}</span>` : '')+(!navigator.onLine?'<br>Offline: using the stored NOTAMs.':''); }
 const NT_KEY=/\b(CLSD|CLOSED|U\/S|UNSERVICEABLE|NOT AVBL|NOT AVAILABLE|ACT|ACTIVE|ACTIVATED|WIP|CRANE|OBST(?:ACLE)?|LGT|PJE|PARA(?:CHUTE|CHUTING)?|UA|RPA|DRONE|TWR|CTAF|FREQ|ATIS|RWY\s?\d{2}[LRC]?(?:\/\d{2}[LRC]?)?)\b/g;
 function ntWhen(n){ const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];   // NOTAM times in UTC, local time in brackets
   const f=d=>{ const x=new Date(d), p=v=>String(v).padStart(2,'0'); return `${x.getUTCDate()} ${M[x.getUTCMonth()]} ${p(x.getUTCHours())}${p(x.getUTCMinutes())}Z (${p(x.getHours())}:${p(x.getMinutes())})`; };
@@ -358,7 +333,7 @@ function ntRoute(){ if(!ntHave()||!FP||FP.pts.length<2) return [];
       for(let j=0;j<=steps&&!hit;j++){ const f=j/steps; if(ntIn(n,a.la+(b.la-a.la)*f,a.lo+(b.lo-a.lo)*f,1)) hit=true; } if(hit){ out.push(n); break; } } }
   return out; }
 /* ---------- NAIPS briefing text (location or area briefing, pasted / shared) ---------- */
-// "0942 UTC 28/10/26 ... ARARAT (YARA) / C17/26 / PAL RWY 12/30 U/S / FROM 09 150427 TO 12 190000 EST / HN" -> items like the proxy's
+// "0942 UTC 28/10/26 ... ARARAT (YARA) / C17/26 / PAL RWY 12/30 U/S / FROM 09 150427 TO 12 190000 EST / HN" -> NOTAM items
 let NTN=ls.get('naips',null);   // {t: loaded ms, issued, validTo, title, items, none:[locations with no current NOTAM]}
 function naipsLL(a,b){ // "375727.99S" "1434647.28E" (DDMMSS[.s] / DDDMMSS[.s]; DDMM / DDDMM)
   const f=(s,dd)=>{ const m=/^(\d+)(\.\d+)?([NSEW])$/.exec(s); if(!m) return null; const d=m[1], n=d.length; let v;
@@ -405,25 +380,24 @@ function naipsParse(txt){
     if(s||cur.lines.length) cur.lines.push(s); }
   flush();
   return items.length||none.length? {t:Date.now(), issued, validTo, title, items, none} : null; }
-function ntHave(){ return !!(NT&&NT.items.length || NTN&&NTN.items.length); }
+function ntHave(){ return !!(NTN&&NTN.items.length); }
 function ntAllItems(){ const out=[], seen=new Set();
   for(const n of (NTN?NTN.items:[])){ out.push(n); seen.add(n.id+'|'+n.loc); }   // NAIPS first: it's the Australian source
-  for(const n of (NT?NT.items:[])) if(!seen.has(n.id+'|'+n.loc)) out.push(n);
   return out; }
 function ntSrcTxt(){ const a=[]; if(NTN) a.push(`NAIPS ${esc(NTN.title.replace(/^.*Results For /,''))} issued ${new Date(NTN.issued).toISOString().slice(11,16).replace(':','')}Z ${new Date(NTN.issued).getUTCDate()}/${new Date(NTN.issued).getUTCMonth()+1}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(past its validity: get a new briefing)</span>':''}`);
-  if(NT) a.push(`${esc(NT.src)}, fetched ${ntAge()}`); return a.join(' · '); }
-/* ---------- ADS-B traffic (via the proxy's /traffic, airplanes.live) ---------- */
+  return a.join(' · '); }
+/* ---------- ADS-B traffic (via the proxy's /traffic: adsb.lol, adsb.fi fallback) ---------- */
 const TR={t:0, ac:[], err:null, busy:false, said:new Map()};
 const trVoiceOn=()=>ls.get('trVoice',true);
 function trOwnId(){ const v=(typeof decodeSpoken==='function'? decodeSpoken($('cSign').value||'') : $('cSign').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''); return v.replace(/^VH/,''); }
 async function trPoll(){
   const u=ntUrl(); if(!MAP.traffic||!u||!st.pos||TR.busy||!navigator.onLine||document.hidden) return;
   TR.busy=true;
-  try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),6000);
+  try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),12000);   // the proxy may try two feeds (5 s each)
     const r=await fetch(`${u}/traffic?lat=${st.pos[0].toFixed(3)}&lon=${st.pos[1].toFixed(3)}&nm=25`,{signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(tm));
-    const j=await r.json().catch(()=>({})); if(!r.ok||!Array.isArray(j.ac)) throw new Error(j.error||('HTTP '+r.status));
+    const j=await r.json().catch(()=>({})); if(!r.ok||!Array.isArray(j.ac)) throw new Error((j.error||('HTTP '+r.status))+(Array.isArray(j.errors)&&j.errors.length? ' ('+j.errors.join('; ')+')' : ''));
     TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.err=null;
-  }catch(e){ TR.err=String(e&&e.message||e).slice(0,100); }
+  }catch(e){ TR.err=String(e&&e.message||e).slice(0,220); }
   TR.busy=false; render(); }
 setInterval(trPoll,5000);
 // targets relative to you: extrapolated along track (up to 30 s); height above MSL from GNSS altitude (ellipsoid - geoid), else pressure altitude
@@ -1508,7 +1482,7 @@ function render(){
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
   // top tiles: where you are (closest aerodrome), whatever the card below is showing (pinned, flight plan, Go to)
-  const herePk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0], here=herePk.a; st.ntHere=here; ntRefresh();
+  const herePk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0], here=herePk.a; st.ntHere=here;
   { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; renderCtl(here,r.tp,r.open,r.ts); }
   $('ctafRow').innerHTML=html; html='';
   { const L=ntFor(a.i).sort((x,y)=>ntTime(x.from)-ntTime(y.from)), key=L.some(n=>/\b(CLSD|CLOSED|U\/S|NOT AVBL)\b/.test(n.text||''));
@@ -1728,12 +1702,8 @@ $('mapLead').setAttribute('aria-pressed',MAP.lead);
 $('mapLog').onclick=()=>{ MAP.log=!MAP.log; ls.set('mapLog',MAP.log); $('mapLog').setAttribute('aria-pressed',MAP.log); render(); };
 $('mapLog').setAttribute('aria-pressed',MAP.log);
 $('ntUrl').value=ntUrl();
-$('ntUrl').addEventListener('change',()=>{ const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); NT=null; try{ls.set('notam',null);}catch(e){} ntStatus(); ntRefresh(true); });
-$('ntFetch').onclick=()=>ntRefresh(true);
-$('ntClear').onclick=()=>{ NT=null; try{ls.set('notam',null);}catch(e){} ntStatus(); render(); };
-window.addEventListener('online',()=>ntRefresh());
-ntStatus();
-function nbStatus(){ $('nbStat').innerHTML= NTN? `${esc(NTN.title)}: ${NTN.items.length} NOTAMs (${NTN.items.filter(n=>ntActive(n)).length} active now), ${NTN.none.length} locations with none. Issued ${new Date(NTN.issued).toISOString().slice(0,16).replace('T',' ')}Z${NTN.validTo?', valid to '+new Date(NTN.validTo).toISOString().slice(11,16)+'Z':''}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(expired: get a new briefing)</span>':''}.` : 'No NAIPS briefing loaded. Copy a location or area briefing from NAIPS (website or app) and paste it here; it stays on the phone for use offline.'; }
+$('ntUrl').addEventListener('change',()=>{ const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
+function nbStatus(){ $('ntSum').textContent= NTN? `NAIPS · ${NTN.items.filter(n=>ntActive(n)).length} active${NTN.validTo&&Date.now()>NTN.validTo?' · expired':''}` : 'no briefing'; $('nbStat').innerHTML= NTN? `${esc(NTN.title)}: ${NTN.items.length} NOTAMs (${NTN.items.filter(n=>ntActive(n)).length} active now), ${NTN.none.length} locations with none. Issued ${new Date(NTN.issued).toISOString().slice(0,16).replace('T',' ')}Z${NTN.validTo?', valid to '+new Date(NTN.validTo).toISOString().slice(11,16)+'Z':''}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(expired: get a new briefing)</span>':''}.` : 'No NAIPS briefing loaded. Copy a location or area briefing from NAIPS (website or app) and paste it here; it stays on the phone for use offline.'; }
 function nbLoad(txt){ const r=naipsParse(txt); if(!r){ $('nbStat').innerHTML='<span class="w">That doesn\'t look like a NAIPS briefing (no "hhmm UTC dd/mm/yy" header).</span>'; return false; }
   NTN=r; try{ ls.set('naips',NTN); }catch(e){ $('nbStat').textContent='Too large to store on the phone; loaded for this session only.'; } $('nbText').value=''; nbStatus(); render(); return true; }
 $('nbLoad').onclick=()=>nbLoad($('nbText').value);

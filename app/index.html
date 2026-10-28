@@ -530,9 +530,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
   </div>
 
   <details class="calls ntset" id="ntSet">
-    <summary><span class="lbl">Proxy: NOTAMs and traffic</span><span class="calls-at" id="ntSum">not set up</span></summary>
-    <label><span class="lbl">Proxy server</span><input id="ntUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="empty = off (default https://test.mission.workers.dev)"></label>
-    <div class="ctl"><button class="btn" id="ntFetch">Fetch now</button><button class="btn" id="ntClear">Clear stored NOTAMs</button></div>
+    <summary><span class="lbl">NOTAMs (NAIPS) and traffic</span><span class="calls-at" id="ntSum">no briefing</span></summary>
+    <label><span class="lbl">Traffic proxy</span><input id="ntUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="empty = off (default https://test.mission.workers.dev)"></label>
     <div class="vnote" id="ntStat"></div>
     <div class="nbget"><label><span class="lbl">NAIPS areas</span><input id="nbAreas" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 9300 (up to 5, comma separated)"></label>
       <div class="ctl"><button class="btn" id="nbOpen">Brief in NAIPS ↗</button><a class="btn" id="nbLink" href="https://www.airservicesaustralia.com/naips/Briefing/Area" target="_blank" rel="noopener">NAIPS area page ↗</a></div>
@@ -542,8 +541,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="vnote" id="nbStat"></div>
     <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="trVoice"> Speak traffic alerts</label>
     <div class="vnote" id="trStat"></div>
-    <div class="vnote"><b>Traffic</b> (map button) is ADS-B from airplanes.live via the same proxy, refreshed every 5 s with signal. It shows only aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late and patchy at low level. It is not TCAS and not a collision-avoidance system: keep looking out.</div>
-    <div class="vnote">NOTAMs come from the FAA NOTAM Management Service through your own proxy (tools/notam-worker), fetched for 60 NM around you plus the aerodromes on your flight plan and Go to, about every 15 minutes while there's signal, and kept for use offline. They may be late or incomplete: <b>always get a NAIPS briefing before flight</b>.</div>
+    <div class="vnote"><b>Traffic</b> (map button) is ADS-B from adsb.lol (adsb.fi as a fallback) via the traffic proxy, refreshed every 5 s with signal. It shows only aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late and patchy at low level. It is not TCAS and not a collision-avoidance system: keep looking out.</div>
+    <div class="vnote">NOTAMs come only from the NAIPS briefing you load here, kept for use offline. Get a fresh one before each flight.</div>
   </details>
 
   <div class="foot" id="foot"></div>
@@ -564,7 +563,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=1a1c4f1730';
+  const s=document.createElement('script'); s.src='app.js?v=699ec6d3a0';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();
