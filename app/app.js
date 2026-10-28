@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793226928209;
+const APP_BUILT=1793228523793;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -302,7 +302,8 @@ const TLOG={pts:ls.get('tlog',[]), last:0};
 /* ---------- NOTAMs (via the user's proxy, tools/notam-worker) ---------- */
 let NT=ls.get('notam',null);   // {t: fetched ms, src, at:[la,lo], locs, items:[{id,loc,fir,q,lo,hi,la,lon,r,from,to,est,sch,text}]}
 const NTS={busy:false, last:0, err:null, fail:0};
-const ntUrl=()=>(ls.get('notamUrl','')||'').trim().replace(/\/+$/,'');
+const NT_DEFAULT='https://test.mission.workers.dev';   // default proxy; the setting overrides it, an empty setting turns it off
+const ntUrl=()=>{ const v=ls.get('notamUrl',null); return (v==null?NT_DEFAULT:v).trim().replace(/\/+$/,''); };
 const ntTime=v=>v==='PERM'? Infinity : v? Date.parse(v) : NaN;
 function ntActive(n,now=Date.now(),ahead=0){ const a=ntTime(n.from), b=ntTime(n.to); if(!((isNaN(a)||a<=now+ahead) && (isNaN(b)||b>now))) return false;
   return !n.per || n.per.some(([p,q])=>Date.parse(p)<=now+ahead&&Date.parse(q)>now); }   // NAIPS lists the active periods of a scheduled NOTAM
@@ -1737,8 +1738,48 @@ function nbLoad(txt){ const r=naipsParse(txt); if(!r){ $('nbStat').innerHTML='<s
   NTN=r; try{ ls.set('naips',NTN); }catch(e){ $('nbStat').textContent='Too large to store on the phone; loaded for this session only.'; } $('nbText').value=''; nbStatus(); render(); return true; }
 $('nbLoad').onclick=()=>nbLoad($('nbText').value);
 $('nbPaste').onclick=async()=>{ try{ const t=await navigator.clipboard.readText(); if(t){ $('nbText').value=t; nbLoad(t); } }catch(e){ $('nbStat').textContent='The browser blocked reading the clipboard: long-press in the box and paste instead.'; } };
+// NAIPS link: the app only opens NAIPS in the browser (the pilot's own session) and never reads it; the result comes back by share / paste / PDF
+const NAIPS_AREA='https://www.airservicesaustralia.com/naips/Briefing/Area';
+const nbAreasList=()=>String(ls.get('nbAreas','9300')||'').split(/[\s,;]+/).filter(a=>/^\d{3,4}$/.test(a)).slice(0,5);
+$('nbAreas').value=nbAreasList().join(', ');
+$('nbAreas').addEventListener('change',()=>{ const v=$('nbAreas').value.split(/[\s,;]+/).filter(a=>/^\d{3,4}$/.test(a)).slice(0,5); ls.set('nbAreas',v.join(',')); $('nbAreas').value=v.join(', '); });
+$('nbOpen').onclick=()=>{ const A=nbAreasList(); if(!A.length){ window.open(NAIPS_AREA,'_blank','noopener'); return; }
+  const f=document.createElement('form'); f.method='POST'; f.action=NAIPS_AREA; f.target='_blank'; f.style.display='none';
+  const add=(k,v)=>{ const i=document.createElement('input'); i.type='hidden'; i.name=k; i.value=v; f.appendChild(i); };
+  for(let k=1;k<=5;k++) add('BriefingArea'+k,A[k-1]||'');
+  add('Met','false'); add('Notam','true'); add('Notam','false'); add('HeadOfficeNotam','false'); add('Charts','false'); add('MidSigwxGpwt','false');
+  add('GPWTRegionalCharts','false'); add('ChartVariant','HI'); add('GPWTNationalCharts','false'); add('Validity','12');
+  document.body.appendChild(f); f.submit(); f.remove(); };
+// NAIPS briefing saved as PDF (Chrome "Save as PDF" / print): rebuild the fixed-width text lines from pdf.js positions
+async function pdfText(blob){
+  if(!window.pdfjsLib){ await loadScript('lib/pdfjs/pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdfjs/pdf.worker.min.js'; }
+  const pdf=await pdfjsLib.getDocument({data:await blob.arrayBuffer()}).promise, pages=[];
+  for(let n=1;n<=pdf.numPages;n++){ const tc=await (await pdf.getPage(n)).getTextContent(); pages.push(tc.items.filter(i=>i.str!=null)); }
+  const all=pages.flat().filter(i=>i.str.trim()), cws=all.filter(i=>i.str.length>=4&&i.width>0).map(i=>i.width/i.str.length).sort((a,b)=>a-b);
+  const cw=cws.length? cws[cws.length>>1] : 6, x0=Math.min(...all.map(i=>i.transform[4]));
+  const out=[];
+  for(const items of pages){ const rows=new Map();
+    for(const i of items){ if(!i.str) continue; const y=Math.round(i.transform[5]*2)/2; let k=[...rows.keys()].find(q=>Math.abs(q-y)<=1.5); if(k==null){ k=y; rows.set(k,[]); } rows.get(k).push(i); }
+    for(const y of [...rows.keys()].sort((a,b)=>b-a)){ let line='';
+      for(const i of rows.get(y).sort((a,b)=>a.transform[4]-b.transform[4])){ const col=Math.max(0,Math.round((i.transform[4]-x0)/cw)); if(line.length<col) line+=' '.repeat(col-line.length); line+=i.str; }
+      line=line.replace(/\s+$/,'');
+      if(/^\d+\/\d+$/.test(line.trim())||/^https?:\/\//.test(line.trim())||/^\d{1,2}\/\d{1,2}\/\d{2,4},? \d{1,2}:\d{2}/.test(line.trim())) continue;   // browser print header/footer
+      out.push(line); } }
+  return out.join('\n'); }
+async function nbFile(f){ if(!f) return;
+  try{ $('nbStat').textContent='Reading '+(f.name||'file')+'…';
+    const pdf=/pdf/i.test(f.type)||/\.pdf$/i.test(f.name||''), txt= pdf? await pdfText(f) : await f.text();
+    if(nbLoad(txt)){ $('ntSet').open=true; }
+  }catch(e){ $('nbStat').innerHTML='<span class="w">Could not read that file: '+esc(e.message||String(e))+'</span>'; } }
+$('nbPdf').onclick=()=>$('nbFile').click();
+$('nbFile').onchange=()=>{ const f=$('nbFile').files[0]; $('nbFile').value=''; nbFile(f); };
 $('nbClear').onclick=()=>{ NTN=null; try{ls.set('naips',null);}catch(e){} nbStatus(); render(); };
 nbStatus();
+if(/[?&]shared=1/.test(location.search)&&window.caches){ history.replaceState(null,'',location.pathname);
+  caches.open('radio-au-share').then(async c=>{ const fr=await c.match('share/file'), tr=await c.match('share/text'); await c.delete('share/file'); await c.delete('share/text');
+    if(fr){ const b=await fr.blob(); await nbFile(new File([b],decodeURIComponent(fr.headers.get('x-name')||'shared'),{type:b.type})); }
+    else if(tr){ const t=await tr.text(); if(nbLoad(t)) $('ntSet').open=true; else $('nbText').value=t; }
+    if(fr||tr) setTimeout(()=>$('ntSet').scrollIntoView({block:'center'}),300); }).catch(()=>{}); }
 { const q=new URLSearchParams(location.search), t=q.get('text'); if(t&&/UTC \d{2}\/\d{2}\/\d{2}/.test(t)){ if(nbLoad(t)){ $('ntSet').open=true; setTimeout(()=>$('ntSet').scrollIntoView({block:'center'}),300); } history.replaceState(null,'',location.pathname); } }   // shared to the installed app (manifest share_target)
 MAP.traffic=ls.get('mapTraffic',false); $('mapTraffic').setAttribute('aria-pressed',MAP.traffic);
 $('mapTraffic').onclick=()=>{ MAP.traffic=!MAP.traffic; ls.set('mapTraffic',MAP.traffic); $('mapTraffic').setAttribute('aria-pressed',MAP.traffic);

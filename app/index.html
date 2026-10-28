@@ -78,7 +78,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.traffic b{font:700 15px/1 var(--f-label);color:#b07800;margin:0;display:inline;flex:none} .st.traffic span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .mapctl #mapTraffic{font-size:12px}
-.ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+.ntset a.btn{text-decoration:none;display:inline-flex;align-items:center} .nbget{border-top:1px solid var(--rule);margin-top:8px;padding-top:4px} .ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -531,11 +531,14 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 
   <details class="calls ntset" id="ntSet">
     <summary><span class="lbl">Proxy: NOTAMs and traffic</span><span class="calls-at" id="ntSum">not set up</span></summary>
-    <label><span class="lbl">Proxy server</span><input id="ntUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://radio-au-notam.<you>.workers.dev"></label>
+    <label><span class="lbl">Proxy server</span><input id="ntUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="empty = off (default https://test.mission.workers.dev)"></label>
     <div class="ctl"><button class="btn" id="ntFetch">Fetch now</button><button class="btn" id="ntClear">Clear stored NOTAMs</button></div>
     <div class="vnote" id="ntStat"></div>
+    <div class="nbget"><label><span class="lbl">NAIPS areas</span><input id="nbAreas" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 9300 (up to 5, comma separated)"></label>
+      <div class="ctl"><button class="btn" id="nbOpen">Brief in NAIPS ↗</button><a class="btn" id="nbLink" href="https://www.airservicesaustralia.com/naips/Briefing/Area" target="_blank" rel="noopener">NAIPS area page ↗</a></div>
+      <div class="vnote">Opens NAIPS in your browser, signed in as you (NOTAMs only, 12 h). Then Share the result to this app, copy and paste it, or save it as a PDF and open it here.</div></div>
     <label><span class="lbl">NAIPS briefing</span><textarea id="nbText" rows="4" spellcheck="false" placeholder="Paste a NAIPS location or area briefing here (or share it to the app)" style="font:500 12px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"></textarea></label>
-    <div class="ctl"><button class="btn" id="nbPaste">Paste from clipboard</button><button class="btn" id="nbLoad">Load briefing</button><button class="btn" id="nbClear">Clear briefing</button></div>
+    <div class="ctl"><button class="btn" id="nbPaste">Paste from clipboard</button><button class="btn" id="nbLoad">Load briefing</button><button class="btn" id="nbPdf">Open PDF / file</button><input type="file" id="nbFile" accept="application/pdf,.pdf,text/plain,.txt" hidden><button class="btn" id="nbClear">Clear briefing</button></div>
     <div class="vnote" id="nbStat"></div>
     <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="trVoice"> Speak traffic alerts</label>
     <div class="vnote" id="trStat"></div>
@@ -561,7 +564,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=a7bf5bafc9';
+  const s=document.createElement('script'); s.src='app.js?v=1a1c4f1730';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();

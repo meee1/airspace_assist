@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 #    3 s timeout so a weak signal in flight doesn't stall start-up
 #  - SRTM terrain tiles: all precached at install into a cache that survives app updates, then cache first
 #  - Google Fonts: cached on first use (system fonts are used until then)
-SW=r"""const C='radio-au-__VER__', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts';
+SW=r"""const C='radio-au-__VER__', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share';
 const CORE=['./','./index.html','./app.js','./data.json','./urban.json','./manifest.webmanifest','./icon-192.png','./icon-512.png'__NEXT__];
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
@@ -21,10 +21,17 @@ async function precacheTerrain(){   // all SRTM tiles, a few at a time; safe to 
   }catch(e){}
 }
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
 self.addEventListener('message',e=>{ if(e.data==='precache') e.waitUntil(precacheTerrain()); });
 self.addEventListener('fetch',e=>{
   const req=e.request, u=new URL(req.url);
+  if(req.method==='POST'&&u.origin===location.origin&&/\/share$/.test(u.pathname)){   // Android share target: park the shared file/text, then open the app
+    e.respondWith((async()=>{ try{ const fd=await req.formData(), c=await caches.open(S), f=fd.get('file'), t=[fd.get('title'),fd.get('text')].filter(x=>typeof x==='string'&&x).join('\n');
+        if(f&&f.size) await c.put('share/file',new Response(f,{headers:{'content-type':f.type||'application/octet-stream','x-name':encodeURIComponent(f.name||'shared')}}));
+        else if(t) await c.put('share/text',new Response(t,{headers:{'content-type':'text/plain'}}));
+      }catch(err){}
+      return Response.redirect(new URL('./?shared=1',self.registration.scope).href,303); })());
+    return; }
   if(req.method!=='GET') return;
   if(u.origin!==location.origin){
     if(/fonts\.(googleapis|gstatic)\.com/.test(u.host)) e.respondWith(caches.open(F).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ c.put(req,n.clone()); return n; }))));
@@ -113,7 +120,8 @@ ver=h(html+app+data+SW)
 open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver).replace('__NEXT__',",'./data-next.json'" if len(sets)>1 else ''))
 json.dump({"name":"Radio Calls AU","short_name":"Radio AU","start_url":"./","display":"standalone","orientation":"portrait",
   "background_color":"#0d1417","theme_color":"#0d1417",
-  "share_target":{"action":"./","method":"GET","params":{"title":"title","text":"text"}},   # Android: share a NAIPS briefing to the installed app
+  "share_target":{"action":"./share","method":"POST","enctype":"multipart/form-data",   # Android: share a NAIPS briefing (text or PDF) to the installed app
+                   "params":{"title":"title","text":"text","files":[{"name":"file","accept":["application/pdf",".pdf","text/plain",".txt"]}]}},
   "icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]},
   open(os.path.join(out,'manifest.webmanifest'),'w'))
 for sz in (192,512):

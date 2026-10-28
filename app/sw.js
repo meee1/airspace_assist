@@ -1,4 +1,4 @@
-const C='radio-au-53f5350ad5', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts';
+const C='radio-au-157be12bd6', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share';
 const CORE=['./','./index.html','./app.js','./data.json','./urban.json','./manifest.webmanifest','./icon-192.png','./icon-512.png','./data-next.json'];
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
@@ -14,10 +14,17 @@ async function precacheTerrain(){   // all SRTM tiles, a few at a time; safe to 
   }catch(e){}
 }
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
 self.addEventListener('message',e=>{ if(e.data==='precache') e.waitUntil(precacheTerrain()); });
 self.addEventListener('fetch',e=>{
   const req=e.request, u=new URL(req.url);
+  if(req.method==='POST'&&u.origin===location.origin&&/\/share$/.test(u.pathname)){   // Android share target: park the shared file/text, then open the app
+    e.respondWith((async()=>{ try{ const fd=await req.formData(), c=await caches.open(S), f=fd.get('file'), t=[fd.get('title'),fd.get('text')].filter(x=>typeof x==='string'&&x).join('\n');
+        if(f&&f.size) await c.put('share/file',new Response(f,{headers:{'content-type':f.type||'application/octet-stream','x-name':encodeURIComponent(f.name||'shared')}}));
+        else if(t) await c.put('share/text',new Response(t,{headers:{'content-type':'text/plain'}}));
+      }catch(err){}
+      return Response.redirect(new URL('./?shared=1',self.registration.scope).href,303); })());
+    return; }
   if(req.method!=='GET') return;
   if(u.origin!==location.origin){
     if(/fonts\.(googleapis|gstatic)\.com/.test(u.host)) e.respondWith(caches.open(F).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ c.put(req,n.clone()); return n; }))));
