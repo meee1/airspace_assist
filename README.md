@@ -223,10 +223,11 @@ The app is built for and tested on a **Google Pixel 9 Pro** (Chrome on Android);
 - **iPhone:** open the same link in Safari, tap Start, then Share → Add to Home Screen.
 
 **Offline:** after one load with signal, everything runs without a connection:
-- **What's stored:** the page, the app code (`app.js`), the ERSA/DAH data (`data.json` and `data-next.json`, about 2 MB each), the urban areas and suburb names (`urban.json`, about 1.8 MB), all the SRTM terrain tiles (about 650 KB) and the VTC/VNC chart tiles (about 12 MB). Terrain and charts are stored straight away, not only for places you've visited.
+- **What's stored:** the page, the app code (`app.js`, about 290 KB including the EGM96 geoid grid), the ERSA/DAH data (`data.json` and `data-next.json`, about 2 MB each), the urban areas and suburb names (`urban.json`, about 1.8 MB), all the SRTM terrain tiles (about 650 KB) and the VTC/VNC chart tiles (about 12 MB). Terrain and charts are stored straight away, not only for places you've visited.
 - **Needs nothing online:** GPS, compass, the map, charts, search, the elevation profile and flight plans.
 - **Check:** the footer says "Offline: app and AIP data stored, terrain 42/42 tiles — ready to fly without signal" once it's ready.
 - **Updates:** they land the next time you open the app with signal. The app waits up to 3 seconds for the network, then starts from the stored copy, so a weak signal in flight doesn't hold it up.
+- **Which version you have:** the footer starts with "App updated <date and time> (<how long ago>)", the time that version was built. If it's older than the last change you expect, close the app and open it again with signal.
 - **Not stored:** there are no NOTAMs or live weather, and there never were. Fonts fall back to the phone's own until they've been cached once.
 - **Terrain area:** the tiles currently cover 36–42°S, 140–148°E. Run `fetch_srtm.bat` with a bigger area for more.
 - **Compass in a cradle:** on Android the heading is worked out from the phone's full orientation, so it's right whether the phone lies flat (the top of the screen points ahead) or stands upright in a cradle (the back of the phone points ahead), in portrait or landscape. Compass alignment (above) takes out what's left of the cradle angle.
