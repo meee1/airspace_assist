@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793180862726;
+const APP_BUILT=1793215173262;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -231,7 +231,7 @@ function parseGPX(xml){
 }
 function fpSet(fp){ FP=fp; ls.set('fp',FP); if(FP) fpGo(); render(); }
 function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto-advance undo it
-  if(!FP) return; FP.i=Math.max(0,Math.min(FP.pts.length-1,i));
+  if(!FP) return; FP.dct=null; FP.i=Math.max(0,Math.min(FP.pts.length-1,i));
   const p=FP.pts[FP.i], d=st.pos&&p? distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0] : null;
   FP.man={i:FP.i, armed: d==null||d>=0.5, d0:d};   // if you're already on it, wait until you've moved 1 NM away
   ls.set('fp',FP); fpGo(); render();
@@ -243,6 +243,7 @@ function fpEdit(fn){ // change the point list, keeping the active waypoint where
   if(!FP) return; const cur=FP.pts[FP.i]; fn(FP.pts); FP.rev=(FP.rev||0)+1;
   if(!FP.pts.length){ FP_EDIT=false; fpSet(null); setGo(null); return; }
   let i=FP.pts.indexOf(cur); if(i<0) i=Math.min(FP.i,FP.pts.length-1);
+  if(FP.dct){ FP.i=i; ls.set('fp',FP); render(); return; }   // editing during a direct-to keeps it
   fpPick(i);
 }
 function fpBestSlot(p){ // where p adds the least distance to what's left of the route: index to insert at
@@ -259,7 +260,7 @@ function fpAdd(p,at){ // at: index, 'best' or undefined (end); starts a plan whe
   if(at==='next') fpPick(k);   // head for it now
   else if(atStart&&FP.pts.length>1) fpPick(1);   // the plan started where you are: head for the point just added
 }
-function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGo({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
+function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGoRaw({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
 function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-track remaining
   const [d13,b13]=distBrg(a.la,a.lo,la,lo), [,b12]=distBrg(a.la,a.lo,b.la,b.lo);
   const x=Math.asin(Math.sin(d13/NM)*Math.sin((b13-b12)*R))*NM; return x;
@@ -275,7 +276,7 @@ function fpLocal(o,p){ const c=Math.cos(o.la*R); return [(p.lo-o.lo)*c*60,(p.la-
 function fpLeg(k,pos){ const P_=FP.pts, a=P_[k-1], b=P_[k], [bx,by]=fpLocal(a,b), [px,py]=fpLocal(a,{la:pos[0],lo:pos[1]}), L=Math.hypot(bx,by)||1e-9;
   return {L, along:(px*bx+py*by)/L, xt:(px*by-py*bx)/L}; }   // xt + = right of course
 function fpAdvance(){
-  if(!FP||!st.pos) return; const P_=FP.pts, i=FP.i, p=P_[i]; if(!p) return;
+  if(!FP||!st.pos||FP.dct) return;   /* direct-to: the plan is paused */ const P_=FP.pts, i=FP.i, p=P_[i]; if(!p) return;
   const pos=st.pos, d=distBrg(pos[0],pos[1],p.la,p.lo)[0], last=P_.length-1;
   let man=FP.man&&FP.man.i===i? FP.man : null;
   if(man && !man.armed){ if(d>1){ man.armed=true; man.d0=d; ls.set('fp',FP); } return; }
@@ -484,7 +485,7 @@ const RPTS=new Map(); for(const a of DATA.ap){ const r=a.keys&&a.keys.rpts; if(r
 function fpAd(p){ if(!p) return null; const c=(p.c||p.n||'').toUpperCase();
   return DATA.ap.find(a=>a.i===c) || DATA.ap.find(a=>Math.abs(a.la-p.la)<0.01 && distBrg(a.la,a.lo,p.la,p.lo)[0]<0.5) || null; }
 function fpAerodrome(la,lo){
-  if(!FP||!FP.pts.length) return null;
+  if(!FP||!FP.pts.length||FP.dct) return null;
   const P_=FP.pts, i=FP.i, at=(a,why)=>{ const [d,b]=distBrg(la,lo,a.la,a.lo); return {a,d,b,why}; };
   let k=i, nx=null; for(;k<P_.length;k++){ nx=fpAd(P_[k]); if(nx) break; }
   if(nx){ const n=at(nx,'Flight plan · next aerodrome');
@@ -756,7 +757,7 @@ function renderFP(h,varE){
   $('fpAddRow').hidden=!FP_EDIT; $('fpNew').hidden=!!FP||FP_EDIT;
   { const r=$('fpAddRow'), w= FP? $('fpLegs') : $('fpBody'); if(r.nextElementSibling!==w) w.before(r); }   // with a plan, right above the waypoint list
   $('fpBody').hidden=!FP||$('fpToggle').getAttribute('aria-expanded')==='false'; $('fpImport').textContent=FP?'New GPX':'Import GPX';
-  if(!FP){ $('fpSum').textContent='none loaded'; return; }
+  if(!FP){ $('fpSum').textContent='none loaded'; $('fpDct').hidden=true; return; }
   if($('fpBody').hidden){ return; }   // collapsed: nothing below is visible, and the profile build is the dear part
   const P_=FP.pts, i=FP.i, nx=P_[i], here=st.pos;
   let dNext=null,bNext=null,rem=0;
@@ -764,7 +765,8 @@ function renderFP(h,varE){
   const gs=st.gs||0, ete=m=>gs>20&&m!=null? (m/gs*60<90? Math.round(m/gs*60)+' min' : (m/gs).toFixed(1)+' h') : '—';
   const xt = here&&i>0 ? xte(here[0],here[1],P_[i-1],nx) : null;
   const legT = i>0 ? fmt3(distBrg(P_[i-1].la,P_[i-1].lo,nx.la,nx.lo)[1]-varE) : null;
-  $('fpSum').textContent=`${FP.name} · ${i+1}/${P_.length}${nx?' → '+(nx.c||nx.n):''}`;
+  { const D=$('fpDct'); D.hidden=!FP.dct; if(FP.dct){ const w=P_[i]; D.innerHTML=`<span>Direct to <b>${esc(GO?GO.c:FP.dct.c)}</b>. Plan paused at ${i+1}/${P_.length}${w?' <b>'+esc(w.c||w.n)+'</b>':''}: waypoints won't sequence until you resume.</span><button class="btn" id="fpResume">Resume plan</button>`; } }
+  $('fpSum').textContent=FP.dct? `${FP.name} · paused: direct to ${GO?GO.c:FP.dct.c}` : `${FP.name} · ${i+1}/${P_.length}${nx?' → '+(nx.c||nx.n):''}`;
   $('fpNext').innerHTML=nx&&here?`<div><small>Next ${i+1}/${P_.length}</small><b>${esc(nx.c||nx.n)}</b></div><div><small>°M · NM</small><b>${fmt3(bNext-varE)} ${dNext<10?dNext.toFixed(1):Math.round(dNext)}</b></div><div><small>XTE</small><b>${xt==null?'—':Math.abs(xt).toFixed(1)+(Math.abs(xt)<0.05?'':xt>0?'R':'L')}</b></div><div><small>ETE</small><b>${ete(dNext)}</b></div><p class="fp-line">${legT?'Leg course '+legT+'°M · ':''}${rem<10?rem.toFixed(1):Math.round(rem)} NM to go${gs>20?' · total '+ete(rem):''}</p>`:'';
   profEnsure();
   const lpA=PROF&&PROF.legs&&i>0?PROF.legs[i]:null;
@@ -830,9 +832,18 @@ function renderGoTiles(here,curF,altFt){
     if(g.ad!==here){ renderCtl(g.ad,r.tp,r.open,r.ts,'gCtl'); $('gCtl').dataset.ad=g.ad.i; const s0=$('gCtl').querySelector('small'); if(s0) s0.textContent='→ '+s0.textContent; } else renderCtl(null,0,0,0,'gCtl'); }
   else { $('gCtafLbl').textContent='→ CTAF'; $('gCtaf').textContent='—'; $('gCtafAd').textContent=''; $('gCtafNx').textContent=`${GO.c} ${dd} NM · no aerodrome within 10 NM`; $('gCtafBox').hidden=false; renderCtl(null,0,0,0,'gCtl'); }
 }
-function setGo(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
+function setGo(p){
+  if(FP&&p&&p.k!=='FP'){ // GNSS-style direct-to
+    const P_=FP.pts, near=(q)=>(p.c&&(q.c||q.n||'').toUpperCase()===String(p.c).toUpperCase()&&distBrg(q.la,q.lo,p.la,p.lo)[0]<2)||distBrg(q.la,q.lo,p.la,p.lo)[0]<0.1;
+    let k=-1; for(let j=FP.i;j<P_.length;j++) if(near(P_[j])){ k=j; break; } if(k<0) k=P_.findIndex(near);
+    if(k>=0){ fpPick(k); return; }   // a waypoint of the plan: fly the plan from there
+    FP.dct={c:p.c,t:Date.now(),i:FP.i}; ls.set('fp',FP); }
+  else if(FP&&!p&&FP.dct){ fpResume(); return; }   // clearing a direct-to goes back to the plan
+  setGoRaw(p); }
+function fpResume(){ if(!FP) return; FP.dct=null; FP.man=null; ls.set('fp',FP); fpGo(); }   // back to the plan's active waypoint; normal sequencing (incl. catch-up) takes it on from there
+function setGoRaw(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
 function renderGo(h,varE){
-  $('goClr').hidden=!GO; $('goRes').hidden=!GO||!st.pos;
+  $('goClr').hidden=!GO||!!(FP&&FP.dct); $('goResume').hidden=!(FP&&FP.dct); $('goRes').hidden=!GO||!st.pos;
   if(!GO||!st.pos) return;
   const [d,b]=distBrg(st.pos[0],st.pos[1],GO.la,GO.lo);
   $('goName').textContent=GO.c; $('goSub').textContent=ptDesc(GO);
@@ -1384,7 +1395,8 @@ const unitShort=u=>titleCase(u||'').replace(/\s*\(E Frequency\)/i,' E').replace(
 const NX={key:'',ctaf:null,area:null};
 function nxPath(la,lo){
   const pts=[[la,lo]], MAX=80;
-  if(FP&&FP.pts[FP.i]){ for(let k=FP.i;k<FP.pts.length;k++) pts.push([FP.pts[k].la,FP.pts[k].lo]); }
+  if(FP&&FP.dct&&GO) pts.push([GO.la,GO.lo]);   // direct-to: straight to the point
+  else if(FP&&FP.pts[FP.i]){ for(let k=FP.i;k<FP.pts.length;k++) pts.push([FP.pts[k].la,FP.pts[k].lo]); }
   else if(st.trk!=null && st.gs>5){ const d=MAX/60*R, b=st.trk*R, p1=la*R, l1=lo*R;
     const p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(b));
     pts.push([p2/R,(l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(p1),Math.cos(d)-Math.sin(p1)*Math.sin(p2)))/R]); }
@@ -1459,7 +1471,7 @@ function render(){
   $('hdgLbl').textContent=h?h.src+' °M':'TRK';
   $('sHdg').textContent=h?fmt3(h.deg-varE):'—';
   { // planned heading: to the active flight plan waypoint, else the Go to point; turn shown against your track/heading
-    const fpT=FP&&FP.pts[FP.i], tg=fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO;
+    const fpT=FP&&!FP.dct&&FP.pts[FP.i], tg=fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO;
     if(tg){ const b=distBrg(la,lo,tg.la,tg.lo)[1]; $('sPlan').textContent=fmt3(b-varE);
       let turn=''; if(h){ const d=((b-h.deg+540)%360)-180; turn= Math.abs(d)<3? 'on track' : (d<0?'L ':'R ')+Math.round(Math.abs(d))+'°'; }
       $('sPlanTo').textContent='→ '+(tg.c||''); $('sPlanTurn').textContent=turn; $('sPlanTurn').classList.toggle('off', !!h && Math.abs(((b-h.deg+540)%360)-180)>=10); }
@@ -1741,6 +1753,8 @@ $('goIn').addEventListener('change',()=>{ if(GO&&$('goIn').value.trim().toUpperC
 suggest($('goIn'),$('goList'),p=>{ if(p.k==='AD') st.pin=p.c; setGo(p); $('goIn').blur(); });
 suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFixed(5)+', '+p.lo.toFixed(5) : p.c; simApply(); $('simPos').blur(); });
 $('goClr').onclick=()=>setGo(null);
+$('goResume').onclick=()=>fpResume();
+$('fpBody').addEventListener('click',e=>{ if(e.target.closest('#fpResume')) fpResume(); });
 $('goIn').addEventListener('focus',()=>setTimeout(()=>$('goBox').scrollIntoView({block:'start',behavior:'smooth'}),250));
 /* Mic for Go to. Uses the browser's speech recognition, on the phone when it can (processLocally, with the English
    pack downloaded once while online), else the online service when there's signal. Alternatives are tried in order and
@@ -2167,7 +2181,7 @@ function simStatus(){
 let flyTimer=null, flyLast=0;
 function flyStep(){
   const now=performance.now(), dt=(now-flyLast)/3600000; flyLast=now; // hours
-  if(FP && FP.pts[FP.i] && !st.simManual){ const p=FP.pts[FP.i], [dd,bb]=distBrg(st.pos[0],st.pos[1],p.la,p.lo); if(dd>0.05){ st.trk=bb; $('simTrk').value=fmt3(bb-variation(st.pos[0],st.pos[1])); } }
+  if(FP && FP.pts[FP.i] && !st.simManual){ const p=FP.dct&&GO? GO : FP.pts[FP.i], [dd,bb]=distBrg(st.pos[0],st.pos[1],p.la,p.lo); if(dd>0.05){ st.trk=bb; $('simTrk').value=fmt3(bb-variation(st.pos[0],st.pos[1])); } }
   if(st.trk==null||!st.gs) return;
   const d=st.gs*dt/60*R, b=st.trk*R, p1=st.pos[0]*R, l1=st.pos[1]*R; // d in radians of arc (NM/60 deg)
   const p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(b));

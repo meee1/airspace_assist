@@ -134,4 +134,3 @@ async function traffic(u,env,ctx,H){
   ctx.waitUntil(cache.put(key,res.clone()));
   return res;
 }
-export {norm, qline, coord, icaoParts};

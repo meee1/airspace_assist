@@ -68,6 +68,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.ctl span.off b{color:var(--dim);text-decoration:line-through}
 .st.gt{border-style:dashed;border-color:color-mix(in srgb,var(--wp) 70%,var(--rule))} .st.fq.gt>small:first-child{color:var(--wp)}
 .foot .upd{margin-bottom:6px}
+.fp-dct{display:flex;align-items:center;gap:8px;margin:6px 0;padding:7px 9px;border:1px dashed var(--wp);border-radius:8px;font-size:13px;background:color-mix(in srgb,var(--wp) 8%,var(--panel))} .fp-dct span{flex:1;min-width:0}
 .notams{margin:8px 0;border:1px solid var(--rule);border-left:4px solid var(--warn);border-radius:8px;padding:6px 9px;font-size:13px;background:color-mix(in srgb,var(--warn) 6%,var(--panel))}
 .notams>summary{cursor:pointer;font-weight:600} .notams .nt{border-top:1px solid var(--rule);padding:5px 0;line-height:1.35}
 .notams .nt:first-of-type{border-top:0} .notams .nt .h{font:600 11.5px var(--f-mono);color:var(--dim)} .notams .nt .h b{color:var(--ink)}
@@ -390,6 +391,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       <span class="lbl">Go to</span>
       <input id="goIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Name or code: CARR, Lilydale, Geelong, AV">
       <button class="btn mic" id="goMic" hidden aria-label="Say a place or code" title="Say a place, or spell a code in the phonetic alphabet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12Z"/></svg></button>
+      <button class="btn" id="goResume" hidden title="End the direct-to and fly the flight plan again">Resume plan</button>
       <button class="btn" id="goClr" hidden>Clear</button>
     </div>
     <div class="vnote" id="goMicMsg" hidden></div>
@@ -437,6 +439,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       <div class="err" id="fpAddErr" hidden></div>
     </div>
     <div id="fpBody" hidden>
+      <div class="fp-dct" id="fpDct" hidden></div>
       <div class="fp-next" id="fpNext"></div>
       <div class="fp-prof"><div class="prof-ctl"><span class="lbl">Profile top</span><button class="btn" id="profOut" aria-label="Show higher altitudes">−</button><span class="mono" id="profTop">auto</span><button class="btn" id="profIn" aria-label="Show lower altitudes in more detail">+</button><button class="btn" id="profAuto" hidden>Auto</button></div>
         <div class="prof-ctl"><span class="lbl">Buffer below C/D</span><select id="ctaBuf"><option value="500">500 ft</option><option value="300">300 ft</option><option value="200">200 ft</option><option value="100">100 ft</option></select></div><canvas id="fpProf" aria-label="Flight plan elevation profile: terrain and controlled airspace along the route"></canvas>
@@ -534,7 +537,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=039c3eb226';
+  const s=document.createElement('script'); s.src='app.js?v=fe993a15e4';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();
