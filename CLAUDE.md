@@ -1,14 +1,16 @@
 # CLAUDE.md — airspace_assist (Radio Calls AU)
 
-Phone web app for Australian VFR pilots, especially helicopters. Target phone: Google Pixel 9 Pro (Chrome on Android); iPhones work too. It shows:
+Phone and tablet web app for Australian VFR pilots, especially helicopters. Target phone: Google Pixel 9 Pro (Chrome on Android); iPhones work too; 8–10" Android tablets get a two-column (portrait) or fixed-map (landscape) layout. It shows:
 - the closest aerodrome (or the next one on the flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies
 - the aerodrome's runways (list plus a small to-scale diagram) and ERSA right-hand circuits
 - a radio call guide that switches between CTAF and Class D procedures, with a runway picker and ERSA reporting points (split towers follow your side and ERSA's reporting-point rules, e.g. Moorabbin via CARR on 123.0)
 - status tiles: GPS, TRK/HDG (compass auto-aligned to GPS track), PLAN (bearing and turn to the active waypoint), GS, ALT/AGL, CLASS (class here, cap, LL), and a second row with the CTAF of the closest aerodrome and the AREA (or ATC) frequency at your position, each with the expected next frequency and its distance; a row of the closest controlled aerodrome's ATIS/TWR/GND/APP; dashed Go to tiles with the CTAF/TWR and area/ATC frequency where you're heading; a red NEXT CLASS row when class A/C/D or a restricted area starts within 10 NM ahead at your altitude
 - the area frequency and the airspace stack for your position and altitude
-- an airspace map at the top of the page (pan, pinch zoom, track/north up) with a 10 NM lead line, SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs (CTAF, Terrain, Charts and Lead toggle)
-- Go to with fuzzy search, phonetic-alphabet decoding, a mic button and a press-and-hold map menu (place, lat/lon, and ERSA SUA details for any R/D areas there), and GPX flight plans (or plans built on the phone: add by search or from the map, reorder, replace, delete) with auto-sequencing, an elevation profile, suggested VFR altitudes and a flight log
-- all of it offline once loaded
+- an airspace map at the top of the page (pan, pinch zoom, track/north up) with a 10 NM lead line, SRTM terrain, a CTAF layer, a VTC/VNC chart underlay, runways, VFR waypoints, navaids, towns and suburbs (CTAF, Terrain, Charts, Lead and Log toggle; Traffic button), with NOTAM circles and ADS-B traffic
+- Go to with fuzzy search, phonetic-alphabet decoding, a mic button and a press-and-hold map menu (place, lat/lon, and ERSA SUA details for any R/D areas there), and GPX flight plans (or plans built on the phone: add by search or from the map, reorder, replace, delete) with auto-sequencing, direct-to with Resume plan, Save GPX, an elevation profile, suggested VFR altitudes and a flight log
+- NOTAMs (NAIPS briefing paste/share first, FAA NMS through the owner's Cloudflare Worker proxy) and ADS-B traffic (airplanes.live through the same proxy, TCAS-style display and alerts)
+- GPS altitude converted from the WGS84 ellipsoid to MSL with an EGM96 grid
+- all of it offline once loaded (live NOTAMs and traffic need signal)
 
 Live at https://meee1.github.io/airspace_assist/app/ (GitHub Pages, from `master`, repo `meee1/airspace_assist`).
 

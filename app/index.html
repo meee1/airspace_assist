@@ -270,7 +270,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .fp-legs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:210px;overflow:auto;font-size:13px}
 .fp-legs li{display:grid;grid-template-columns:22px 1fr auto auto 44px;gap:8px;align-items:baseline;padding:4px 6px;border-radius:5px;cursor:pointer}
 .fp-legs .alt{color:var(--wp);font-weight:600} .fp-legs .alt.k-conflict,.fp-legs .alt.k-nolevel,.fp-legs .alt.k-split{color:var(--warn)} .fp-legs .alt.k-low{color:var(--accent)}
-.fp-next .fp-alt b{display:inline;font:inherit;font-weight:700;margin:0;color:var(--wp)} .fp-alt .w{color:var(--warn)} .fp-alt .w b{color:var(--warn)}
+.fp-next .fp-alt b{display:inline;font:inherit;font-weight:700;margin:0;color:var(--wp);white-space:normal;overflow:visible} .fp-alt .w{color:var(--warn)} .fp-alt .w b{color:var(--warn)}
 .fp-legs li.done{color:var(--dim)} .fp-legs li.on{background:color-mix(in srgb,var(--wp) 18%,transparent)}
 .fp-legs .n{font:600 11px var(--f-mono);color:var(--dim)} .fp-legs .w b{font-family:var(--f-mono)} .fp-legs .w span{color:var(--dim);font-size:12px}
 .fp-legs .m{font:500 12px var(--f-mono);color:var(--dim);text-align:right}
@@ -561,7 +561,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=1b27f343b6';
+  const s=document.createElement('script'); s.src='app.js?v=f461110668';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();

@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793215985339;
+const APP_BUILT=1793216411320;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -580,7 +580,7 @@ function legAltNote(lp){
   if(lp.kind==='level') head=`Suggested <b>${f(lp.alt)}</b>`;
   else if(lp.kind==='low') head=`Suggested <b>${f(lp.alt)}</b> <span class="w">(no table level fits below the airspace; below 3,000 ft the table applies only when practicable)</span>`;
   else if(lp.kind==='nolevel') head=`<span class="w"><b>No VFR level fits</b> between ${f(lp.minA)} and ${f(lp.maxA)}: get a clearance or change the route</span>`;
-  else if(lp.kind==='conflict') head=`<span class="w"><b>At ${(lp.hard.q.x-lp.legStart).toFixed(1)} NM along the leg${lp.hard.q.u?' ('+esc(titleCase(lp.hard.q.u))+')':''} the minimum height ${f(lp.hard.q.need)} is above ${f(lp.hard.cap-CTA_BUF)} (${limTxt(lp.hard.cap)} base less buffer)</b>: get a clearance or change the route</span>`;
+  else if(lp.kind==='conflict') head=`<span class="w"><b>At ${(lp.hard.q.x-lp.legStart).toFixed(1)} NM along the leg${lp.hard.q.u?' ('+esc(titleCase(lp.hard.q.u))+')':''} the minimum height ${f(lp.hard.q.need)} is above ${lp.hard.cap<=0?'the class C/D/A airspace from the surface there':`${f(lp.hard.cap-CTA_BUF)} (${limTxt(lp.hard.cap)} base less buffer)`}</b>: get a clearance or change the route</span>`;
   else if(lp.kind==='split') head=`<span class="w"><b>No single altitude fits the whole leg</b>: ${f(lp.minA)} needed at ${(lp.needQ.x-lp.legStart).toFixed(1)} NM${lp.needQ.u?' ('+esc(titleCase(lp.needQ.u))+')':''}, but max ${f(lp.maxA)} under the ${limTxt(lp.base)} base at ${(lp.baseQ.x-lp.legStart).toFixed(1)} NM. Add a waypoint between them and change level there.</span>`;
   else head='Suggested level unavailable';
   const heli=$('cCat').value==='H';

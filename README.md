@@ -2,14 +2,18 @@
 
 **Open the app: https://meee1.github.io/airspace_assist/app/** (source: [`app/`](app/))
 
-Phone web app for VFR pilots (built with helicopters in mind):
+Phone and tablet web app for VFR pilots (built with helicopters in mind):
 - the closest aerodrome (or the next one on your flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies, runways and a radio call guide
 - the area frequency and airspace class for your position and altitude, with an alert when controlled or restricted airspace is within 10 NM ahead
 - an airspace map at the top of the screen (pan, pinch zoom, track or north up) with a 10 NM lead line ahead of you, terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
-- GPX flight plans with auto-advancing waypoints, an elevation profile and suggested VFR altitudes
+- GPX flight plans (or plans built and edited on the phone, saved back as GPX) with auto-advancing waypoints, direct-to and resume, an elevation profile and suggested VFR altitudes
+- the frequencies where you're going as well as where you are: CTAF/tower and area/ATC at the Go to point, tower hours at your ETA
+- NOTAMs from a pasted or shared NAIPS briefing, or live through your own proxy, on the aerodrome card, the map and along the route
+- ADS-B traffic through the same proxy, with TCAS-style symbols and spoken alerts (not TCAS)
+- a flight log you can show on the map or download as GPX
 - search and Go to for any aerodrome, waypoint, navaid, town or suburb, typed or spoken (mic button, phonetic alphabet), or by pressing and holding on the map, which also shows any restricted or danger areas there with their ERSA status, hours and contact
 
-It all runs offline once loaded. ERSA and the DAH are always the first source.
+It all runs offline once loaded (live NOTAMs and traffic need signal). ERSA and the DAH are always the first source. The layout adapts from phones to 10" tablets.
 
 ## Top bar
 Always visible at the top of the screen:
@@ -154,7 +158,7 @@ Tap **Import GPX** and pick a route exported from OzRunways, AvPlan or similar. 
 
 ## Navigation points
 - **Sources:** VFR waypoints (about 1,080) come from ERSA VFR-GEN. Navaids (VOR, NDB, DME, TACAN) come from DAH Section 21, with frequencies from the ERSA aerodrome entries. IFR waypoints (about 7,900) come from DAH Section 22 and are used for search and simulation only.
-- **Go to:** type a waypoint code, navaid ident, IFR waypoint or aerodrome code, or tap a point on the map. The bar shows bearing (°M), distance and an arrow, and the map draws a dotted line to it. It's remembered until you clear it.
+- **Go to:** type a waypoint code, navaid ident, IFR waypoint or aerodrome code, or tap a point on the map. The bar shows bearing (°M), distance and an arrow, and the map draws a dotted line to it. It's remembered until you clear it. With a flight plan loaded, a Go to you pick yourself is a direct-to that pauses the plan (see Flight plan → Direct to).
 - **Map:** at 20 NM and closer, VFR waypoints are drawn as purple VTC-style diamonds with their codes. Navaids are drawn as VOR hexagons (boxed for VOR/DME) and dotted NDB circles, with the frequency shown at 10 NM and closer.
 - **Radio calls:**
   - Position reports start with "over <waypoint>" when you're within 1.5 NM of a VFR waypoint, e.g. "over Carrum, 5 miles south".
@@ -214,6 +218,9 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - `terrain/`: the SRTM tiles
 - `charts/`: the VTC/VNC tiles and their index
 - `lib/pdfjs/`: pdf.js, used only when importing a chart PDF on the phone
+- `manifest.webmanifest`: install details, including the share target that takes a NAIPS briefing shared from another app
+
+`tools/` holds the build scripts (see Refresh data each AIRAC), `geoid.py` and `egm96_au.json` (the EGM96 geoid grid used to turn GPS altitude into height above mean sea level), `playthrough.js` and `fr24replay.js` (replay a plan or a recorded track through the app), and `notam-worker/`, the Cloudflare Worker proxy for NOTAMs and traffic with its own README.
 
 The loader fetches `data.json`, then starts `app.js`. A data-only update changes just `data.json` (and the version tags in `index.html` and `sw.js`), so the phone picks it up the next time it has signal.
 
@@ -296,7 +303,8 @@ The AIP always comes first. Every value in the app carries a source tag: green f
 2. **DAH:** all airspace (C, D, E, A, control zones, restricted and danger areas) with step limits, area (FIA) frequency boundaries, class E frequency boundaries and broadcast areas. Arcs and circles are computed from the published centres and radii. Boundaries that follow a coastline, river or road are drawn as straight lines between the published points.
 3. **AIP default:** an aerodrome not in ERSA gets CTAF 126.7, or the broadcast-area frequency if it sits inside one.
 4. **Fallbacks, tagged:** VATPAC names the controlling unit where ERSA has none, for example class A. OurAirports supplies strips that aren't in ERSA, and any frequency it disagrees on is shown as "OurAirports says …". XC Australia is only used if no DAH is loaded.
-5. **Other data:** terrain is NASA SRTM. Populous areas, towns and suburbs are the ABS Urban Centres and Localities and Suburbs and Localities 2021 (CC BY 4.0). The VTC/VNC charts are Airservices copyright.
+5. **NOTAMs and traffic:** a NAIPS briefing you paste in (Airservices) comes first; the proxy adds the FAA NOTAM Management Service's international NOTAMs and airplanes.live ADS-B. Both are for awareness: always get a NAIPS briefing before flight, and keep looking out.
+6. **Other data:** terrain is NASA SRTM, with the EGM96 geoid (NGA) for the altitude datum. Populous areas, towns and suburbs are the ABS Urban Centres and Localities and Suburbs and Localities 2021 (CC BY 4.0). The VTC/VNC charts are Airservices copyright.
 - Where ERSA lists several approach frequencies for a TMA (Sydney, for example), the app picks one by sector and lists the others.
-- GPS altitude is geometric, so near a step boundary go by the altimeter.
+- GPS altitude is geometric (converted to height above mean sea level on Android), so near a step boundary go by the altimeter.
 - This is not an authoritative source. Confirm against the current ERSA, charts and NOTAMs.
