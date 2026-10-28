@@ -61,6 +61,11 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.cls .cap+.cap{margin-top:2px}
 .st.nxcls{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;padding:6px 9px;font:600 12px/1.2 var(--f-mono)}
 .st.nxcls b{font:700 15px/1 var(--f-label);margin:0;display:inline} .st.nxcls small,.st.nxcls>b{flex:none} .st.nxcls span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.ctl{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 12px;padding:6px 9px;cursor:pointer}
+.st.ctl>small:first-child{flex:none;font:700 11px/1.2 var(--f-mono);letter-spacing:0;color:var(--ink)}
+.st.ctl span{white-space:nowrap;font:600 11px/1.2 var(--f-label);letter-spacing:.04em;color:var(--dim)}
+.st.ctl span b{display:inline;margin:0 0 0 4px;font:600 15px/1.2 var(--f-mono);color:var(--freq)} .st.ctl span i{font:600 11px var(--f-mono);font-style:normal;color:var(--dim);margin-left:1px}
+.st.ctl span.off b{color:var(--dim);text-decoration:line-through}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -240,6 +245,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .fp{background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--wp);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:8px}
 .fp-h{display:flex;align-items:center;gap:8px}
 .fp-h .btn{padding:6px 8px;font-size:11px;white-space:nowrap}
+.fp-add{margin:6px 0}.fp-add .go-row{display:flex;gap:6px;align-items:center}.fp-add input{flex:1;min-width:0}.fp-add select{max-width:118px}
+.fp-add .sugg{margin-top:4px}
 .fp-sum{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .fp-next{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .fp-next div{background:var(--bg);border-radius:6px;padding:5px 6px;min-width:0}
@@ -256,7 +263,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .fp-legs .m{font:500 12px var(--f-mono);color:var(--dim);text-align:right}
 .fp-legs.edit li{grid-template-columns:22px 1fr auto;align-items:center;cursor:default}.fp-legs.edit .m{display:none}
 .fp-legs .ed{display:none;gap:4px}.fp-legs.edit .ed{display:flex}.fp-legs .ed .btn{min-height:36px;min-width:40px;padding:4px 8px;font-size:14px}
-.fp-legs .ed .btn:disabled{opacity:.35}
+.fp-legs .ed .btn:disabled{opacity:.35} .fp-legs .ed .btn.on{background:var(--wp);color:#fff;border-color:var(--wp)}
+.fp-legs li.rep{outline:2px dashed var(--wp);outline-offset:-2px}
 #fpEdit[aria-pressed=true]{background:var(--wp);color:#fff;border-color:var(--wp)}
 .go{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:8px}
 .go-row{display:flex;align-items:center;gap:8px}
@@ -306,6 +314,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
     <div class="st fq" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
+    <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -398,10 +407,17 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
   <section class="fp" id="fpBox">
     <div class="fp-h">
       <button class="sim-toggle" id="fpToggle" aria-expanded="true" aria-controls="fpBody"><span class="lbl">Flight plan</span><span class="fp-sum mono" id="fpSum"></span><span class="fold-i" aria-hidden="true"></span></button>
+      <button class="btn" id="fpNew" title="Build a flight plan by searching for points">New plan</button>
       <label class="btn" for="fpFile" id="fpImport">Import GPX</label>
       <input type="file" id="fpFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
     </div>
     <div class="err" id="fpErr" hidden></div>
+    <div class="fp-add" id="fpAddRow" hidden>
+      <div class="go-row"><span class="lbl" id="fpAddLbl">Add</span><input id="fpAddIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Name or code: CARR, Lilydale, AV" aria-label="Add a waypoint: name or code">
+        <select id="fpAddAt" aria-label="Where to add it"><option value="end">at end</option><option value="best">best fit</option><option value="next">as next</option></select></div>
+      <ul class="sugg" id="fpAddList" hidden></ul>
+      <div class="err" id="fpAddErr" hidden></div>
+    </div>
     <div id="fpBody" hidden>
       <div class="fp-next" id="fpNext"></div>
       <div class="fp-prof"><div class="prof-ctl"><span class="lbl">Profile top</span><button class="btn" id="profOut" aria-label="Show higher altitudes">−</button><span class="mono" id="profTop">auto</span><button class="btn" id="profIn" aria-label="Show lower altitudes in more detail">+</button><button class="btn" id="profAuto" hidden>Auto</button></div>
@@ -409,7 +425,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
       <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
-      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Edit moves (▲ ▼) or deletes (✕) waypoints; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
+      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
 
@@ -484,7 +500,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=44091e7b5f';
+  const s=document.createElement('script'); s.src='app.js?v=889c5c4f53';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();

@@ -226,9 +226,9 @@ function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto
   FP.man={i:FP.i, armed: d==null||d>=0.5, d0:d};   // if you're already on it, wait until you've moved 1 NM away
   ls.set('fp',FP); fpGo(); render();
 }
-let FP_EDIT=false;
+let FP_EDIT=false, FP_REPL=null;   // FP_REPL: index of the waypoint the Add box will replace
 function fpPt(p){ // a flight plan point from a map or AIP point
-  return p.k==='USR'? {n:p.c,la:p.la,lo:p.lo,desc:p.n} : {n:p.c,c:p.c,la:p.la,lo:p.lo,desc:ptDesc(p)}; }
+  return p.k==='USR'? {n:p.c,la:p.la,lo:p.lo,desc:p.n} : p.k==='TOWN'? {n:p.n,la:p.la,lo:p.lo,desc:ptDesc(p)} : {n:p.c,c:p.c,la:p.la,lo:p.lo,desc:ptDesc(p)}; }
 function fpEdit(fn){ // change the point list, keeping the active waypoint where it went
   if(!FP) return; const cur=FP.pts[FP.i]; fn(FP.pts); FP.rev=(FP.rev||0)+1;
   if(!FP.pts.length){ FP_EDIT=false; fpSet(null); setGo(null); return; }
@@ -243,10 +243,11 @@ function fpBestSlot(p){ // where p adds the least distance to what's left of the
 function fpAdd(p,at){ // at: index, 'best' or undefined (end); starts a plan when there is none
   const q=fpPt(p);
   if(!FP){ $('fpToggle').setAttribute('aria-expanded','true'); fpSet({name:'Map plan',kind:'map',pts:[q],i:0,rev:1}); return; }
-  const k= at==='best'? fpBestSlot(q) : at==null? FP.pts.length : at;
+  const k= at==='best'? fpBestSlot(q) : at==='next'? FP.i : at==null||at==='end'? FP.pts.length : at;
   const atStart=FP.pts.length===1&&FP.i===0&&st.pos&&distBrg(st.pos[0],st.pos[1],FP.pts[0].la,FP.pts[0].lo)[0]<1;
   fpEdit(P_=>P_.splice(k,0,q));
-  if(atStart&&FP.pts.length>1) fpPick(1);   // the plan started where you are: head for the point just added
+  if(at==='next') fpPick(k);   // head for it now
+  else if(atStart&&FP.pts.length>1) fpPick(1);   // the plan started where you are: head for the point just added
 }
 function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGo({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
 function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-track remaining
@@ -574,6 +575,8 @@ $('profAuto').onclick=()=>{ PROF_TOP=null; ls.set('profTop',null); drawProf(); }
 $('fpProf').addEventListener('click',e=>{ if(!PROF) return; const cv=$('fpProf'), rc=cv.getBoundingClientRect(), l=34, r=8;
   const d=(e.clientX-rc.left-l)/(rc.width-l-r)*PROF.total; profSel = profSel!=null&&Math.abs(profSel-d)<PROF.total/80 ? null : Math.max(0,Math.min(PROF.total,d)); drawProf(); });
 function renderFP(h,varE){
+  $('fpAddRow').hidden=!FP_EDIT; $('fpNew').hidden=!!FP||FP_EDIT;
+  { const r=$('fpAddRow'), w= FP? $('fpLegs') : $('fpBody'); if(r.nextElementSibling!==w) w.before(r); }   // with a plan, right above the waypoint list
   $('fpBody').hidden=!FP||$('fpToggle').getAttribute('aria-expanded')==='false'; $('fpImport').textContent=FP?'New GPX':'Import GPX';
   if(!FP){ $('fpSum').textContent='none loaded'; return; }
   if($('fpBody').hidden){ return; }   // collapsed: nothing below is visible, and the profile build is the dear part
@@ -590,11 +593,28 @@ function renderFP(h,varE){
   if(lpA && $('fpNext').innerHTML) $('fpNext').insertAdjacentHTML('beforeend',`<p class="fp-line fp-alt">${legAltNote(lpA)}</p>`);
   drawProf();
   $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
-    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed"><button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
+    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed"><button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button><button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
+  if(FP_REPL!=null&&!P_[FP_REPL]) FP_REPL=null;
+  { const r=FP_REPL!=null&&FP_EDIT? P_[FP_REPL] : null; $('fpAddLbl').textContent=r?'Replace':'Add'; $('fpAddAt').hidden=!!r;
+    $('fpAddIn').placeholder=r? `Replace ${r.c||r.n} with: name or code` : 'Name or code: CARR, Lilydale, AV';
+    [...$('fpLegs').children].forEach((li,k)=>li.classList.toggle('rep',FP_EDIT&&k===FP_REPL)); }
   $('fpLegs').classList.toggle('edit',FP_EDIT); $('fpEdit').setAttribute('aria-pressed',FP_EDIT); $('fpEdit').textContent=FP_EDIT?'Done':'Edit';
 }
 
 
+function renderCtl(a,tp,open,ts){ // controlled aerodrome on screen: the other frequencies in one row under CTAF/AREA
+  const box=$('sCtl'), X=(a.x||[]).filter(x=>/^(TWR|GND|SMC|DEL|APP|DEP)$/.test(x[0]));
+  if(!X.some(x=>x[0]==='TWR'||x[0]==='APP')){ box.hidden=true; box.innerHTML=''; return; }
+  const items=[], seen=new Set(), add=(lbl,f,side,off)=>{ if(!f||seen.has(lbl+f)) return; seen.add(lbl+f); items.push({lbl,f,side,off}); };
+  if(a.a) add('ATIS',a.a[0]); else if(a.w) add('AWIS',a.w);
+  for(const k of ['TWR','GND','DEL','APP','DEP']) for(const x of X.filter(x=>(x[0]==='SMC'?'GND':x[0])===k)){
+    if(k==='DEP'&&items.some(i=>i.lbl==='DEP')) continue;   // one departures frequency is enough here
+    add(k,x[2],x[4]?x[4][0]:'',(k==='TWR'||k==='GND'||k==='DEL')&&!open); }
+  const closed=!open&&ts? ' · TWR closed' : '';
+  box.innerHTML=`<small>${esc(a.i)}${closed}</small>`+items.map(i=>`<span class="${i.off?'off':''}">${i.lbl}<b>${i.f}</b>${i.side?`<i>${i.side}</i>`:''}</span>`).join('');
+  box.hidden=false;
+}
+$('sCtl').onclick=()=>$('adCard').scrollIntoView({block:'start',behavior:'smooth'});
 function setGo(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
 function renderGo(h,varE){
   $('goClr').hidden=!GO; $('goRes').hidden=!GO||!st.pos;
@@ -1220,7 +1240,8 @@ function render(){
   { const tp=twrPick(a,pick), ts=tp?twrStatus(a):null, open=tp&&(ts?ts.on:true);   // hours unknown: assume the tower is active
     if(open){ const t=tp.tw; $('sCtafLbl').textContent=tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'; $('sCtaf').textContent=t[2]; $('sCtafAd').textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
     else { $('sCtafLbl').textContent='CTAF'; $('sCtaf').textContent=CI.f||'—'; $('sCtafAd').textContent=a.i; }
-    st.twrTile=open? {a,tp} : null; }
+    st.twrTile=open? {a,tp} : null;
+    renderCtl(a,tp,open,ts); }
   $('ctafRow').innerHTML=html; html='';
   renderRunways(a,pick,h);
   renderFP(h,varE);
@@ -1486,10 +1507,21 @@ $('fpClear').onclick=()=>{ FP_EDIT=false; fpSet(null); setGo(null); };
 $('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; const k=+li.dataset.k, a=e.target.closest('[data-a]');
   if(!FP_EDIT){ fpPick(k); return; } if(!a) return;
   const at=$('fpLegs').scrollTop;
-  if(a.dataset.a==='del') fpEdit(P_=>P_.splice(k,1));
-  else { const j=a.dataset.a==='up'?k-1:k+1; if(j<0||j>=FP.pts.length) return; fpEdit(P_=>{ [P_[k],P_[j]]=[P_[j],P_[k]]; }); }
+  if(a.dataset.a==='rep'){ FP_REPL=FP_REPL===k?null:k; render(); if(FP_REPL!=null){ $('fpAddIn').value=''; $('fpAddIn').focus(); } return; }
+  if(a.dataset.a==='del'){ if(FP_REPL!=null&&k<=FP_REPL) FP_REPL=k===FP_REPL?null:FP_REPL-1; fpEdit(P_=>P_.splice(k,1)); }
+  else { const j=a.dataset.a==='up'?k-1:k+1; if(j<0||j>=FP.pts.length) return; if(FP_REPL===k) FP_REPL=j; else if(FP_REPL===j) FP_REPL=k; fpEdit(P_=>{ [P_[k],P_[j]]=[P_[j],P_[k]]; }); }
   $('fpLegs').scrollTop=at; });
-$('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; render(); };
+$('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; FP_REPL=null; $('fpAddErr').hidden=true; render(); };
+$('fpNew').onclick=()=>{ FP_EDIT=true; render(); $('fpAddIn').focus(); };
+$('fpAddAt').value=ls.get('fpAddAt','end'); $('fpAddAt').onchange=()=>ls.set('fpAddAt',$('fpAddAt').value);
+function fpAddPick(p){
+  if(FP&&FP_REPL!=null&&FP.pts[FP_REPL]){ const k=FP_REPL, act=FP.i===k; FP_REPL=null; fpEdit(P_=>{ P_[k]=fpPt(p); }); if(act) fpPick(k); }   // replacing the active waypoint: head for its replacement
+  else fpAdd(p,$('fpAddAt').value);
+  $('fpAddIn').value=''; $('fpAddErr').hidden=true; $('fpAddIn').focus(); }   // stay in the box for the next point
+suggest($('fpAddIn'),$('fpAddList'),fpAddPick);
+$('fpAddIn').addEventListener('focus',()=>setTimeout(()=>$('fpAddRow').scrollIntoView({block:'start',behavior:'smooth'}),250));   // keep the list above the keyboard
+$('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preventDefault(); const v=$('fpAddIn').value.trim(); if(!v) return; const p=findPoint(v);
+  if(p) fpAddPick(p); else { $('fpAddErr').textContent=`${v.toUpperCase()} not found. Use a VFR waypoint code (CARR), navaid ident (AV), IFR waypoint, aerodrome code or a place name.`; $('fpAddErr').hidden=false; } });
 // tap the map to pick a waypoint, navaid or aerodrome as go-to
 // drag to pan (one finger or mouse); pinch with two fingers to zoom; a tap without movement still picks a point
 { const cv=$('map'); let drag=null, raf=0, pinch=null; const ptr=new Map();
@@ -1581,7 +1613,8 @@ function mapMenu(px,py){
   if(!FP) btn(`Start flight plan at ${fqN}`,()=>{ mapMenuClose(); fpAdd(fq); });
   else { const k=fpBestSlot(fpPt(fq)), P_=FP.pts;
     if(k<P_.length) btn(`Insert ${fqN} after ${P_[k-1].c||P_[k-1].n}`,()=>{ mapMenuClose(); fpAdd(fq,k); });
-    btn(`Add ${fqN} at end of plan`,()=>{ mapMenuClose(); fpAdd(fq); }); }
+    btn(`Add ${fqN} at end of plan`,()=>{ mapMenuClose(); fpAdd(fq); });
+    if(FP_EDIT&&FP_REPL!=null&&P_[FP_REPL]) btn(`Replace ${P_[FP_REPL].c||P_[FP_REPL].n} with ${fqN}`,()=>{ mapMenuClose(); fpAddPick(fq); }); }
   if(navigator.clipboard) btn('Copy lat/lon',()=>{ navigator.clipboard.writeText(ll).then(()=>{ B.lastChild.textContent='Copied'; },()=>{}); });
   $('mapMenu').hidden=false; drawMap(...MAP.last);
 
