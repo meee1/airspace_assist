@@ -66,6 +66,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.ctl span{white-space:nowrap;font:600 11px/1.2 var(--f-label);letter-spacing:.04em;color:var(--dim)}
 .st.ctl span b{display:inline;margin:0 0 0 4px;font:600 15px/1.2 var(--f-mono);color:var(--freq)} .st.ctl span i{font:600 11px var(--f-mono);font-style:normal;color:var(--dim);margin-left:1px}
 .st.ctl span.off b{color:var(--dim);text-decoration:line-through}
+.st.gt{border-style:dashed;border-color:color-mix(in srgb,var(--wp) 70%,var(--rule))} .st.fq.gt>small:first-child{color:var(--wp)}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -314,7 +315,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
     <div class="st fq" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
+    <div class="st fq gt" id="gCtafBox" hidden title="Go to: CTAF of the aerodrome at (or nearest within 10 NM of) the Go to point or flight plan waypoint; tower hours at your ETA"><small id="gCtafLbl">→ CTAF</small><b id="gCtaf">—</b><small id="gCtafAd" class="who"></small><small id="gCtafNx" class="nx"></small></div>
+    <div class="st fq gt" id="gAreaBox" hidden title="Go to: area or ATC frequency over the Go to point at your current altitude"><small id="gAreaLbl">→ AREA</small><b id="gArea">—</b><small id="gAreaWho" class="who"></small><small id="gAreaNx" class="nx"></small></div>
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
+    <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -1090,8 +1094,8 @@ function renderFP(h,varE){
 }
 
 
-function renderCtl(a,tp,open,ts){ // controlled aerodrome on screen: the other frequencies in one row under CTAF/AREA
-  const box=$('sCtl'), X=(a.x||[]).filter(x=>/^(TWR|GND|SMC|DEL|APP|DEP)$/.test(x[0]));
+function renderCtl(a,tp,open,ts,id='sCtl'){ // controlled aerodrome: the other frequencies in one row under CTAF/AREA
+  const box=$(id); if(!a){ box.hidden=true; box.innerHTML=''; return; } const X=(a.x||[]).filter(x=>/^(TWR|GND|SMC|DEL|APP|DEP)$/.test(x[0]));
   if(!X.some(x=>x[0]==='TWR'||x[0]==='APP')){ box.hidden=true; box.innerHTML=''; return; }
   const items=[], seen=new Set(), add=(lbl,f,side,off)=>{ if(!f||seen.has(lbl+f)) return; seen.add(lbl+f); items.push({lbl,f,side,off}); };
   if(a.a) add('ATIS',a.a[0]); else if(a.w) add('AWIS',a.w);
@@ -1103,6 +1107,41 @@ function renderCtl(a,tp,open,ts){ // controlled aerodrome on screen: the other f
   box.hidden=false;
 }
 $('sCtl').onclick=()=>$('adCard').scrollIntoView({block:'start',behavior:'smooth'});
+$('gCtl').onclick=()=>{ const i=$('gCtl').dataset.ad; if(i){ st.pin=i; render(); } $('adCard').scrollIntoView({block:'start',behavior:'smooth'}); };
+function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl', P+'CtafAd'); when: time for tower hours (ETA)
+  const CI=ctafInfo(a), tp=twrPick(a,pk), ts=tp?twrStatus(a,when||new Date()):null, open=tp&&(ts?ts.on:true), pre=P==='g'?'→ ':'';   // hours unknown: assume the tower is active
+  const L=$(P+'CtafLbl'), F=$(P+'Ctaf'), W=$(P+'CtafAd');
+  if(open&&tp.ground&&P==='s'){ L.textContent='GND'; F.textContent=tp.ground[2]; W.textContent=a.i+' · on the ground'; }
+  else if(open){ const t=tp.tw; L.textContent=pre+(tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'); F.textContent=t[2]; W.textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
+  else { L.textContent=pre+'CTAF'; F.textContent=CI.f||'—'; W.textContent=a.i; }
+  return {tp,ts,open,CI};
+}
+function goTarget(){ // the Go to point (flight plan waypoints set it too) and its aerodrome: the point itself, or the nearest within 10 NM
+  if(!GO||!st.pos) return null;
+  let ad=GO.k==='AD'? DATA.ap.find(x=>x.i===GO.c) : null, dA=0;
+  if(!ad){ for(const x of DATA.ap){ if(x.t==='H'&&!st.heli) continue; if(!st.all&&x.s!=='E'&&x.t!=='H') continue; if(Math.abs(x.la-GO.la)>0.17||Math.abs(x.lo-GO.lo)>0.22) continue;
+    const d=distBrg(GO.la,GO.lo,x.la,x.lo)[0]; if(d<=10&&(!ad||d<dA)){ ad=x; dA=d; } } }
+  const [d,b]=distBrg(st.pos[0],st.pos[1],GO.la,GO.lo); return {ad,dA,d,b}; }
+function renderGoTiles(here,curF,altFt){
+  const g=goTarget(), hide=()=>{ $('gCtafBox').hidden=$('gAreaBox').hidden=true; renderCtl(null,0,0,0,'gCtl'); };
+  if(!g||g.d<0.3){ hide(); return; }
+  const dd=g.d<10?g.d.toFixed(1):Math.round(g.d), eta=st.gs>20? new Date(Date.now()+g.d/st.gs*3600e3) : null;
+  // area/ATC over the Go to point at your altitude
+  const t=terrainFt(GO.la,GO.lo), AS=airStack(GO.la,GO.lo,t!=null?t:0), b=AS.bands.find(q=>altFt>=q.L-50&&altFt<q.H)||AS.bands[AS.bands.length-1];
+  const k=b?(b.k==='CTR'?b.ctrCls:b.k):null, gC=!b||k==='G'||k==='E'; let f=b&&b.f, who=b&&b.unit?unitShort(b.unit):'';
+  const sp=!gC&&f? splitTwr(f,st.pos[0],st.pos[1],GO.la,GO.lo) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
+  const same= g.ad&&here&&g.ad===here && f===curF;
+  if(same){ hide(); return; }   // already there: the top tiles say it
+  $('gAreaLbl').textContent='→ '+(gC?'AREA':'ATC'+(k?' '+k:'')); $('gArea').textContent=f||'—'; $('gAreaWho').textContent=who; $('gAreaNx').textContent=`over ${GO.c} at ${altFt>=0?Math.round(altFt/100)*100:0} ft`;
+  $('gArea').style.color=gC?'':'var(--as-'+(k==='A'?'c':String(k).toLowerCase())+')';
+  $('gAreaBox').hidden=false;
+  if(g.ad){ const [d2,b2]=distBrg(st.pos[0],st.pos[1],g.ad.la,g.ad.lo); const r=ctafTile(g.ad,{a:g.ad,d:d2,b:b2},'g',eta);
+    const ete=eta? (g.d/st.gs*60<90? Math.round(g.d/st.gs*60)+' min' : (g.d/st.gs).toFixed(1)+' h') : '';
+    $('gCtafNx').textContent=(g.ad.i!==GO.c? `${GO.c} ${dd} NM · ${g.ad.i} ${g.dA.toFixed(1)} NM from it` : `${dd} NM`+(ete?' · '+ete:''))+(r.ts&&eta&&r.tp&&twrStatus(g.ad).on!==r.ts.on?(r.ts.on?' · TWR open at ETA':' · TWR closed at ETA'):'');   // tower hours at your ETA
+    $('gCtafBox').hidden=false;
+    if(g.ad!==here){ renderCtl(g.ad,r.tp,r.open,r.ts,'gCtl'); $('gCtl').dataset.ad=g.ad.i; const s0=$('gCtl').querySelector('small'); if(s0) s0.textContent='→ '+s0.textContent; } else renderCtl(null,0,0,0,'gCtl'); }
+  else { $('gCtafLbl').textContent='→ CTAF'; $('gCtaf').textContent='—'; $('gCtafAd').textContent=''; $('gCtafNx').textContent=`${GO.c} ${dd} NM · no aerodrome within 10 NM`; $('gCtafBox').hidden=false; renderCtl(null,0,0,0,'gCtl'); }
+}
 function setGo(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
 function renderGo(h,varE){
   $('goClr').hidden=!GO; $('goRes').hidden=!GO||!st.pos;
@@ -1636,13 +1675,21 @@ function nxPath(la,lo){
     D+=L; }
   return out; }
 // class at your altitude at a point: band class (CTR -> its class) plus any restricted/danger area you'd be inside
+function splitTwr(f,la,lo,cla=la,clo=lo){ // la/lo: you (which side); cla/clo: where to look for the aerodrome // a split tower (East/West) whose frequencies include f: the one for your side of it
+  const T=st.twrTile; if(T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===f)) return T.tp.tw;   // the aerodrome on screen: its own rules (CARR etc.)
+  for(const a of DATA.ap){ if(Math.abs(a.la-cla)>0.5||Math.abs(a.lo-clo)>0.6) continue; const tw=(a.x||[]).filter(x=>x[0]==='TWR'); if(!tw.some(t=>t[4])||!tw.some(t=>t[2]===f)) continue;
+    const side=distBrg(a.la,a.lo,la,lo)[1]<180?'East':'West'; return tw.find(t=>t[4]===side)||null; }
+  return null; }
 function clsKey(b,prd){ const k=b?(b.k==='CTR'?b.ctrCls:b.k):'?'; return {k, prd:prd||null, key:k+(prd?'|'+prd.n:'')}; }
 const clsCol=k=>k==='G'?'var(--ink)':`var(--as-${k==='A'?'c':String(k).toLowerCase()})`;
 function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace ahead within 10 NM at your altitude
   const n=NX.cls, box=$('sNxCls'); if(!n){ box.hidden=true; box.innerHTML=''; return; }
   const R_=!!n.prd, tgt=R_? n.prd.n.split(' ')[0] : n.k, lim=R_? `${limTxt(n.prd.L)}–${n.prd.hik==='NOTAM'?'NOTAM':limTxt(n.prd.H)}` : n.b?`${limTxt(n.b.L)}–${limTxt(n.b.H)}`:'';
+  let f=n.b&&n.b.f, who=n.b&&n.b.unit?unitShort(n.b.unit):'';
+  const sp=!R_&&f&&st.pos? splitTwr(f,st.pos[0],st.pos[1]) : null;   // Moorabbin from the west: 123.0, as the tiles will say
+  if(sp){ f=sp[2]; who=unitShort(sp[1]||n.b.unit)+' '+sp[4][0]; }
   box.hidden=false;
-  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?' · restricted, check status':(n.b&&n.b.unit?' · '+esc(unitShort(n.b.unit)):'')+(n.b&&n.b.f?' '+n.b.f:'')+' · clearance'}</span>`; }
+  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?' · restricted, check status':(who?' · '+esc(who):'')+(f?' '+f:'')+' · clearance'}</span>`; }
 function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
   const key=[la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la+':'+(FP.rev||0):'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
   if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
@@ -1650,7 +1697,7 @@ function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
     if(path.length){
       let la0=90,la1=-90,lo0=360,lo1=-360; for(const [a,o] of path){ la0=Math.min(la0,a); la1=Math.max(la1,a); lo0=Math.min(lo0,o); lo1=Math.max(lo1,o); }
       const pad=10/60, padl=pad/Math.cos(la*R);
-      const ads=DATA.ap.filter(a=>a.s==='E' && a.t!=='H' && a.la>la0-pad&&a.la<la1+pad&&a.lo>lo0-padl&&a.lo<lo1+padl);
+      const ads=DATA.ap.filter(a=>(st.all||a.s==='E') && (a.t!=='H'||st.heli) && a.la>la0-pad&&a.la<la1+pad&&a.lo>lo0-padl&&a.lo<lo1+padl);
       for(const [pa,po,D] of path){
         if(!NX.ctaf){ let best=null; for(const a of ads){ if(Math.abs(a.la-pa)>0.17) continue; const d=distBrg(pa,po,a.la,a.lo)[0]; if(d<=10&&(!best||d<best.d)) best={a,d}; }
           if(best&&best.a!==adNow){ const f=ctafInfo(best.a).f; if(f&&f!==ctafNow) NX.ctaf={f,a:best.a,d:D}; } }
@@ -1725,11 +1772,9 @@ function render(){
   if(CI.other) csub+=`<br><span class="tag w">${CI.other.src} says ${CI.other.f}</span>`;
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
-  { const tp=twrPick(a,pick), ts=tp?twrStatus(a):null, open=tp&&(ts?ts.on:true);   // hours unknown: assume the tower is active
-    if(open){ const t=tp.tw; $('sCtafLbl').textContent=tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'; $('sCtaf').textContent=t[2]; $('sCtafAd').textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
-    else { $('sCtafLbl').textContent='CTAF'; $('sCtaf').textContent=CI.f||'—'; $('sCtafAd').textContent=a.i; }
-    st.twrTile=open? {a,tp} : null;
-    renderCtl(a,tp,open,ts); }
+  // top tiles: where you are (closest aerodrome), whatever the card below is showing (pinned, flight plan, Go to)
+  const herePk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0], here=herePk.a;
+  { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; renderCtl(here,r.tp,r.open,r.ts); }
   $('ctafRow').innerHTML=html; html='';
   renderRunways(a,pick,h);
   renderFP(h,varE);
@@ -1773,12 +1818,13 @@ function render(){
     if(above) sub+=`<br>Above ${limTxt(above.L)}: class ${above.k==='CTR'?above.ctrCls:above.k}${above.f?` <b class="mono">${above.f}</b>`:''}`;
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
-  nextFreqs(la,lo,altFt,CI.f,a,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
+  nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
     if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
     $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; if(spl) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); }
+  renderGoTiles(here,$('sArea').textContent,altFt);
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
   for(const p of AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H))
@@ -2145,7 +2191,16 @@ function twrPick(a,pick){
     const P=VWby.get(r.rp), dP=P&&st.pos? distBrg(st.pos[0],st.pos[1],P.la,P.lo)[0] : 99;
     const sec={N:0,E:90,S:180,W:270}[r.from], inSec= !onAd && sec!=null && Math.abs(((norm(pick.b+180)-sec)+540)%360-180)<=45;
     if((fpT&&(fpT.c||'').toUpperCase()===r.rp) || dP<3 || inSec){ const t=twrs.find(t=>t[2]===r.f); if(t){ tw=t; side=t[4]||side; via=r; break; } } }
-  return {twrs, side, tw, split: twrs.some(t=>t[4]), onAd, fpT, via}; }
+  // over the field with no waypoint to say which side: keep the side you arrived on for 3 min (the FR24 replay of
+  // 28 Oct showed "see ATIS" on short final at Moorabbin), else after take-off take it from your track
+  const M=(st.twrMem||{})[a.i], now=Date.now(), split=twrs.some(t=>t[4]);
+  if(split && !side){ if(M&&now-M.t<180e3){ side=M.side; tw=twrs.find(t=>t[2]===M.f)||tw; via=M.via; }
+    else if(st.trk!=null&&st.gs>30){ side=st.trk<180?'East':'West'; tw=twrs.find(t=>t[4]===side)||tw; } }
+  else if(split && side && !onAd) (st.twrMem=st.twrMem||{})[a.i]={side,f:tw[2],via,t:now};
+  // on the ground (slow and within 200 ft of the aerodrome): ground control, if ERSA lists one
+  const agl=st.alt!=null&&a.e!=null? st.alt-a.e : 0, gx=(a.x||[]).find(x=>x[0]==='GND'||x[0]==='SMC');
+  const ground= onAd && gx && (st.gs||0)<30 && agl<200 ? gx : null;
+  return {twrs, side, tw, split, onAd, fpT, via, ground}; }
 function twrRules(a){   // "[When RWY 17 or 35 in use,] ARR ... from the S ... report at CARR on 123.0" in the TWR evidence text
   if(a._twrRules) return a._twrRules; const out=[];
   for(const x of (a.x||[]).filter(x=>x[0]==='TWR'&&x[5])) for(const m of x[5].matchAll(/(?:When RWY ([0-9LRC]+(?:\s*(?:,|or|and)\s*[0-9LRC]+)*) in use,?\s*)?ARR[^/]*?from the ([NSEW])\b[^/]*?report at ([A-Z]{3,5}) on (\d{3}\.\d{1,3})/g))
@@ -2244,7 +2299,7 @@ function renderCalls(a,pick,varE){
     const tf=twSide[2];
     const twAll=twrs.map(t=>`${titleCase(t[1])}${t[4]?' '+t[4]:''} ${t[2]}`).join(' · ');
     const sideNote = twrs.some(t=>t[4]) && !sideNow ? ` You are on the aerodrome: ERSA ties ${twrs.map(t=>`${t[4]||'?'} ${t[2]}`).join(' and ')} to departures and arrivals on that side. The ATIS says which frequency is in use.`
-      : twrs.some(t=>t[4]) ? ` ${onAd?`Your next waypoint (${esc(fpT.c||fpT.n)}) is to the ${sideNow.toLowerCase()}`:`You are ${sideNow.toLowerCase()} of the aerodrome`}, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
+      : twrs.some(t=>t[4]) ? ` ${onAd&&fpT?`Your next waypoint (${esc(fpT.c||fpT.n)}) is to the ${sideNow.toLowerCase()}`:onAd?`Over the aerodrome: you came from, or are heading, ${sideNow.toLowerCase()}`:`You are ${sideNow.toLowerCase()} of the aerodrome`}, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
     const atisL = a.a?`<i>[ATIS letter]</i>`:'';
     const rptPts=(K.rpts||'').split(/,\s*|\s+or\s+/).map(x=>x.trim()).filter(Boolean).map(c=>VWby.get(c)||{c,n:c,missing:1});
     const nearR=rptPts.filter(p=>!p.missing).map(p=>({p,d:distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0]})).sort((x,y)=>x.d-y.d)[0];
