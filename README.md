@@ -245,6 +245,11 @@ The app is built for and tested on a **Google Pixel 9 Pro** (Chrome on Android);
 - **Pixel / Android:** open https://meee1.github.io/airspace_assist/app/ in Chrome and tap **Install app** (in the buttons under the map, or Chrome's ⋮ menu → Install app). Tap **Start GPS & compass** and allow location (keep **Precise** on). The installed app runs full screen and Android keeps its stored data.
 - **iPhone:** open the same link in Safari, tap Start, then Share → Add to Home Screen.
 
+**Tablets (8–10" Android):** the layout adapts to the screen.
+- **Portrait** (700 px wide or more, most 10" tablets): bigger tile text, a larger map, and Go to, the simulator and the flight plan beside the aerodrome card instead of under it.
+- **Landscape** (960 px wide or more): the map is fixed on the left at full height (58% of the width) and everything else scrolls on the right, with the top tiles kept at the top of that column.
+- **8" tablets in portrait** (about 600 px) get the phone layout at full width. Turning the tablet re-lays it out straight away.
+
 **Offline:** after one load with signal, everything runs without a connection:
 - **What's stored:** the page, the app code (`app.js`, about 290 KB including the EGM96 geoid grid), the ERSA/DAH data (`data.json` and `data-next.json`, about 2 MB each), the urban areas and suburb names (`urban.json`, about 1.8 MB), all the SRTM terrain tiles (about 650 KB) and the VTC/VNC chart tiles (about 12 MB). Terrain and charts are stored straight away, not only for places you've visited.
 - **Needs nothing online:** GPS, compass, the map, charts, search, the elevation profile and flight plans.

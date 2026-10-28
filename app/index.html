@@ -48,7 +48,7 @@ html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
   padding-top:env(safe-area-inset-top,0px);padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
   -webkit-text-size-adjust:100%}
-.wrap{max-width:560px;margin:0 auto;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px;padding-block:10px}
+.wrap{max-width:680px;margin:0 auto;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px;padding-block:10px}
 .lbl{font:600 12px/1 var(--f-label);letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
@@ -313,6 +313,28 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 @media (max-width:420px){.status{gap:4px}.st{padding:6px 5px}.st>small:first-child{letter-spacing:0}.st small.agl,.st.cls .cap{font-size:10px}.st.plan small.turn{font-size:10px}}
 @media (max-width:420px){.st{padding:6px 6px}.st b{font-size:15px}.st small{font-size:10px}}
 @media (prefers-reduced-motion:reduce){.arrow svg{transition:none}}
+/* ---- tablets and wide screens (8–10" Android: ~600–800 px wide in portrait, ~1000–1340 in landscape) ---- */
+.cola{display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (min-width:700px){
+  body{font-size:16px}
+  .wrap{max-width:1100px}
+  .st b{font-size:21px} .st.fq b{font-size:24px} .st small{font-size:12px} .st.cls b{font-size:23px}
+  .st.ctl span b{font-size:18px} .st.nxcls,.st.traffic{font-size:14.5px}
+  #map{height:min(58vh,92vw)}
+}
+/* portrait tablet: Go to / simulator / flight plan beside the aerodrome card */
+@media (min-width:700px) and (orientation:portrait){
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;row-gap:12px;align-items:start}
+  .wrap>*{grid-column:1/-1}
+  .wrap>#colA{grid-column:1} .wrap>#adCard{grid-column:2}
+}
+/* landscape tablet: map fixed on the left at full height, everything else scrolls on the right under a sticky top bar */
+@media (min-width:960px) and (orientation:landscape){
+  .wrap{max-width:none;margin:0 0 0 58vw;padding-left:14px;padding-right:max(14px,env(safe-area-inset-right,0px))}
+  #mapSec{position:fixed;left:0;top:0;bottom:0;width:58vw;box-sizing:border-box;border-radius:0;border-width:0 1px 0 0;overflow-y:auto;z-index:10}
+  #map{height:calc(100vh - 128px);height:calc(100dvh - 128px)}
+  .status{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-top:-6px}
+}
 </style>
 </head>
 <body>
@@ -386,6 +408,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     </div>
   </section>
 
+  <div class="cola" id="colA">
   <section class="go" id="goBox">
     <div class="go-row">
       <span class="lbl">Go to</span>
@@ -450,6 +473,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Save GPX downloads the plan as it is now, edits included. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
+  </div>
 
   <section class="ad" id="adCard">
     <div class="ad-head">
@@ -537,7 +561,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=fe993a15e4';
+  const s=document.createElement('script'); s.src='app.js?v=1b27f343b6';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();
