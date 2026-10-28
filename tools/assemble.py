@@ -113,6 +113,7 @@ ver=h(html+app+data+SW)
 open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver).replace('__NEXT__',",'./data-next.json'" if len(sets)>1 else ''))
 json.dump({"name":"Radio Calls AU","short_name":"Radio AU","start_url":"./","display":"standalone","orientation":"portrait",
   "background_color":"#0d1417","theme_color":"#0d1417",
+  "share_target":{"action":"./","method":"GET","params":{"title":"title","text":"text"}},   # Android: share a NAIPS briefing to the installed app
   "icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]},
   open(os.path.join(out,'manifest.webmanifest'),'w'))
 for sz in (192,512):

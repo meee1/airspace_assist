@@ -68,6 +68,16 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.ctl span.off b{color:var(--dim);text-decoration:line-through}
 .st.gt{border-style:dashed;border-color:color-mix(in srgb,var(--wp) 70%,var(--rule))} .st.fq.gt>small:first-child{color:var(--wp)}
 .foot .upd{margin-bottom:6px}
+.notams{margin:8px 0;border:1px solid var(--rule);border-left:4px solid var(--warn);border-radius:8px;padding:6px 9px;font-size:13px;background:color-mix(in srgb,var(--warn) 6%,var(--panel))}
+.notams>summary{cursor:pointer;font-weight:600} .notams .nt{border-top:1px solid var(--rule);padding:5px 0;line-height:1.35}
+.notams .nt:first-of-type{border-top:0} .notams .nt .h{font:600 11.5px var(--f-mono);color:var(--dim)} .notams .nt .h b{color:var(--ink)}
+.notams .nt .tx{white-space:pre-line} .notams .nt mark{background:none;color:var(--warn);font-weight:700} .notams .meta{color:var(--dim);font-size:11.5px;margin-top:4px}
+.notams .nt.fut{opacity:.75} .mapmenu .notams{margin-top:8px}
+.st.traffic{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;padding:6px 9px;font:600 13px/1.2 var(--f-mono);border-color:#e0a000;background:color-mix(in srgb,#ffb300 22%,var(--panel))}
+.st.traffic b{font:700 15px/1 var(--f-label);color:#b07800;margin:0;display:inline;flex:none} .st.traffic span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.mapctl #mapTraffic{font-size:12px}
+.ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -320,6 +330,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="st fq gt" id="gAreaBox" hidden title="Go to: area or ATC frequency over the Go to point at your current altitude"><small id="gAreaLbl">→ AREA</small><b id="gArea">—</b><small id="gAreaWho" class="who"></small><small id="gAreaNx" class="nx"></small></div>
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
+    <div class="st traffic" id="sTraffic" hidden role="alert"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -349,7 +360,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
         <span class="lbl mono" id="mapRng">10 NM</span>
         <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
-        <button class="btn" id="mapUp" style="margin-left:auto">Track up</button>
+        <button class="btn" id="mapTraffic" style="margin-left:auto" aria-pressed="false" title="ADS-B traffic from the internet through your proxy (about 5–10 s old): grey = other traffic, cyan = within 6 NM and ±1,200 ft, amber = within 2.5 NM and ±600 ft">Traffic</button>
+        <button class="btn" id="mapUp">Track up</button>
         <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
         <span class="brk"></span>
         <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies, 10 NM around each aerodrome, merged by frequency">CTAF</button>
@@ -430,6 +442,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="prof-ctl"><span class="lbl">Buffer below C/D</span><select id="ctaBuf"><option value="500">500 ft</option><option value="300">300 ft</option><option value="200">200 ft</option><option value="100">100 ft</option></select></div><canvas id="fpProf" aria-label="Flight plan elevation profile: terrain and controlled airspace along the route"></canvas>
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
+      <details class="notams" id="fpNotam" hidden></details>
       <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
       <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Save GPX downloads the plan as it is now, edits included. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
@@ -452,6 +465,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       <div class="rwlist" id="rwList"></div>
     </div>
     <div class="stack" id="ctafRow"></div>
+    <details class="notams" id="adNotam" hidden></details>
     <details class="calls" id="calls">
       <summary><span class="lbl">Radio calls</span><span class="calls-at" id="callsAt"></span></summary>
       <div class="calls-set">
@@ -488,6 +502,20 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <button class="btn" id="bInstall" hidden title="Install as an app: full screen, its own icon, and Android keeps its stored data">Install app</button>
   </div>
 
+  <details class="calls ntset" id="ntSet">
+    <summary><span class="lbl">Proxy: NOTAMs and traffic</span><span class="calls-at" id="ntSum">not set up</span></summary>
+    <label><span class="lbl">Proxy server</span><input id="ntUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://radio-au-notam.<you>.workers.dev"></label>
+    <div class="ctl"><button class="btn" id="ntFetch">Fetch now</button><button class="btn" id="ntClear">Clear stored NOTAMs</button></div>
+    <div class="vnote" id="ntStat"></div>
+    <label><span class="lbl">NAIPS briefing</span><textarea id="nbText" rows="4" spellcheck="false" placeholder="Paste a NAIPS location or area briefing here (or share it to the app)" style="font:500 12px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"></textarea></label>
+    <div class="ctl"><button class="btn" id="nbPaste">Paste from clipboard</button><button class="btn" id="nbLoad">Load briefing</button><button class="btn" id="nbClear">Clear briefing</button></div>
+    <div class="vnote" id="nbStat"></div>
+    <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="trVoice"> Speak traffic alerts</label>
+    <div class="vnote" id="trStat"></div>
+    <div class="vnote"><b>Traffic</b> (map button) is ADS-B from airplanes.live via the same proxy, refreshed every 5 s with signal. It shows only aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late and patchy at low level. It is not TCAS and not a collision-avoidance system: keep looking out.</div>
+    <div class="vnote">NOTAMs come from the FAA NOTAM Management Service through your own proxy (tools/notam-worker), fetched for 60 NM around you plus the aerodromes on your flight plan and Go to, about every 15 minutes while there's signal, and kept for use offline. They may be late or incomplete: <b>always get a NAIPS briefing before flight</b>.</div>
+  </details>
+
   <div class="foot" id="foot"></div>
 </div>
 
@@ -506,7 +534,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=e4027b45c8';
+  const s=document.createElement('script'); s.src='app.js?v=039c3eb226';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();

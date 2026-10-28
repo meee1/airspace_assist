@@ -216,6 +216,28 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 
 The loader fetches `data.json`, then starts `app.js`. A data-only update changes just `data.json` (and the version tags in `index.html` and `sw.js`), so the phone picks it up the next time it has signal.
 
+## NOTAMs
+Live NOTAMs (and ADS-B traffic, below) come through a small proxy you run yourself (a free Cloudflare Worker, `tools/notam-worker`), which asks the FAA NOTAM Management Service for them. The FAA service carries international NOTAMs, Australia's included. See `tools/notam-worker/README.md` to set it up (FAA credentials by email, then three `wrangler` commands), then paste its address into **Proxy: NOTAMs and traffic → Proxy server** at the bottom of the page.
+- **What's fetched:** NOTAMs within 60 NM of you, plus those for the aerodromes on your flight plan, the Go to aerodrome and the closest aerodrome. It refreshes about every 15 minutes while there's signal, sooner after you've moved 25 NM or added an aerodrome, and keeps the last answer for use offline.
+- **Where they show:**
+  - **CTAF and Go to tiles:** "YMMB · 2 NOTAM" when the aerodrome has active NOTAMs.
+  - **Aerodrome card:** a NOTAMs box (open by itself when something is closed or unserviceable), with key words such as CLSD, U/S, RWY, FREQ, ACT and PJE highlighted. Times are UTC with local time in brackets; NOTAMs starting within 24 hours are shown faded.
+  - **Map:** airspace and warning NOTAMs (restricted-area activations, parachuting, drone operations and similar) as dashed red circles from their Q line, labelled at 40 NM range and closer.
+  - **Press and hold on the map:** the NOTAMs whose circle covers that point, and for a restricted or danger area, any NOTAM that names it (e.g. "R330A ACT").
+  - **Flight plan:** NOTAMs along the route (within 1 NM of a leg) and for its aerodromes.
+- **NAIPS briefings:** copy a NAIPS location or area briefing (website or NAIPS app) and paste it into **NAIPS briefing** in the same section (or **Paste from clipboard**), or on Android share the text to the installed app. The app reads each NOTAM (location, number, replaces, FROM/TO with year rollover, EST, schedules such as HJ or DAILY 1800-0700, and the listed active periods), the limits (SFC TO 400FT AGL, 4000FT AMSL TO FL210), and positions (WI 3NM RADIUS OF ARP, WI 500M RADIUS OF PSN …, PSN of obstacles). Restricted and danger area NOTAMs (R352 PARTIAL ACT, R360D ACT) are tied to the area. NAIPS NOTAMs are shown first, marked NAIPS, and take precedence over the proxy's copy of the same NOTAM; the "no current NOTAM" list at the end shows as "none current" on those aerodromes' cards. The briefing is kept on the phone for offline use; after its validity time the app says to get a new one.
+- **Status:** the NOTAMs section shows how many are active, when they were fetched and for where, and any error.
+- **Limits:** this is for awareness only. Coverage and timeliness depend on the FAA's international feed; check it against NAIPS once, and **always get a NAIPS briefing before flight**.
+
+## Traffic (ADS-B)
+The **Traffic** button above the map (next to Track up) shows ADS-B traffic from airplanes.live, fetched through the same proxy every 5 seconds while there's signal. It's the TCAS-style display chosen on 27 Oct:
+- **Symbols:** grey hollow diamond = other traffic; cyan filled diamond = within 6 NM and ±1,200 ft; amber circle = within 2.5 NM and ±600 ft. The number is the height difference in hundreds of feet (+03 = 300 ft above), with ↑ or ↓ when it's climbing or descending more than 500 ft/min. Cyan and amber targets have a line showing where they'll be in a minute.
+- **Alert:** for the nearest amber target an amber **TRAFFIC** row appears under the top tiles, e.g. "11 o'clock 1.7 NM · 300 ft above · VH-VOZ C172", and the phone says "Traffic, 11 o'clock, 2 miles, 300 feet above" (once a minute per aircraft; switch it off with **Speak traffic alerts**).
+- **Heights:** from the target's GNSS altitude converted to mean sea level with the geoid, so it compares with your GPS altitude; pressure altitude when there's no GNSS altitude.
+- **You:** your own aircraft is left out by the registration matching the callsign in Radio calls (EAN → VH-EAN), or anything within 0.15 NM and 300 ft of you.
+- **Freshness:** positions are moved on along their track to now (up to 30 s). The corner of the map shows "ADS-B 3 · 2 s"; after 30 s without an update it says "stale", the symbols fade and there are no alerts.
+- **Limits:** internet ADS-B only shows aircraft transmitting ADS-B that a ground receiver hears, 5–10 s late, and coverage is patchy at low level. It is **not TCAS** and doesn't replace looking out or the radio.
+
 ## Install on your phone
 The app is built for and tested on a **Google Pixel 9 Pro** (Chrome on Android); iPhones work too.
 
