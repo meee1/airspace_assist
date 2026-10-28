@@ -938,7 +938,7 @@ function ntAllItems(){ const out=[], seen=new Set();
 function ntSrcTxt(){ const a=[]; if(NTN) a.push(`NAIPS ${esc(NTN.title.replace(/^.*Results For /,''))} issued ${new Date(NTN.issued).toISOString().slice(11,16).replace(':','')}Z ${new Date(NTN.issued).getUTCDate()}/${new Date(NTN.issued).getUTCMonth()+1}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(past its validity: get a new briefing)</span>':''}`);
   return a.join(' · '); }
 /* ---------- ADS-B traffic (via the proxy's /traffic: adsb.lol, adsb.fi fallback) ---------- */
-const TR={t:0, ac:[], err:null, busy:false, said:new Map()};
+const TR={t:0, ac:[], err:null, busy:false, said:new Map(), sel:null};   // sel: hex of the target tapped on the map
 const trVoiceOn=()=>ls.get('trVoice',true);
 function trOwnId(){ const v=(typeof decodeSpoken==='function'? decodeSpoken($('cSign').value||'') : $('cSign').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''); return v.replace(/^VH/,''); }
 async function trPoll(){
@@ -965,7 +965,7 @@ function trTargets(){
     if(mine||(d<0.15&&(dA==null||Math.abs(dA)<300))) continue;   // that's you
     const lvl= a.gnd||dA==null? 0 : d<=2.5&&Math.abs(dA)<=600? 3 : d<=6&&Math.abs(dA)<=1200? 2 : 1;
     const rel=h? ((b-h.deg)%360+360)%360 : null;
-    out.push({a,la,lo,d,b,dA,lvl,age,clock:rel==null?null:(Math.round(rel/30)%12||12)}); }
+    out.push({a,la,lo,d,b,alt,dA,lvl,age,clock:rel==null?null:(Math.round(rel/30)%12||12)}); }
   return out.sort((x,y)=>y.lvl-x.lvl||x.d-y.d); }
 function trAlert(T){
   const box=$('sTraffic'), fresh=TR.t&&Date.now()-TR.t<30e3, ta=MAP.traffic&&fresh? T.find(t=>t.lvl===3) : null;   // never alert on data over 30 s old
@@ -978,8 +978,13 @@ function trAlert(T){
 function drawTraffic(g,P,C,W,Hh,sc){
   const T=trTargets(), stale=TR.t? (Date.now()-TR.t)/1000 : null;
   g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='center';
+  MAP.trHits=[]; let selT=null, selXY=null;
   for(const t of [...T].reverse()){ const [x,y]=P(t.la,t.lo); if(x<-12||y<-12||x>W+12||y>Hh+12) continue;
     const col= t.lvl===3? '#f0a000' : t.lvl===2? '#00b8d9' : C.dim; g.globalAlpha= stale>30? .45 : 1;
+    MAP.trHits.push({x,y,hex:t.a.hex});
+    if(TR.sel&&t.a.hex===TR.sel){ selT=t; selXY=[x,y]; }
+    if(t.a.trk!=null&&!t.a.gnd){ const an=t.a.trk*R, [xa,ya]=P(t.la+0.05*Math.cos(an),t.lo+0.05*Math.sin(an)/Math.cos(t.la*R)), L=Math.hypot(xa-x,ya-y)||1;   // direction: a fixed 15 px stick along the track
+      t.ux=(xa-x)/L; t.uy=(ya-y)/L; g.strokeStyle=col; g.lineWidth=2; g.beginPath(); g.moveTo(x+t.ux*6,y+t.uy*6); g.lineTo(x+t.ux*15,y+t.uy*15); g.stroke(); }
     if(t.lvl>=2&&t.a.gs>30&&t.a.trk!=null){ const an=t.a.trk*R, s=t.a.gs/60/60, [x2,y2]=P(t.la+s*Math.cos(an),t.lo+s*Math.sin(an)/Math.cos(t.la*R)); g.strokeStyle=col; g.lineWidth=1.5; g.beginPath(); g.moveTo(x,y); g.lineTo(x2,y2); g.stroke(); }   // 1 min ahead
     g.lineWidth=2; g.strokeStyle=col; g.fillStyle=col;
     if(t.lvl===3){ g.beginPath(); g.arc(x,y,6,0,2*Math.PI); g.fill(); }
@@ -987,7 +992,31 @@ function drawTraffic(g,P,C,W,Hh,sc){
     if(t.dA!=null){ const v=Math.round(t.dA/100), txt=(v>0?'+':v<0?'−':'')+String(Math.abs(v)).padStart(2,'0')+(t.a.vs>500?'↑':t.a.vs<-500?'↓':''), ty= t.dA>0? y-10 : y+18;
       g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(txt,x,ty); g.fillStyle=col; g.fillText(txt,x,ty); }
     else if(t.a.gnd){ g.fillStyle=C.dim; g.fillText('GND',x,y+18); } }
-  g.globalAlpha=1; g.textAlign='left'; g.font='600 10.5px "IBM Plex Mono", monospace';
+  g.globalAlpha=1;
+  MAP.trBox=null;
+  if(selT){ const [x,y]=selXY, t=selT, a=t.a, col= t.lvl===3? '#f0a000' : t.lvl===2? '#00b8d9' : C.ink;   // tapped target: ring now, details box last (over the lead line and ownship)
+    g.strokeStyle=col; g.lineWidth=2; g.setLineDash([3,2]); g.beginPath(); g.arc(x,y,12,0,2*Math.PI); g.stroke(); g.setLineDash([]);
+    MAP.trBox=()=>{
+    const vr= st.pos? variation(st.pos[0],st.pos[1]) : 0, alt= a.gnd? 'GND' : t.alt!=null? `${Math.round(t.alt/100)*100} ft` : '— ft',
+      rel= t.dA!=null&&!a.gnd? ` (${t.dA>=0?'+':'−'}${Math.round(Math.abs(t.dA)/100)*100})` : '', vs= a.vs>300? ` ↑${Math.round(a.vs/100)*100}` : a.vs<-300? ` ↓${Math.round(-a.vs/100)*100}` : '';
+    const L=[ `${a.reg||a.flt||a.hex}${a.flt&&a.reg&&a.flt!==a.reg.replace('-','')?' '+a.flt:''}${a.type?' · '+a.type:''}`,
+      `${alt}${rel}${vs}`,
+      `${a.trk!=null?'→ '+fmt3(a.trk-vr)+'°M ':''}${a.gs!=null?Math.round(a.gs)+' kt':''}`.trim(),
+      `${t.d<10?t.d.toFixed(1):Math.round(t.d)} NM ${fmt3(t.b-vr)}°M${t.clock?' · '+t.clock+' o’clock':''} · ${Math.round(t.age)} s` ].filter(Boolean);
+    g.font='600 11px "IBM Plex Mono", monospace'; g.textAlign='left';
+    const w=Math.max(...L.map(l=>g.measureText(l).width))+12, hh=L.length*14+8;
+    // place the box beside the target: right, left, below or above, whichever stays on the map and clear of the
+    // target, its direction stick and your own position
+    const own= st.pos? P(st.pos[0],st.pos[1]) : null, stick= t.ux!=null? [x+t.ux*15,y+t.uy*15] : null;
+    const clampY=v=>Math.min(Math.max(4,v),Hh-hh-22), clampX=v=>Math.min(Math.max(4,v),W-w-4);
+    const C4=[[x+18,clampY(y-hh/2)],[x-18-w,clampY(y-hh/2)],[clampX(x-w/2),y+18],[clampX(x-w/2),y-18-hh]];
+    const inside=(bx,by,px,py,m)=>px>bx-m&&px<bx+w+m&&py>by-m&&py<by+hh+m;
+    const cost=([bx,by])=>(bx<4||by<4||bx+w>W-4||by+hh>Hh-20? 100:0)+(inside(bx,by,x,y,10)?50:0)+(stick&&inside(bx,by,stick[0],stick[1],2)?5:0)+(own&&inside(bx,by,own[0],own[1],14)?20:0);
+    let [bx,by]=C4.reduce((m,c)=>cost(c)<cost(m)?c:m,C4[0]); bx=clampX(bx); by=Math.min(Math.max(4,by),Hh-hh-22);
+    g.fillStyle=C.bg; g.globalAlpha=.92; g.fillRect(bx,by,w,hh); g.globalAlpha=1; g.strokeStyle=col; g.lineWidth=1.5; g.strokeRect(bx,by,w,hh);
+    L.forEach((l,i)=>{ g.fillStyle= i===0? col===C.ink? C.ink : col : C.ink; g.fillText(l,bx+6,by+16+i*14); }); g.textAlign='left'; }; }
+  else if(TR.sel&&TR.t&&Date.now()-TR.t<60e3&&!TR.ac.some(a=>a.hex===TR.sel)) TR.sel=null;   // gone from the feed
+  g.textAlign='left'; g.font='600 10.5px "IBM Plex Mono", monospace';
   const msg= TR.err&&(!TR.t||stale>30)? 'ADS-B: '+TR.err : !TR.t? 'ADS-B: waiting…' : stale>30? `ADS-B stale ${Math.round(stale)} s` : `ADS-B ${T.length} · ${Math.round(stale)} s`;
   g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(msg,8,Hh-8); g.fillStyle= stale>30||TR.err? C.R : C.dim; g.fillText(msg,8,Hh-8);
   return T; }
@@ -1839,7 +1868,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
       const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
   if(MAP.log) drawTrail(g,P,C,W,Hh);
-  { const T= MAP.traffic&&ntUrl()? drawTraffic(g,P,C,W,Hh,sc) : []; trAlert(T); }
+  { MAP.trHits=[]; MAP.trBox=null; const T= MAP.traffic&&ntUrl()? drawTraffic(g,P,C,W,Hh,sc) : []; trAlert(T); }
   // NOTAM areas (Q-line circles of airspace / warning NOTAMs: R area activations, PJE, UA ops, ...): dashed
   if(ntHave()&&MAP.range<=80){ const now=Date.now(); g.font='700 9.5px "IBM Plex Mono", monospace'; g.textAlign='center';
     for(const n of ntAllItems()){ if(n.r==null||n.la==null||n.r>60||n.r<0.3||/^Q(M|F|L|C|N|I|P|S|A)/.test(n.q||'')||!ntActive(n,now)) continue;
@@ -1861,6 +1890,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   { const hd=heading(); g.save(); g.translate(ox,oy); g.rotate(((hd?hd.deg:0)-rot)*R); }
   g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,4); g.lineTo(-7,8); g.closePath();
   g.fillStyle=C.fr; g.strokeStyle=C.bg; g.lineWidth=2; g.stroke(); g.fill(); g.restore();
+  if(MAP.traffic&&MAP.trBox) MAP.trBox();   // selected traffic details, on top
   // north pointer
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';
   g.beginPath(); g.moveTo(0,-11); g.lineTo(4,-3); g.lineTo(-4,-3); g.closePath(); g.fill(); g.fillText('N',0,8); g.restore();
@@ -2419,6 +2449,9 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
     if(d.moved){ render(); return; }
     if(!$('mapMenu').hidden){ mapMenuClose(); return; }   // a tap elsewhere closes the menu
     const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+    if(MAP.traffic){ let tb=null, td=24; for(const h of (MAP.trHits||[])){ const q=Math.hypot(h.x-x,h.y-y); if(q<td){ td=q; tb=h.hex; } }   // tap a traffic symbol: select / deselect it
+      if(tb){ TR.sel= TR.sel===tb? null : tb; if(MAP.last) drawMap(...MAP.last); return; }
+      if(TR.sel){ TR.sel=null; if(MAP.last) drawMap(...MAP.last); return; } }   // a tap elsewhere clears the selection
     let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
     if(best){ if(best.k==='AD') st.pin=best.c;   // tapping an aerodrome also selects it (card, frequencies, calls)
       setGo(best); } };
