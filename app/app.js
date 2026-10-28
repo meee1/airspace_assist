@@ -226,6 +226,28 @@ function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto
   FP.man={i:FP.i, armed: d==null||d>=0.5, d0:d};   // if you're already on it, wait until you've moved 1 NM away
   ls.set('fp',FP); fpGo(); render();
 }
+let FP_EDIT=false;
+function fpPt(p){ // a flight plan point from a map or AIP point
+  return p.k==='USR'? {n:p.c,la:p.la,lo:p.lo,desc:p.n} : {n:p.c,c:p.c,la:p.la,lo:p.lo,desc:ptDesc(p)}; }
+function fpEdit(fn){ // change the point list, keeping the active waypoint where it went
+  if(!FP) return; const cur=FP.pts[FP.i]; fn(FP.pts); FP.rev=(FP.rev||0)+1;
+  if(!FP.pts.length){ FP_EDIT=false; fpSet(null); setGo(null); return; }
+  let i=FP.pts.indexOf(cur); if(i<0) i=Math.min(FP.i,FP.pts.length-1);
+  fpPick(i);
+}
+function fpBestSlot(p){ // where p adds the least distance to what's left of the route: index to insert at
+  const P_=FP.pts, d=(a,b)=>distBrg(a.la,a.lo,b.la,b.lo)[0]; let best=P_.length, cost=d(P_[P_.length-1],p);
+  for(let k=Math.max(1,FP.i);k<P_.length;k++){ const c=d(P_[k-1],p)+d(p,P_[k])-d(P_[k-1],P_[k]); if(c<cost){ cost=c; best=k; } }
+  return best;
+}
+function fpAdd(p,at){ // at: index, 'best' or undefined (end); starts a plan when there is none
+  const q=fpPt(p);
+  if(!FP){ $('fpToggle').setAttribute('aria-expanded','true'); fpSet({name:'Map plan',kind:'map',pts:[q],i:0,rev:1}); return; }
+  const k= at==='best'? fpBestSlot(q) : at==null? FP.pts.length : at;
+  const atStart=FP.pts.length===1&&FP.i===0&&st.pos&&distBrg(st.pos[0],st.pos[1],FP.pts[0].la,FP.pts[0].lo)[0]<1;
+  fpEdit(P_=>P_.splice(k,0,q));
+  if(atStart&&FP.pts.length>1) fpPick(1);   // the plan started where you are: head for the point just added
+}
 function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGo({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
 function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-track remaining
   const [d13,b13]=distBrg(a.la,a.lo,la,lo), [,b12]=distBrg(a.la,a.lo,b.la,b.lo);
@@ -568,7 +590,8 @@ function renderFP(h,varE){
   if(lpA && $('fpNext').innerHTML) $('fpNext').insertAdjacentHTML('beforeend',`<p class="fp-line fp-alt">${legAltNote(lpA)}</p>`);
   drawProf();
   $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
-    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span></li>`; }).join('');
+    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed"><button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
+  $('fpLegs').classList.toggle('edit',FP_EDIT); $('fpEdit').setAttribute('aria-pressed',FP_EDIT); $('fpEdit').textContent=FP_EDIT?'Done':'Edit';
 }
 
 
@@ -1113,7 +1136,7 @@ function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace 
   box.hidden=false;
   box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?' · restricted, check status':(n.b&&n.b.unit?' · '+esc(unitShort(n.b.unit)):'')+(n.b&&n.b.f?' '+n.b.f:'')+' · clearance'}</span>`; }
 function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
-  const key=[la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la:'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
+  const key=[la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la+':'+(FP.rev||0):'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
   if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
     const path=nxPath(la,lo);
     if(path.length){
@@ -1458,9 +1481,15 @@ $('fpPrev').onclick=()=>{ if(FP&&FP.i>0) fpPick(FP.i-1); };
 $('fpSkip').onclick=()=>{ if(FP&&FP.i<FP.pts.length-1) fpPick(FP.i+1); };
 $('fpLog').onclick=()=>{ ls.set('tlog',TLOG.pts); const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx()],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
-$('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); fpPick(Math.min(1,FP.pts.length-1)); };
-$('fpClear').onclick=()=>{ fpSet(null); setGo(null); };
-$('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; fpPick(+li.dataset.k); });
+$('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
+$('fpClear').onclick=()=>{ FP_EDIT=false; fpSet(null); setGo(null); };
+$('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; const k=+li.dataset.k, a=e.target.closest('[data-a]');
+  if(!FP_EDIT){ fpPick(k); return; } if(!a) return;
+  const at=$('fpLegs').scrollTop;
+  if(a.dataset.a==='del') fpEdit(P_=>P_.splice(k,1));
+  else { const j=a.dataset.a==='up'?k-1:k+1; if(j<0||j>=FP.pts.length) return; fpEdit(P_=>{ [P_[k],P_[j]]=[P_[j],P_[k]]; }); }
+  $('fpLegs').scrollTop=at; });
+$('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; render(); };
 // tap the map to pick a waypoint, navaid or aerodrome as go-to
 // drag to pan (one finger or mouse); pinch with two fingers to zoom; a tap without movement still picks a point
 { const cv=$('map'); let drag=null, raf=0, pinch=null; const ptr=new Map();
@@ -1548,6 +1577,11 @@ function mapMenu(px,py){
   const btn=(txt,fn,primary)=>{ const b=document.createElement('button'); b.className='btn'+(primary?' primary':''); b.textContent=txt; b.onclick=fn; B.appendChild(b); };
   btn('Go to this point',()=>{ mapMenuClose(); setGo(goPt); },true);
   if(near) btn(`Go to ${near.p.c} (${near.d.toFixed(1)} NM)`,()=>{ mapMenuClose(); if(near.p.k==='AD') st.pin=near.p.c; setGo(near.p); });
+  const fq=near&&near.d<=0.3? near.p : goPt, fqN=fq.c;   // on top of a waypoint/aerodrome: add that, not a bare position
+  if(!FP) btn(`Start flight plan at ${fqN}`,()=>{ mapMenuClose(); fpAdd(fq); });
+  else { const k=fpBestSlot(fpPt(fq)), P_=FP.pts;
+    if(k<P_.length) btn(`Insert ${fqN} after ${P_[k-1].c||P_[k-1].n}`,()=>{ mapMenuClose(); fpAdd(fq,k); });
+    btn(`Add ${fqN} at end of plan`,()=>{ mapMenuClose(); fpAdd(fq); }); }
   if(navigator.clipboard) btn('Copy lat/lon',()=>{ navigator.clipboard.writeText(ll).then(()=>{ B.lastChild.textContent='Copied'; },()=>{}); });
   $('mapMenu').hidden=false; drawMap(...MAP.last);
 

@@ -254,6 +254,10 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .fp-legs li.done{color:var(--dim)} .fp-legs li.on{background:color-mix(in srgb,var(--wp) 18%,transparent)}
 .fp-legs .n{font:600 11px var(--f-mono);color:var(--dim)} .fp-legs .w b{font-family:var(--f-mono)} .fp-legs .w span{color:var(--dim);font-size:12px}
 .fp-legs .m{font:500 12px var(--f-mono);color:var(--dim);text-align:right}
+.fp-legs.edit li{grid-template-columns:22px 1fr auto;align-items:center;cursor:default}.fp-legs.edit .m{display:none}
+.fp-legs .ed{display:none;gap:4px}.fp-legs.edit .ed{display:flex}.fp-legs .ed .btn{min-height:36px;min-width:40px;padding:4px 8px;font-size:14px}
+.fp-legs .ed .btn:disabled{opacity:.35}
+#fpEdit[aria-pressed=true]{background:var(--wp);color:#fff;border-color:var(--wp)}
 .go{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:8px}
 .go-row{display:flex;align-items:center;gap:8px}
 .go-row input{flex:1;min-width:0;font:500 15px/1.2 var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);text-transform:uppercase}
@@ -404,8 +408,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <div class="prof-ctl"><span class="lbl">Buffer below C/D</span><select id="ctaBuf"><option value="500">500 ft</option><option value="300">300 ft</option><option value="200">200 ft</option><option value="100">100 ft</option></select></div><canvas id="fpProf" aria-label="Flight plan elevation profile: terrain and controlled airspace along the route"></canvas>
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
-      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
-      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route.</div>
+      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
+      <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Edit moves (▲ ▼) or deletes (✕) waypoints; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
 
@@ -480,7 +484,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=7f02979ba4';
+  const s=document.createElement('script'); s.src='app.js?v=44091e7b5f';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();
