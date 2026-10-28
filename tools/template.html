@@ -222,6 +222,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapsec .mapwrap{border-top:0} .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
 #map{width:100%;height:min(94vw,56vh,520px);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.maphint{font-size:10px;line-height:1.15;color:var(--dim);min-width:0;flex:0 1 auto;margin-left:-2px}
+.mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
 .mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
@@ -230,6 +232,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapctl #mapRng{min-width:52px;text-align:center}
 .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--dim)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
+#mapLeg span[data-leg]{cursor:pointer;user-select:none;padding:2px 4px;margin:-2px -4px;border-radius:5px} #mapLeg span[data-leg]:hover{background:var(--rule)}
+#mapLeg span.off{opacity:.4;text-decoration:line-through}
 .sw{display:inline-block;width:16px;height:0;border-top:2px solid}
 .sw.dash{border-top-style:dashed} .sw.dot{border-top-style:dotted}
 .c-C,.c-A{color:var(--as-c);border-color:var(--as-c)} .c-D{color:var(--as-d);border-color:var(--as-d)} .c-E{color:var(--as-e);border-color:var(--as-e)}
@@ -243,7 +247,11 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .prof-ctl{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:4px} .prof-ctl .lbl{margin-right:auto} .prof-ctl .btn{padding:4px 9px;font-size:13px;min-width:30px} .prof-ctl select{font:500 13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
 .prof-ctl .mono{font-size:12px;min-width:52px;text-align:center}
 .chartbox{margin-top:8px;border-top:1px solid var(--rule);padding-top:6px} .chartbox summary{display:flex;gap:8px;align-items:center;cursor:pointer;list-style:none} .chartbox summary .mono{margin-left:auto;font-size:11px;color:var(--dim)}
-.chart-body{display:flex;flex-direction:column;gap:8px;padding-top:8px} .chart-op{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-left:auto} .chart-op input{width:110px}
+.chart-body{display:flex;flex-direction:column;gap:8px;padding-top:8px}
+.mapwrap{position:relative}
+#chartBox[open]>.chart-body{position:absolute;left:10px;right:10px;top:10px;z-index:40;background:var(--panel);border:1px solid var(--rule);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.28);padding:12px;max-height:min(75vh,560px);overflow:auto}
+.chart-head{display:flex;align-items:center;gap:8px} .chart-head b{font-size:14px} .chart-head .btn{margin-left:auto;padding:4px 10px}
+#chartBox[open]>summary{color:var(--accent)} .chart-op{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-left:auto} .chart-op input{width:110px}
 .chart-prog{font-size:12px;color:var(--accent)} .chart-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
 .chart-list li{display:flex;gap:8px;align-items:center} .chart-list li span{flex:1} .chart-list li .btn{padding:3px 8px;font-size:11px}
 #fpProf{width:100%;height:180px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation;cursor:crosshair}
@@ -332,7 +340,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 @media (min-width:960px) and (orientation:landscape){
   .wrap{max-width:none;margin:0 0 0 58vw;padding-left:14px;padding-right:max(14px,env(safe-area-inset-right,0px))}
   #mapSec{position:fixed;left:0;top:0;bottom:0;width:58vw;box-sizing:border-box;border-radius:0;border-width:0 1px 0 0;overflow-y:auto;z-index:10}
-  #map{height:calc(100vh - 128px);height:calc(100dvh - 128px)}
+  #mapSec:not([hidden]){display:flex;flex-direction:column} #mapSec .mapwrap{flex:1 1 auto;min-height:0}
+  #mapSec .mapbox{flex:1 1 auto;min-height:260px} #map{position:absolute;inset:0;height:100%}   /* the map takes what the buttons and legends leave, so nothing needs scrolling */
   .status{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-top:-6px}
 }
 </style>
@@ -383,6 +392,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
         <span class="lbl mono" id="mapRng">10 NM</span>
         <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
+        <span class="maphint" id="mapHint" title="Press and hold (or right-click) anywhere on the map: what's there (town, R/D areas, NOTAMs, terrain), Go to, and add it to the flight plan">Hold map<br>for menu</span>
         <button class="btn" id="mapTraffic" style="margin-left:auto" aria-pressed="false" title="ADS-B traffic from the internet through your proxy (about 5–10 s old): grey = other traffic, cyan = within 6 NM and ±1,200 ft, amber = within 2.5 NM and ±600 ft">Traffic</button>
         <button class="btn" id="mapUp">Track up</button>
         <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
@@ -396,7 +406,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <details class="chartbox" id="chartBox">
         <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
-        <div class="chart-body">
+        <div class="chart-body" role="dialog" aria-label="Chart underlay">
+          <div class="chart-head"><b>Chart underlay</b><button class="btn" id="chartClose" aria-label="Close">✕</button></div>
           <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
             <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
           <div class="chart-prog" id="chartProg" hidden></div>
@@ -404,7 +415,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
           <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
         </div>
       </details>
-      <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
+      <div class="legend" id="mapLeg" title="Tap an item to show or hide it on the map"><span data-leg="C"><i class="sw c-C"></i>C</span><span data-leg="D"><i class="sw c-D dash"></i>D / CTR</span><span data-leg="E"><i class="sw c-E"></i>E</span><span data-leg="R"><i class="sw c-R"></i>R</span><span data-leg="Q"><i class="sw c-Q dash"></i>Danger</span><span data-leg="FIA"><i class="sw c-FIA dot"></i>Area freq boundary</span><span data-leg="VFR"><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" data-leg="TER" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
     </div>
   </section>
 
@@ -1367,6 +1378,11 @@ function goTarget(){ // the Go to point (flight plan waypoints set it too) and i
   if(!ad){ for(const x of DATA.ap){ if(x.t==='H'&&!st.heli) continue; if(!st.all&&x.s!=='E'&&x.t!=='H') continue; if(Math.abs(x.la-GO.la)>0.17||Math.abs(x.lo-GO.lo)>0.22) continue;
     const d=distBrg(GO.la,GO.lo,x.la,x.lo)[0]; if(d<=10&&(!ad||d<dA)){ ad=x; dA=d; } } }
   const [d,b]=distBrg(st.pos[0],st.pos[1],GO.la,GO.lo); return {ad,dA,d,b}; }
+// more than one area (class G/E) frequency stacked over this point: say which band yours is ("LL A045")
+function areaLL(AS,b){ if(!AS||!b||!(b.k==='G'||b.k==='E')||!b.f) return '';
+  const A=AS.bands.filter(q=>(q.k==='G'||q.k==='E')&&q.f), fs=new Set(A.map(q=>q.f)); if(fs.size<2) return '';
+  const L=Math.min(...A.filter(q=>q.f===b.f).map(q=>q.L));   // where this frequency starts (135.3: G from A085, then E above)
+  return 'LL '+(L<=0?'SFC':limTxt(L)); }
 function renderGoTiles(here,curF,altFt){
   const g=goTarget(), hide=()=>{ $('gCtafBox').hidden=$('gAreaBox').hidden=true; renderCtl(null,0,0,0,'gCtl'); };
   if(!g||g.d<0.3){ hide(); return; }
@@ -1377,7 +1393,7 @@ function renderGoTiles(here,curF,altFt){
   const sp=!gC&&f? splitTwr(f,st.pos[0],st.pos[1],GO.la,GO.lo) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
   const same= g.ad&&here&&g.ad===here && f===curF;
   if(same){ hide(); return; }   // already there: the top tiles say it
-  $('gAreaLbl').textContent='→ '+(gC?'AREA':'ATC'+(k?' '+k:'')); $('gArea').textContent=f||'—'; $('gAreaWho').textContent=who; $('gAreaNx').textContent=`over ${GO.c} at ${altFt>=0?Math.round(altFt/100)*100:0} ft`;
+  $('gAreaLbl').textContent='→ '+(gC?'AREA':'ATC'+(k?' '+k:'')); $('gArea').textContent=f||'—'; { const ll=areaLL(AS,b); $('gAreaWho').textContent=who+(ll?(who?' · ':'')+ll:''); } $('gAreaNx').textContent=`over ${GO.c} at ${altFt>=0?Math.round(altFt/100)*100:0} ft`;
   $('gArea').style.color=gC?'':'var(--as-'+(k==='A'?'c':String(k).toLowerCase())+')';
   $('gAreaBox').hidden=false;
   if(g.ad){ const [d2,b2]=distBrg(st.pos[0],st.pos[1],g.ad.la,g.ad.lo); const r=ctafTile(g.ad,{a:g.ad,d:d2,b:b2},'g',eta);
@@ -1463,7 +1479,7 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
+const MAP={hide:new Set(ls.get('mapHide',[])), range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
@@ -1638,6 +1654,11 @@ $('chartFile').addEventListener('change',e=>{ const fs=[...e.target.files]; e.ta
 $('chartList').addEventListener('click',async e=>{ const b=e.target.closest('[data-del]'); if(!b) return; const sh=b.dataset.del;
   const dir=sh+'-local', c=await caches.open(CH_CACHE); for(const k of (await c.keys())) if(new URL(k.url).pathname.includes('/charts/'+dir+'/')) await c.delete(k);
   CH.local=CH.local.filter(s=>s.sheet!==sh); for(const k of [...CH.imgs.keys()]) if(k.startsWith(dir+'/')) CH.imgs.delete(k); await chartIndexSave(); chartUI(); render(); chartsPrecache(); });
+if(window.ResizeObserver){ let rz=0; new ResizeObserver(()=>{ if(rz) return; rz=requestAnimationFrame(()=>{ rz=0; if(MAP.last) drawMap(...MAP.last); }); }).observe($('map')); }
+$('chartClose').onclick=()=>{ $('chartBox').open=false; };
+$('map').addEventListener('pointerdown',()=>{ if($('chartBox').open) $('chartBox').open=false; });   // the pop-up sits over the map: touching the map closes it
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('chartBox').open) $('chartBox').open=false; });
+$('chartBox').addEventListener('toggle',()=>{ if($('chartBox').open) $('mapSec').scrollIntoView({block:'nearest'}); });
 $('chartOp').addEventListener('input',()=>{ CH.op=+$('chartOp').value; ls.set('chartOp',CH.op); if(MAP.last) drawMap(...MAP.last); });
 $('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; $('chartBox').scrollIntoView({block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
 if(window.caches) chartIndexLoad();
@@ -1744,7 +1765,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
   }
   $('ctafLeg').hidden=!MAP.ctaf;
   const ceil=Math.max(12500, altFt+5000);
-  const vis=ASP.filter(x=>bbHit(x.bb) && x.k!=='EF' && x.k!=='A' && (x.k==='FIA' || (x.lok==='AGL'?x.lo:(x.lo||0))<ceil) && !((x.k==='R'||x.k==='Q') && (x.lo||0)>=10000));
+  const LEGK={C:'C',A:'C',D:'D',CTR:'D',E:'E',R:'R',P:'R',Q:'Q',FIA:'FIA'};   // legend item that hides each class
+  const vis=ASP.filter(x=>bbHit(x.bb) && !MAP.hide.has(LEGK[x.k]) && x.k!=='EF' && x.k!=='A' && (x.k==='FIA' || (x.lok==='AGL'?x.lo:(x.lo||0))<ceil) && !((x.k==='R'||x.k==='Q') && (x.lo||0)>=10000));
   const order={FIA:0,E:1,C:2,A:2,D:3,CTR:4,Q:5,R:6};
   vis.sort((a,b)=>order[a.k]-order[b.k]);
   const labels=[[ox-16,oy-16,32,32],[W-34,2,32,32]], drawL=[];
@@ -1768,7 +1790,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
     const cl=clipRect(sp,W,Hh); if(cl.length<3) continue;
     const c=polyCentroid(cl); if(!c||c[2]<900) continue;
     let lines;
-    if(x.k==='FIA'){ if(!x.f) continue; lines=[x.f]; }
+    if(x.k==='FIA'){ if(!x.f) continue; const stacked=(x.lo||0)>0||(x.hik==='AMSL'&&x.hi!=null);   // another area frequency above or below: say where this one starts
+      lines=[x.f+(stacked?' '+((x.lo||0)<=0?'SFC':limTxt(x.lo)):'')]; }
     else{
       const gnd=0, top=x.hik==='NOTAM'?'NOTAM':x.hik==='BCTA'?'BCTA':limTxt(limFt(x.hi,x.hik,gnd,0)), bot=x.lok==='AGL'?x.lo+' AGL':x.lok==='NOTAM'?'NOTAM':limTxt(limFt(x.lo,x.lok,gnd,0));
       const cls=x.k==='CTR'?((x.n.match(/\(([A-Z])\)/)||[])[1]||'D'):x.k==='Q'?'D':x.k;
@@ -1836,7 +1859,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   if(MAP.range<=20){
     const wpC=cssv('--wp');
     g.font='600 9.5px "IBM Plex Mono", monospace'; g.textAlign='left';
-    for(const p of VW){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue;
+    for(const p of (MAP.hide.has('VFR')?[]:VW)){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue;
       const [x,y]=P(p.la,p.lo); if(x<-8||y<-8||x>W+8||y>Hh+8) continue; MAP.hits.push({x,y,p});
       const go=GO&&GO.c===p.c;
       g.save(); g.translate(x,y); g.rotate(Math.PI/4); g.fillStyle=go?C.acc:wpC; g.fillRect(-4,-4,8,8); g.fillStyle=C.bg; g.fillRect(-1.6,-1.6,3.2,3.2); g.restore();
@@ -1853,7 +1876,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   if(!chartsShown && MAP.range<=20){ g.font='italic 500 10.5px '+cssv('--f-body'); g.fillStyle=C.dim; g.textAlign='center';
     const tb=labels.slice(); tb.push([ox-14,oy-14,28,28]); { const rx=ox+MAP.range*sc*0.707+3, ry=oy-MAP.range*sc*0.707; tb.push([rx,ry-11,52,14]); }   // + the range ring label     // keep clear of airspace labels, you, and aerodrome codes
     for(const ad of DATA.ap){ if(ad.t==='H'&&!st.heli) continue; if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue; const [x,y]=P(ad.la,ad.lo); tb.push([x-5,y-8,44,14]); }
-    for(const p of VW){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue; const [x,y]=P(p.la,p.lo); tb.push([x-7,y-12,48,22]); }
+    for(const p of (MAP.hide.has('VFR')?[]:VW)){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue; const [x,y]=P(p.la,p.lo); tb.push([x-7,y-12,48,22]); }
     for(const t of TOWNS){ if(t.t==='L'&&MAP.range>10||t.t==='S'&&MAP.range>5) continue; if(Math.abs(t.la-la)>reach||Math.abs(t.lo-lo)>reach/cosl) continue;
       const [x0,y0]=P(t.la,t.lo); if(x0<0||y0<8||x0>W||y0>Hh) continue; const w=g.measureText(t.n).width;
       for(const [dx,dy] of [[0,0],[0,14],[0,-14],[w/2+12,0],[-w/2-12,0]]){ const x=x0+dx, y=y0+dy, bx=[x-w/2-2,y-9,w+4,12];
@@ -2116,7 +2139,7 @@ function render(){
     const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
     if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
-    $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; if(spl) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); }
+    { const ll=areaLL(AS,cur), u=cur? unitShort(cur.unit) : ''; $('sAreaWho').textContent=u+(ll?(u?' · ':'')+ll:''); } if(spl) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); }
   renderGoTiles(here,$('sArea').textContent,altFt);
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
@@ -2276,7 +2299,16 @@ $('mapOut').onclick=()=>{ MAP.range=RANGES.find(r=>r>MAP.range+0.01)||RANGES[RAN
 const rngTxt=r=>(r<10? (Math.round(r*10)/10) : Math.round(r))+' NM';
 $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf); render(); };
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
-$('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); render(); };
+$('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); legUI(); render(); };
+// legend: tap an item to show / hide that layer (terrain is the same switch as the Terrain button)
+function legUI(){ for(const el of document.querySelectorAll('#mapLeg [data-leg]')){ const k=el.dataset.leg, on= k==='TER'? MAP.ter : !MAP.hide.has(k);
+  el.classList.toggle('off',!on); el.setAttribute('role','button'); el.tabIndex=0; el.setAttribute('aria-pressed',on); } }
+const legTap=e=>{ const el=e.target.closest('[data-leg]'); if(!el) return; const k=el.dataset.leg;
+  if(k==='TER'){ $('mapTer').click(); return; }
+  if(MAP.hide.has(k)) MAP.hide.delete(k); else MAP.hide.add(k); ls.set('mapHide',[...MAP.hide]); legUI(); render(); };
+$('mapLeg').addEventListener('click',legTap);
+$('mapLeg').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); legTap(e); } });
+legUI();
 $('mapTer').setAttribute('aria-pressed',MAP.ter);
 $('mapLead').onclick=()=>{ MAP.lead=!MAP.lead; ls.set('mapLead',MAP.lead); $('mapLead').setAttribute('aria-pressed',MAP.lead); render(); };
 $('mapLead').setAttribute('aria-pressed',MAP.lead);
@@ -2465,6 +2497,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
     clearTimeout(wheelT); wheelT=setTimeout(()=>{ ls.set('mapRange',MAP.range); render(); },250); },{passive:false});
   $('mapHome').onclick=()=>{ MAP.pan=null; render(); };
   $('mmClose').onclick=mapMenuClose;
+  if(matchMedia('(pointer:fine)').matches&&!matchMedia('(any-pointer:coarse)').matches) $('mapHint').innerHTML='Right-click map<br>for menu';   // mouse: right-click; touch: press and hold
 }
 /* Press and hold on the map: what's there and a go-to for that point.
    Name: the nearest town, locality or suburb (ABS), "St Andrews" when within 1.5 NM, else "2.3 NM NE of St Andrews".
@@ -2510,6 +2543,7 @@ function mapMenu(px,py){
   const B=$('mmBtns'); B.innerHTML='';
   const btn=(txt,fn,primary)=>{ const b=document.createElement('button'); b.className='btn'+(primary?' primary':''); b.textContent=txt; b.onclick=fn; B.appendChild(b); };
   btn('Go to this point',()=>{ mapMenuClose(); setGo(goPt); },true);
+  if(st.sim) btn('Move simulator here',()=>{ mapMenuClose(); $('simPos').value=la.toFixed(5)+', '+lo.toFixed(5); MAP.pan=null; simApply(); });   // keeps the sim's altitude, track and speed
   if(near) btn(`Go to ${near.p.c} (${near.d.toFixed(1)} NM)`,()=>{ mapMenuClose(); if(near.p.k==='AD') st.pin=near.p.c; setGo(near.p); });
   const fq=near&&near.d<=0.3? near.p : goPt, fqN=fq.c;   // on top of a waypoint/aerodrome: add that, not a bare position
   if(!FP) btn(`Start flight plan at ${fqN}`,()=>{ mapMenuClose(); fpAdd(fq); });

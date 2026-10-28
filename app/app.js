@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793229945838;
+const APP_BUILT=1793230534603;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -816,6 +816,11 @@ function goTarget(){ // the Go to point (flight plan waypoints set it too) and i
   if(!ad){ for(const x of DATA.ap){ if(x.t==='H'&&!st.heli) continue; if(!st.all&&x.s!=='E'&&x.t!=='H') continue; if(Math.abs(x.la-GO.la)>0.17||Math.abs(x.lo-GO.lo)>0.22) continue;
     const d=distBrg(GO.la,GO.lo,x.la,x.lo)[0]; if(d<=10&&(!ad||d<dA)){ ad=x; dA=d; } } }
   const [d,b]=distBrg(st.pos[0],st.pos[1],GO.la,GO.lo); return {ad,dA,d,b}; }
+// more than one area (class G/E) frequency stacked over this point: say which band yours is ("LL A045")
+function areaLL(AS,b){ if(!AS||!b||!(b.k==='G'||b.k==='E')||!b.f) return '';
+  const A=AS.bands.filter(q=>(q.k==='G'||q.k==='E')&&q.f), fs=new Set(A.map(q=>q.f)); if(fs.size<2) return '';
+  const L=Math.min(...A.filter(q=>q.f===b.f).map(q=>q.L));   // where this frequency starts (135.3: G from A085, then E above)
+  return 'LL '+(L<=0?'SFC':limTxt(L)); }
 function renderGoTiles(here,curF,altFt){
   const g=goTarget(), hide=()=>{ $('gCtafBox').hidden=$('gAreaBox').hidden=true; renderCtl(null,0,0,0,'gCtl'); };
   if(!g||g.d<0.3){ hide(); return; }
@@ -826,7 +831,7 @@ function renderGoTiles(here,curF,altFt){
   const sp=!gC&&f? splitTwr(f,st.pos[0],st.pos[1],GO.la,GO.lo) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
   const same= g.ad&&here&&g.ad===here && f===curF;
   if(same){ hide(); return; }   // already there: the top tiles say it
-  $('gAreaLbl').textContent='→ '+(gC?'AREA':'ATC'+(k?' '+k:'')); $('gArea').textContent=f||'—'; $('gAreaWho').textContent=who; $('gAreaNx').textContent=`over ${GO.c} at ${altFt>=0?Math.round(altFt/100)*100:0} ft`;
+  $('gAreaLbl').textContent='→ '+(gC?'AREA':'ATC'+(k?' '+k:'')); $('gArea').textContent=f||'—'; { const ll=areaLL(AS,b); $('gAreaWho').textContent=who+(ll?(who?' · ':'')+ll:''); } $('gAreaNx').textContent=`over ${GO.c} at ${altFt>=0?Math.round(altFt/100)*100:0} ft`;
   $('gArea').style.color=gC?'':'var(--as-'+(k==='A'?'c':String(k).toLowerCase())+')';
   $('gAreaBox').hidden=false;
   if(g.ad){ const [d2,b2]=distBrg(st.pos[0],st.pos[1],g.ad.la,g.ad.lo); const r=ctafTile(g.ad,{a:g.ad,d:d2,b:b2},'g',eta);
@@ -912,7 +917,7 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
+const MAP={hide:new Set(ls.get('mapHide',[])), range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
@@ -1087,6 +1092,11 @@ $('chartFile').addEventListener('change',e=>{ const fs=[...e.target.files]; e.ta
 $('chartList').addEventListener('click',async e=>{ const b=e.target.closest('[data-del]'); if(!b) return; const sh=b.dataset.del;
   const dir=sh+'-local', c=await caches.open(CH_CACHE); for(const k of (await c.keys())) if(new URL(k.url).pathname.includes('/charts/'+dir+'/')) await c.delete(k);
   CH.local=CH.local.filter(s=>s.sheet!==sh); for(const k of [...CH.imgs.keys()]) if(k.startsWith(dir+'/')) CH.imgs.delete(k); await chartIndexSave(); chartUI(); render(); chartsPrecache(); });
+if(window.ResizeObserver){ let rz=0; new ResizeObserver(()=>{ if(rz) return; rz=requestAnimationFrame(()=>{ rz=0; if(MAP.last) drawMap(...MAP.last); }); }).observe($('map')); }
+$('chartClose').onclick=()=>{ $('chartBox').open=false; };
+$('map').addEventListener('pointerdown',()=>{ if($('chartBox').open) $('chartBox').open=false; });   // the pop-up sits over the map: touching the map closes it
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('chartBox').open) $('chartBox').open=false; });
+$('chartBox').addEventListener('toggle',()=>{ if($('chartBox').open) $('mapSec').scrollIntoView({block:'nearest'}); });
 $('chartOp').addEventListener('input',()=>{ CH.op=+$('chartOp').value; ls.set('chartOp',CH.op); if(MAP.last) drawMap(...MAP.last); });
 $('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; $('chartBox').scrollIntoView({block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
 if(window.caches) chartIndexLoad();
@@ -1193,7 +1203,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
   }
   $('ctafLeg').hidden=!MAP.ctaf;
   const ceil=Math.max(12500, altFt+5000);
-  const vis=ASP.filter(x=>bbHit(x.bb) && x.k!=='EF' && x.k!=='A' && (x.k==='FIA' || (x.lok==='AGL'?x.lo:(x.lo||0))<ceil) && !((x.k==='R'||x.k==='Q') && (x.lo||0)>=10000));
+  const LEGK={C:'C',A:'C',D:'D',CTR:'D',E:'E',R:'R',P:'R',Q:'Q',FIA:'FIA'};   // legend item that hides each class
+  const vis=ASP.filter(x=>bbHit(x.bb) && !MAP.hide.has(LEGK[x.k]) && x.k!=='EF' && x.k!=='A' && (x.k==='FIA' || (x.lok==='AGL'?x.lo:(x.lo||0))<ceil) && !((x.k==='R'||x.k==='Q') && (x.lo||0)>=10000));
   const order={FIA:0,E:1,C:2,A:2,D:3,CTR:4,Q:5,R:6};
   vis.sort((a,b)=>order[a.k]-order[b.k]);
   const labels=[[ox-16,oy-16,32,32],[W-34,2,32,32]], drawL=[];
@@ -1217,7 +1228,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
     const cl=clipRect(sp,W,Hh); if(cl.length<3) continue;
     const c=polyCentroid(cl); if(!c||c[2]<900) continue;
     let lines;
-    if(x.k==='FIA'){ if(!x.f) continue; lines=[x.f]; }
+    if(x.k==='FIA'){ if(!x.f) continue; const stacked=(x.lo||0)>0||(x.hik==='AMSL'&&x.hi!=null);   // another area frequency above or below: say where this one starts
+      lines=[x.f+(stacked?' '+((x.lo||0)<=0?'SFC':limTxt(x.lo)):'')]; }
     else{
       const gnd=0, top=x.hik==='NOTAM'?'NOTAM':x.hik==='BCTA'?'BCTA':limTxt(limFt(x.hi,x.hik,gnd,0)), bot=x.lok==='AGL'?x.lo+' AGL':x.lok==='NOTAM'?'NOTAM':limTxt(limFt(x.lo,x.lok,gnd,0));
       const cls=x.k==='CTR'?((x.n.match(/\(([A-Z])\)/)||[])[1]||'D'):x.k==='Q'?'D':x.k;
@@ -1285,7 +1297,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   if(MAP.range<=20){
     const wpC=cssv('--wp');
     g.font='600 9.5px "IBM Plex Mono", monospace'; g.textAlign='left';
-    for(const p of VW){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue;
+    for(const p of (MAP.hide.has('VFR')?[]:VW)){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue;
       const [x,y]=P(p.la,p.lo); if(x<-8||y<-8||x>W+8||y>Hh+8) continue; MAP.hits.push({x,y,p});
       const go=GO&&GO.c===p.c;
       g.save(); g.translate(x,y); g.rotate(Math.PI/4); g.fillStyle=go?C.acc:wpC; g.fillRect(-4,-4,8,8); g.fillStyle=C.bg; g.fillRect(-1.6,-1.6,3.2,3.2); g.restore();
@@ -1302,7 +1314,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   if(!chartsShown && MAP.range<=20){ g.font='italic 500 10.5px '+cssv('--f-body'); g.fillStyle=C.dim; g.textAlign='center';
     const tb=labels.slice(); tb.push([ox-14,oy-14,28,28]); { const rx=ox+MAP.range*sc*0.707+3, ry=oy-MAP.range*sc*0.707; tb.push([rx,ry-11,52,14]); }   // + the range ring label     // keep clear of airspace labels, you, and aerodrome codes
     for(const ad of DATA.ap){ if(ad.t==='H'&&!st.heli) continue; if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue; const [x,y]=P(ad.la,ad.lo); tb.push([x-5,y-8,44,14]); }
-    for(const p of VW){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue; const [x,y]=P(p.la,p.lo); tb.push([x-7,y-12,48,22]); }
+    for(const p of (MAP.hide.has('VFR')?[]:VW)){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue; const [x,y]=P(p.la,p.lo); tb.push([x-7,y-12,48,22]); }
     for(const t of TOWNS){ if(t.t==='L'&&MAP.range>10||t.t==='S'&&MAP.range>5) continue; if(Math.abs(t.la-la)>reach||Math.abs(t.lo-lo)>reach/cosl) continue;
       const [x0,y0]=P(t.la,t.lo); if(x0<0||y0<8||x0>W||y0>Hh) continue; const w=g.measureText(t.n).width;
       for(const [dx,dy] of [[0,0],[0,14],[0,-14],[w/2+12,0],[-w/2-12,0]]){ const x=x0+dx, y=y0+dy, bx=[x-w/2-2,y-9,w+4,12];
@@ -1565,7 +1577,7 @@ function render(){
     const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
     if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
-    $('sAreaWho').textContent=cur? unitShort(cur.unit) : ''; if(spl) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); }
+    { const ll=areaLL(AS,cur), u=cur? unitShort(cur.unit) : ''; $('sAreaWho').textContent=u+(ll?(u?' · ':'')+ll:''); } if(spl) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); }
   renderGoTiles(here,$('sArea').textContent,altFt);
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
@@ -1725,7 +1737,16 @@ $('mapOut').onclick=()=>{ MAP.range=RANGES.find(r=>r>MAP.range+0.01)||RANGES[RAN
 const rngTxt=r=>(r<10? (Math.round(r*10)/10) : Math.round(r))+' NM';
 $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf); render(); };
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
-$('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); render(); };
+$('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); legUI(); render(); };
+// legend: tap an item to show / hide that layer (terrain is the same switch as the Terrain button)
+function legUI(){ for(const el of document.querySelectorAll('#mapLeg [data-leg]')){ const k=el.dataset.leg, on= k==='TER'? MAP.ter : !MAP.hide.has(k);
+  el.classList.toggle('off',!on); el.setAttribute('role','button'); el.tabIndex=0; el.setAttribute('aria-pressed',on); } }
+const legTap=e=>{ const el=e.target.closest('[data-leg]'); if(!el) return; const k=el.dataset.leg;
+  if(k==='TER'){ $('mapTer').click(); return; }
+  if(MAP.hide.has(k)) MAP.hide.delete(k); else MAP.hide.add(k); ls.set('mapHide',[...MAP.hide]); legUI(); render(); };
+$('mapLeg').addEventListener('click',legTap);
+$('mapLeg').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); legTap(e); } });
+legUI();
 $('mapTer').setAttribute('aria-pressed',MAP.ter);
 $('mapLead').onclick=()=>{ MAP.lead=!MAP.lead; ls.set('mapLead',MAP.lead); $('mapLead').setAttribute('aria-pressed',MAP.lead); render(); };
 $('mapLead').setAttribute('aria-pressed',MAP.lead);
@@ -1914,6 +1935,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
     clearTimeout(wheelT); wheelT=setTimeout(()=>{ ls.set('mapRange',MAP.range); render(); },250); },{passive:false});
   $('mapHome').onclick=()=>{ MAP.pan=null; render(); };
   $('mmClose').onclick=mapMenuClose;
+  if(matchMedia('(pointer:fine)').matches&&!matchMedia('(any-pointer:coarse)').matches) $('mapHint').innerHTML='Right-click map<br>for menu';   // mouse: right-click; touch: press and hold
 }
 /* Press and hold on the map: what's there and a go-to for that point.
    Name: the nearest town, locality or suburb (ABS), "St Andrews" when within 1.5 NM, else "2.3 NM NE of St Andrews".
@@ -1959,6 +1981,7 @@ function mapMenu(px,py){
   const B=$('mmBtns'); B.innerHTML='';
   const btn=(txt,fn,primary)=>{ const b=document.createElement('button'); b.className='btn'+(primary?' primary':''); b.textContent=txt; b.onclick=fn; B.appendChild(b); };
   btn('Go to this point',()=>{ mapMenuClose(); setGo(goPt); },true);
+  if(st.sim) btn('Move simulator here',()=>{ mapMenuClose(); $('simPos').value=la.toFixed(5)+', '+lo.toFixed(5); MAP.pan=null; simApply(); });   // keeps the sim's altitude, track and speed
   if(near) btn(`Go to ${near.p.c} (${near.d.toFixed(1)} NM)`,()=>{ mapMenuClose(); if(near.p.k==='AD') st.pin=near.p.c; setGo(near.p); });
   const fq=near&&near.d<=0.3? near.p : goPt, fqN=fq.c;   // on top of a waypoint/aerodrome: add that, not a bare position
   if(!FP) btn(`Start flight plan at ${fqN}`,()=>{ mapMenuClose(); fpAdd(fq); });

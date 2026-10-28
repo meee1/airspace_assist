@@ -222,6 +222,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapsec .mapwrap{border-top:0} .mapwrap{border-top:1px solid var(--rule);padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
 #map{width:100%;height:min(94vw,56vh,520px);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:none;cursor:grab}
 .mapctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.maphint{font-size:10px;line-height:1.15;color:var(--dim);min-width:0;flex:0 1 auto;margin-left:-2px}
+.mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
 .mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
@@ -230,6 +232,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapctl #mapRng{min-width:52px;text-align:center}
 .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--dim)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
+#mapLeg span[data-leg]{cursor:pointer;user-select:none;padding:2px 4px;margin:-2px -4px;border-radius:5px} #mapLeg span[data-leg]:hover{background:var(--rule)}
+#mapLeg span.off{opacity:.4;text-decoration:line-through}
 .sw{display:inline-block;width:16px;height:0;border-top:2px solid}
 .sw.dash{border-top-style:dashed} .sw.dot{border-top-style:dotted}
 .c-C,.c-A{color:var(--as-c);border-color:var(--as-c)} .c-D{color:var(--as-d);border-color:var(--as-d)} .c-E{color:var(--as-e);border-color:var(--as-e)}
@@ -243,7 +247,11 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .prof-ctl{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:4px} .prof-ctl .lbl{margin-right:auto} .prof-ctl .btn{padding:4px 9px;font-size:13px;min-width:30px} .prof-ctl select{font:500 13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
 .prof-ctl .mono{font-size:12px;min-width:52px;text-align:center}
 .chartbox{margin-top:8px;border-top:1px solid var(--rule);padding-top:6px} .chartbox summary{display:flex;gap:8px;align-items:center;cursor:pointer;list-style:none} .chartbox summary .mono{margin-left:auto;font-size:11px;color:var(--dim)}
-.chart-body{display:flex;flex-direction:column;gap:8px;padding-top:8px} .chart-op{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-left:auto} .chart-op input{width:110px}
+.chart-body{display:flex;flex-direction:column;gap:8px;padding-top:8px}
+.mapwrap{position:relative}
+#chartBox[open]>.chart-body{position:absolute;left:10px;right:10px;top:10px;z-index:40;background:var(--panel);border:1px solid var(--rule);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.28);padding:12px;max-height:min(75vh,560px);overflow:auto}
+.chart-head{display:flex;align-items:center;gap:8px} .chart-head b{font-size:14px} .chart-head .btn{margin-left:auto;padding:4px 10px}
+#chartBox[open]>summary{color:var(--accent)} .chart-op{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-left:auto} .chart-op input{width:110px}
 .chart-prog{font-size:12px;color:var(--accent)} .chart-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
 .chart-list li{display:flex;gap:8px;align-items:center} .chart-list li span{flex:1} .chart-list li .btn{padding:3px 8px;font-size:11px}
 #fpProf{width:100%;height:180px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation;cursor:crosshair}
@@ -332,7 +340,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 @media (min-width:960px) and (orientation:landscape){
   .wrap{max-width:none;margin:0 0 0 58vw;padding-left:14px;padding-right:max(14px,env(safe-area-inset-right,0px))}
   #mapSec{position:fixed;left:0;top:0;bottom:0;width:58vw;box-sizing:border-box;border-radius:0;border-width:0 1px 0 0;overflow-y:auto;z-index:10}
-  #map{height:calc(100vh - 128px);height:calc(100dvh - 128px)}
+  #mapSec:not([hidden]){display:flex;flex-direction:column} #mapSec .mapwrap{flex:1 1 auto;min-height:0}
+  #mapSec .mapbox{flex:1 1 auto;min-height:260px} #map{position:absolute;inset:0;height:100%}   /* the map takes what the buttons and legends leave, so nothing needs scrolling */
   .status{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-top:-6px}
 }
 </style>
@@ -383,6 +392,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
         <button class="btn" id="mapOut" aria-label="Zoom out">−</button>
         <span class="lbl mono" id="mapRng">10 NM</span>
         <button class="btn" id="mapIn" aria-label="Zoom in">+</button>
+        <span class="maphint" id="mapHint" title="Press and hold (or right-click) anywhere on the map: what's there (town, R/D areas, NOTAMs, terrain), Go to, and add it to the flight plan">Hold map<br>for menu</span>
         <button class="btn" id="mapTraffic" style="margin-left:auto" aria-pressed="false" title="ADS-B traffic from the internet through your proxy (about 5–10 s old): grey = other traffic, cyan = within 6 NM and ±1,200 ft, amber = within 2.5 NM and ±600 ft">Traffic</button>
         <button class="btn" id="mapUp">Track up</button>
         <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
@@ -396,7 +406,8 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <details class="chartbox" id="chartBox">
         <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
-        <div class="chart-body">
+        <div class="chart-body" role="dialog" aria-label="Chart underlay">
+          <div class="chart-head"><b>Chart underlay</b><button class="btn" id="chartClose" aria-label="Close">✕</button></div>
           <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
             <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
           <div class="chart-prog" id="chartProg" hidden></div>
@@ -404,7 +415,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
           <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
         </div>
       </details>
-      <div class="legend"><span><i class="sw c-C"></i>C</span><span><i class="sw c-D dash"></i>D / CTR</span><span><i class="sw c-E"></i>E</span><span><i class="sw c-R"></i>R</span><span><i class="sw c-Q dash"></i>Danger</span><span><i class="sw c-FIA dot"></i>Area freq boundary</span><span><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
+      <div class="legend" id="mapLeg" title="Tap an item to show or hide it on the map"><span data-leg="C"><i class="sw c-C"></i>C</span><span data-leg="D"><i class="sw c-D dash"></i>D / CTR</span><span data-leg="E"><i class="sw c-E"></i>E</span><span data-leg="R"><i class="sw c-R"></i>R</span><span data-leg="Q"><i class="sw c-Q dash"></i>Danger</span><span data-leg="FIA"><i class="sw c-FIA dot"></i>Area freq boundary</span><span data-leg="VFR"><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" data-leg="TER" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft</span></div>
     </div>
   </section>
 
@@ -563,7 +574,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=dda64c8391';
+  const s=document.createElement('script'); s.src='app.js?v=9ddab31637';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();
