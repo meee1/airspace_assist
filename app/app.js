@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793216411320;
+const APP_BUILT=1793226928209;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -947,14 +947,16 @@ function inScreenPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j
 // Georeference per chart sheet panel: chart pt (u,v) = similarity( Lambert conformal conic(lat,lon) ), LCC on a sphere with
 // standard parallels 36°S/39°S, origin 37.8°S 145°E. Fitted offline (tools/chartref.py) by matching the chart's printed
 // controlled-airspace boundaries to the DAH: median misfit 0.5 pt (about 45 m on the VTC, 90 m on the VNC).
-const CHART_SHEETS=[{"sheet":"ML-VNC","name":"Melbourne VNC","kind":"VNC","page":[2834.64,1785.82],"re":"melbourne","levels":[0.5,2.0],"panels":[{"id":"ML-VNC","name":"Melbourne VNC","order":0,"sim":[10.507859,0.039723,1431.383697,877.542035],"clip":[[0,0],[2834,0],[2834,1596],[165,1596],[165,1255],[0,1255]]}]},{"sheet":"ML-VTC","name":"Melbourne VTC","kind":"VTC","page":[1417.33,2834.65],"re":"melbourne","levels":[0.5,2.5],"panels":[{"id":"ML-VTC","name":"Melbourne VTC","order":1,"sim":[21.01975,0.006852,824.508612,949.036418],"clip":[[1327,71],[1294,71],[987,69],[680,69],[374,69],[67,71],[34,71],[34,1833],[63,1833],[364,1831],[665,1831],[965,1831],[1266,1832],[1327,1832]]},{"id":"ML-VTC-B","name":"Melbourne VTC (Melbourne Basin panel)","order":2,"sim":[35.019006,0.024451,715.458872,2128.909217],"clip":[[46,2722],[46,1918],[80,1918],[355,1917],[630,1916],[905,1916],[1180,1917],[1185,1917],[1185,2721],[1179,2721],[897,2720],[615,2719],[333,2720],[52,2722]]}]}];
+const CHART_SHEETS=[{"sheet":"ML-VNC","name":"Melbourne VNC","kind":"VNC","page":[2834.64,1785.82],"re":"melbourne","levels":[0.5,2.0],"panels":[{"id":"ML-VNC","name":"Melbourne VNC","order":0,"sim":[10.507859,0.039723,1431.383697,877.542035],"aff":[10.52673,0.028178,1430.286346,0.028371,-10.481997,876.43813],"clip":[[0,0],[2834,0],[2834,1596],[165,1596],[165,1255],[0,1255]]}]},{"sheet":"ML-VTC","name":"Melbourne VTC","kind":"VTC","page":[1417.33,2834.65],"re":"melbourne","levels":[0.5,2.5],"panels":[{"id":"ML-VTC","name":"Melbourne VTC","order":1,"sim":[21.01975,0.006852,824.508612,949.036418],"aff":[21.055571,0.024173,822.186582,0.0231,-20.968429,949.645965],"clip":[[1327,71],[1294,71],[987,69],[680,69],[374,69],[67,71],[34,71],[34,1833],[63,1833],[364,1831],[665,1831],[965,1831],[1266,1832],[1327,1832]]},{"id":"ML-VTC-B","name":"Melbourne VTC (Melbourne Basin panel)","order":2,"sim":[35.019006,0.024451,715.458872,2128.909217],"aff":[35.109253,0.037655,713.440742,0.038425,-34.962639,2127.163779],"clip":[[46,2722],[46,1918],[80,1918],[355,1917],[630,1916],[905,1916],[1180,1917],[1185,1917],[1185,2721],[1179,2721],[897,2720],[615,2719],[333,2720],[52,2722]]}]}];
 const CH={on:ls.get('mapCharts',true), op:ls.get('chartOp',0.7), idx:[], site:[], local:[], imgs:new Map(), busy:false, need:0, have:0};
 const CH_CACHE='radio-au-charts', CH_TILE=512;
 function lccFwd(la,lo){ const R_=6371008.8/1852, rad=Math.PI/180, p1=-36*rad, p2=-39*rad, p0=-37.8*rad, l0=145*rad;
   const n=Math.log(Math.cos(p1)/Math.cos(p2))/Math.log(Math.tan(Math.PI/4+p2/2)/Math.tan(Math.PI/4+p1/2)), F=Math.cos(p1)*Math.pow(Math.tan(Math.PI/4+p1/2),n)/n;
   const r0=R_*F/Math.pow(Math.tan(Math.PI/4+p0/2),n), r=R_*F/Math.pow(Math.tan(Math.PI/4+la*rad/2),n), th=n*(lo*rad-l0);
   return [r*Math.sin(th), r0-r*Math.cos(th)]; }
-function chartPt(pan,la,lo){ const [x,y]=lccFwd(la,lo), [a,b,c,d]=pan.sim; return [a*x+b*y+c, -a*y+b*x+d]; }
+function chartPt(pan,la,lo){ const [x,y]=lccFwd(la,lo);
+  if(pan.aff){ const A=pan.aff; return [A[0]*x+A[1]*y+A[2], A[3]*x+A[4]*y+A[5]]; }   // graticule fit (the chart art is ~0.4% wider E-W)
+  const [a,b,c,d]=pan.sim; return [a*x+b*y+c, -a*y+b*x+d]; }
 function affine3(src,dst){ // canvas = [a c e; b d f]·[u v 1] from three point pairs
   const [[u1,v1],[u2,v2],[u3,v3]]=src, det=u1*(v2-v3)-v1*(u2-u3)+(u2*v3-u3*v2);
   const sol=k=>{ const [y1,y2,y3]=dst.map(p=>p[k]); return [ (y1*(v2-v3)-v1*(y2-y3)+(y2*v3-y3*v2))/det, (u1*(y2-y3)-y1*(u2-u3)+(u2*y3-u3*y2))/det, (u1*(v2*y3-v3*y2)-v1*(u2*y3-u3*y2)+y1*(u2*v3-u3*v2))/det ]; };

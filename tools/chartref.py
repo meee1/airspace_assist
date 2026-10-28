@@ -7,11 +7,16 @@ only needs these numbers to place it. Model per chart panel:
     chart pt (u, v) = similarity( LCC(lat, lon) )
     LCC: spherical Lambert conformal conic, standard parallels 36S/39S, origin 37.8S 145E (same as the app's lccFwd)
     similarity with reflection (PDF y points down): u = a*x + b*y + c ; v = b*x - a*y + d
+    then, where the panel has a printed graticule, an affine u = A0 x + A1 y + A2 ; v = A3 x + A4 y + A5 ('aff', which
+    the app prefers): the PDF artwork is stretched ~0.4 % E-W, which a similarity cannot follow.
 
 Fit:
  1. coarse: place-name labels on the chart matched to ERSA VFR waypoints / aerodromes (RANSAC);
  2. fine: chamfer match of the chart's printed controlled-airspace boundaries (the cyan C/D/A lines) against the DAH
     geometry. On the Melbourne VTC/VNC the median misfit is 0.5 pt (about 45 m on the VTC, 90 m on the VNC).
+ 3. graticule: affine fit to the chart's own meridians/parallels (rms < 10 m). This is the chart's true frame:
+    aerodrome symbols then sit within ~10-15 m of ERSA, R/D areas within ~45 m. The cyan C/D/A lines are printed
+    ~100-130 m off DAH in that frame (drafting), so the app's own DAH lines will not sit exactly on the cyan.
 Panels (neatlines) are taken from the chart's 0.99 pt black frame lines, or given with --panel x0,y0,x1,y1 (repeatable).
 
 Usage:
@@ -111,6 +116,61 @@ def coarse(lines, data, poly):
         if not best or len(inl) > len(best[1]): best = (p, inl)
     return sim_fit(*zip(*[(q[0], q[1], q[2], q[3]) for q in best[1]])), len(best[1])
 
+def lcc_inv(lc, x, y):
+    s = np.sign(lc.n); rho = s * np.sqrt(x ** 2 + (lc.r0 - y) ** 2); th = np.arctan2(x * s, (lc.r0 - y) * s)
+    return np.degrees(2 * np.arctan((R_NM * lc.F / rho) ** (1 / lc.n)) - np.pi / 2), np.degrees(lc.lon0 + th / lc.n)
+
+def graticule(page, p, poly):
+    """Affine fit to the chart's own graticule (thin black meridians and parallels inside the panel).
+
+    The printed artwork is stretched about 0.4 % east-west relative to north-south on the Melbourne VTC/VNC, so a
+    similarity fitted to the airspace leaves the topography (aerodromes, coast, roads) 150-350 m out at the panel edges.
+    Fitted to the graticule the residual is under 10 m and aerodrome symbols land within ~10-15 m of their ERSA position.
+    Returns (affine [A0..A5] with u = A0 x + A1 y + A2, v = A3 x + A4 y + A5, rms m, n lines) or None."""
+    from matplotlib.path import Path as MPath
+    from scipy.optimize import least_squares
+    pp = MPath(poly); lc = LCC(); a, b, c, d = p; sc = math.hypot(a, b)
+    def bez(q0, q1, q2, q3, t):
+        m = 1 - t; return (m**3*q0.x + 3*m*m*t*q1.x + 3*m*t*t*q2.x + t**3*q3.x, m**3*q0.y + 3*m*m*t*q1.y + 3*m*t*t*q2.y + t**3*q3.y)
+    lines = []
+    for g in page.get_drawings():
+        col = g.get('color'); w = g.get('width') or 0
+        if col is None or max(col) > 0.2 or w > 0.45: continue
+        pts = []
+        for it in g['items']:
+            if it[0] == 'l': pts += [(it[1].x, it[1].y), (it[2].x, it[2].y)]
+            elif it[0] == 'c': pts += [bez(*it[1:5], t) for t in np.linspace(0, 1, 9)]
+        if len(pts) < 2: continue
+        A = np.array(pts)
+        if max(A.max(0) - A.min(0)) < 150: continue
+        A = A[[pp.contains_point(q, radius=-3) for q in A]]
+        if len(A) < 2: continue
+        ex = A.max(0) - A.min(0)
+        if ex[1] > 100 and ex[0] < 0.05 * ex[1]: kind = 'mer'
+        elif ex[0] > 100 and ex[1] < 0.05 * ex[0]: kind = 'par'
+        else: continue
+        if len(A) == 2: A = np.array([A[0] + (A[1] - A[0]) * t for t in np.linspace(0, 1, 10)])
+        lines.append((kind, A))
+    def toll(T, u, v):
+        x, y = np.linalg.solve(np.array([[T[0], T[1]], [T[3], T[4]]]), np.vstack([u - T[2], v - T[5]])); return lcc_inv(lc, x, y)
+    T0 = np.array([a, b, c, b, -a, d]); obs = []
+    for kind, A in lines:
+        la, lo = toll(T0, A[:, 0], A[:, 1]); val = np.mean(lo if kind == 'mer' else la)
+        for step in (1 / 6, 1 / 12):
+            t = round(val / step) * step
+            if abs(val - t) * 60 < 0.4 * step * 60: obs.append((kind, t, A)); break
+    if sum(k == 'mer' for k, _, _ in obs) < 2 or sum(k == 'par' for k, _, _ in obs) < 2: return None
+    cl = math.cos(math.radians(37.8))   # residual in NM east-west near the chart centre (metres after *1852)
+    def res(T):
+        r = []
+        for kind, t, A in obs:
+            la, lo = toll(T, A[:, 0], A[:, 1]); r.append((lo - t) * 60 * cl if kind == 'mer' else (la - t) * 60)
+        return np.concatenate(r) * 1852
+    T = least_squares(res, T0, x_scale=[0.01, 0.01, 1, 0.01, 0.01, 1]).x; r = res(T)
+    rms = float(np.sqrt(np.mean(r ** 2)))
+    if rms > 60: return None          # not a clean graticule: keep the airspace similarity
+    return T, rms, len(obs)
+
 _PREP = {}
 def refine(D, dah, p0, poly, page_wh, S=2, quick=False):
     from scipy.optimize import minimize
@@ -193,8 +253,13 @@ def main():
         p, med, npts = best
         if first is None: first = p
         print(f'panel {k}: {n} label matches, {npts} boundary samples, median misfit {med:.2f} pt, {math.hypot(p[0], p[1]):.2f} pt/NM', file=sys.stderr)
-        panels.append(dict(id=f'{a.sheet}-{k}' if k else a.sheet, name=a.name if not k else f'{a.name} (panel {k + 1})', order=k + (0 if a.kind == 'VNC' else 1),
-                           sim=[round(float(v), 6) for v in p], clip=[[round(x), round(y)] for x, y in poly]))
+        pd = dict(id=f'{a.sheet}-{k}' if k else a.sheet, name=a.name if not k else f'{a.name} (panel {k + 1})', order=k + (0 if a.kind == 'VNC' else 1),
+                  sim=[round(float(v), 6) for v in p])
+        gr = graticule(page, p, poly)
+        if gr:
+            pd['aff'] = [round(float(v), 6) for v in gr[0]]
+            print(f'panel {k}: graticule affine from {gr[2]} lines, rms {gr[1]:.0f} m (app uses this; sim kept for reference)', file=sys.stderr)
+        pd['clip'] = [[round(x), round(y)] for x, y in poly]; panels.append(pd)
     lv = [float(x) for x in a.levels.split(',')] if a.levels else ([0.5, 2.0] if a.kind == 'VNC' else [0.5, 2.5])
     print(json.dumps(dict(sheet=a.sheet, name=a.name, kind=a.kind, page=[round(page.rect.width, 2), round(page.rect.height, 2)],
                           re=a.match, levels=lv, panels=panels), indent=1))
