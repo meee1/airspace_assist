@@ -64,6 +64,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Lead line:** an orange dashed line runs 10 NM ahead of your arrow along your track (or compass heading when slow), with a cross line every 1 NM and every second one numbered (2, 4 … 10), so you can judge distances to anything ahead at a glance. The **Lead** button turns it off and on.
 - **CTAF layer:** the CTAF button turns it on and off.
   - Each aerodrome gets a 10 NM area (the AIP CTAF call distance), along with any DAH broadcast areas.
+  - A tower aerodrome with a CTAF for when the tower is closed (Moorabbin 118.1, Avalon 120.1) gets its whole control zone instead of a circle. The circles of the aerodromes around it are left whole where they overlap the zone, and a strip inside the zone (such as YAVE at Avalon) doesn't cut them either.
   - Areas on the same frequency merge into one translucent shape with one outline and one colour.
   - Frequencies in view never share a colour. The AIP default 126.7 is drawn in neutral grey so specific CTAFs stand out.
   - The legend lists the frequencies in view, and each aerodrome's frequency is printed beside it.
@@ -81,6 +82,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Zoomed far out (160 / 320 NM):** aerodrome dots get smaller, and the CTAF layer, NOTAM circles, waypoints and labels only show at 80 NM and closer (the CTAF legend says so); the map uses a flat projection centred on you, so shapes at the edges are stretched by a few percent at 320 NM.
 - **Pan and zoom:** drag the map with one finger to look around; pinch with two to zoom (about the centre of the view). While panned it shows north up and stays put as you move; tap **◎ Centre** to go back to your position. A tap without dragging still picks a waypoint or aerodrome for Go to.
 - **Split overlapping CTAF areas** (**Options**, on by default): with **CTAF** on, where two aerodromes with different CTAFs are less than 20 NM apart their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency. Untick it to see the full overlapping circles.
+- **Split 126.7 areas too** (**Options**, off by default): with it off, the grey 126.7 circles of strips without their own CTAF don't cut anything and aren't cut, so a specific CTAF keeps its full 10 NM circle (this matters with **All** on, where private strips such as Lethbridge and Little River would otherwise cut Point Cook or Eynesbury). Tick it to split 126.7 like any other frequency.
 - **Legend:** tap an item (C, D / CTR, E, R, Danger, Area freq boundary, VFR waypoint, Terrain) to hide or show it on the map; hidden items are struck through and remembered. Terrain is the same switch as the Terrain button.
 - **Computer / landscape tablet:** the map takes the full window height left after its buttons and legends, so everything shows without scrolling, even with CTAF on.
 - **Press and hold** anywhere on the map (right-click on a computer; the note beside the zoom buttons is a reminder) for that point's details, with a crosshair marking it:

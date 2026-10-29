@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793255014783;
+const APP_BUILT=1793267697463;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1044,7 +1044,9 @@ async function logsRender(){ const el=$('optsLogs');
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0))],{type:'application/gpx+xml'}));
     a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }; }
 $('optCtafSplit').checked=ls.get('ctafSplit',true);
-$('optCtafSplit').addEventListener('change',()=>{ ls.set('ctafSplit',$('optCtafSplit').checked); render(); });
+$('optCtafSplit').addEventListener('change',()=>{ ls.set('ctafSplit',$('optCtafSplit').checked); $('optCtafSplit127').disabled=!$('optCtafSplit').checked; render(); });
+$('optCtafSplit127').checked=ls.get('ctafSplit127',false); $('optCtafSplit127').disabled=!$('optCtafSplit').checked;
+$('optCtafSplit127').addEventListener('change',()=>{ ls.set('ctafSplit127',$('optCtafSplit127').checked); render(); });
 $('optsDlg').addEventListener('click',e=>{ if(e.target===$('optsDlg')) $('optsDlg').close(); });   // tap outside the box
 $('optsCharts').addEventListener('change',e=>{ const cb=e.target.closest('[data-sheet]'); if(!cb) return;
   const sel=chartSel(); if(cb.checked) sel.add(cb.dataset.sheet); else sel.delete(cb.dataset.sheet); ls.set('chartSel',[...sel]);
@@ -1272,17 +1274,23 @@ function drawMap(la,lo,h,pick,AS,altFt){
   else if(MAP.ctaf){
     const groups=new Map(); const add=(f,shape)=>{ if(!f) return; if(!groups.has(f)) groups.set(f,[]); groups.get(f).push(shape); };
     const rr=reach+CTAF_NM/60;
+    const CTRS=ASP.filter(z=>z.k==='CTR'&&!(z.bb[1]<la-rr||z.bb[0]>la+rr||z.bb[3]<lo-rr/cosl||z.bb[2]>lo+rr/cosl));
     for(const ad of DATA.ap){
       if(ad.t==='H'&&!st.heli) continue; if(!st.all && ad.s!=='E' && ad.t!=='H') continue;
       if(Math.abs(ad.la-la)>rr||Math.abs(ad.lo-lo)>rr/cosl) continue;
       const ci=ctafInfo(ad); if(!ci.f) continue;
-      const [x,y]=P(ad.la,ad.lo); add(ci.f,{c:[x,y],f:ci.f}); ctafAt.push([ad,x,y,ci.f]);
+      const [x,y]=P(ad.la,ad.lo); ctafAt.push([ad,x,y,ci.f]);
+      // a tower aerodrome's CTAF (when the tower isn't active) covers its whole control zone, not a 10 NM circle
+      const ctr=CTRS.filter(z=>inAsp(z,ad.la,ad.lo)), twr=ad.x&&ad.x.some(q=>q[0]==='TWR');
+      if(twr&&ctr.length) for(const z of ctr) add(ci.f,{p:z.p.map(q=>P(q[0],q[1])),ctr:true,f:ci.f});
+      else add(ci.f,{c:[x,y],f:ci.f,inCtr:ctr.length>0});   // a strip inside a control zone (YAVE in Avalon's) doesn't cut its neighbours' circles
     }
     // Options → split overlapping CTAF areas: where two aerodromes with different CTAFs are within 20 NM, the overlap of
     // their 10 NM circles is cut along the line halfway between them (each point goes to the nearer aerodrome)
-    if(ls.get('ctafSplit',true)){ const R0=CTAF_NM*sc, circ=[...groups.values()].flat().filter(q=>q.c);
+    const split=ls.get('ctafSplit',true);   // a control zone CTAF isn't split, and doesn't crop the circles around it
+    if(split){ const R0=CTAF_NM*sc, split127=ls.get('ctafSplit127',false), circ=[...groups.values()].flat().filter(q=>q.c&&(split127||q.f!=='126.7'));   // Options: 126.7 circles left out of the split unless ticked
       const cut=[];
-      for(const sh of circ){ const others=circ.filter(o=>o.f!==sh.f&&Math.hypot(o.c[0]-sh.c[0],o.c[1]-sh.c[1])<2*R0);
+      for(const sh of circ){ const others=circ.filter(o=>o.f!==sh.f&&!o.inCtr&&Math.hypot(o.c[0]-sh.c[0],o.c[1]-sh.c[1])<2*R0);
         if(!others.length) continue;
         let poly=[]; for(let k=0;k<72;k++){ const t=k/72*2*Math.PI; poly.push([sh.c[0]+R0*Math.cos(t),sh.c[1]+R0*Math.sin(t)]); }
         for(const o of others){ const nx=o.c[0]-sh.c[0], ny=o.c[1]-sh.c[1], mx=(o.c[0]+sh.c[0])/2, my=(o.c[1]+sh.c[1])/2, side=q=>(q[0]-mx)*nx+(q[1]-my)*ny;
