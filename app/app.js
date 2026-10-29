@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793230534603;
+const APP_BUILT=1793230836100;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1012,29 +1012,48 @@ function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
     if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
   }).catch(()=>CH.imgs.set(k,'none'));
   return null; }
-function drawCharts(g,W,Hh,inv){
+function drawCharts(g0,W,Hh,inv){
   if(!CH.on||!CH.idx.length) return false;
-  const cv=[[0,0],[W,0],[0,Hh],[W,Hh]], geo=cv.map(([x,y])=>inv(x,y));
+  // drawn opaque into an offscreen canvas, then laid on the map at the chart opacity (the triangles overlap slightly)
+  const dpr=window.devicePixelRatio||1, off=drawCharts.off||(drawCharts.off=document.createElement('canvas'));
+  if(off.width!==Math.round(W*dpr)||off.height!==Math.round(Hh*dpr)){ off.width=Math.round(W*dpr); off.height=Math.round(Hh*dpr); }
+  const g=off.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
+  // The map is a local flat projection and the charts are Lambert conformal: one affine for the whole screen is up to
+  // ~15 px out at the edges when zoomed out to 80 NM. So the screen is cut into a grid of triangles, each with its own
+  // exact affine from its three corners (piecewise linear, no seams): under 0.5 px at any zoom.
+  const N= MAP.range>=40? 6 : MAP.range>=15? 4 : 2;
+  const GX=[], GY=[]; for(let k=0;k<=N;k++){ GX.push(W*k/N); GY.push(Hh*k/N); }
+  const geo=[]; for(let r=0;r<=N;r++){ const row=[]; for(let c=0;c<=N;c++) row.push(inv(GX[c],GY[r])); geo.push(row); }
   const pans=[]; for(const sh of CHART_SHEETS){ const st_=CH.idx.find(s=>s.sheet===sh.sheet); if(st_) for(const p of sh.panels) pans.push([p,sh,st_]); }
   pans.sort((a,b)=>a[0].order-b[0].order);
   let drew=false;
   for(const [pan,sh,stx] of pans){
-    const pc=geo.map(([qa,qo])=>chartPt(pan,qa,qo)), M=affine3(pc.slice(0,3),cv.slice(0,3));
-    let u0=1e9,v0=1e9,u1=-1e9,v1=-1e9; for(const [u,v] of pc){ u0=Math.min(u0,u); v0=Math.min(v0,v); u1=Math.max(u1,u); v1=Math.max(v1,v); }
+    const pc=geo.map(row=>row.map(([qa,qo])=>chartPt(pan,qa,qo)));
     let cu0=1e9,cv0=1e9,cu1=-1e9,cv1=-1e9; for(const [u,v] of pan.clip){ cu0=Math.min(cu0,u); cv0=Math.min(cv0,v); cu1=Math.max(cu1,u); cv1=Math.max(cv1,v); }
-    u0=Math.max(u0,cu0); v0=Math.max(v0,cv0); u1=Math.min(u1,cu1); v1=Math.min(v1,cv1); if(u0>=u1||v0>=v1) continue;
-    const need=Math.hypot(M[0],M[1])*(window.devicePixelRatio||1);   // device px per chart pt
-    g.save(); g.transform(...M); g.beginPath(); pan.clip.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v)); g.closePath(); g.clip(); g.globalAlpha=CH.op;
+    { let a0=1e9,b0=1e9,a1=-1e9,b1=-1e9; for(const row of pc) for(const [u,v] of row){ a0=Math.min(a0,u); b0=Math.min(b0,v); a1=Math.max(a1,u); b1=Math.max(b1,v); }
+      if(Math.max(a0,cu0)>=Math.min(a1,cu1)||Math.max(b0,cv0)>=Math.min(b1,cv1)) continue; }   // panel not on screen
+    const M0=affine3([pc[0][0],pc[0][N],pc[N][0]],[[0,0],[W,0],[0,Hh]]);
+    const need=Math.hypot(M0[0],M0[1])*(window.devicePixelRatio||1);   // device px per chart pt
     const levels=stx.levels.map((lv,L)=>{ if(lv.tiles&&!lv.tset) lv.tset=new Set(lv.tiles.map(t=>t[0]+'_'+t[1])); return {...lv,L}; }), lo_=levels[0], hi_=levels.find(l=>l.s>=need*0.7)||levels[levels.length-1];
-    for(const lv of (hi_===lo_?[lo_]:[lo_,hi_])){
-      const ts=CH_TILE/lv.s; // tile size in chart pt
-      for(let j=Math.max(0,Math.floor(v0/ts)); j<=Math.min(lv.rows-1,Math.floor(v1/ts)); j++)
-        for(let i=Math.max(0,Math.floor(u0/ts)); i<=Math.min(lv.cols-1,Math.floor(u1/ts)); i++){
-          if(lv.tset && !lv.tset.has(i+'_'+j)) continue;      // site tiles outside every panel were never made
-          const img=chartTile(stx,lv.L,i,j); if(img){ g.drawImage(img,i*ts,j*ts,img.width/lv.s,img.height/lv.s); drew=true; } }
-    }
-    g.restore();
+    const tris=[]; for(let r=0;r<N;r++) for(let c=0;c<N;c++){ const A=[c,r],B=[c+1,r],C_=[c,r+1],D=[c+1,r+1]; tris.push([A,B,C_],[B,D,C_]); }
+    for(const tri of tris){
+      const scr=tri.map(([c,r])=>[GX[c],GY[r]]), chp=tri.map(([c,r])=>pc[r][c]);
+      let u0=Math.max(cu0,Math.min(...chp.map(q=>q[0]))), u1=Math.min(cu1,Math.max(...chp.map(q=>q[0]))), v0=Math.max(cv0,Math.min(...chp.map(q=>q[1]))), v1=Math.min(cv1,Math.max(...chp.map(q=>q[1])));
+      if(u0>=u1||v0>=v1) continue;
+      // clip to the triangle in screen space, grown by ~0.6 px so neighbours overlap instead of leaving hairlines
+      const cx=(scr[0][0]+scr[1][0]+scr[2][0])/3, cy=(scr[0][1]+scr[1][1]+scr[2][1])/3;
+      g.save(); g.beginPath(); scr.forEach(([x,y],k)=>{ const dx=x-cx, dy=y-cy, L=Math.hypot(dx,dy)||1, X=x+dx/L*0.9, Y=y+dy/L*0.9; k?g.lineTo(X,Y):g.moveTo(X,Y); }); g.closePath(); g.clip();
+      g.transform(...affine3(chp,scr)); g.beginPath(); pan.clip.forEach(([u,v],k)=>k?g.lineTo(u,v):g.moveTo(u,v)); g.closePath(); g.clip();
+      for(const lv of (hi_===lo_?[lo_]:[lo_,hi_])){
+        const ts=CH_TILE/lv.s; // tile size in chart pt
+        for(let j=Math.max(0,Math.floor(v0/ts)); j<=Math.min(lv.rows-1,Math.floor(v1/ts)); j++)
+          for(let i=Math.max(0,Math.floor(u0/ts)); i<=Math.min(lv.cols-1,Math.floor(u1/ts)); i++){
+            if(lv.tset && !lv.tset.has(i+'_'+j)) continue;      // site tiles outside every panel were never made
+            const img=chartTile(stx,lv.L,i,j); if(img){ g.drawImage(img,i*ts,j*ts,img.width/lv.s,img.height/lv.s); drew=true; } }
+      }
+      g.restore(); }
   }
+  if(drew){ g0.save(); g0.setTransform(1,0,0,1,0,0); g0.globalAlpha=CH.op; g0.drawImage(off,0,0); g0.restore(); }
   return drew; }
 function chartUI(){
   const n=CH.idx.length, dl=CH.need&&CH.have<CH.need? ` · downloading ${CH.have}/${CH.need}` : CH.need? ' · stored' : '';
