@@ -64,7 +64,8 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Lead line:** an orange dashed line runs 10 NM ahead of your arrow along your track (or compass heading when slow), with a cross line every 1 NM and every second one numbered (2, 4 … 10), so you can judge distances to anything ahead at a glance. The **Lead** button turns it off and on.
 - **CTAF layer:** the CTAF button turns it on and off.
   - Each aerodrome gets a 10 NM area (the AIP CTAF call distance), along with any DAH broadcast areas.
-  - A tower aerodrome with a CTAF for when the tower is closed (Moorabbin 118.1, Avalon 120.1) gets its whole control zone instead of a circle. The circles of the aerodromes around it are left whole where they overlap the zone, and a strip inside the zone (such as YAVE at Avalon) doesn't cut them either.
+  - A tower aerodrome gets its whole control zone instead of a circle: on its CTAF when it has one for when the tower is closed (Moorabbin 118.1, Avalon 120.1), otherwise on the tower frequency, labelled TWR (Melbourne TWR 120.5). Where two tower aerodromes share a zone (Essendon in Melbourne's), the zone goes to the one nearer its middle.
+  - Tower aerodromes come first: with **Split overlapping CTAF areas** on, the CTAF areas around a control zone stop at its edge. A smaller zone inside a bigger one keeps its own frequency. A strip inside a zone (such as YAVE at Avalon) doesn't cut its neighbours' circles.
   - Areas on the same frequency merge into one translucent shape with one outline and one colour.
   - Frequencies in view never share a colour. The AIP default 126.7 is drawn in neutral grey so specific CTAFs stand out.
   - The legend lists the frequencies in view, and each aerodrome's frequency is printed beside it.

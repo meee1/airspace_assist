@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793303587214;
+const APP_BUILT=1793307642659;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -967,7 +967,7 @@ function ctafColour(f){
   const h=CTAF_HUES[ctafPal.get(f)??0];
   return `hsl(${h} ${dark?80:72}% ${dark?62:42}%)`;
 }
-let ctafOff=null;
+let ctafOff=null, ctafOff2=null;
 function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function clipRect(pts,W,H){ // Sutherland-Hodgman against [0,W]x[0,H]
   const edges=[[p=>p[0]>=0,(a,b)=>{const t=(0-a[0])/(b[0]-a[0]);return[0,a[1]+t*(b[1]-a[1])]}],
@@ -1277,20 +1277,31 @@ function drawMap(la,lo,h,pick,AS,altFt){
   else if(MAP.ctaf){
     const groups=new Map(); const add=(f,shape)=>{ if(!f) return; if(!groups.has(f)) groups.set(f,[]); groups.get(f).push(shape); };
     const rr=reach+CTAF_NM/60;
+    const claim=new Map();
     const CTRS=ASP.filter(z=>z.k==='CTR'&&!(z.bb[1]<la-rr||z.bb[0]>la+rr||z.bb[3]<lo-rr/cosl||z.bb[2]>lo+rr/cosl));
     for(const ad of DATA.ap){
       if(ad.t==='H'&&!st.heli) continue; if(!st.all && ad.s!=='E' && ad.t!=='H') continue;
       if(Math.abs(ad.la-la)>rr||Math.abs(ad.lo-lo)>rr/cosl) continue;
-      const ci=ctafInfo(ad); if(!ci.f) continue;
-      const [x,y]=P(ad.la,ad.lo); ctafAt.push([ad,x,y,ci.f]);
-      // a tower aerodrome's CTAF (when the tower isn't active) covers its whole control zone, not a 10 NM circle
-      const ctr=CTRS.filter(z=>inAsp(z,ad.la,ad.lo)), twr=ad.x&&ad.x.some(q=>q[0]==='TWR');
-      if(twr&&ctr.length) for(const z of ctr) add(ci.f,{p:z.p.map(q=>P(q[0],q[1])),ctr:true,f:ci.f});
-      else add(ci.f,{c:[x,y],f:ci.f,inCtr:ctr.length>0});   // a strip inside a control zone (YAVE in Avalon's) doesn't cut its neighbours' circles
+      const ctr=CTRS.filter(z=>inAsp(z,ad.la,ad.lo)), tw=ad.x&&ad.x.find(q=>q[0]==='TWR');
+      const ci=ctafInfo(ad), f=ci.f||(tw&&ctr.length?tw[2]:null), onlyTwr=!ci.f;   // a tower aerodrome with no CTAF (YMML, YMEN): its zone on the tower frequency
+      if(!f) continue;
+      const [x,y]=P(ad.la,ad.lo); ctafAt.push([ad,x,y,f,onlyTwr?'TWR '+f:f]);
+      // a tower aerodrome's CTAF (or tower) area is its own control zone, not a 10 NM circle: the smallest zone round it
+      // (Essendon's, not Melbourne's), with every piece of that name
+      if(tw&&ctr.length){ const ar=z=>(z.bb[1]-z.bb[0])*(z.bb[3]-z.bb[2]), own=ctr.reduce((m,z)=>ar(z)<ar(m)?z:m);
+        // two tower aerodromes in one zone (Essendon in Melbourne's): the zone goes to the one nearer its middle
+        const d=Math.hypot(ad.la-(own.bb[0]+own.bb[1])/2,(ad.lo-(own.bb[2]+own.bb[3])/2)*cosl), c0=claim.get(own.n);
+        if(!c0||d<c0.d) claim.set(own.n,{d,f,onlyTwr,zs:ctr.filter(z=>z.n===own.n)}); }
+      else add(f,{c:[x,y],f,inCtr:ctr.length>0});   // a strip inside a control zone (YAVE in Avalon's) doesn't cut its neighbours' circles
     }
+    for(const {f,onlyTwr,zs} of claim.values()) for(const z of zs){ const pp=z.p.map(q=>P(q[0],q[1])); let A=0;
+      for(let k=0;k<pp.length;k++){ const q=pp[k], r=pp[(k+1)%pp.length]; A+=q[0]*r[1]-r[0]*q[1]; }
+      add(f,{p:pp,ctr:true,twr:onlyTwr,f,area:Math.abs(A)/2}); }
     // Options → split overlapping CTAF areas: where two aerodromes with different CTAFs are within 20 NM, the overlap of
     // their 10 NM circles is cut along the line halfway between them (each point goes to the nearer aerodrome)
-    const split=ls.get('ctafSplit',true);   // a control zone CTAF isn't split, and doesn't crop the circles around it
+    // a tower aerodrome's zone has priority: with the split on, the other frequencies' areas stop at its edge (and a zone
+    // inside another one, Essendon in Melbourne's, wins over the bigger one)
+    const split=ls.get('ctafSplit',true), zones=split? [...groups.values()].flat().filter(q=>q.ctr) : [];
     if(split){ const R0=CTAF_NM*sc, split127=ls.get('ctafSplit127',false), circ=[...groups.values()].flat().filter(q=>q.c&&(split127||q.f!=='126.7'));   // Options: 126.7 circles left out of the split unless ticked
       const cut=[];
       for(const sh of circ){ const others=circ.filter(o=>o.f!==sh.f&&!o.inCtr&&Math.hypot(o.c[0]-sh.c[0],o.c[1]-sh.c[1])<2*R0);
@@ -1306,22 +1317,32 @@ function drawMap(la,lo,h,pick,AS,altFt){
     ctafAssign([...groups.keys()]);
     if(!ctafOff) ctafOff=document.createElement('canvas');
     if(ctafOff.width!==cv.width||ctafOff.height!==cv.height){ ctafOff.width=cv.width; ctafOff.height=cv.height; } const o=ctafOff.getContext('2d'); o.setTransform(1,0,0,1,0,0); o.clearRect(0,0,ctafOff.width,ctafOff.height);
-    const R_=CTAF_NM*sc, shapePath=sh=>{ o.beginPath(); if(sh.c) o.arc(sh.c[0],sh.c[1],R_,0,2*Math.PI); else { sh.p.forEach((q,i)=>i?o.lineTo(q[0],q[1]):o.moveTo(q[0],q[1])); o.closePath(); } };
+    if(!ctafOff2) ctafOff2=document.createElement('canvas');
+    if(ctafOff2.width!==cv.width||ctafOff2.height!==cv.height){ ctafOff2.width=cv.width; ctafOff2.height=cv.height; } const o2=ctafOff2.getContext('2d');
+    const R_=CTAF_NM*sc, shapePath=(sh,c=o)=>{ c.beginPath(); if(sh.c) c.arc(sh.c[0],sh.c[1],R_,0,2*Math.PI); else { sh.p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])); c.closePath(); } };
+    // draw one frequency's shapes into o: fill (union) or outline (union edge); other frequencies' tower zones cut it,
+    // all of them for circles and broadcast areas, only the smaller (nested) ones for a zone
+    const layer=(f,shapes,col,fill)=>{
+      const put=(c,list,cut)=>{ c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,Hh); c.globalCompositeOperation='source-over';
+        c.fillStyle=col; c.strokeStyle=col; c.lineWidth=2;
+        for(const sh of list){ shapePath(sh,c); fill? c.fill() : c.stroke(); }
+        c.globalCompositeOperation='destination-out';
+        if(!fill) for(const sh of shapes){ shapePath(sh,c); c.fill(); }   // outline: keep only the edge of the union
+        for(const z of cut){ shapePath(z,c); c.fill(); }
+        c.globalCompositeOperation='source-over'; };
+      const foreign=zones.filter(z=>z.f!==f), own=shapes.filter(q=>q.ctr&&foreign.length);
+      put(o,shapes.filter(q=>!own.includes(q)),foreign);
+      for(const sh of own){ put(o2,[sh],foreign.filter(z=>z.area<sh.area)); o.setTransform(1,0,0,1,0,0); o.drawImage(ctafOff2,0,0); }
+    };
     const leg=[];
     for(const [f,shapes] of groups){
-      const col=ctafColour(f); leg.push([f,col,shapes.length]);
-      o.setTransform(dpr,0,0,dpr,0,0); o.clearRect(0,0,W,Hh);
-      // union fill (drawn opaque, composited once with alpha so overlaps don't darken)
-      o.globalCompositeOperation='source-over'; o.fillStyle=col; for(const sh of shapes){ shapePath(sh); o.fill(); }
-      g.globalAlpha= f==='126.7'?.10:.22; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
-      // union outline: stroke every shape, then erase the interiors
-      o.clearRect(0,0,W,Hh); o.strokeStyle=col; o.lineWidth=2; for(const sh of shapes){ shapePath(sh); o.stroke(); }
-      o.globalCompositeOperation='destination-out'; for(const sh of shapes){ shapePath(sh); o.fill(); }
-      o.globalCompositeOperation='source-over';
-      g.globalAlpha=.85; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
+      const col=ctafColour(f); leg.push([f,col,shapes.length,shapes.some(q=>q.twr)&&!shapes.some(q=>!q.twr)]);
+      // union fill (drawn opaque, composited once with alpha so overlaps don't darken), then the union outline
+      layer(f,shapes,col,true); g.globalAlpha= f==='126.7'?.10:.22; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
+      layer(f,shapes,col,false); g.globalAlpha=.85; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
     }
     leg.sort((a,b)=>(a[0]==='126.7')-(b[0]==='126.7')||b[2]-a[2]);
-    $('ctafLeg').innerHTML=leg.length? leg.map(([f,c])=>`<span><i class="dotc" style="background:${c}"></i>${f}</span>`).join('') : '<span>No CTAF aerodromes in view</span>';
+    $('ctafLeg').innerHTML=leg.length? leg.map(([f,c,n,t])=>`<span><i class="dotc" style="background:${c}"></i>${t?'TWR ':''}${f}</span>`).join('') : '<span>No CTAF aerodromes in view</span>';
   }
   $('ctafLeg').hidden=!MAP.ctaf;
   const ceil=Math.max(12500, altFt+5000);
@@ -1399,9 +1420,9 @@ function drawMap(la,lo,h,pick,AS,altFt){
   }
   if(MAP.ctaf && MAP.range<=40){ // frequency under each aerodrome, in its group colour
     g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='left';
-    for(const [ad,x,y,f] of ctafAt){ if(x<-10||y<-10||x>W+10||y>Hh+10) continue; if(f==='126.7' && MAP.range>10 && ad!==pick.a) continue;
-      const tw=g.measureText(f).width; g.globalAlpha=.85; g.fillStyle=C.bg; g.fillRect(x+5,y+5,tw+4,12); g.globalAlpha=1;
-      g.fillStyle=ctafColour(f); g.fillText(f,x+7,y+15); }
+    for(const [ad,x,y,f,lab] of ctafAt){ if(x<-10||y<-10||x>W+10||y>Hh+10) continue; if(f==='126.7' && MAP.range>10 && ad!==pick.a) continue;
+      const tw=g.measureText(lab).width; g.globalAlpha=.85; g.fillStyle=C.bg; g.fillRect(x+5,y+5,tw+4,12); g.globalAlpha=1;
+      g.fillStyle=ctafColour(f); g.fillText(lab,x+7,y+15); }
   }
   if(MAP.range<=5){ // runways at close range
     g.lineCap='butt';

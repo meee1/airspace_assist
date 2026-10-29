@@ -416,7 +416,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
         <button class="btn" id="mapUp">Track up</button>
         <button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
         <span class="brk"></span>
-        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies: 10 NM around each aerodrome (a tower aerodrome: its whole control zone), merged by frequency">CTAF</button>
+        <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies: 10 NM around each aerodrome (a tower aerodrome: its whole control zone, which cuts the CTAF areas round it; a tower aerodrome with no CTAF shows its zone on the tower frequency), merged by frequency">CTAF</button>
         <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
@@ -628,7 +628,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=cac7e206ca';
+    const s=document.createElement('script'); s.src='app.js?v=2d51d542f1';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
