@@ -70,7 +70,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Runways:** at 5 NM and closer, runways are drawn on the map; at 2.5 NM they're labelled with their designators.
 - The map only shows airspace starting below FL125, or below 5,000 ft above you, so the high-level steps don't clutter it.
 - **Labels:** each airspace label sits wholly inside its own area. Controlled-airspace labels also avoid any part with lower controlled airspace, so a "C A045" label doesn't land inside the A025 step or a control zone. If a step has no room on screen, its label is left off.
-- **Chart underlay (VTC/VNC):** the Melbourne VNC and the Melbourne VTC (main map and Melbourne Basin inset) are shown under the map by default, with the VTC drawn above the VNC.
+- **Chart underlay (VTC/VNC):** the site carries 39 Airservices sheets (26 NOV 2026): every VTC and VNC except the Tindal VNC and the Sydney inset VTC, which couldn't be located automatically. The Melbourne VNC and VTC download by default; tick others in **Options**. The VTC is drawn above the VNC.
   - **Download:** they come with the app as pre-rendered tiles in `app/charts/` (about 12 MB, built by `tools/chartiles.py`). They download in the background the first time the app opens with signal and are then stored for offline use; the footer counts the stored tiles.
   - **Which charts download:** **Options** (in the buttons row, next to **Simulate**) lists the charts the site offers with their edition and size; untick one to stop downloading it and free its stored tiles, tick it to fetch it. On first use only the sheets marked `"default": true` in `tools/charts.json` are ticked (the Melbourne VNC and VTC); any other sheet, and one added to the site later, starts unticked (later additions are marked **NEW**), so pilots download only the regions they pick.
   - **Controls:** the **Charts** button turns the underlay on and off. **Chart underlay** under the map opens a pop-up over the map with import and the opacity slider; ✕, Esc or touching the map closes it.
@@ -79,6 +79,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
   - **Terrain:** with a chart showing, the grey terrain relief is hidden, but the red and amber terrain warnings stay.
   - **Copyright:** the charts are Airservices copyright. Publishing the tiles on this site is the owner's decision.
 - **Pan and zoom:** drag the map with one finger to look around; pinch with two to zoom (about the centre of the view). While panned it shows north up and stays put as you move; tap **◎ Centre** to go back to your position. A tap without dragging still picks a waypoint or aerodrome for Go to.
+- **Split overlapping CTAF areas** (**Options**, on by default): with **CTAF** on, where two aerodromes with different CTAFs are less than 20 NM apart their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency. Untick it to see the full overlapping circles.
 - **Legend:** tap an item (C, D / CTR, E, R, Danger, Area freq boundary, VFR waypoint, Terrain) to hide or show it on the map; hidden items are struck through and remembered. Terrain is the same switch as the Terrain button.
 - **Computer / landscape tablet:** the map takes the full window height left after its buttons and legends, so everything shows without scrolling, even with CTAF on.
 - **Press and hold** anywhere on the map (right-click on a computer; the note beside the zoom buttons is a reminder) for that point's details, with a crosshair marking it:
@@ -182,6 +183,8 @@ The app uses SRTM terrain for three things:
 - **Height above ground:** the ALT tile shows AGL under the GPS altitude.
 - **AGL limits:** limits such as "700 AGL" are measured from the terrain at your position.
 - **Map shading:** terrain at or above your altitude is red, and terrain within 500 ft below you is amber. The **Terrain** button under the map turns the shading (warnings included) off and on; AGL in the top bar and the elevation profile aren't affected.
+
+The site carries terrain for all of Australia (914 tiles, about 11 MB); with signal the app downloads all of it in the background and keeps it for offline use.
 
 Terrain is a 30 arc-second grid (about 900 m). Each cell holds the highest SRTM point inside it, so AGL errs low. It's for awareness, not terrain clearance.
 
@@ -310,7 +313,7 @@ The app warns you when the AIP data isn't effective yet, or is more than two cyc
 ## Update or add VTC / VNC charts
 The chart underlay is pre-rendered from the Airservices PDFs into JPEG tiles in `app/charts/`. Each sheet also needs a calibration entry in `tools/charts.json` (page size, file-name match, render scales, and for each map panel its georeference and clip outline). Run these on your own computer:
 ```
-cd tools && pip install pymupdf pillow numpy scipy opencv-python matplotlib
+cd tools && pip install pymupdf pillow numpy scipy opencv-python matplotlib shapely
 ```
 
 ### A new edition of a sheet the app already has (Melbourne VTC / VNC)
@@ -320,7 +323,7 @@ cd tools && pip install pymupdf pillow numpy scipy opencv-python matplotlib
    python chartref.py ../data/charts/Melbourne_VTC_<date>.pdf --dah ../data/aip/DAH_<date>.pdf --data data.json \
           --sheet ML-VTC --name "Melbourne VTC" --kind VTC --match melbourne > /tmp/ml-vtc.json
    ```
-   It prints, for each panel, the label matches, the airspace misfit (about 0.5 pt is normal) and the graticule fit (`rms` under ~10 m is normal). If the page size, the panels or the numbers changed, replace that sheet's entry in `charts.json` with the new output (keep its `"sheet"` id).
+   It prints, for each panel, the label matches, the airspace misfit (about 0.5 pt is normal) and which fit the app will use: the graticule (`rms` under ~20 m is good), the aerodrome symbols (median offset under ~20 m), or, for an inset with neither, the airspace similarity (about 45 m). If the page size, the panels or the numbers changed, replace that sheet's entry in `charts.json` with the new output (keep its `"sheet"` id).
 3. **Render the tiles. Pass every chart in one run:** the script rewrites `app/charts/index.json` with only the sheets it was given and removes the folders of anything else (older editions included).
    ```
    python chartiles.py ../app/charts ../data/charts/Melbourne_VNC_<date>.pdf ../data/charts/Melbourne_VTC_<date>.pdf
@@ -339,12 +342,14 @@ Without publishing, a pilot can also import a newer PDF on the phone (**Chart un
    ```
    - `--sheet` is a short unique id; `--match` is a word that must appear in the file name or PDF title; `--kind` is VTC or VNC (VNCs are drawn under VTCs).
    - The map panels are found from the chart's black neatlines. If one is missed (or an inset needs separating), give it with `--panel x0,y0,x1,y1` in PDF points (repeatable).
-   - The first fit matches place names printed on the chart to ERSA VFR waypoints and aerodromes, then refines it on the printed controlled-airspace lines, then fits each panel to its printed graticule (the fit the app uses). Read the misfit and `rms` lines it prints.
+   - **Projection:** each sheet gets its own Lambert conformal conic centred on what it covers (`"proj"` in `charts.json`), fitted in two passes; `--proj lat1,lat2,lat0,lon0` overrides it.
+   - **Locating:** place names printed on the chart are matched to ERSA VFR waypoints and aerodromes and ABS towns/suburbs (some charts embed shifted font codes; those are decoded), refined on the printed controlled-airspace lines, then fitted to the printed graticule. Where the graticule isn't usable (or disagrees with the aerodrome symbols, or is a whole 10′ step out against the airspace lines), the purple aerodrome symbols are fitted to their ERSA positions instead. A chart with no readable text (Horn Island) needs `--near lat,lon` (use `--near=-10.59,142.29` form for negative numbers).
+   - **Checks:** the fit must be conformal (x and y scale within 2 %); panels that can't be located are dropped with a message. Look at the result with a few aerodromes before publishing.
 2. **Add the printed JSON object to the array in `tools/charts.json`.** Add `"default": true` only if every new install should download it; otherwise pilots tick it in **Options**.
 3. **Check it lines up:** run `python3 assemble.py`, serve `dist/` (`cd dist && python3 -m http.server 8811`), import the PDF in **Chart underlay**, and compare aerodrome symbols, the coast and the graticule with the app's own aerodromes and airspace at a few places across the sheet.
 4. **Render and publish** as for a new edition (step 3 onwards), passing all the sheets the site should have, old and new, in the one `chartiles.py` run.
 
-**Note on projection:** the app places charts using a Lambert conformal conic projection tuned for Victoria (standard parallels 36°S and 39°S, origin 37°48′S 145°E), plus the per-panel graticule fit. For sheets elsewhere in Australia check the graticule `rms` that `chartref.py` prints: if it's well above ~20 m, the projection would need to become a per-sheet setting (a code change in `lccFwd` in `tools/template.html` and in `tools/chartref.py`, which must stay identical).
+**Note on projection:** sheets with a `"proj"` entry use their own Lambert conformal conic (`lccFwdP` in `tools/template.html`, matching `LCC` in `tools/chartref.py`); the two Melbourne sheets have none and use the original Victorian one (standard parallels 36°S and 39°S, origin 37°48′S 145°E).
 
 **Copyright:** the charts are Airservices copyright; publishing the tiles on this site is the owner's decision.
 
