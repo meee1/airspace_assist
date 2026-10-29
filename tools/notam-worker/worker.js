@@ -4,15 +4,16 @@
    were removed 29 Oct 2026: NOTAMs now come only from a NAIPS briefing the pilot loads into the app.)
 
    GET /traffic?lat=-38.25&lon=144.43&nm=25
-     ADS-B traffic within nm (max 40) from adsb.lol (free, ODbL, no key), falling back to adsb.fi, or, with
-     ADSB_URL/ADSB_KEY set, another readsb-style feed. (airplanes.live's API now answers 403 "please contact us"
+     ADS-B traffic within nm (max 40) from adsb.lol (ODbL; with the ADSBLOL_KEY secret its keyed re-api first),
+     falling back to adsb.fi, or, with ADSB_URL/ADSB_KEY set, another readsb-style feed. (airplanes.live's API now answers 403 "please contact us"
      unless they have approved the project.)
    -> {src, t, n, ac:[{hex, flt, reg, type, la, lo, ab, gnd, ag, gs, trk, vs, cat, seen}]}  ab = baro alt ft (null on the
       ground, gnd:true), ag = geometric (GNSS, WGS84 ellipsoid) alt ft, seen = age of the position in s. Cached 3 s.
    On failure -> 502 {error, errors:[per-feed status]}.
 
    Vars (wrangler.toml or the dashboard): ALLOW_ORIGIN = "https://meee1.github.io,http://localhost:8811",
-   optional ADSB_URL; optional secret ADSB_KEY (sent as the api-auth header). */
+   optional secret ADSBLOL_KEY (adsb.lol API key: npx wrangler secret put ADSBLOL_KEY, or the dashboard → Settings →
+   Variables and Secrets, type Secret); optional ADSB_URL with optional secret ADSB_KEY (sent as the api-auth header). */
 const cors=(req,env)=>{ const o=req.headers.get('Origin')||'', ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean);
   return {'Access-Control-Allow-Origin': ok.includes(o)? o : ok[0]||'*', 'Access-Control-Allow-Methods':'GET, OPTIONS', 'Vary':'Origin'}; };
 const json=(o,status,h)=>new Response(JSON.stringify(o),{status,headers:{'Content-Type':'application/json',...h}});
@@ -32,11 +33,17 @@ async function traffic(u,env,ctx,H){
   const la=lat.toFixed(2), lo=lon.toFixed(2);   // ~0.6 NM: nearby callers share an answer
   const key=new Request(`https://adsb.cache/v1?${la},${lo},${nm}`), cache=caches.default, hit=await cache.match(key);
   if(hit){ const r=new Response(hit.body,hit); for(const [k,v] of Object.entries(H)) r.headers.set(k,v); r.headers.set('X-Cache','HIT'); return r; }
-  const tpls=env.ADSB_URL? [env.ADSB_URL] : ['https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}','https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{nm}'];
+  // feeds in order, each [url template, extra headers]. With the ADSBLOL_KEY secret: adsb.lol's keyed re-api first
+  // (x-api-key header), then its public v2 API (sent the key too), then adsb.fi. ADSB_URL (+ ADSB_KEY as api-auth) replaces the list.
+  const UA={Accept:'application/json','User-Agent':'radio-au-proxy (personal VFR app)'}, LK=env.ADSBLOL_KEY? {'x-api-key':env.ADSBLOL_KEY} : {};
+  const feeds=env.ADSB_URL? [[env.ADSB_URL, env.ADSB_KEY?{'api-auth':env.ADSB_KEY}:{}]] : [
+    ...(env.ADSBLOL_KEY? [['https://re-api.adsb.lol/?circle={lat},{lon},{nm}',LK]] : []),
+    ['https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}',LK],
+    ['https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{nm}',{}]];
   let j=null, url='', errs=[];
-  for(const tpl of tpls){ url=tpl.replace('{lat}',la).replace('{lon}',lo).replace('{nm}',nm); const host=new URL(url).host;
+  for(const [tpl,hd] of feeds){ url=tpl.replace('{lat}',la).replace('{lon}',lo).replace('{nm}',nm); const host=new URL(url).host;
     try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),5000);
-      const r=await fetch(url,{signal:ac.signal,headers:{Accept:'application/json','User-Agent':'radio-au-proxy (personal VFR app)',...(env.ADSB_KEY?{'api-auth':env.ADSB_KEY}:{})}}).finally(()=>clearTimeout(tm));
+      const r=await fetch(url,{signal:ac.signal,headers:{...UA,...hd}}).finally(()=>clearTimeout(tm));
       if(!r.ok){ errs.push(`${host} ${r.status}: ${(await r.text()).slice(0,120)}`); continue; }
       j=await r.json(); break; }
     catch(e){ errs.push(`${host}: ${e.name==='AbortError'?'timeout':e.message}`); } }

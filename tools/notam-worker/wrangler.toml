@@ -5,3 +5,4 @@ compatibility_date = "2026-10-01"
 [vars]
 ALLOW_ORIGIN = "https://meee1.github.io,http://localhost:8811,http://localhost:8765"
 # ADSB_URL = "https://api.airplanes.live/v2/point/{lat}/{lon}/{nm}"   # default: adsb.lol, then adsb.fi
+# adsb.lol API key: a secret, not a var (never commit it): npx wrangler secret put ADSBLOL_KEY

@@ -24,6 +24,11 @@ folder keeps its old name.)
   app shows under the map and in Settings.
 - Returns `{src, t, n, ac:[{hex, flt, reg, type, la, lo, ab, gnd, ag, gs, trk, vs, cat, seen}]}`: `ab` pressure
   altitude, `ag` GNSS altitude (WGS84 ellipsoid; the app converts it to MSL with the geoid), `seen` position age in s.
+- **adsb.lol API key:** add it as the secret `ADSBLOL_KEY` (Cloudflare dashboard → the Worker → Settings → Variables and
+  Secrets → Add → type **Secret**, or `npx wrangler secret put ADSBLOL_KEY`). Never put it in wrangler.toml or the repo. With it
+  set, the Worker asks adsb.lol's keyed feed `https://re-api.adsb.lol/?circle=lat,lon,nm` first (key in the `x-api-key`
+  header), then the public `api.adsb.lol` v2 API (key sent there too), then adsb.fi. Without it, nothing changes. The
+  answer's `src` says which feed answered (`re-api.adsb.lol` when the key works).
 - Another readsb-style feed: set `ADSB_URL` (wrangler.toml or the dashboard's Variables), e.g.
   `https://api.airplanes.live/v2/point/{lat}/{lon}/{nm}` once they've approved you, and `npx wrangler secret put ADSB_KEY` if it
   needs a key (sent as the `api-auth` header).

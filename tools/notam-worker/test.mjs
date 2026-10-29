@@ -14,3 +14,12 @@ globalThis.fetch=async()=>new Response('nope',{status:403});
 [s,o,c,j]=await go('/traffic?foo=1'); console.log('bad',s,j.error);
 [s,o,c,j]=await go('/notams?lat=-38&lon=144'); console.log('notams gone',s,j.error);
 const pre=await W.fetch(new Request('https://w.dev/traffic',{method:'OPTIONS',headers:{Origin:'http://localhost:8811'}}),env,ctx); console.log('preflight',pre.status,pre.headers.get('Access-Control-Allow-Origin'));
+// with the adsb.lol key: re-api first, key in x-api-key; a bad key falls back to the public API
+const seen=[]; env.ADSBLOL_KEY='test-key';
+globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.headers['x-api-key']||'-'));
+  if(u.startsWith('https://re-api.adsb.lol/?circle=-35.50,144.90,25')&&o.headers['x-api-key']==='test-key') return new Response(JSON.stringify({now:1,aircraft:AC.ac}));
+  return new Response('x',{status:500}); };
+[s,o,c,j]=await go('/traffic?lat=-35.5&lon=144.9&nm=25'); console.log('keyed',s,j.src,j.n,seen.join(' | '));
+seen.length=0; globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.headers['x-api-key']||'-')); return u.includes('re-api')? new Response('bad key',{status:401}) : new Response(JSON.stringify(AC)); };
+[s,o,c,j]=await go('/traffic?lat=-34.5&lon=144.9&nm=25'); console.log('bad key',s,j.src,j.n,seen.join(' | '));
+delete env.ADSBLOL_KEY;
