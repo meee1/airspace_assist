@@ -78,6 +78,7 @@ for name in ('data.json','data-next.json'):
     sets.append([eff_ms(d['meta']), name+'?v='+h(txt), d['meta'].get('ersa','')])
 sets.sort()
 urbt=json.dumps({'urb':urb or [],'sal':sal or []},separators=(',',':')); open(os.path.join(out,'urban.json'),'w').write(urbt)
+sizes={n:os.path.getsize(os.path.join(out,n)) for n in ('data.json','data-next.json','urban.json') if os.path.exists(os.path.join(out,n))}
 data=''.join(s_[1] for s_ in sets)+h(urbt)          # for the build version hash
 tpl=open(os.path.join(here,'template.html')).read()
 i=tpl.index('<script>\n'); j=tpl.rindex('</script>')
@@ -92,22 +93,47 @@ app=app.replace('const DATA = /*__DATA__*/null;','const DATA = window.__DATA;   
 av=h(app)
 LOADER=f"""<script>
 // Loader: pick the AIP dataset in force now, fetch it and the urban areas, then start the app (all cached for offline).
+// Shows a loading screen (#boot) with each step, MB received and errors, until app.js has run.
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{{}});
 window.__SETS={json.dumps(sets)};   // [effective ms (1600 UTC day before), file, ERSA date]
-(async()=>{{
-  const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
-  try{{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v={h(urbt)}').catch(()=>null)]);
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    if(!/json/i.test(r.headers.get('content-type')||'')) throw new Error('not JSON (a sign-in page or captive portal?)');
-    window.__DATA=await r.json();
-    try{{ const x = u&&u.ok ? await u.json() : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }}catch(e){{ window.__DATA.urb=[]; window.__DATA.sal=[]; }}
-    window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null; }}
-  catch(e){{ const d=document.createElement('div'); d.className='bootErr';
-    d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
-    document.body.prepend(d); return; }}
-  const s=document.createElement('script'); s.src='app.js?v={av}';
-  s.onerror=()=>{{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); }};
-  document.body.appendChild(s);
+window.__SIZES={json.dumps(sizes)};  // uncompressed bytes per file, for the progress bar (Content-Length is the gzip size)
+(()=>{{
+  const ul=document.getElementById('bootSteps'), fill=document.getElementById('bootFill'), msg=document.getElementById('bootMsg'), L={{}}, prog={{}};
+  const mb=n=>(n/1048576).toFixed(1);
+  const step=(k,t)=>{{ const li=document.createElement('li'); li.className='on'; li.innerHTML='<i>…</i><span></span><small></small>'; li.children[1].textContent=t; ul.appendChild(li); L[k]=li; }};
+  const done=(k,d)=>{{ const li=L[k]; li.className='ok'; li.children[0].textContent='✓'; if(d!=null) li.children[2].textContent=d; }};
+  const bar=()=>{{ let a=0,b=0; for(const k in prog){{ a+=prog[k][0]; b+=prog[k][1]; }} fill.style.width=(b?Math.min(100,a/b*90):0)+'%'; }};
+  const fail=(k,t)=>{{ if(k&&L[k]){{ L[k].className='err'; L[k].children[0].textContent='✕'; }} msg.className='msg err'; msg.textContent=t; }};
+  window.__boot={{ step, done, fail, ready(){{ fill.style.width='100%'; msg.textContent='Ready'; setTimeout(()=>{{ const b=document.getElementById('boot'); b.classList.add('gone'); setTimeout(()=>b.remove(),400); }},250); }} }};
+  window.addEventListener('error',e=>{{ if(document.getElementById('boot')) fail(null,'Error starting the app: '+(e.message||e)); }});
+  async function get(k,url){{   // fetch with a byte count on the step
+    const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status);
+    const tot=window.__SIZES[url.split('?')[0]]||+r.headers.get('content-length')||0; prog[k]=[0,tot||1];
+    if(!r.body||!r.body.getReader) {{ const t=await r.text(); prog[k]=[1,1]; bar(); return [r,t]; }}
+    const rd=r.body.getReader(), parts=[]; let n=0;
+    for(;;){{ const {{done:d,value}}=await rd.read(); if(d) break; parts.push(value); n+=value.length; prog[k][0]=n; bar();
+      L[k].children[2].textContent=tot? mb(n)+' / '+mb(tot)+' MB' : mb(n)+' MB'; }}
+    prog[k]=[tot||n,tot||n]; bar();
+    return [r,new TextDecoder().decode(await new Blob(parts).arrayBuffer())];
+  }}
+  (async()=>{{
+    const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
+    msg.textContent= navigator.serviceWorker&&navigator.serviceWorker.controller ? 'Loading from offline storage…' : 'Downloading…';
+    step('d','Aerodromes and airspace'+(pick[2]?' (ERSA '+pick[2]+')':'')); step('u','Towns and suburbs');
+    let urb=null; const pu=get('u','urban.json?v={h(urbt)}').then(([r,t])=>{{ urb=t; done('u',mb(t.length)+' MB'); }}, e=>{{ done('u','skipped'); L.u.className='err'; }});
+    try{{ const [r,t]=await get('d',pick[1]);
+      if(!/json/i.test(r.headers.get('content-type')||'')) throw new Error('not JSON (a sign-in page or captive portal?)');
+      window.__DATA=JSON.parse(t); done('d',mb(t.length)+' MB'); }}
+    catch(e){{ fail('d','Could not load the aerodrome and airspace data ('+pick[1].split('?')[0]+': '+String(e.message||e)+'). Open the app once with signal so it can be stored for offline use.'); return; }}
+    await pu;
+    try{{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }}catch(e){{ window.__DATA.urb=[]; window.__DATA.sal=[]; }}
+    window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
+    step('a','App code'); msg.textContent='Starting…';
+    const s=document.createElement('script'); s.src='app.js?v={av}';
+    s.onload=()=>done('a');
+    s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
+    document.body.appendChild(s);
+  }})();
 }})();
 </script>
 """

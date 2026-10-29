@@ -250,6 +250,16 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .vb.p span:nth-child(2){color:var(--as-r)}
 .rwbox{border-top:1px solid var(--rule);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
 .cs-say{display:block;font:500 11px/1.3 var(--f-mono);color:var(--dim);margin-top:3px;min-height:14px;overflow-wrap:anywhere}
+#boot{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity .3s}
+#boot.gone{opacity:0;pointer-events:none}
+#boot .bx{width:min(340px,calc(100vw - 32px));font-family:var(--f-body);color:var(--ink)}
+#boot .bt{font-family:var(--f-label);font-weight:700;font-size:28px;letter-spacing:.02em;margin-bottom:14px}
+#boot ul{list-style:none;margin:0 0 12px;padding:0;font-size:14px}
+#boot li{display:flex;gap:8px;padding:5px 0;color:var(--dim)} #boot li i{flex:none;width:16px;font-style:normal;text-align:center}
+#boot li.on{color:var(--ink)} #boot li.ok i{color:var(--ok)} #boot li.err{color:var(--warn)}
+#boot li small{margin-left:auto;white-space:nowrap;font-family:var(--f-mono);font-size:12px;color:var(--dim)}
+#boot .bar{height:6px;border-radius:3px;background:var(--chip);overflow:hidden} #boot .bar b{display:block;height:100%;width:0;background:var(--freq);transition:width .15s}
+#boot .msg{margin-top:12px;font-size:13px;color:var(--dim);line-height:1.4} #boot .msg.err{color:var(--warn)}
 .bootErr{margin:12px;padding:12px 14px;border-radius:8px;background:var(--panel);border:2px solid var(--warn);color:var(--ink);font-size:14px}
 .prof-ctl{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:4px} .prof-ctl .lbl{margin-right:auto} .prof-ctl .btn{padding:4px 9px;font-size:13px;min-width:30px} .prof-ctl select{font:500 13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
 .prof-ctl .mono{font-size:12px;min-width:52px;text-align:center}
@@ -355,6 +365,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 </style>
 </head>
 <body>
+<div id="boot" role="status" aria-live="polite"><div class="bx"><div class="bt">Radio Calls AU</div><ul id="bootSteps"></ul><div class="bar"><b id="bootFill"></b></div><div class="msg" id="bootMsg">Loading…</div></div></div>
 <div class="wrap">
 
   <div class="status" aria-live="off">
@@ -581,22 +592,47 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 
 <script>
 // Loader: pick the AIP dataset in force now, fetch it and the urban areas, then start the app (all cached for offline).
+// Shows a loading screen (#boot) with each step, MB received and errors, until app.js has run.
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [1795622400000, "data-next.json?v=71a6d18728", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
-(async()=>{
-  const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
-  try{ const [r,u]=await Promise.all([fetch(pick[1]), fetch('urban.json?v=b7ee073b12').catch(()=>null)]);
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    if(!/json/i.test(r.headers.get('content-type')||'')) throw new Error('not JSON (a sign-in page or captive portal?)');
-    window.__DATA=await r.json();
-    try{ const x = u&&u.ok ? await u.json() : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
-    window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null; }
-  catch(e){ const d=document.createElement('div'); d.className='bootErr';
-    d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
-    document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=6fbb0c58a5';
-  s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
-  document.body.appendChild(s);
+window.__SIZES={"data.json": 2141051, "data-next.json": 2150008, "urban.json": 1855883};  // uncompressed bytes per file, for the progress bar (Content-Length is the gzip size)
+(()=>{
+  const ul=document.getElementById('bootSteps'), fill=document.getElementById('bootFill'), msg=document.getElementById('bootMsg'), L={}, prog={};
+  const mb=n=>(n/1048576).toFixed(1);
+  const step=(k,t)=>{ const li=document.createElement('li'); li.className='on'; li.innerHTML='<i>…</i><span></span><small></small>'; li.children[1].textContent=t; ul.appendChild(li); L[k]=li; };
+  const done=(k,d)=>{ const li=L[k]; li.className='ok'; li.children[0].textContent='✓'; if(d!=null) li.children[2].textContent=d; };
+  const bar=()=>{ let a=0,b=0; for(const k in prog){ a+=prog[k][0]; b+=prog[k][1]; } fill.style.width=(b?Math.min(100,a/b*90):0)+'%'; };
+  const fail=(k,t)=>{ if(k&&L[k]){ L[k].className='err'; L[k].children[0].textContent='✕'; } msg.className='msg err'; msg.textContent=t; };
+  window.__boot={ step, done, fail, ready(){ fill.style.width='100%'; msg.textContent='Ready'; setTimeout(()=>{ const b=document.getElementById('boot'); b.classList.add('gone'); setTimeout(()=>b.remove(),400); },250); } };
+  window.addEventListener('error',e=>{ if(document.getElementById('boot')) fail(null,'Error starting the app: '+(e.message||e)); });
+  async function get(k,url){   // fetch with a byte count on the step
+    const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status);
+    const tot=window.__SIZES[url.split('?')[0]]||+r.headers.get('content-length')||0; prog[k]=[0,tot||1];
+    if(!r.body||!r.body.getReader) { const t=await r.text(); prog[k]=[1,1]; bar(); return [r,t]; }
+    const rd=r.body.getReader(), parts=[]; let n=0;
+    for(;;){ const {done:d,value}=await rd.read(); if(d) break; parts.push(value); n+=value.length; prog[k][0]=n; bar();
+      L[k].children[2].textContent=tot? mb(n)+' / '+mb(tot)+' MB' : mb(n)+' MB'; }
+    prog[k]=[tot||n,tot||n]; bar();
+    return [r,new TextDecoder().decode(await new Blob(parts).arrayBuffer())];
+  }
+  (async()=>{
+    const now=Date.now(), S=window.__SETS, pick=[...S].reverse().find(s=>s[0]<=now)||S[0];
+    msg.textContent= navigator.serviceWorker&&navigator.serviceWorker.controller ? 'Loading from offline storage…' : 'Downloading…';
+    step('d','Aerodromes and airspace'+(pick[2]?' (ERSA '+pick[2]+')':'')); step('u','Towns and suburbs');
+    let urb=null; const pu=get('u','urban.json?v=b7ee073b12').then(([r,t])=>{ urb=t; done('u',mb(t.length)+' MB'); }, e=>{ done('u','skipped'); L.u.className='err'; });
+    try{ const [r,t]=await get('d',pick[1]);
+      if(!/json/i.test(r.headers.get('content-type')||'')) throw new Error('not JSON (a sign-in page or captive portal?)');
+      window.__DATA=JSON.parse(t); done('d',mb(t.length)+' MB'); }
+    catch(e){ fail('d','Could not load the aerodrome and airspace data ('+pick[1].split('?')[0]+': '+String(e.message||e)+'). Open the app once with signal so it can be stored for offline use.'); return; }
+    await pu;
+    try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
+    window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
+    step('a','App code'); msg.textContent='Starting…';
+    const s=document.createElement('script'); s.src='app.js?v=fbba8ae2a8';
+    s.onload=()=>done('a');
+    s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
+    document.body.appendChild(s);
+  })();
 })();
 </script>
 

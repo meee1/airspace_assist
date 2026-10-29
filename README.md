@@ -13,7 +13,7 @@ Phone and tablet web app for VFR pilots (built with helicopters in mind):
 - a flight log you can show on the map or download as GPX
 - search and Go to for any aerodrome, waypoint, navaid, town or suburb, typed or spoken (mic button, phonetic alphabet), or by pressing and holding on the map, which also shows any restricted or danger areas there with their ERSA status, hours and contact
 
-It all runs offline once loaded (live NOTAMs and traffic need signal). ERSA and the DAH are always the first source. The layout adapts from phones to 10" tablets.
+It all runs offline once loaded (live NOTAMs and traffic need signal). While it starts, a loading screen lists each step (aerodromes and airspace with the ERSA date, towns and suburbs, app code) with the MB received, and says whether it is loading from offline storage. If something can't load, it shows which step failed and why. ERSA and the DAH are always the first source. The layout adapts from phones to 10" tablets.
 
 ## Top bar
 Always visible at the top of the screen:
@@ -225,7 +225,7 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 
 ## Files
 `app/` holds:
-- `index.html`: the page, plus a small loader
+- `index.html`: the page, plus a small loader with a loading screen
 - `app.js`: the app code
 - `data.json` / `data-next.json`: all ERSA, DAH, waypoint and variation data for the current and next AIRAC
 - `urban.json`: ABS urban centres and localities (populous areas) and suburb names, shared by both
