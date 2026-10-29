@@ -1,0 +1,180 @@
+{
+ "about": "Discrete CTAFs printed on the VTC/VNC (26 NOV 2026 editions) for aerodromes ERSA gives no CTAF. Made by tools/chartctaf.py (OCR of the chart labels), each value then read off the chart image. AIP ENR 1.1 9.1.6.",
+ "charts": "26 NOV 2026",
+ "ctaf": {
+  "AU-0035": {
+   "f": "120.8",
+   "n": "Royal North Shore Hospital Helipad",
+   "sheets": [
+    "Sydney VNC",
+    "Sydney VTC"
+   ]
+  },
+  "AU-0074": {
+   "f": "118.3",
+   "n": "Longford Heliport",
+   "sheets": [
+    "Melbourne VNC"
+   ]
+  },
+  "YAVS": {
+   "f": "132.45",
+   "n": "Alstonville South",
+   "sheets": [
+    "Gold Coast VTC"
+   ]
+  },
+  "YCES": {
+   "f": "119.0",
+   "n": "Ceres",
+   "sheets": [
+    "Melbourne VNC"
+   ]
+  },
+  "YCTO": {
+   "f": "127.5",
+   "n": "Callington",
+   "sheets": [
+    "Adelaide VNC",
+    "Adelaide VTC"
+   ]
+  },
+  "YGBE": {
+   "f": "118.7",
+   "n": "The Glebe",
+   "sheets": [
+    "Hobart VNC",
+    "Launceston VTC"
+   ]
+  },
+  "YLEE": {
+   "f": "132.85",
+   "n": "Leeton",
+   "sheets": [
+    "Deniliquin VNC"
+   ]
+  },
+  "YLSB": {
+   "f": "120.8",
+   "n": "Life Saver Base/Sydney",
+   "sheets": [
+    "Sydney VNC"
+   ]
+  },
+  "YLSK": {
+   "f": "122.65",
+   "n": "Luskintyre",
+   "sheets": [
+    "Newcastle VNC",
+    "Newcastle Williamtown VTC"
+   ]
+  },
+  "YPAN": {
+   "f": "118.1",
+   "n": "Pandora",
+   "sheets": [
+    "Rockhampton VTC"
+   ]
+  },
+  "YRAY": {
+   "f": "120.8",
+   "n": "Rose Bay",
+   "sheets": [
+    "Sydney VNC",
+    "Sydney VTC"
+   ]
+  },
+  "YRTH": {
+   "f": "118.8",
+   "n": "Rothwell",
+   "sheets": [
+    "Melbourne VNC",
+    "Melbourne VTC"
+   ]
+  },
+  "YRWS": {
+   "f": "132.25",
+   "n": "Rowsley",
+   "sheets": [
+    "Melbourne VNC",
+    "Melbourne VTC"
+   ]
+  },
+  "YSBE": {
+   "f": "121.6",
+   "n": "Sunbury East",
+   "sheets": [
+    "Melbourne VNC",
+    "Melbourne VTC"
+   ]
+  },
+  "YSWD": {
+   "f": "119.0",
+   "n": "Sea World",
+   "sheets": [
+    "Gold Coast VTC"
+   ]
+  },
+  "YTAF": {
+   "f": "118.7",
+   "n": "Trafalgar Lane",
+   "sheets": [
+    "Hobart VNC",
+    "Launceston VNC",
+    "Launceston VTC"
+   ]
+  },
+  "YVIL": {
+   "f": "118.3",
+   "n": "The Ville",
+   "sheets": [
+    "Townsville VTC"
+   ]
+  },
+  "YWAN": {
+   "f": "120.8",
+   "n": "Wanda Beach",
+   "sheets": [
+    "Sydney VNC",
+    "Sydney VTC"
+   ]
+  },
+  "YWOT": {
+   "f": "118.8",
+   "n": "Wooloomanata",
+   "sheets": [
+    "Melbourne VNC",
+    "Melbourne VTC"
+   ]
+  },
+  "YXAL": {
+   "f": "123.25",
+   "n": "Albury Hospital",
+   "sheets": [
+    "Deniliquin VNC",
+    "Albury VTC"
+   ]
+  },
+  "YXCB": {
+   "f": "118.7",
+   "n": "Canberra Hospital",
+   "sheets": [
+    "Canberra VTC"
+   ]
+  },
+  "YXTV": {
+   "f": "118.7",
+   "n": "Tweed Valley Hospital",
+   "sheets": [
+    "Gold Coast VTC"
+   ]
+  },
+  "YXWL": {
+   "f": "127.3",
+   "n": "Wollongong Hospital",
+   "sheets": [
+    "Sydney VNC"
+   ]
+  }
+ }
+}

@@ -67,10 +67,21 @@ def eff_ms(meta):
     return int(d.timestamp()*1000)
 h=lambda t: hashlib.sha1(t.encode()).hexdigest()[:10]
 sets=[]; urb=None; sal=None
+# charted CTAFs (tools/chartctaf.py → tools/chart_ctaf.json): discrete CTAFs printed on the VTC/VNC for aerodromes that ERSA
+# gives no CTAF. Added as ap.cc = [freq, 'VTC'|'VNC'|'VTC/VNC', 'Melbourne VNC, Melbourne VTC']; ERSA and tower aerodromes are left alone.
+CC=json.load(open(os.path.join(here,'chart_ctaf.json')))['ctaf'] if os.path.exists(os.path.join(here,'chart_ctaf.json')) else {}
+def add_cc(d):
+    n=0
+    for a in d['ap']:
+        c=CC.get(a['i'])
+        if not c or a.get('cS')=='E' or (a.get('s')=='E' and any(x[0]=='TWR' for x in a.get('x') or [])): continue
+        kinds=sorted({k.split()[-1] for k in c['sheets']}, key=lambda k:k!='VTC')
+        a['cc']=[c['f'], '/'.join(kinds), ', '.join(c['sheets'])]; n+=1
+    return n
 for name in ('data.json','data-next.json'):
     p=os.path.join(here,name)
     if not os.path.exists(p): continue
-    d=json.load(open(p)); u=d.pop('urb',None)
+    d=json.load(open(p)); print(name,'charted CTAFs added:',add_cc(d)); u=d.pop('urb',None)
     if u is not None: urb=u
     s_=d.pop('sal',None)
     if s_ is not None: sal=s_

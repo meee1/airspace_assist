@@ -41,3 +41,5 @@ data/abs/SAL_2021_AUST_GDA2020*
 /data/aip/Townsville_VTC_26NOV2026.pdf
 /data/aip/Whitsunday_VTC_26NOV2026.pdf
 /data/aip/perth_legend_VTC_26NOV2026.pdf
+# OCR scratch from tools/chartctaf.py
+tools/chartctaf_work/

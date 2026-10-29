@@ -352,18 +352,32 @@ Without publishing, a pilot can also import a newer PDF on the phone (**Chart un
 3. **Check it lines up:** run `python3 assemble.py`, serve `dist/` (`cd dist && python3 -m http.server 8811`), import the PDF in **Chart underlay**, and compare aerodrome symbols, the coast and the graticule with the app's own aerodromes and airspace at a few places across the sheet.
 4. **Render and publish** as for a new edition (step 3 onwards), passing all the sheets the site should have, old and new, in the one `chartiles.py` run.
 
+**Legends and margins:** each panel's `clip` in `charts.json` is the chart's map frame, so legends, title strips and margins never cover the map. For the VNCs that is the neatline: the left legend column (where there is one) and the bottom title strip are left out.
+
+**Rotated sheets:** the Tamworth VTC PDF is stored landscape with a 90° page rotation. The tiles are the page as displayed (portrait), so its fit and clip are in that same rotated space.
+
 **Note on projection:** sheets with a `"proj"` entry use their own Lambert conformal conic (`lccFwdP` in `tools/template.html`, matching `LCC` in `tools/chartref.py`); the two Melbourne sheets have none and use the original Victorian one (standard parallels 36°S and 39°S, origin 37°48′S 145°E).
 
 **Copyright:** the charts are Airservices copyright; publishing the tiles on this site is the owner's decision.
+
+## Charted CTAFs
+Some aerodromes have no CTAF in ERSA (they're in its runway index only, or not at all) but the VTC/VNC prints one in a label box. The chart text is vector outlines, so `tools/chartctaf.py` reads it with Tesseract OCR:
+1. `python tools/chartctaf.py scan data/aip` OCRs every purple label box, then the whole sheet for the word CTAF, about 3 min per sheet (needs `tesseract`, `pytesseract`, `pymupdf`).
+2. `python tools/chartctaf.py match` turns each label into lat/lon with the sheet's fit in `charts.json` and matches the name to aerodromes within 10 NM. It prints each one with its ERSA CTAF, if any, as a check on the OCR. On the 26 NOV 2026 sheets every ERSA aerodrome agreed except one OCR misread.
+3. `python tools/chartctaf.py review data/aip` draws the chart round each aerodrome without an ERSA CTAF into `tools/chartctaf_work/review.png`. Read each frequency off the image and put the confirmed ones in `tools/chart_ctaf.json`; nothing goes into the app straight from the OCR.
+4. `python tools/assemble.py` adds them to the aerodromes (only where ERSA has no CTAF).
+
+The OCR doesn't find every label, so an aerodrome missing from the list may still have a charted CTAF: check the chart. Sheets in the north (Brisbane, Bundaberg, Cairns, Darwin VNCs; Cairns, Horn Island VTCs) had none. Redo this when new chart editions come out.
 
 ## Data sources and limits
 The AIP always comes first. Every value in the app carries a source tag: green for AIP (ERSA, DAH, AIP rule), orange for anything else.
 1. **ERSA:** aerodromes, positions and elevations, CTAF, ATIS, AWIS, tower, ground, delivery, approach, departures and UNICOM, plus the area frequency listed for each aerodrome. It also names the controlling unit for each control zone and CTA step.
 2. **DAH:** all airspace (C, D, E, A, control zones, restricted and danger areas) with step limits, area (FIA) frequency boundaries, class E frequency boundaries and broadcast areas. Arcs and circles are computed from the published centres and radii. Boundaries that follow a coastline, river or road are drawn as straight lines between the published points.
-3. **AIP default:** an aerodrome not in ERSA gets CTAF 126.7, or the broadcast-area frequency if it sits inside one.
-4. **Fallbacks, tagged:** VATPAC names the controlling unit where ERSA has none, for example class A. OurAirports supplies strips that aren't in ERSA, and any frequency it disagrees on is shown as "OurAirports says …". XC Australia is only used if no DAH is loaded.
-5. **NOTAMs and traffic:** NOTAMs only from a NAIPS briefing you load (Airservices); ADS-B traffic from adsb.lol (adsb.fi fallback) through the proxy. Both are for awareness: get a fresh NAIPS briefing before each flight, and keep looking out.
-6. **Other data:** terrain is NASA SRTM, with the EGM96 geoid (NGA) for the altitude datum. Populous areas, towns and suburbs are the ABS Urban Centres and Localities and Suburbs and Localities 2021 (CC BY 4.0). The VTC/VNC charts are Airservices copyright.
+3. **Charted CTAF:** where ERSA has no CTAF but the VTC/VNC prints one beside the aerodrome ("Wooloomanata CTAF 118.8"), that frequency is used, tagged **VTC**, **VNC** or **VTC/VNC**, with the sheets named on the card. AIP ENR 1.1 9.1.6 makes it the CTAF for an aerodrome published on aeronautical charts. It also wins over a broadcast area, which the card then shows as the other frequency. There are 23 of these on the 26 NOV 2026 sheets, for example Wooloomanata and Rothwell 118.8, Rowsley 132.25, Sunbury East 121.6, Ceres 119.0, Callington 127.5, Luskintyre 122.65, Trafalgar Lane 118.7, and the Sydney hospital and harbour sites on 120.8. They come from `tools/chart_ctaf.json`; see "Charted CTAFs" below.
+4. **AIP default:** any other aerodrome not in ERSA gets CTAF 126.7, or the broadcast-area frequency if it sits inside one.
+5. **Fallbacks, tagged:** VATPAC names the controlling unit where ERSA has none, for example class A. OurAirports supplies strips that aren't in ERSA, and any frequency it disagrees on is shown as "OurAirports says …". XC Australia is only used if no DAH is loaded.
+6. **NOTAMs and traffic:** NOTAMs only from a NAIPS briefing you load (Airservices); ADS-B traffic from adsb.lol (adsb.fi fallback) through the proxy. Both are for awareness: get a fresh NAIPS briefing before each flight, and keep looking out.
+7. **Other data:** terrain is NASA SRTM, with the EGM96 geoid (NGA) for the altitude datum. Populous areas, towns and suburbs are the ABS Urban Centres and Localities and Suburbs and Localities 2021 (CC BY 4.0). The VTC/VNC charts are Airservices copyright.
 - Where ERSA lists several approach frequencies for a TMA (Sydney, for example), the app picks one by sector and lists the others.
 - GPS altitude is geometric (converted to height above mean sea level on Android), so near a step boundary go by the altimeter.
 - This is not an authoritative source. Confirm against the current ERSA, charts and NOTAMs.

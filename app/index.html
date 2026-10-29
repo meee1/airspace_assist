@@ -594,8 +594,8 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 // Loader: pick the AIP dataset in force now, fetch it and the urban areas, then start the app (all cached for offline).
 // Shows a loading screen (#boot) with each step, MB received and errors, until app.js has run.
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{});
-window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [1795622400000, "data-next.json?v=71a6d18728", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
-window.__SIZES={"data.json": 2141051, "data-next.json": 2150008, "urban.json": 1855883};  // uncompressed bytes per file, for the progress bar (Content-Length is the gzip size)
+window.__SETS=[[1788364800000, "data.json?v=f125575d9a", "03 SEP 2026"], [1795622400000, "data-next.json?v=a653815da6", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
+window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1855883};  // uncompressed bytes per file, for the progress bar (Content-Length is the gzip size)
 (()=>{
   const ul=document.getElementById('bootSteps'), fill=document.getElementById('bootFill'), msg=document.getElementById('bootMsg'), L={}, prog={};
   const mb=n=>(n/1048576).toFixed(1);
@@ -628,7 +628,7 @@ window.__SIZES={"data.json": 2141051, "data-next.json": 2150008, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=fbba8ae2a8';
+    const s=document.createElement('script'); s.src='app.js?v=cac7e206ca';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

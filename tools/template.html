@@ -687,13 +687,16 @@ function geoidN(la,lo){ const G=GEO; if(!G) return null; const y=(G.la0-la)/G.st
 const GPS_ELLIPSOID=!/iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);   // ms, set by assemble.py
 const META=DATA.meta||{}, ASRC=META.airspace==='DAH'?'DAH':'XC';
 const SRC={E:'ERSA',X:'XC Aus',V:'VATPAC',O:'OurAirports'};
-function chip(src){ if(!src) return ''; const off=['ERSA','DAH','AIP'].includes(src); return `<span class="src ${off?'off':'unv'}">${src}</span>`; }
+function chip(src){ if(!src) return ''; const off=['ERSA','DAH','AIP','VTC','VNC','VTC/VNC'].includes(src); return `<span class="src ${off?'off':'unv'}">${src}</span>`; }
 function baAt(la,lo){ return ASP.find(x=>x.k==='BA'&&inAsp(x,la,lo)); }
 function ctafInfo(a){
   const other = a.c && a.cS!=='E' ? {f:a.c, src:SRC[a.cS]||a.cS} : null;
   if(a.cS==='E') return {f:a.c, src:'ERSA', note:a.ct?'When tower not active':'Common traffic advisory', afru:a.afru};
   if(a.s==='E' && a.x && a.x.some(x=>x[0]==='TWR')) return {f:null, src:'ERSA', note:'No CTAF published: tower aerodrome'};
   const ba=baAt(a.la,a.lo);
+  // a discrete CTAF printed on the VTC/VNC for an aerodrome ERSA has no CTAF for (AIP ENR 1.1 9.1.6: "the CTAF (126.7MHz or the
+  // discrete frequency as published)" for aerodromes on aeronautical charts); a.cc = [freq, 'VTC'|'VNC'|'VTC/VNC', sheets] from tools/chart_ctaf.json
+  if(a.cc) return {f:a.cc[0], src:a.cc[1], note:'Charted on the '+a.cc[2]+' (not in ERSA)', other: ba&&ba.f!==a.cc[0]? {f:ba.f, src:titleCase(ba.n)+' broadcast area'} : other&&other.f!==a.cc[0]?other:null};
   if(ba) return {f:ba.f, src:ASRC, note:titleCase(ba.n)+' broadcast area', other: other&&other.f!==ba.f?other:null};
   return {f:'126.7', src:'AIP', note: a.s==='E'?'ERSA lists no CTAF: AIP default':'Not listed in ERSA: AIP default CTAF', other: other&&other.f!=='126.7'?other:null};
 }
