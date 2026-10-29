@@ -552,7 +552,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="vnote" id="nbStat"></div>
     <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="trVoice"> Speak traffic alerts</label>
     <div class="vnote" id="trStat"></div>
-    <div class="vnote"><b>Traffic</b> (map button) is ADS-B from adsb.lol (adsb.fi as a fallback) via the traffic proxy, refreshed every 5 s with signal. It shows only aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late and patchy at low level. It is not TCAS and not a collision-avoidance system: keep looking out.</div>
+    <div class="vnote"><b>Traffic</b> (map button) is ADS-B from adsb.lol (adsb.fi as a fallback) via the traffic proxy, refreshed every 10 s with signal. It shows only aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late and patchy at low level. It is not TCAS and not a collision-avoidance system: keep looking out.</div>
     <div class="vnote">NOTAMs come only from the NAIPS briefing you load here, kept for use offline. Get a fresh one before each flight.</div>
   </details>
 
@@ -574,7 +574,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=faf4ba198b';
+  const s=document.createElement('script'); s.src='app.js?v=17f58ab9f5';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();

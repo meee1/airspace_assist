@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793230836100;
+const APP_BUILT=1793232629785;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -399,7 +399,7 @@ async function trPoll(){
     TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.err=null;
   }catch(e){ TR.err=String(e&&e.message||e).slice(0,220); }
   TR.busy=false; render(); }
-setInterval(trPoll,5000);
+setInterval(trPoll,10000);   // ADS-B refresh: every 10 s
 // targets relative to you: extrapolated along track (up to 30 s); height above MSL from GNSS altitude (ellipsoid - geoid), else pressure altitude
 function trTargets(){
   if(!st.pos||!TR.t) return [];

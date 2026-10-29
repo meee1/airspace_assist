@@ -168,7 +168,7 @@ python3 assemble.py && cp dist/* ../app/
   - **Test:** `play/naips.js` (cards, map menu, R352/R360D) and `play/nbpdf.js` (PDF via file picker and share target, text share, Brief in NAIPS).
 - **Traffic** (`TR`, `trPoll`, `trTargets`, `trAlert`, `drawTraffic`, `#mapTraffic` in the first map-control row, `#sTraffic` row; display = the owner's 27 Oct pick):
   - **Map:** every airborne target gets a 15 px track stick (`t.ux/uy`); tap-select via `MAP.trHits` (24 px, checked before waypoint picks; a miss clears `TR.sel`); the selected one gets a dashed ring and a details box drawn last (`MAP.trBox`, placed right/left/below/above clear of the target, its stick and ownship). Test: `play/trsel.js`.
-  - `trPoll` every 5 s when `MAP.traffic`, a proxy URL, a position, online and the page visible: `/traffic?lat&lon&nm=25`.
+  - `trPoll` every 10 s (was 5 s until 29 Oct 2026) when `MAP.traffic`, a proxy URL, a position, online and the page visible: `/traffic?lat&lon&nm=25`.
   - `trTargets`: extrapolates each target along `trk` by `seen` + time since fetch (≤ 30 s); height = `ag` − geoid N (ft) else `ab`; drops your own aircraft (registration ending in the decoded callsign from Radio calls, or < 0.15 NM and < 300 ft); level 3 (amber, TA) ≤ 2.5 NM & ±600 ft, 2 (cyan) ≤ 6 NM & ±1,200 ft, 1 grey, 0 on the ground; clock position from `heading()`.
   - `trAlert`: nearest level 3 only, only with data < 30 s old; speech (`speechSynthesis`, setting `trVoice`) at most once a minute per hex.
   - Test: `node tools/notam-worker/mockserver.mjs` (four fake aircraft: TA, proximate, far, and VH-EAN), `play` test checks levels, own-ship filter, alert text, speech and the stale rule.

@@ -552,7 +552,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <div class="vnote" id="nbStat"></div>
     <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="trVoice"> Speak traffic alerts</label>
     <div class="vnote" id="trStat"></div>
-    <div class="vnote"><b>Traffic</b> (map button) is ADS-B from adsb.lol (adsb.fi as a fallback) via the traffic proxy, refreshed every 5 s with signal. It shows only aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late and patchy at low level. It is not TCAS and not a collision-avoidance system: keep looking out.</div>
+    <div class="vnote"><b>Traffic</b> (map button) is ADS-B from adsb.lol (adsb.fi as a fallback) via the traffic proxy, refreshed every 10 s with signal. It shows only aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late and patchy at low level. It is not TCAS and not a collision-avoidance system: keep looking out.</div>
     <div class="vnote">NOTAMs come only from the NAIPS briefing you load here, kept for use offline. Get a fresh one before each flight.</div>
   </details>
 
@@ -961,7 +961,7 @@ async function trPoll(){
     TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.err=null;
   }catch(e){ TR.err=String(e&&e.message||e).slice(0,220); }
   TR.busy=false; render(); }
-setInterval(trPoll,5000);
+setInterval(trPoll,10000);   // ADS-B refresh: every 10 s
 // targets relative to you: extrapolated along track (up to 30 s); height above MSL from GNSS altitude (ellipsoid - geoid), else pressure altitude
 function trTargets(){
   if(!st.pos||!TR.t) return [];

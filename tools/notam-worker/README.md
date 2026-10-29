@@ -18,7 +18,7 @@ folder keeps its old name.)
 
 ## What it does
 - `GET /traffic?lat=&lon=&nm=` (nm max 40): aircraft from **adsb.lol** (free, ODbL, no key), falling back to
-  **adsb.fi** if adsb.lol fails, cached 3 s per ~0.6 NM position. The app asks every 5 s while the map's **Traffic**
+  **adsb.fi** if adsb.lol fails, cached 3 s per ~0.6 NM position. The app asks every 10 s while the map's **Traffic**
   button is on and there's signal. (airplanes.live was the first choice but its API now answers 403 "please contact
   us" until they approve a project.) If both fail the answer is 502 with `errors` naming each feed's status, which the
   app shows under the map and in Settings.
