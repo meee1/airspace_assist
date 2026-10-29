@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793248819527;
+const APP_BUILT=1793252719999;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -299,6 +299,35 @@ function fpAdvance(){
 }
 /* flight log: every GPS fix (at most one per 5 s) for the last 6 h, exportable as GPX, to check sequencing after a flight */
 const TLOG={pts:ls.get('tlog',[]), last:0};
+/* Flight log storage: IndexedDB (database radio-au, store "log"), one record per fix or event, written as it happens and
+   kept for 90 days (LOG_KEEP). The app itself (Log layer, Flight log button) works on the last 6 h in memory; older flights
+   are listed under Options → Flight logs. Older builds kept it as one JSON array in localStorage ("rc_tlog", rewritten every 30 s and
+   limited to a few MB); that copy is moved into IndexedDB once and removed. If IndexedDB isn't available the old
+   localStorage way is used. */
+const LOGDB={db:null, n:0, ok:typeof indexedDB!=='undefined'}, LOG_KEEP=90*86400e3;
+function logDbOpen(){ return new Promise((ok,no)=>{ const r=indexedDB.open('radio-au',1);
+  r.onupgradeneeded=()=>{ const st_=r.result.createObjectStore('log',{autoIncrement:true}); st_.createIndex('t','t'); };
+  r.onsuccess=()=>ok(r.result); r.onerror=()=>no(r.error); }); }
+function logDbAdd(rows){ if(!LOGDB.db){ if(!LOGDB.ok) ls.set('tlog',TLOG.pts); return; }
+  try{ const tx=LOGDB.db.transaction('log','readwrite'), os=tx.objectStore('log'); for(const r of rows) os.add({t:r[0],r});
+    if((LOGDB.n+=rows.length)>=60){ LOGDB.n=0; const cut=Date.now()-LOG_KEEP; os.index('t').openCursor(IDBKeyRange.upperBound(cut,true)).onsuccess=e=>{ const c=e.target.result; if(c){ c.delete(); c.continue(); } }; }
+  }catch(e){ ls.set('tlog',TLOG.pts); } }
+async function logDbInit(){
+  if(!LOGDB.ok) return;
+  try{ LOGDB.db=await logDbOpen(); }catch(e){ LOGDB.ok=false; return; }
+  const cut=Date.now()-6*3600e3;
+  const rows=await new Promise(ok=>{ const out=[]; const q=LOGDB.db.transaction('log').objectStore('log').index('t').openCursor(IDBKeyRange.lowerBound(cut));
+    q.onsuccess=e=>{ const c=e.target.result; if(c){ out.push(c.value.r); c.continue(); } else ok(out); }; q.onerror=()=>ok(out); });
+  const old=ls.get('tlog',[]).filter(r=>r[0]>=Date.now()-LOG_KEEP), key=r=>r[0]+'|'+(r[1]==='ev'?'ev'+r[2]:'');   // move all of the old copy (within 90 days)
+  const have=new Set(rows.map(key)), move=old.filter(r=>!have.has(key(r)));
+  if(move.length) logDbAdd(move);
+  LOGDB.n=60; logDbAdd([]);   // prune anything past 90 days now
+  try{ localStorage.removeItem('rc_tlog'); }catch(e){}
+  const seen=new Set(), all=[...rows,...move,...TLOG.pts].filter(r=>r[0]>=cut&&!seen.has(key(r))&&seen.add(key(r))).sort((a,b)=>a[0]-b[0]);
+  const fresh=TLOG.pts.filter(r=>!have.has(key(r))&&!old.some(o=>key(o)===key(r)));   // logged this session before the database opened
+  if(fresh.length) logDbAdd(fresh);
+  TLOG.pts=all; }
+logDbInit();
 /* ---------- NOTAMs (NAIPS briefing only; the proxy is for traffic) ---------- */
 try{ ls.set('notam',null); }catch(e){}   // proxy NOTAMs were removed 29 Oct 2026: drop any stored copy
 const NT_DEFAULT='https://test.mission.workers.dev';   // default traffic proxy; the setting overrides it, an empty setting turns it off
@@ -473,13 +502,13 @@ const SIMT=[];   // simulated fixes, this session only (shown by Log on the map,
 function fpLogFix(){ if(!st.pos) return; const t=Date.now();
   if(st.sim){ const q=SIMT[SIMT.length-1]; if(!q||Math.abs(q[1]-st.pos[0])+Math.abs(q[2]-st.pos[1])>2e-4){ SIMT.push([t,st.pos[0],st.pos[1]]); if(SIMT.length>5000) SIMT.shift(); } return; } if(t-TLOG.last<5000) return; TLOG.last=t;
   TLOG.pts.push([t,+st.pos[0].toFixed(6),+st.pos[1].toFixed(6),st.alt!=null?Math.round(st.alt):null,st.gs!=null?Math.round(st.gs):null,st.trk!=null?Math.round(st.trk):null,st.acc!=null?Math.round(st.acc):null,FP?FP.i:null]);
-  const cut=t-6*3600e3; while(TLOG.pts.length&&TLOG.pts[0][0]<cut) TLOG.pts.shift(); if(TLOG.pts.length%6===0) ls.set('tlog',TLOG.pts); }
-function fpLogEv(kind,a,b,d){ if(st.sim) return; TLOG.pts.push([Date.now(),'ev',kind,a,b,+d.toFixed(2)]); ls.set('tlog',TLOG.pts); }
-function fpLogGpx(){ const fx=TLOG.pts.filter(p=>p[1]!=='ev'), ev=TLOG.pts.filter(p=>p[1]==='ev');
+  const cut=t-6*3600e3; while(TLOG.pts.length&&TLOG.pts[0][0]<cut) TLOG.pts.shift(); logDbAdd([TLOG.pts[TLOG.pts.length-1]]); }
+function fpLogEv(kind,a,b,d){ if(st.sim) return; const r=[Date.now(),'ev',kind,a,b,+d.toFixed(2)]; TLOG.pts.push(r); logDbAdd([r]); }
+function fpLogGpx(rows=TLOG.pts,title){ const fx=rows.filter(p=>p[1]!=='ev'), ev=rows.filter(p=>p[1]==='ev');
   const x=s=>String(s).replace(/[<&]/g,'');
   const pts=fx.map(p=>`<trkpt lat="${p[1]}" lon="${p[2]}">${p[3]!=null?`<ele>${(p[3]/3.28084).toFixed(1)}</ele>`:''}<time>${new Date(p[0]).toISOString()}</time><desc>gs ${p[4]} trk ${p[5]} acc ${p[6]} wp ${p[7]}</desc></trkpt>`).join('\n');
   const wpts=ev.map(e=>{ const f=fx.reduce((m,p)=>Math.abs(p[0]-e[0])<Math.abs(m[0]-e[0])?p:m,fx[0]||[e[0],0,0]); return `<wpt lat="${f[1]}" lon="${f[2]}"><time>${new Date(e[0]).toISOString()}</time><name>${x(e[2])} ${e[3]}->${e[4]}</name><desc>${e[5]} NM from waypoint</desc></wpt>`; }).join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n<trk><name>Radio Calls AU log${FP?' · '+x(FP.name):''}</name><trkseg>\n${pts}\n</trkseg></trk></gpx>`; }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n<trk><name>Radio Calls AU log${title?' · '+x(title):FP?' · '+x(FP.name):''}</name><trkseg>\n${pts}\n</trkseg></trk></gpx>`; }
 // Flight plan aerodromes take priority over "closest" so the right calls are on screen in time:
 //  1. the next aerodrome in the plan, once within 10 NM (the CTAF inbound/overflying call point)
 //  2. when the active waypoint is one of that aerodrome's ERSA VFR reporting points (e.g. ACE for Moorabbin), within 15 NM,
@@ -995,9 +1024,25 @@ function optsRender(){
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+$('bOpts').onclick=()=>{ optsRender(); logsRender(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
+// flights stored in IndexedDB: fixes split where there's a gap of more than 30 min, newest first, each downloadable as GPX
+function logRead(from,to){ return new Promise(ok=>{ if(!LOGDB.db) return ok([]); const out=[];
+  const q=LOGDB.db.transaction('log').objectStore('log').index('t').openCursor(IDBKeyRange.bound(from,to));
+  q.onsuccess=e=>{ const c=e.target.result; if(c){ out.push(c.value.r); c.continue(); } else ok(out); }; q.onerror=()=>ok(out); }); }
+async function logsRender(){ const el=$('optsLogs');
+  if(!LOGDB.db){ el.innerHTML='<div class="vnote">'+(LOGDB.ok?'Loading…':'This browser can\'t store the log (no IndexedDB).')+'</div>'; return; }
+  const all=await logRead(Date.now()-LOG_KEEP,Date.now()+1), fl=[];
+  for(const r of all){ if(r[1]==='ev'){ if(fl.length) fl[fl.length-1].rows.push(r); continue; }
+    const f=fl[fl.length-1]; if(!f||r[0]-f.t1>30*60e3) fl.push({t0:r[0],t1:r[0],n:0,rows:[]}); const g=fl[fl.length-1]; g.t1=r[0]; g.n++; g.rows.push(r); }
+  const fmt=t=>new Date(t).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}), tm=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
+  const L=fl.filter(f=>f.n>=6).reverse();
+  el.innerHTML= L.length? L.map((f,i)=>`<label style="cursor:default"><span><b>${fmt(f.t0)}–${tm(f.t1)}</b><br><small>${Math.round((f.t1-f.t0)/60e3)} min · ${f.n} fixes</small></span><button class="btn meta" data-log="${i}" style="margin-left:auto">GPX</button></label>`).join('')
+    : '<div class="vnote">No flights logged yet.</div>';
+  el.onclick=e=>{ const b=e.target.closest('[data-log]'); if(!b) return; const f=L[+b.dataset.log];
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0))],{type:'application/gpx+xml'}));
+    a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }; }
 $('optCtafSplit').checked=ls.get('ctafSplit',true);
 $('optCtafSplit').addEventListener('change',()=>{ ls.set('ctafSplit',$('optCtafSplit').checked); render(); });
 $('optsDlg').addEventListener('click',e=>{ if(e.target===$('optsDlg')) $('optsDlg').close(); });   // tap outside the box
@@ -1222,7 +1267,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
   }
   // CTAF layer: 10 NM around each aerodrome (and DAH broadcast areas), merged per frequency, one colour each
   const ctafAt=[];
-  if(MAP.ctaf){
+  if(MAP.ctaf && MAP.range>80) $('ctafLeg').innerHTML='<span>CTAF areas show at 80 NM and closer</span>';   // hundreds of aerodromes: too slow to draw further out
+  else if(MAP.ctaf){
     const groups=new Map(); const add=(f,shape)=>{ if(!f) return; if(!groups.has(f)) groups.set(f,[]); groups.get(f).push(shape); };
     const rr=reach+CTAF_NM/60;
     for(const ad of DATA.ap){
@@ -1336,7 +1382,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
     if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue;
     const [x,y]=P(ad.la,ad.lo); if(x<-10||y<-10||x>W+10||y>Hh+10) continue;
     const sel=ad===pick.a;
-    g.beginPath(); g.arc(x,y,sel?5:3,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.fill();
+    g.beginPath(); g.arc(x,y,sel?5:MAP.range>80?1.6:MAP.range>40?2.3:3,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.fill();   // smaller dots zoomed far out
     if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+6,y+3); }
   }
   if(MAP.ctaf && MAP.range<=40){ // frequency under each aerodrome, in its group colour
@@ -1794,7 +1840,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 document.addEventListener('pointerdown',e=>{ if(e.target.closest&&e.target.closest('#bWake')) return; if(st.wakeWant && !(st.wake&&!st.wake.released) && !(wakeVid&&!wakeVid.paused)) wakeAcquire(); },true);
 st.wakeWant=ls.get('wake',false); wakeSync(); wakeAcquire();   // the Wake Lock API needs no tap; the video fallback waits for the first one
 $('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); $('adCard').scrollIntoView({block:'start',behavior:'smooth'})});
-const RANGES=[2.5,5,10,20,40,80];
+const RANGES=[2.5,5,10,20,40,80,160,320];
 // buttons step through RANGES; pinch (or the mouse wheel) zooms smoothly in between, so step to the next one either way
 $('mapIn').onclick=()=>{ MAP.range=[...RANGES].reverse().find(r=>r<MAP.range-0.01)||RANGES[0]; ls.set('mapRange',MAP.range); render(); };
 $('mapOut').onclick=()=>{ MAP.range=RANGES.find(r=>r>MAP.range+0.01)||RANGES[RANGES.length-1]; ls.set('mapRange',MAP.range); render(); };
@@ -1931,7 +1977,7 @@ function fpGpx(){ // the plan as a GPX 1.1 route: name = the AIP code where matc
 $('fpSave').onclick=()=>{ if(!FP||!FP.pts.length) return; const P_=FP.pts, nm=q=>String(q.c||q.n).replace(/[^A-Za-z0-9]+/g,'').slice(0,12)||'WP';
   dlFile(`${nm(P_[0])}-${nm(P_[P_.length-1])}-${new Date().toISOString().slice(0,10)}.gpx`,fpGpx(),'application/gpx+xml');
   const b=$('fpSave'); b.textContent='Saved'; setTimeout(()=>b.textContent='Save GPX',2000); };
-$('fpLog').onclick=()=>{ ls.set('tlog',TLOG.pts); const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
+$('fpLog').onclick=()=>{ const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx()],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
 $('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
 $('fpClear').onclick=()=>{ FP_EDIT=false; fpSet(null); setGo(null); };
@@ -1957,7 +2003,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
 // drag to pan (one finger or mouse); pinch with two fingers to zoom; a tap without movement still picks a point
 { const cv=$('map'); let drag=null, raf=0, pinch=null; const ptr=new Map();
   const redraw=()=>{ raf=0; if(MAP.last) drawMap(...MAP.last); };
-  const zoomTo=r=>{ MAP.range=Math.min(80,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
+  const zoomTo=r=>{ MAP.range=Math.min(320,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
   const spread=()=>{ const [a,b]=[...ptr.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
   let lpT=null; const lpCancel=()=>{ clearTimeout(lpT); lpT=null; };
   const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId};

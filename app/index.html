@@ -553,6 +553,8 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="lbl">Chart downloads (VNC / VTC)</div>
     <div class="opts-list" id="optsCharts"></div>
     <div class="vnote" id="optsNote"></div>
+    <div class="lbl" style="margin-top:10px">Flight logs (kept 90 days)</div>
+    <div class="opts-list" id="optsLogs"></div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optCtafSplit"><span><b>Split overlapping CTAF areas</b><br><small>Where two aerodromes with different CTAFs are less than 20 NM apart, their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency.</small></span></label></div>
   </dialog>
@@ -591,7 +593,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=c844f04731';
+  const s=document.createElement('script'); s.src='app.js?v=d8df3fe376';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();
