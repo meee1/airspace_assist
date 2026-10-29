@@ -184,16 +184,22 @@ The app uses SRTM terrain for three things:
 
 Terrain is a 30 arc-second grid (about 900 m). Each cell holds the highest SRTM point inside it, so AGL errs low. It's for awareness, not terrain clearance.
 
-Build the tiles on your own computer:
-```
-fetch_srtm.bat --around=-38.15,144.36,300      (Windows; tiles within 300 km of Geelong)
-python tools/fetch_srtm.py --bbox=-39.5,140.5,-33.5,150.5
-python tools/fetch_srtm.py --australia            (about 900 tiles)
-```
-- **Downloads:** by default it downloads SRTM 1 arc-second tiles from the public AWS Terrain Tiles bucket, about 10–25 MB each. Only the small processed tiles are kept, about 5–30 KB each, in `app/terrain/`.
-- **Local files:** to use SRTM files you already have instead, add `--from-dir <folder>`. It accepts `.hgt`, `.hgt.gz` and `.hgt.zip`, such as NASA SRTMGL1 or SRTMGL3 from Earthdata.
-- **Resuming:** re-running skips tiles already built.
-- **On the phone:** tiles load as you move. The 5×5° around you is pre-loaded and kept for offline use.
+### Update or add terrain (SRTM)
+The tiles are built on your own computer (Python 3, standard library only, normal internet access) and published with the site in `app/terrain/`.
+
+1. **Pick the area.** Tiles are 1°×1°, named by their south-west corner (`S38E144.bin.z`). Choose one of:
+   ```
+   fetch_srtm.bat --around=-38.15,144.36,300            (Windows: within 300 km of Geelong)
+   python tools/fetch_srtm.py --bbox=-39.5,140.5,-33.5,150.5
+   python tools/fetch_srtm.py --australia                (all Australian land, about 900 tiles)
+   ```
+   To extend the coverage, just run it again with the new area: tiles already built (and tiles found to be all sea) are skipped, and the new ones are added to the list in `app/terrain/index.json`.
+2. **Source data:** by default it downloads SRTM 1 arc-second tiles from the public AWS Terrain Tiles bucket (about 10–25 MB each; only the small processed tiles, about 5–30 KB each, are kept). To use SRTM files you already have, add `--from-dir <folder>`; it accepts `.hgt`, `.hgt.gz` and `.hgt.zip` (e.g. NASA SRTMGL1 or SRTMGL3 from https://search.earthdata.nasa.gov, free Earthdata login).
+3. **Rebuild a tile** (e.g. from a better source): delete that `app/terrain/<name>.bin.z` and run the script again for its area; it's rebuilt because the file is missing.
+4. **Publish:** commit and push `app/terrain/` (the new tiles and `index.json`). Nothing else needs rebuilding: the app reads `terrain/index.json` at start-up.
+5. **On the phone:** with signal, the app downloads every tile listed in `index.json` that it hasn't stored yet, in the background, and keeps them for offline use (the footer shows when it's ready to fly without signal). A tile that was rebuilt under the same name is **not** fetched again by a phone that already has it; clear the site's data (or reinstall the app) to pick it up.
+
+Format, if you need it: each tile is zlib-compressed little-endian int16, 121×121 posts at 30 arc-seconds, row 0 at the north edge, each post the highest SRTM elevation (metres) around it.
 
 ## Radio call guide
 Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and choose aeroplane or helicopter; all are saved on the device. Type the callsign as the registration (`EAN` or `VH-EAN`) and it's spelled in the phonetic alphabet ("ECHO ALPHA NOVEMBER"): a preview shows under the box while you type, and it expands in the box when you press Enter or leave it. VH- is dropped. Digits are spoken (9 = NINER). Anything with spaces (`POLAIR 31`), or one word of 5+ letters (`RESCUE`), is left as typed.
@@ -299,6 +305,47 @@ P
 python3 assemble.py && cp dist/* ../app/
 ```
 The app warns you when the AIP data isn't effective yet, or is more than two cycles old.
+
+## Update or add VTC / VNC charts
+The chart underlay is pre-rendered from the Airservices PDFs into JPEG tiles in `app/charts/`. Each sheet also needs a calibration entry in `tools/charts.json` (page size, file-name match, render scales, and for each map panel its georeference and clip outline). Run these on your own computer:
+```
+cd tools && pip install pymupdf pillow numpy scipy opencv-python matplotlib
+```
+
+### A new edition of a sheet the app already has (Melbourne VTC / VNC)
+1. Download the new PDFs from the Airservices AIP charts page (e.g. `Melbourne_VTC_<date>.pdf`, `Melbourne_VNC_<date>.pdf`). Keep the original file names: the edition date is read from them.
+2. **Check the calibration still fits.** Airservices usually keeps the same layout between editions. Re-run the fit and compare it with the entry in `tools/charts.json`:
+   ```
+   python chartref.py ../data/charts/Melbourne_VTC_<date>.pdf --dah ../data/aip/DAH_<date>.pdf --data data.json \
+          --sheet ML-VTC --name "Melbourne VTC" --kind VTC --match melbourne > /tmp/ml-vtc.json
+   ```
+   It prints, for each panel, the label matches, the airspace misfit (about 0.5 pt is normal) and the graticule fit (`rms` under ~10 m is normal). If the page size, the panels or the numbers changed, replace that sheet's entry in `charts.json` with the new output (keep its `"sheet"` id).
+3. **Render the tiles. Pass every chart in one run:** the script rewrites `app/charts/index.json` with only the sheets it was given and removes the folders of anything else (older editions included).
+   ```
+   python chartiles.py ../app/charts ../data/charts/Melbourne_VNC_<date>.pdf ../data/charts/Melbourne_VTC_<date>.pdf
+   ```
+   Output: `app/charts/<sheet>-<edition>/<level>/<i>_<j>.jpg` (512 px tiles at the `levels` scales, skipping tiles outside the panels) and `app/charts/index.json`.
+4. **If `charts.json` changed**, rebuild the app so it carries the new calibration: `python3 assemble.py && cp dist/* ../app/`.
+5. **Publish** on or after the edition's effective date: commit and push `app/charts/` (and `tools/charts.json` and the rebuilt `app/` files if they changed). Phones download the new edition's tiles in the background the next time the app opens with signal; until then they keep using what they have stored.
+
+Without publishing, a pilot can also import a newer PDF on the phone (**Chart underlay → Import VTC/VNC PDF**). It uses the same calibration, so this only works while the layout is unchanged.
+
+### A sheet the app doesn't have yet (e.g. another VTC)
+1. **Calibrate it:**
+   ```
+   python chartref.py ../data/charts/Sydney_VTC_<date>.pdf --dah ../data/aip/DAH_<date>.pdf --data data.json \
+          --sheet SY-VTC --name "Sydney VTC" --kind VTC --match sydney > /tmp/sy-vtc.json
+   ```
+   - `--sheet` is a short unique id; `--match` is a word that must appear in the file name or PDF title; `--kind` is VTC or VNC (VNCs are drawn under VTCs).
+   - The map panels are found from the chart's black neatlines. If one is missed (or an inset needs separating), give it with `--panel x0,y0,x1,y1` in PDF points (repeatable).
+   - The first fit matches place names printed on the chart to ERSA VFR waypoints and aerodromes, then refines it on the printed controlled-airspace lines, then fits each panel to its printed graticule (the fit the app uses). Read the misfit and `rms` lines it prints.
+2. **Add the printed JSON object to the array in `tools/charts.json`.**
+3. **Check it lines up:** run `python3 assemble.py`, serve `dist/` (`cd dist && python3 -m http.server 8811`), import the PDF in **Chart underlay**, and compare aerodrome symbols, the coast and the graticule with the app's own aerodromes and airspace at a few places across the sheet.
+4. **Render and publish** as for a new edition (step 3 onwards), passing all the sheets the site should have, old and new, in the one `chartiles.py` run.
+
+**Note on projection:** the app places charts using a Lambert conformal conic projection tuned for Victoria (standard parallels 36°S and 39°S, origin 37°48′S 145°E), plus the per-panel graticule fit. For sheets elsewhere in Australia check the graticule `rms` that `chartref.py` prints: if it's well above ~20 m, the projection would need to become a per-sheet setting (a code change in `lccFwd` in `tools/template.html` and in `tools/chartref.py`, which must stay identical).
+
+**Copyright:** the charts are Airservices copyright; publishing the tiles on this site is the owner's decision.
 
 ## Data sources and limits
 The AIP always comes first. Every value in the app carries a source tag: green for AIP (ERSA, DAH, AIP rule), orange for anything else.
