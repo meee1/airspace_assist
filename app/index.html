@@ -212,6 +212,13 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapmenu .mm-head{display:flex;align-items:center;gap:8px}.mapmenu .mm-head b{flex:1;font-size:15px}
 .mapmenu .mm-head .btn{padding:4px 9px}
 .mapmenu{max-height:calc(100% - 16px);overflow:auto}
+dialog.opts{border:1px solid var(--rule);border-radius:12px;background:var(--panel);color:var(--ink);padding:14px;width:min(440px,calc(100vw - 32px));max-height:min(80vh,640px);box-shadow:0 10px 36px rgba(0,0,0,.35)}
+dialog.opts::backdrop{background:rgba(0,0,0,.35)}
+.opts-head{display:flex;align-items:center;gap:8px;margin-bottom:10px} .opts-head b{font-size:16px} .opts-head .btn{margin-left:auto;padding:4px 10px}
+.opts-list{display:flex;flex-direction:column;gap:2px;margin:6px 0 8px}
+.opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
+.opts-list label input{width:20px;height:20px;flex:none} .opts-list .meta{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
+.opts-list .new{font-size:10.5px;color:var(--accent);font-weight:700;margin-left:6px}
 .mapmenu .mm-sua:empty{display:none}
 .mapmenu .sua{margin-top:8px;padding:7px 9px;border-radius:8px;border-left:4px solid var(--as-q);background:color-mix(in srgb,var(--as-q) 8%,var(--panel));font-size:12.5px;line-height:1.35}
 .mapmenu .sua.r{border-left-color:var(--as-r);background:color-mix(in srgb,var(--as-r) 9%,var(--panel))}
@@ -537,8 +544,16 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <button class="btn" id="bWake" aria-pressed="false">Keep screen on</button>
     <button class="btn" id="bCmp" title="The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.">Compass: not aligned</button>
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
+    <button class="btn" id="bOpts" aria-haspopup="dialog" title="Which VNC / VTC charts to download and keep on this device">Options</button>
     <button class="btn" id="bInstall" hidden title="Install as an app: full screen, its own icon, and Android keeps its stored data">Install app</button>
   </div>
+
+  <dialog class="opts" id="optsDlg" aria-labelledby="optsTitle">
+    <div class="opts-head"><b id="optsTitle">Options</b><button class="btn" id="optsClose" aria-label="Close">✕</button></div>
+    <div class="lbl">Chart downloads (VNC / VTC)</div>
+    <div class="opts-list" id="optsCharts"></div>
+    <div class="vnote" id="optsNote"></div>
+  </dialog>
 
   <details class="calls ntset" id="ntSet">
     <summary><span class="lbl">NOTAMs (NAIPS) and traffic</span><span class="calls-at" id="ntSum">no briefing</span></summary>
@@ -574,7 +589,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=17f58ab9f5';
+  const s=document.createElement('script'); s.src='app.js?v=227cfdd8ec';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();

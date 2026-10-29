@@ -4,7 +4,8 @@
 The app downloads these by default and keeps them in Cache Storage for offline use. Tiles that fall entirely outside
 every map panel (legends, margins) are skipped. Output, per sheet:
   app/charts/<sheet>-<edition>/<level>/<i>_<j>.jpg     512 px tiles, level scales from charts.json
-  app/charts/index.json                                [{sheet,name,ed,edT,dir,bytes,levels:[{s,cols,rows,tiles:[[i,j],..]}]}]
+  app/charts/index.json                                [{sheet,name,ed,edT,dir,bytes,levels:[{s,cols,rows,tiles:[[i,j],..]}],def?}]
+  def: the sheet has "default": true in charts.json, so a new install downloads it without being asked (Options)
 Usage: python chartiles.py OUT_DIR CHART.pdf [CHART.pdf ...]      (needs pymupdf, pillow)
 Note: Airservices charts are copyright; publishing these tiles is the site owner's decision.
 """
@@ -53,7 +54,7 @@ def main():
         edT = 0
         if ed:
             edT = int((datetime.datetime.strptime(ed, '%d %b %Y').replace(tzinfo=datetime.timezone.utc) - datetime.timedelta(hours=8)).timestamp() * 1000)
-        idx.append(dict(sheet=sh['sheet'], name=sh['name'], ed=ed, edT=edT, dir=d, bytes=total, levels=levels, src='site'))
+        idx.append(dict(sheet=sh['sheet'], name=sh['name'], ed=ed, edT=edT, dir=d, bytes=total, levels=levels, src='site', **({'def': True} if sh.get('default') else {})))
         print(sh['name'], ed, round(total / 1048576, 1), 'MB')
     keep = {e['dir'] for e in idx}
     for n in os.listdir(out):

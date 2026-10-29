@@ -72,6 +72,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Labels:** each airspace label sits wholly inside its own area. Controlled-airspace labels also avoid any part with lower controlled airspace, so a "C A045" label doesn't land inside the A025 step or a control zone. If a step has no room on screen, its label is left off.
 - **Chart underlay (VTC/VNC):** the Melbourne VNC and the Melbourne VTC (main map and Melbourne Basin inset) are shown under the map by default, with the VTC drawn above the VNC.
   - **Download:** they come with the app as pre-rendered tiles in `app/charts/` (about 12 MB, built by `tools/chartiles.py`). They download in the background the first time the app opens with signal and are then stored for offline use; the footer counts the stored tiles.
+  - **Which charts download:** **Options** (in the buttons row, next to **Simulate**) lists the charts the site offers with their edition and size; untick one to stop downloading it and free its stored tiles, tick it to fetch it. On first use only the sheets marked `"default": true` in `tools/charts.json` are ticked (the Melbourne VNC and VTC); any other sheet, and one added to the site later, starts unticked (later additions are marked **NEW**), so pilots download only the regions they pick.
   - **Controls:** the **Charts** button turns the underlay on and off. **Chart underlay** under the map opens a pop-up over the map with import and the opacity slider; ✕, Esc or touching the map closes it.
   - **Newer edition:** you can import an Airservices PDF on the phone (rendered there with pdf.js in `app/lib/pdfjs`). An imported chart replaces the built-in one for that sheet until you remove it.
   - **Georeferencing:** each chart panel is fitted to its own printed latitude/longitude graticule (`tools/chartref.py`), within about 10 m; aerodrome symbols land within ~10-15 m of their ERSA position and R/D/P areas within ~45 m. The PDF artwork is ~0.4 % wider east-west than north-south, so this is an affine fit. Waypoints, airspace and frequencies drawn on top still come from the AIP data; the chart's cyan C/D/A lines are printed ~100-130 m from the DAH positions, so the app's own airspace lines will not sit exactly on them.
@@ -326,7 +327,7 @@ cd tools && pip install pymupdf pillow numpy scipy opencv-python matplotlib
    ```
    Output: `app/charts/<sheet>-<edition>/<level>/<i>_<j>.jpg` (512 px tiles at the `levels` scales, skipping tiles outside the panels) and `app/charts/index.json`.
 4. **If `charts.json` changed**, rebuild the app so it carries the new calibration: `python3 assemble.py && cp dist/* ../app/`.
-5. **Publish** on or after the edition's effective date: commit and push `app/charts/` (and `tools/charts.json` and the rebuilt `app/` files if they changed). Phones download the new edition's tiles in the background the next time the app opens with signal; until then they keep using what they have stored.
+5. **Publish** on or after the edition's effective date (a brand-new sheet appears in each phone's **Options** as NEW and unticked; Melbourne editions replace the old ones for everyone who has them ticked): commit and push `app/charts/` (and `tools/charts.json` and the rebuilt `app/` files if they changed). Phones download the new edition's tiles in the background the next time the app opens with signal; until then they keep using what they have stored.
 
 Without publishing, a pilot can also import a newer PDF on the phone (**Chart underlay → Import VTC/VNC PDF**). It uses the same calibration, so this only works while the layout is unchanged.
 
@@ -339,7 +340,7 @@ Without publishing, a pilot can also import a newer PDF on the phone (**Chart un
    - `--sheet` is a short unique id; `--match` is a word that must appear in the file name or PDF title; `--kind` is VTC or VNC (VNCs are drawn under VTCs).
    - The map panels are found from the chart's black neatlines. If one is missed (or an inset needs separating), give it with `--panel x0,y0,x1,y1` in PDF points (repeatable).
    - The first fit matches place names printed on the chart to ERSA VFR waypoints and aerodromes, then refines it on the printed controlled-airspace lines, then fits each panel to its printed graticule (the fit the app uses). Read the misfit and `rms` lines it prints.
-2. **Add the printed JSON object to the array in `tools/charts.json`.**
+2. **Add the printed JSON object to the array in `tools/charts.json`.** Add `"default": true` only if every new install should download it; otherwise pilots tick it in **Options**.
 3. **Check it lines up:** run `python3 assemble.py`, serve `dist/` (`cd dist && python3 -m http.server 8811`), import the PDF in **Chart underlay**, and compare aerodrome symbols, the coast and the graticule with the app's own aerodromes and airspace at a few places across the sheet.
 4. **Render and publish** as for a new edition (step 3 onwards), passing all the sheets the site should have, old and new, in the one `chartiles.py` run.
 

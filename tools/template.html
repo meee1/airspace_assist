@@ -212,6 +212,13 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapmenu .mm-head{display:flex;align-items:center;gap:8px}.mapmenu .mm-head b{flex:1;font-size:15px}
 .mapmenu .mm-head .btn{padding:4px 9px}
 .mapmenu{max-height:calc(100% - 16px);overflow:auto}
+dialog.opts{border:1px solid var(--rule);border-radius:12px;background:var(--panel);color:var(--ink);padding:14px;width:min(440px,calc(100vw - 32px));max-height:min(80vh,640px);box-shadow:0 10px 36px rgba(0,0,0,.35)}
+dialog.opts::backdrop{background:rgba(0,0,0,.35)}
+.opts-head{display:flex;align-items:center;gap:8px;margin-bottom:10px} .opts-head b{font-size:16px} .opts-head .btn{margin-left:auto;padding:4px 10px}
+.opts-list{display:flex;flex-direction:column;gap:2px;margin:6px 0 8px}
+.opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
+.opts-list label input{width:20px;height:20px;flex:none} .opts-list .meta{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
+.opts-list .new{font-size:10.5px;color:var(--accent);font-weight:700;margin-left:6px}
 .mapmenu .mm-sua:empty{display:none}
 .mapmenu .sua{margin-top:8px;padding:7px 9px;border-radius:8px;border-left:4px solid var(--as-q);background:color-mix(in srgb,var(--as-q) 8%,var(--panel));font-size:12.5px;line-height:1.35}
 .mapmenu .sua.r{border-left-color:var(--as-r);background:color-mix(in srgb,var(--as-r) 9%,var(--panel))}
@@ -537,8 +544,16 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
     <button class="btn" id="bWake" aria-pressed="false">Keep screen on</button>
     <button class="btn" id="bCmp" title="The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.">Compass: not aligned</button>
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
+    <button class="btn" id="bOpts" aria-haspopup="dialog" title="Which VNC / VTC charts to download and keep on this device">Options</button>
     <button class="btn" id="bInstall" hidden title="Install as an app: full screen, its own icon, and Android keeps its stored data">Install app</button>
   </div>
+
+  <dialog class="opts" id="optsDlg" aria-labelledby="optsTitle">
+    <div class="opts-head"><b id="optsTitle">Options</b><button class="btn" id="optsClose" aria-label="Close">✕</button></div>
+    <div class="lbl">Chart downloads (VNC / VTC)</div>
+    <div class="opts-list" id="optsCharts"></div>
+    <div class="vnote" id="optsNote"></div>
+  </dialog>
 
   <details class="calls ntset" id="ntSet">
     <summary><span class="lbl">NOTAMs (NAIPS) and traffic</span><span class="calls-at" id="ntSum">no briefing</span></summary>
@@ -1534,7 +1549,27 @@ function affine3(src,dst){ // canvas = [a c e; b d f]·[u v 1] from three point 
   const [a,c,e]=sol(0), [b,d,f]=sol(1); return [a,b,c,d,e,f]; }
 // Charts come from the site (app/charts/, pre-rendered by tools/chartiles.py, downloaded and cached by default) or from a
 // PDF imported on this device (stored the same way, and preferred for its sheet). Both live in Cache Storage CH_CACHE.
-function chartMerge(){ CH.idx=CH.site.filter(s=>!CH.local.some(l=>l.sheet===s.sheet)).concat(CH.local); }
+// Which site sheets to download (Options): on first run the sheets marked default in tools/charts.json are on (all, if none is marked); a sheet added to the site later
+// starts off (so new regions don't download by themselves) and is marked new until the options are opened.
+function chartSel(){ let sel=ls.get('chartSel',null), known=ls.get('chartKnown',null); const ids=CH.site.map(s=>s.sheet);
+  if(!sel){ const d=CH.site.filter(s=>s.def).map(s=>s.sheet); sel= d.length? d : ids.slice(); known=ids.slice(); ls.set('chartSel',sel); ls.set('chartKnown',known); }   // first run: the sheets charts.json marks "default" (else all)
+  CH.newSheets=ids.filter(i=>!(known||[]).includes(i)); return new Set(sel); }
+function chartMerge(){ const sel=chartSel(); CH.idx=CH.site.filter(s=>sel.has(s.sheet)&&!CH.local.some(l=>l.sheet===s.sheet)).concat(CH.local); }
+function optsRender(){
+  const sel=chartSel(), loc=new Set(CH.local.map(l=>l.sheet));
+  $('optsCharts').innerHTML= CH.site.length? CH.site.map(s=>`<label><input type="checkbox" data-sheet="${esc(s.sheet)}"${sel.has(s.sheet)?' checked':''}>`+
+      `<span><b>${esc(s.name)}</b>${CH.newSheets.includes(s.sheet)?'<span class="new">NEW</span>':''}<br><small class="mono">${esc(s.ed||'')}</small></span>`+
+      `<span class="meta">${(s.bytes/1048576).toFixed(1)} MB${loc.has(s.sheet)?'<br>imported copy in use':''}</span></label>`).join('')
+    : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
+  const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
+  $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
+$('bOpts').onclick=()=>{ optsRender(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+  ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
+$('optsClose').onclick=()=>$('optsDlg').close();
+$('optsDlg').addEventListener('click',e=>{ if(e.target===$('optsDlg')) $('optsDlg').close(); });   // tap outside the box
+$('optsCharts').addEventListener('change',e=>{ const cb=e.target.closest('[data-sheet]'); if(!cb) return;
+  const sel=chartSel(); if(cb.checked) sel.add(cb.dataset.sheet); else sel.delete(cb.dataset.sheet); ls.set('chartSel',[...sel]);
+  chartMerge(); chartUI(); render(); CH.again=true; chartsPrecache(); optsRender(); });
 async function chartIndexLoad(){
   const c=await caches.open(CH_CACHE);
   try{ const r=await c.match('charts/local.json'); CH.local=r? await r.json() : []; }catch(e){ CH.local=[]; }
@@ -1545,7 +1580,7 @@ async function chartIndexLoad(){
 async function chartIndexSave(){ const c=await caches.open(CH_CACHE); await c.put('charts/local.json', new Response(JSON.stringify(CH.local),{headers:{'Content-Type':'application/json'}})); chartMerge(); }
 const chartUrl=(e,L,i,j)=>`charts/${e.dir}/${L}/${i}_${j}.jpg`;
 async function chartsPrecache(){ // download every site tile not yet stored (4 at a time), and drop tiles of old editions
-  if(CH.pre) return; CH.pre=true;
+  if(CH.pre){ CH.again=true; return; } CH.pre=true; CH.again=false;
   try{
     const c=await caches.open(CH_CACHE), keys=(await c.keys()).map(k=>new URL(k.url).pathname), have=new Set(keys.map(p=>p.slice(p.indexOf('/charts/')+1)));
     const dirs=new Set(CH.idx.map(e=>e.dir));
@@ -1558,7 +1593,8 @@ async function chartsPrecache(){ // download every site tile not yet stored (4 a
       if(CH.have%10===0) chartUI(); } };
     if(todo.length && navigator.onLine!==false) await Promise.all([worker(),worker(),worker(),worker()]);
   }catch(e){}
-  CH.pre=false; chartUI(); offlineStatus();
+  CH.pre=false; chartUI(); offlineStatus(); if(document.getElementById('optsDlg')?.open) optsRender();
+  if(CH.again){ CH.again=false; chartsPrecache(); }
 }
 function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
   if(v instanceof ImageBitmap || (v&&v.width)) { CH.imgs.delete(k); CH.imgs.set(k,v); return v; }   // LRU touch

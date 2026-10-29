@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793232629785;
+const APP_BUILT=1793235405861;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -956,7 +956,7 @@ function inScreenPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j
 // Georeference per chart sheet panel: chart pt (u,v) = similarity( Lambert conformal conic(lat,lon) ), LCC on a sphere with
 // standard parallels 36°S/39°S, origin 37.8°S 145°E. Fitted offline (tools/chartref.py) by matching the chart's printed
 // controlled-airspace boundaries to the DAH: median misfit 0.5 pt (about 45 m on the VTC, 90 m on the VNC).
-const CHART_SHEETS=[{"sheet":"ML-VNC","name":"Melbourne VNC","kind":"VNC","page":[2834.64,1785.82],"re":"melbourne","levels":[0.5,2.0],"panels":[{"id":"ML-VNC","name":"Melbourne VNC","order":0,"sim":[10.507859,0.039723,1431.383697,877.542035],"aff":[10.52673,0.028178,1430.286346,0.028371,-10.481997,876.43813],"clip":[[0,0],[2834,0],[2834,1596],[165,1596],[165,1255],[0,1255]]}]},{"sheet":"ML-VTC","name":"Melbourne VTC","kind":"VTC","page":[1417.33,2834.65],"re":"melbourne","levels":[0.5,2.5],"panels":[{"id":"ML-VTC","name":"Melbourne VTC","order":1,"sim":[21.01975,0.006852,824.508612,949.036418],"aff":[21.055571,0.024173,822.186582,0.0231,-20.968429,949.645965],"clip":[[1327,71],[1294,71],[987,69],[680,69],[374,69],[67,71],[34,71],[34,1833],[63,1833],[364,1831],[665,1831],[965,1831],[1266,1832],[1327,1832]]},{"id":"ML-VTC-B","name":"Melbourne VTC (Melbourne Basin panel)","order":2,"sim":[35.019006,0.024451,715.458872,2128.909217],"aff":[35.109253,0.037655,713.440742,0.038425,-34.962639,2127.163779],"clip":[[46,2722],[46,1918],[80,1918],[355,1917],[630,1916],[905,1916],[1180,1917],[1185,1917],[1185,2721],[1179,2721],[897,2720],[615,2719],[333,2720],[52,2722]]}]}];
+const CHART_SHEETS=[{"sheet":"ML-VNC","name":"Melbourne VNC","kind":"VNC","page":[2834.64,1785.82],"re":"melbourne","levels":[0.5,2.0],"panels":[{"id":"ML-VNC","name":"Melbourne VNC","order":0,"sim":[10.507859,0.039723,1431.383697,877.542035],"aff":[10.52673,0.028178,1430.286346,0.028371,-10.481997,876.43813],"clip":[[0,0],[2834,0],[2834,1596],[165,1596],[165,1255],[0,1255]]}],"default":true},{"sheet":"ML-VTC","name":"Melbourne VTC","kind":"VTC","page":[1417.33,2834.65],"re":"melbourne","levels":[0.5,2.5],"panels":[{"id":"ML-VTC","name":"Melbourne VTC","order":1,"sim":[21.01975,0.006852,824.508612,949.036418],"aff":[21.055571,0.024173,822.186582,0.0231,-20.968429,949.645965],"clip":[[1327,71],[1294,71],[987,69],[680,69],[374,69],[67,71],[34,71],[34,1833],[63,1833],[364,1831],[665,1831],[965,1831],[1266,1832],[1327,1832]]},{"id":"ML-VTC-B","name":"Melbourne VTC (Melbourne Basin panel)","order":2,"sim":[35.019006,0.024451,715.458872,2128.909217],"aff":[35.109253,0.037655,713.440742,0.038425,-34.962639,2127.163779],"clip":[[46,2722],[46,1918],[80,1918],[355,1917],[630,1916],[905,1916],[1180,1917],[1185,1917],[1185,2721],[1179,2721],[897,2720],[615,2719],[333,2720],[52,2722]]}],"default":true}];
 const CH={on:ls.get('mapCharts',true), op:ls.get('chartOp',0.7), idx:[], site:[], local:[], imgs:new Map(), busy:false, need:0, have:0};
 const CH_CACHE='radio-au-charts', CH_TILE=512;
 function lccFwd(la,lo){ const R_=6371008.8/1852, rad=Math.PI/180, p1=-36*rad, p2=-39*rad, p0=-37.8*rad, l0=145*rad;
@@ -972,7 +972,27 @@ function affine3(src,dst){ // canvas = [a c e; b d f]·[u v 1] from three point 
   const [a,c,e]=sol(0), [b,d,f]=sol(1); return [a,b,c,d,e,f]; }
 // Charts come from the site (app/charts/, pre-rendered by tools/chartiles.py, downloaded and cached by default) or from a
 // PDF imported on this device (stored the same way, and preferred for its sheet). Both live in Cache Storage CH_CACHE.
-function chartMerge(){ CH.idx=CH.site.filter(s=>!CH.local.some(l=>l.sheet===s.sheet)).concat(CH.local); }
+// Which site sheets to download (Options): on first run the sheets marked default in tools/charts.json are on (all, if none is marked); a sheet added to the site later
+// starts off (so new regions don't download by themselves) and is marked new until the options are opened.
+function chartSel(){ let sel=ls.get('chartSel',null), known=ls.get('chartKnown',null); const ids=CH.site.map(s=>s.sheet);
+  if(!sel){ const d=CH.site.filter(s=>s.def).map(s=>s.sheet); sel= d.length? d : ids.slice(); known=ids.slice(); ls.set('chartSel',sel); ls.set('chartKnown',known); }   // first run: the sheets charts.json marks "default" (else all)
+  CH.newSheets=ids.filter(i=>!(known||[]).includes(i)); return new Set(sel); }
+function chartMerge(){ const sel=chartSel(); CH.idx=CH.site.filter(s=>sel.has(s.sheet)&&!CH.local.some(l=>l.sheet===s.sheet)).concat(CH.local); }
+function optsRender(){
+  const sel=chartSel(), loc=new Set(CH.local.map(l=>l.sheet));
+  $('optsCharts').innerHTML= CH.site.length? CH.site.map(s=>`<label><input type="checkbox" data-sheet="${esc(s.sheet)}"${sel.has(s.sheet)?' checked':''}>`+
+      `<span><b>${esc(s.name)}</b>${CH.newSheets.includes(s.sheet)?'<span class="new">NEW</span>':''}<br><small class="mono">${esc(s.ed||'')}</small></span>`+
+      `<span class="meta">${(s.bytes/1048576).toFixed(1)} MB${loc.has(s.sheet)?'<br>imported copy in use':''}</span></label>`).join('')
+    : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
+  const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
+  $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
+$('bOpts').onclick=()=>{ optsRender(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+  ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
+$('optsClose').onclick=()=>$('optsDlg').close();
+$('optsDlg').addEventListener('click',e=>{ if(e.target===$('optsDlg')) $('optsDlg').close(); });   // tap outside the box
+$('optsCharts').addEventListener('change',e=>{ const cb=e.target.closest('[data-sheet]'); if(!cb) return;
+  const sel=chartSel(); if(cb.checked) sel.add(cb.dataset.sheet); else sel.delete(cb.dataset.sheet); ls.set('chartSel',[...sel]);
+  chartMerge(); chartUI(); render(); CH.again=true; chartsPrecache(); optsRender(); });
 async function chartIndexLoad(){
   const c=await caches.open(CH_CACHE);
   try{ const r=await c.match('charts/local.json'); CH.local=r? await r.json() : []; }catch(e){ CH.local=[]; }
@@ -983,7 +1003,7 @@ async function chartIndexLoad(){
 async function chartIndexSave(){ const c=await caches.open(CH_CACHE); await c.put('charts/local.json', new Response(JSON.stringify(CH.local),{headers:{'Content-Type':'application/json'}})); chartMerge(); }
 const chartUrl=(e,L,i,j)=>`charts/${e.dir}/${L}/${i}_${j}.jpg`;
 async function chartsPrecache(){ // download every site tile not yet stored (4 at a time), and drop tiles of old editions
-  if(CH.pre) return; CH.pre=true;
+  if(CH.pre){ CH.again=true; return; } CH.pre=true; CH.again=false;
   try{
     const c=await caches.open(CH_CACHE), keys=(await c.keys()).map(k=>new URL(k.url).pathname), have=new Set(keys.map(p=>p.slice(p.indexOf('/charts/')+1)));
     const dirs=new Set(CH.idx.map(e=>e.dir));
@@ -996,7 +1016,8 @@ async function chartsPrecache(){ // download every site tile not yet stored (4 a
       if(CH.have%10===0) chartUI(); } };
     if(todo.length && navigator.onLine!==false) await Promise.all([worker(),worker(),worker(),worker()]);
   }catch(e){}
-  CH.pre=false; chartUI(); offlineStatus();
+  CH.pre=false; chartUI(); offlineStatus(); if(document.getElementById('optsDlg')?.open) optsRender();
+  if(CH.again){ CH.again=false; chartsPrecache(); }
 }
 function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
   if(v instanceof ImageBitmap || (v&&v.width)) { CH.imgs.delete(k); CH.imgs.set(k,v); return v; }   // LRU touch
