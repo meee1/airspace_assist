@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793252719999;
+const APP_BUILT=1793255014783;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1188,6 +1188,7 @@ $('chartFile').addEventListener('change',e=>{ const fs=[...e.target.files]; e.ta
 $('chartList').addEventListener('click',async e=>{ const b=e.target.closest('[data-del]'); if(!b) return; const sh=b.dataset.del;
   const dir=sh+'-local', c=await caches.open(CH_CACHE); for(const k of (await c.keys())) if(new URL(k.url).pathname.includes('/charts/'+dir+'/')) await c.delete(k);
   CH.local=CH.local.filter(s=>s.sheet!==sh); for(const k of [...CH.imgs.keys()]) if(k.startsWith(dir+'/')) CH.imgs.delete(k); await chartIndexSave(); chartUI(); render(); chartsPrecache(); });
+if(window.ResizeObserver){ const sb=document.querySelector('.status'); new ResizeObserver(()=>document.documentElement.style.setProperty('--stickH',sb.offsetHeight+'px')).observe(sb); }   // height of the sticky top bar (landscape)
 if(window.ResizeObserver){ let rz=0; new ResizeObserver(()=>{ if(rz) return; rz=requestAnimationFrame(()=>{ rz=0; if(MAP.last) drawMap(...MAP.last); }); }).observe($('map')); }
 $('chartClose').onclick=()=>{ $('chartBox').open=false; };
 $('map').addEventListener('pointerdown',()=>{ if($('chartBox').open) $('chartBox').open=false; });   // the pop-up sits over the map: touching the map closes it

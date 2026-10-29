@@ -350,6 +350,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
   #mapSec:not([hidden]){display:flex;flex-direction:column} #mapSec .mapwrap{flex:1 1 auto;min-height:0}
   #mapSec .mapbox{flex:1 1 auto;min-height:260px} #map{position:absolute;inset:0;height:100%}   /* the map takes what the buttons and legends leave, so nothing needs scrolling */
   .status{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-top:-6px}
+  .wrap>*,#colA>*{scroll-margin-top:calc(var(--stickH,160px) + 8px)}   /* scrolling to the aerodrome card etc. lands below the sticky top bar */
 }
 </style>
 </head>
@@ -1769,6 +1770,7 @@ $('chartFile').addEventListener('change',e=>{ const fs=[...e.target.files]; e.ta
 $('chartList').addEventListener('click',async e=>{ const b=e.target.closest('[data-del]'); if(!b) return; const sh=b.dataset.del;
   const dir=sh+'-local', c=await caches.open(CH_CACHE); for(const k of (await c.keys())) if(new URL(k.url).pathname.includes('/charts/'+dir+'/')) await c.delete(k);
   CH.local=CH.local.filter(s=>s.sheet!==sh); for(const k of [...CH.imgs.keys()]) if(k.startsWith(dir+'/')) CH.imgs.delete(k); await chartIndexSave(); chartUI(); render(); chartsPrecache(); });
+if(window.ResizeObserver){ const sb=document.querySelector('.status'); new ResizeObserver(()=>document.documentElement.style.setProperty('--stickH',sb.offsetHeight+'px')).observe(sb); }   // height of the sticky top bar (landscape)
 if(window.ResizeObserver){ let rz=0; new ResizeObserver(()=>{ if(rz) return; rz=requestAnimationFrame(()=>{ rz=0; if(MAP.last) drawMap(...MAP.last); }); }).observe($('map')); }
 $('chartClose').onclick=()=>{ $('chartBox').open=false; };
 $('map').addEventListener('pointerdown',()=>{ if($('chartBox').open) $('chartBox').open=false; });   // the pop-up sits over the map: touching the map closes it

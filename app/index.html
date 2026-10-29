@@ -350,6 +350,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
   #mapSec:not([hidden]){display:flex;flex-direction:column} #mapSec .mapwrap{flex:1 1 auto;min-height:0}
   #mapSec .mapbox{flex:1 1 auto;min-height:260px} #map{position:absolute;inset:0;height:100%}   /* the map takes what the buttons and legends leave, so nothing needs scrolling */
   .status{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-top:-6px}
+  .wrap>*,#colA>*{scroll-margin-top:calc(var(--stickH,160px) + 8px)}   /* scrolling to the aerodrome card etc. lands below the sticky top bar */
 }
 </style>
 </head>
@@ -593,7 +594,7 @@ window.__SETS=[[1788364800000, "data.json?v=e8a1e52ec0", "03 SEP 2026"], [179562
   catch(e){ const d=document.createElement('div'); d.className='bootErr';
     d.innerHTML='<b>Could not load the aerodrome and airspace data</b> ('+pick[1].split('?')[0]+': '+String(e.message||e).replace(/[<&]/g,'')+'). Open the app once with signal so it can be stored for offline use.';
     document.body.prepend(d); return; }
-  const s=document.createElement('script'); s.src='app.js?v=d8df3fe376';
+  const s=document.createElement('script'); s.src='app.js?v=64d0aacb19';
   s.onerror=()=>{ const d=document.createElement('div'); d.className='bootErr'; d.textContent='Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.'; document.body.prepend(d); };
   document.body.appendChild(s);
 })();
