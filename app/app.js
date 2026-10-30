@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793341483908;
+const APP_BUILT=1793349993662;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1784,12 +1784,12 @@ function render(){
   { // status tile: class here and its cap (top of this band = where the next class starts)
     const k=cur? (cur.k==='CTR'?cur.ctrCls:cur.k) : null;
     const inP=AS.prd.find(p=>altFt>=p.L-50&&altFt<p.H&&!(p.st&&p.st.s==='off'));   // an area a NOTAM (or no NOTAM) has switched off doesn't count
-    $('sCls').textContent = k ? k+(inP?' · '+(inP.k==='R'?'R':'D'):'') : '—';
+    $('sCls').textContent = k ? k+(inP?'·'+(inP.k==='R'?'R':'D'):'') : '—';
     $('sCls').style.color = k ? `var(--as-${k==='A'?'c':k.toLowerCase()})` : '';
     if(k==='G') $('sCls').style.color='var(--ink)';
-    $('sCap').textContent = cur ? (cur.H>=60000?'to UNL':'cap '+limTxt(cur.H)) : '';
-    $('sLL').textContent = cur ? 'LL '+(cur.L<=0?'SFC':limTxt(cur.L)) : '';
-    if(inP) $('sCap').textContent+=' · '+inP.n.split(' ')[0];
+    $('sCap').textContent = cur ? (cur.H>=60000?'UNL':limTxt(cur.H)) : '—';
+    $('sLL').textContent = cur ? (cur.L<=0?'SFC':limTxt(cur.L)) : '—';
+    $('sClsP').textContent = inP? inP.n.split(' ')[0] : '';
   }
   if(cur){
     const above=AS.bands.filter(b=>b.L>=cur.H-50).sort((x,y)=>x.L-y.L)[0];

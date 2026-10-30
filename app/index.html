@@ -53,7 +53,14 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
 /* status strip */
-.status{display:grid;grid-template-columns:34px 1fr 1fr .85fr 1.15fr 1.15fr;gap:5px}
+.status{display:grid;grid-template-columns:30px repeat(13,minmax(0,1fr));gap:5px}   /* GPS icon, then 6 tiles of 2 columns: TRK · GS · PLAN · ALT · CLASS · CAP/LL; frequency rows 7 + 6 */
+.status>.t{grid-column:span 2} .status>.t.lims{grid-column:span 3}   /* CAP A025 needs the room */
+.st.lims{display:flex;flex-direction:column;justify-content:center;gap:4px}
+.st.lims .ln{display:flex;align-items:baseline;gap:5px;white-space:nowrap;min-width:0}   /* "CAP A025" on line 1, "LL SFC" on line 2 */
+.status>.st.lims .ln small{flex:none;font-size:10px} .status>.st.lims .ln b{display:inline;margin:0;min-width:0}
+.status>.st.lims .ln+.ln b{font-size:13px;color:var(--dim)}
+@media (max-width:480px){.status>.st.lims .ln b{font-size:15px} .status>.st.lims .ln+.ln b{font-size:12px}}
+@media (max-width:480px){.status{gap:4px} .status>.t{padding:6px 4px} .status>.t b{font-size:16px;letter-spacing:-.02em} .status>.t>small:first-child{font-size:10px;letter-spacing:0}}   /* seven tiles on a phone: keep A025 / 1500 whole */
 /* GPS: an icon only, coloured by the fix (green < 50 m, orange < 300 m, red worse or none); accuracy in its tooltip */
 .st.gps{padding:4px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .st.gps .dot{width:auto;height:auto;background:none!important;margin:0;border-radius:0;color:var(--dim);display:block}
@@ -89,7 +96,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.insua{display:flex;flex-direction:column;align-items:stretch;gap:3px} .st.insua>div{display:flex;align-items:baseline;gap:8px;min-width:0} .st.insua>div>b,.st.insua small{flex:none} .st.insua span{white-space:normal}   /* a warning wraps rather than losing its end */
 .st.insua .off{color:var(--dim)} .st.insua .off>b{color:var(--dim)} .st.insua b.stt{font:inherit;font-weight:700} .st.insua.quiet{border-color:var(--rule);background:var(--panel)}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
-.st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
+.st.fq.l{grid-column:1/span 7} .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.fq small.nx b{display:inline;font:inherit;font-weight:700;color:var(--freq);margin:0}
 .st.fq small.nx:empty{display:none}
@@ -344,7 +351,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .vb .f{color:var(--ink);font-weight:600}
 .vb.on{background:var(--chip);color:var(--ink)} .vb.on .f{color:var(--freq)}
 .vnote{font-size:12px;color:var(--dim);margin-top:4px}
-@media (max-width:370px){.ad-id{font-size:34px}.fr.hero .v{font-size:34px}.fr .v{font-size:22px}.fr{grid-template-columns:64px 1fr auto}.status{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:370px){.ad-id{font-size:34px}.fr.hero .v{font-size:34px}.fr .v{font-size:22px}.fr{grid-template-columns:64px 1fr auto}.status{grid-template-columns:34px repeat(3,1fr)} .status>.t,.status>.t.lims{grid-column:auto} .status>#sAltBox{grid-column:span 2} .st.fq,.st.fq.l{grid-column:1/-1}}
 @media (max-width:420px){.status{gap:4px}.st{padding:6px 5px}.st>small:first-child{letter-spacing:0}.st small.agl,.st.cls .cap{font-size:10px}.st.plan small.turn{font-size:10px}}
 @media (max-width:420px){.st{padding:6px 6px}.st b{font-size:15px}.st small{font-size:10px}}
 @media (prefers-reduced-motion:reduce){.arrow svg{transition:none}}
@@ -381,14 +388,15 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 
   <div class="status" aria-live="off">
     <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b></div>
-    <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
-    <div class="st plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
-    <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
-    <div class="st" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
-    <div class="st cls" id="sClsBox" title="Airspace class at your position and altitude: cap = top of this band, LL = its lower limit"><small>CLASS</small><b id="sCls">—</b><small id="sCap" class="cap"></small><small id="sLL" class="cap"></small></div>
-    <div class="st fq" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
+    <div class="st t"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
+    <div class="st t"><small>GS kt</small><b id="sGs">—</b></div>
+    <div class="st t plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
+    <div class="st t" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
+    <div class="st t cls" id="sClsBox" title="Airspace class at your position and altitude, and the restricted or danger area you're in"><small>CLASS</small><b id="sCls">—</b><small id="sClsP" class="cap"></small></div>
+    <div class="st t lims" id="sLimBox" title="This band of airspace: CAP = its top (where the next class starts), LL = its lower limit"><div class="ln"><small>CAP</small><b id="sCap">—</b></div><div class="ln"><small>LL</small><b id="sLL">—</b></div></div>
+    <div class="st fq l" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
-    <div class="st fq gt" id="gCtafBox" hidden title="Go to: CTAF of the aerodrome at (or nearest within 10 NM of) the Go to point or flight plan waypoint; tower hours at your ETA"><small id="gCtafLbl">→ CTAF</small><b id="gCtaf">—</b><small id="gCtafAd" class="who"></small><small id="gCtafNx" class="nx"></small></div>
+    <div class="st fq gt l" id="gCtafBox" hidden title="Go to: CTAF of the aerodrome at (or nearest within 10 NM of) the Go to point or flight plan waypoint; tower hours at your ETA"><small id="gCtafLbl">→ CTAF</small><b id="gCtaf">—</b><small id="gCtafAd" class="who"></small><small id="gCtafNx" class="nx"></small></div>
     <div class="st fq gt" id="gAreaBox" hidden title="Go to: area or ATC frequency over the Go to point at your current altitude"><small id="gAreaLbl">→ AREA</small><b id="gArea">—</b><small id="gAreaWho" class="who"></small><small id="gAreaNx" class="nx"></small></div>
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
@@ -640,7 +648,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=9e545a206f';
+    const s=document.createElement('script'); s.src='app.js?v=4b6b631ff1';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
