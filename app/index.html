@@ -95,6 +95,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .ntset a.btn{text-decoration:none;display:inline-flex;align-items:center} .nbget{border-top:1px solid var(--rule);margin-top:8px;padding-top:4px} .ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
 .st.insua{display:flex;flex-direction:column;align-items:stretch;gap:3px} .st.insua>div{display:flex;align-items:baseline;gap:8px;min-width:0} .st.insua>div>b,.st.insua small{flex:none} .st.insua span{white-space:normal}   /* a warning wraps rather than losing its end */
 .st.insua .off{color:var(--dim)} .st.insua .off>b{color:var(--dim)} .st.insua b.stt{font:inherit;font-weight:700} .st.insua.quiet{border-color:var(--rule);background:var(--panel)}
+.opts-sat{display:flex;flex-direction:column;gap:8px;font-size:13px} .opts-sat label{display:flex;flex-direction:column;gap:3px} .opts-sat input[type=password],.opts-sat select{font:500 14px/1.2 var(--f-mono);padding:8px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .opts-sat .ctl{display:flex;gap:10px;align-items:center} .opts-sat small{color:var(--dim);line-height:1.35}
 .rbramp{display:inline-block;width:56px;height:8px;border-radius:2px;vertical-align:0;margin:0 4px;background:linear-gradient(90deg,rgb(38,150,160),rgb(120,190,80) 14%,rgb(245,200,70) 41%,rgb(220,90,60) 68%,rgb(130,60,170))}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq.l{grid-column:1/span 7} .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
@@ -251,7 +252,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -441,6 +442,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
         <span class="brk"></span>
         <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies: 10 NM around each aerodrome (a tower aerodrome: its whole control zone, which cuts the CTAF areas round it; a tower aerodrome with no CTAF shows its zone on the tower frequency), merged by frequency">CTAF</button>
         <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
+        <button class="btn" id="mapSat" aria-pressed="false" title="Esri satellite imagery under the map (online only; needs your Esri API key in Options)">Sat</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
@@ -592,6 +594,15 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="opts-list" id="optsLogs"></div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optCtafSplit"><span><b>Split overlapping CTAF areas</b><br><small>Where two aerodromes with different CTAFs are less than 20 NM apart, their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency.</small></span></label><label><input type="checkbox" id="optCtafSplit127"><span><b>Split 126.7 areas too</b><br><small>Off: the grey 126.7 circles of strips without their own CTAF are drawn whole under the others and don't cut them, so a specific CTAF keeps its full 10 NM circle. On: they take part in the split like any other frequency.</small></span></label><label><input type="checkbox" id="optTerRainbow"><span><b>Rainbow topographic terrain</b><br><small>With <b>Terrain</b> on, colour the ground by height (sea-level teal through green, yellow and orange to purple on the highest ranges) instead of grey relief. Terrain at or above you is still marked: cross-hatched in red, and within 500 ft in orange.</small></span></label></div>
+    <div class="lbl" style="margin-top:10px">Satellite imagery (Esri)</div>
+    <div class="opts-sat">
+      <div class="vnote" id="satVia"></div>
+      <label>Esri API key (only without a proxy) <input id="satKey" type="password" autocomplete="off" spellcheck="false" placeholder="AAPK… or AAPT…"></label>
+      <label>Source <select id="satSrc"><option value="wi">World Imagery (imagery only)</option><option value="st">Imagery with labels (static tiles)</option></select></label>
+      <label class="chart-op">Opacity <input type="range" id="satOp" min="0.2" max="1" step="0.05"></label>
+      <div class="ctl"><button class="btn" id="satTest">Check key</button><span class="mono" id="satStat"></span></div>
+      <small>Create a free ArcGIS Location Platform account at developers.arcgis.com and make an API key with the basemap privileges. Best: put it in your Cloudflare Worker as the secret ESRI_KEY (the proxy address is set under NOTAMs and traffic); tiles then come through it, cached by Cloudflare and stored on this device for offline use as you view them. Without a proxy, enter the key here (restrict it to meee1.github.io); tiles are then only kept by the browser for a while. The <b>Sat</b> button under the map turns it on and off.</small>
+    </div>
   </dialog>
 
   <details class="calls ntset" id="ntSet">
@@ -651,7 +662,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=2a4edd3e0c';
+    const s=document.createElement('script'); s.src='app.js?v=bd0036d33b';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

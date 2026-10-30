@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793391921517;
+const APP_BUILT=1793397139390;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1098,7 +1098,7 @@ function optsRender(){
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); logsRender(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+$('bOpts').onclick=()=>{ optsRender(); logsRender(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // flights stored in IndexedDB: fixes split where there's a gap of more than 30 min, newest first, each downloadable as GPX
@@ -1166,6 +1166,55 @@ function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
     if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
   }).catch(()=>CH.imgs.set(k,'none'));
   return null; }
+/* ---------- satellite underlay (Esri, online only) ----------
+   wi: World Imagery raster tiles (256 px, Web Mercator z/y/x) from ibasemaps-api with the API key as token;
+   st: the Static Basemap Tiles service, arcgis/imagery/labels (512 px, levels one less). Each tile is drawn with the
+   affine that maps its three corners onto the screen (the map is a local flat projection; a tile is small enough). */
+const SAT={on:ls.get('mapSat',false), key:ls.get('satKey',''), src:ls.get('satSrc','wi'), op:ls.get('satOp',0.85), img:new Map(), err:0, ok:0, lastErr:''};
+const SAT_SRC={
+  wi:{size:256, z:z=>z, max:19, url:(z,y,x,k)=>`https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}?token=${encodeURIComponent(k)}`,
+      attr:'Imagery: Esri, Maxar, Earthstar Geographics, and the GIS User Community'},
+  st:{size:512, z:z=>z-1, max:21, url:(z,y,x,k)=>`https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1/arcgis/imagery/labels/static/tile/${z}/${y}/${x}?token=${encodeURIComponent(k)}`,
+      attr:'Esri, TomTom, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors, and the GIS User Community'}};
+const mercX=(lo,n)=>(lo+180)/360*n, mercY=(la,n)=>{ const r=la*R; return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n; };
+const mercLo=(x,n)=>x/n*360-180, mercLa=(y,n)=>Math.atan(Math.sinh(Math.PI*(1-2*y/n)))/R;
+// tiles come through the traffic proxy when one is set (the Esri key is a secret there, Cloudflare caches them and the
+// service worker keeps them for offline use); otherwise straight from Esri with the key entered in Options
+const satVia=()=>ntUrl()? 'proxy' : SAT.key? 'key' : '';
+const satUrl=(src,z,y,x,k)=> satVia()==='proxy'&&k==null? `${ntUrl()}/tile/${src}/${z}/${y}/${x}` : SAT_SRC[src].url(z,y,x,k!=null?k:SAT.key);
+function satTile(src,z,x,y){ const key=src+'/'+z+'/'+x+'/'+y; let t=SAT.img.get(key);
+  if(!t){ if(SAT.img.size>600){ for(const k of [...SAT.img.keys()].slice(0,200)) SAT.img.delete(k); }
+    const im=new Image(); t={im,ok:false,bad:false}; SAT.img.set(key,t);
+    im.onload=()=>{ t.ok=true; SAT.ok++; SAT.lastErr=''; clearTimeout(SAT.rt); SAT.rt=setTimeout(()=>{ if(MAP.last) drawMap(...MAP.last); },120); };
+    im.onerror=()=>{ t.bad=true; SAT.err++; SAT.lastErr= satVia()==='proxy'? 'tiles not loading (proxy needs the ESRI_KEY secret, or no signal)' : 'tiles not loading (check the key, its privileges and the source, or the signal)'; setTimeout(()=>SAT.img.delete(key),60e3); };
+    if(satVia()==='proxy') im.crossOrigin='anonymous';   // CORS from the proxy: the service worker can store it, the canvas stays clean
+    im.src=satUrl(src,z,y,x); }
+  return t; }
+function drawSat(g,W,Hh,P,inv,la,cosl,sc){
+  if(!SAT.on||!satVia()) return false;
+  const S=SAT_SRC[SAT.src]||SAT_SRC.wi;
+  // 256-px zoom where a tile is about 256 screen px wide, then the source's level
+  let z=Math.round(Math.log2(360*60*cosl*sc/256)); z=Math.max(3,Math.min(S.max+(S.size===512?1:0),z)); const L=S.z(z), n=2**L;
+  const c=[inv(0,0),inv(W,0),inv(0,Hh),inv(W,Hh)];
+  const xs=c.map(q=>mercX(q[1],n)), ys=c.map(q=>mercY(q[0],n));
+  const x0=Math.floor(Math.min(...xs)), x1=Math.floor(Math.max(...xs)), y0=Math.max(0,Math.floor(Math.min(...ys))), y1=Math.min(n-1,Math.floor(Math.max(...ys)));
+  if((x1-x0+1)*(y1-y0+1)>140) return false;   // far too many: stop rather than flood the provider
+  const dpr=window.devicePixelRatio||1; let drew=false;
+  g.save(); g.globalAlpha=SAT.op;
+  for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
+    const xx=((tx%n)+n)%n; let t=satTile(SAT.src,L,xx,ty), dz=0, sx=0, sy=0, sw=S.size;
+    if(!t.ok){ // a parent tile already loaded stands in, scaled up
+      for(let k=1;k<=4&&!t.ok;k++){ const pt=SAT.img.get(SAT.src+'/'+(L-k)+'/'+(xx>>k)+'/'+(ty>>k)); if(pt&&pt.ok){ t=pt; dz=k; sw=S.size/2**k; sx=(xx-((xx>>k)<<k))*sw; sy=(ty-((ty>>k)<<k))*sw; } } }
+    if(!t.ok) continue;
+    const a=P(mercLa(ty,n),mercLo(tx,n)), b=P(mercLa(ty,n),mercLo(tx+1,n)), d=P(mercLa(ty+1,n),mercLo(tx,n));
+    g.setTransform(dpr*(b[0]-a[0])/sw, dpr*(b[1]-a[1])/sw, dpr*(d[0]-a[0])/sw, dpr*(d[1]-a[1])/sw, dpr*a[0], dpr*a[1]);
+    g.drawImage(t.im,sx,sy,sw,sw,-0.5,-0.5,sw+1,sw+1); drew=true; }   // +1: no hairline seams
+  g.restore();
+  // provider credit, as Esri's terms require
+  g.font='500 9px "IBM Plex Sans", sans-serif'; g.textAlign='right'; const tx=S.attr; g.lineWidth=3; g.strokeStyle='rgba(255,255,255,.85)'; g.strokeText(tx,W-4,Hh-4); g.fillStyle='#222'; g.fillText(tx,W-4,Hh-4); g.textAlign='left';
+  if(SAT.lastErr&&!drew){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--warn'); g.fillText('Satellite: '+SAT.lastErr,8,18); }
+  return drew; }
+function satUI(){ $('mapSat').setAttribute('aria-pressed',SAT.on&&!!satVia()); $('satVia').textContent= satVia()==='proxy'? 'Tiles come through your proxy ('+ntUrl().replace(/^https?:\/\//,'')+'), which holds the key: leave the key below empty.' : 'No proxy set: tiles come straight from Esri with the key below.'; $('satKey').value=SAT.key; $('satSrc').value=SAT.src; $('satOp').value=SAT.op; }
 function drawCharts(g0,W,Hh,inv){
   if(!CH.on||!CH.idx.length) return false;
   // drawn opaque into an offscreen canvas, then laid on the map at the chart opacity (the triangles overlap slightly)
@@ -1277,6 +1326,17 @@ $('map').addEventListener('pointerdown',()=>{ if($('chartBox').open) $('chartBox
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('chartBox').open) $('chartBox').open=false; });
 $('chartBox').addEventListener('toggle',()=>{ if($('chartBox').open) $('mapSec').scrollIntoView({block:'nearest'}); });
 $('chartOp').addEventListener('input',()=>{ CH.op=+$('chartOp').value; ls.set('chartOp',CH.op); if(MAP.last) drawMap(...MAP.last); });
+$('mapSat').onclick=()=>{ if(!satVia()){ $('bOpts').click(); setTimeout(()=>{ $('satKey').scrollIntoView({block:'center'}); $('satKey').focus(); },150); return; } SAT.on=!SAT.on; ls.set('mapSat',SAT.on); satUI(); render(); };
+$('satKey').addEventListener('change',()=>{ SAT.key=$('satKey').value.trim(); ls.set('satKey',SAT.key); SAT.img.clear(); SAT.lastErr=''; if(satVia()&&!ls.get('mapSat',null)){ SAT.on=true; ls.set('mapSat',true); } satUI(); render(); });
+$('satSrc').addEventListener('change',()=>{ SAT.src=$('satSrc').value; ls.set('satSrc',SAT.src); SAT.lastErr=''; render(); });
+$('satOp').addEventListener('input',()=>{ SAT.op=+$('satOp').value; ls.set('satOp',SAT.op); render(); });
+$('satTest').onclick=()=>{ const k=$('satKey').value.trim(), px=satVia()==='proxy'&&!k; if(!k&&!px){ $('satStat').textContent='set the proxy or enter a key first'; return; } $('satStat').textContent='checking'+(px?' the proxy':'')+'…';
+  const res={}; let n=0; const done=()=>{ if(++n<2) return; const ok=Object.keys(res).filter(s=>res[s]);
+    $('satStat').textContent= ok.length? 'works: '+ok.map(s=>s==='wi'?'World Imagery':'imagery with labels').join(' and ') : 'no tiles: check the key and its basemap privileges';
+    if(ok.length&&!ok.includes($('satSrc').value)){ $('satSrc').value=ok[0]; $('satSrc').dispatchEvent(new Event('change')); } };
+  for(const s_ of ['wi','st']){ const im=new Image(), [z,y,x]= s_==='wi'? [8,158,230] : [7,79,115];   // Melbourne
+    im.onload=()=>{ res[s_]=true; done(); }; im.onerror=()=>{ res[s_]=false; done(); }; if(px) im.crossOrigin='anonymous'; im.src= px? satUrl(s_,z,y,x) : SAT_SRC[s_].url(z,y,x,k); } };
+satUI();
 $('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; $('chartBox').scrollIntoView({block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
 if(window.caches) chartIndexLoad();
 
@@ -1334,7 +1394,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
   const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
   MAP.inv=invPx; MAP.P=P;
-  const chartsShown=drawCharts(g,W,Hh,invPx);
+  const satShown=drawSat(g,W,Hh,P,invPx,la,cosl,sc);
+  const chartsShown=drawCharts(g,W,Hh,invPx)||satShown;   // over imagery, terrain draws only its warnings, as over a chart
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
   if(TER.ok && MAP.ter){
     const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
@@ -2009,7 +2070,7 @@ $('mapLead').setAttribute('aria-pressed',MAP.lead);
 $('mapLog').onclick=()=>{ MAP.log=!MAP.log; ls.set('mapLog',MAP.log); $('mapLog').setAttribute('aria-pressed',MAP.log); render(); };
 $('mapLog').setAttribute('aria-pressed',MAP.log);
 $('ntUrl').value=ntUrl();
-$('ntUrl').addEventListener('change',()=>{ const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
+$('ntUrl').addEventListener('change',()=>{ setTimeout(()=>{ SAT.img.clear(); SAT.lastErr=''; satUI(); render(); },0); const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
 function nbStatus(){ $('ntSum').textContent= NTN? `NAIPS · ${NTN.items.filter(n=>ntActive(n)).length} active${NTN.validTo&&Date.now()>NTN.validTo?' · expired':''}` : 'no briefing'; $('nbStat').innerHTML= NTN? `${esc(NTN.title)}: ${NTN.items.length} NOTAMs (${NTN.items.filter(n=>ntActive(n)).length} active now), ${NTN.none.length} locations with none. Issued ${new Date(NTN.issued).toISOString().slice(0,16).replace('T',' ')}Z${NTN.validTo?', valid to '+new Date(NTN.validTo).toISOString().slice(11,16)+'Z':''}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(expired: get a new briefing)</span>':''}.` : 'No NAIPS briefing loaded. Copy a location or area briefing from NAIPS (website or app) and paste it here; it stays on the phone for use offline.'; }
 function nbLoad(txt){ const r=naipsParse(txt); if(!r){ $('nbStat').innerHTML='<span class="w">That doesn\'t look like a NAIPS briefing (no "hhmm UTC dd/mm/yy" header).</span>'; return false; }
   NTN=r; try{ ls.set('naips',NTN); }catch(e){ $('nbStat').textContent='Too large to store on the phone; loaded for this session only.'; } $('nbText').value=''; nbStatus(); render(); return true; }
@@ -2155,7 +2216,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
   const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId};
     // press and hold (550 ms without moving): options for that point
     lpCancel(); const r=cv.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
-    lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
+    lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mmGuardOn(); mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
   cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(ptr.size===2){ lpCancel(); pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
     if(ptr.size>2) return;
@@ -2243,6 +2304,12 @@ function pointFreqs(la,lo){
     a=`<span><small>${g?'AREA':'ATC '+k}</small> <b style="${g?'':'color:var(--as-'+(k==='A'?'c':String(k).toLowerCase())+')'}">${f}</b> <small>${esc(who)}${ll?' · '+ll:''} · at ${Math.round(altFt/100)*100} ft</small></span>`; }
   return c+a; }
 function mapMenuClose(){ $('mapMenu').hidden=true; MAP.press=null; if(MAP.last) drawMap(...MAP.last); }
+// a press-and-hold opens the menu under the finger: ignore taps on it until that finger has lifted and 400 ms more, so
+// lifting (or a slight drag) can't press whichever button popped up under it
+let MM_GUARD=0;
+function mmGuardOn(){ MM_GUARD=Infinity; const lift=()=>{ MM_GUARD=Date.now()+400; window.removeEventListener('pointerup',lift,true); window.removeEventListener('pointercancel',lift,true); };
+  window.addEventListener('pointerup',lift,true); window.addEventListener('pointercancel',lift,true); }
+for(const ev of ['click','pointerdown','pointerup','touchend']) $('mapMenu').addEventListener(ev,e=>{ if(Date.now()<MM_GUARD){ e.preventDefault(); e.stopPropagation(); } },true);
 function mapMenu(px,py){
   if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
   let town=null; for(const t of TOWNS){ if(Math.abs(t.la-la)>0.2||Math.abs(t.lo-lo)>0.25) continue; const d=distBrg(t.la,t.lo,la,lo); if(!town||d[0]<town.d) town={t,d:d[0],b:d[1]}; }

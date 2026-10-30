@@ -95,6 +95,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .ntset a.btn{text-decoration:none;display:inline-flex;align-items:center} .nbget{border-top:1px solid var(--rule);margin-top:8px;padding-top:4px} .ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
 .st.insua{display:flex;flex-direction:column;align-items:stretch;gap:3px} .st.insua>div{display:flex;align-items:baseline;gap:8px;min-width:0} .st.insua>div>b,.st.insua small{flex:none} .st.insua span{white-space:normal}   /* a warning wraps rather than losing its end */
 .st.insua .off{color:var(--dim)} .st.insua .off>b{color:var(--dim)} .st.insua b.stt{font:inherit;font-weight:700} .st.insua.quiet{border-color:var(--rule);background:var(--panel)}
+.opts-sat{display:flex;flex-direction:column;gap:8px;font-size:13px} .opts-sat label{display:flex;flex-direction:column;gap:3px} .opts-sat input[type=password],.opts-sat select{font:500 14px/1.2 var(--f-mono);padding:8px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .opts-sat .ctl{display:flex;gap:10px;align-items:center} .opts-sat small{color:var(--dim);line-height:1.35}
 .rbramp{display:inline-block;width:56px;height:8px;border-radius:2px;vertical-align:0;margin:0 4px;background:linear-gradient(90deg,rgb(38,150,160),rgb(120,190,80) 14%,rgb(245,200,70) 41%,rgb(220,90,60) 68%,rgb(130,60,170))}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq.l{grid-column:1/span 7} .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
@@ -251,7 +252,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -441,6 +442,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
         <span class="brk"></span>
         <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies: 10 NM around each aerodrome (a tower aerodrome: its whole control zone, which cuts the CTAF areas round it; a tower aerodrome with no CTAF shows its zone on the tower frequency), merged by frequency">CTAF</button>
         <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
+        <button class="btn" id="mapSat" aria-pressed="false" title="Esri satellite imagery under the map (online only; needs your Esri API key in Options)">Sat</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
@@ -592,6 +594,15 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="opts-list" id="optsLogs"></div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optCtafSplit"><span><b>Split overlapping CTAF areas</b><br><small>Where two aerodromes with different CTAFs are less than 20 NM apart, their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency.</small></span></label><label><input type="checkbox" id="optCtafSplit127"><span><b>Split 126.7 areas too</b><br><small>Off: the grey 126.7 circles of strips without their own CTAF are drawn whole under the others and don't cut them, so a specific CTAF keeps its full 10 NM circle. On: they take part in the split like any other frequency.</small></span></label><label><input type="checkbox" id="optTerRainbow"><span><b>Rainbow topographic terrain</b><br><small>With <b>Terrain</b> on, colour the ground by height (sea-level teal through green, yellow and orange to purple on the highest ranges) instead of grey relief. Terrain at or above you is still marked: cross-hatched in red, and within 500 ft in orange.</small></span></label></div>
+    <div class="lbl" style="margin-top:10px">Satellite imagery (Esri)</div>
+    <div class="opts-sat">
+      <div class="vnote" id="satVia"></div>
+      <label>Esri API key (only without a proxy) <input id="satKey" type="password" autocomplete="off" spellcheck="false" placeholder="AAPK… or AAPT…"></label>
+      <label>Source <select id="satSrc"><option value="wi">World Imagery (imagery only)</option><option value="st">Imagery with labels (static tiles)</option></select></label>
+      <label class="chart-op">Opacity <input type="range" id="satOp" min="0.2" max="1" step="0.05"></label>
+      <div class="ctl"><button class="btn" id="satTest">Check key</button><span class="mono" id="satStat"></span></div>
+      <small>Create a free ArcGIS Location Platform account at developers.arcgis.com and make an API key with the basemap privileges. Best: put it in your Cloudflare Worker as the secret ESRI_KEY (the proxy address is set under NOTAMs and traffic); tiles then come through it, cached by Cloudflare and stored on this device for offline use as you view them. Without a proxy, enter the key here (restrict it to meee1.github.io); tiles are then only kept by the browser for a while. The <b>Sat</b> button under the map turns it on and off.</small>
+    </div>
   </dialog>
 
   <details class="calls ntset" id="ntSet">
@@ -1714,7 +1725,7 @@ function optsRender(){
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); logsRender(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+$('bOpts').onclick=()=>{ optsRender(); logsRender(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // flights stored in IndexedDB: fixes split where there's a gap of more than 30 min, newest first, each downloadable as GPX
@@ -1782,6 +1793,55 @@ function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
     if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
   }).catch(()=>CH.imgs.set(k,'none'));
   return null; }
+/* ---------- satellite underlay (Esri, online only) ----------
+   wi: World Imagery raster tiles (256 px, Web Mercator z/y/x) from ibasemaps-api with the API key as token;
+   st: the Static Basemap Tiles service, arcgis/imagery/labels (512 px, levels one less). Each tile is drawn with the
+   affine that maps its three corners onto the screen (the map is a local flat projection; a tile is small enough). */
+const SAT={on:ls.get('mapSat',false), key:ls.get('satKey',''), src:ls.get('satSrc','wi'), op:ls.get('satOp',0.85), img:new Map(), err:0, ok:0, lastErr:''};
+const SAT_SRC={
+  wi:{size:256, z:z=>z, max:19, url:(z,y,x,k)=>`https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}?token=${encodeURIComponent(k)}`,
+      attr:'Imagery: Esri, Maxar, Earthstar Geographics, and the GIS User Community'},
+  st:{size:512, z:z=>z-1, max:21, url:(z,y,x,k)=>`https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1/arcgis/imagery/labels/static/tile/${z}/${y}/${x}?token=${encodeURIComponent(k)}`,
+      attr:'Esri, TomTom, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors, and the GIS User Community'}};
+const mercX=(lo,n)=>(lo+180)/360*n, mercY=(la,n)=>{ const r=la*R; return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n; };
+const mercLo=(x,n)=>x/n*360-180, mercLa=(y,n)=>Math.atan(Math.sinh(Math.PI*(1-2*y/n)))/R;
+// tiles come through the traffic proxy when one is set (the Esri key is a secret there, Cloudflare caches them and the
+// service worker keeps them for offline use); otherwise straight from Esri with the key entered in Options
+const satVia=()=>ntUrl()? 'proxy' : SAT.key? 'key' : '';
+const satUrl=(src,z,y,x,k)=> satVia()==='proxy'&&k==null? `${ntUrl()}/tile/${src}/${z}/${y}/${x}` : SAT_SRC[src].url(z,y,x,k!=null?k:SAT.key);
+function satTile(src,z,x,y){ const key=src+'/'+z+'/'+x+'/'+y; let t=SAT.img.get(key);
+  if(!t){ if(SAT.img.size>600){ for(const k of [...SAT.img.keys()].slice(0,200)) SAT.img.delete(k); }
+    const im=new Image(); t={im,ok:false,bad:false}; SAT.img.set(key,t);
+    im.onload=()=>{ t.ok=true; SAT.ok++; SAT.lastErr=''; clearTimeout(SAT.rt); SAT.rt=setTimeout(()=>{ if(MAP.last) drawMap(...MAP.last); },120); };
+    im.onerror=()=>{ t.bad=true; SAT.err++; SAT.lastErr= satVia()==='proxy'? 'tiles not loading (proxy needs the ESRI_KEY secret, or no signal)' : 'tiles not loading (check the key, its privileges and the source, or the signal)'; setTimeout(()=>SAT.img.delete(key),60e3); };
+    if(satVia()==='proxy') im.crossOrigin='anonymous';   // CORS from the proxy: the service worker can store it, the canvas stays clean
+    im.src=satUrl(src,z,y,x); }
+  return t; }
+function drawSat(g,W,Hh,P,inv,la,cosl,sc){
+  if(!SAT.on||!satVia()) return false;
+  const S=SAT_SRC[SAT.src]||SAT_SRC.wi;
+  // 256-px zoom where a tile is about 256 screen px wide, then the source's level
+  let z=Math.round(Math.log2(360*60*cosl*sc/256)); z=Math.max(3,Math.min(S.max+(S.size===512?1:0),z)); const L=S.z(z), n=2**L;
+  const c=[inv(0,0),inv(W,0),inv(0,Hh),inv(W,Hh)];
+  const xs=c.map(q=>mercX(q[1],n)), ys=c.map(q=>mercY(q[0],n));
+  const x0=Math.floor(Math.min(...xs)), x1=Math.floor(Math.max(...xs)), y0=Math.max(0,Math.floor(Math.min(...ys))), y1=Math.min(n-1,Math.floor(Math.max(...ys)));
+  if((x1-x0+1)*(y1-y0+1)>140) return false;   // far too many: stop rather than flood the provider
+  const dpr=window.devicePixelRatio||1; let drew=false;
+  g.save(); g.globalAlpha=SAT.op;
+  for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
+    const xx=((tx%n)+n)%n; let t=satTile(SAT.src,L,xx,ty), dz=0, sx=0, sy=0, sw=S.size;
+    if(!t.ok){ // a parent tile already loaded stands in, scaled up
+      for(let k=1;k<=4&&!t.ok;k++){ const pt=SAT.img.get(SAT.src+'/'+(L-k)+'/'+(xx>>k)+'/'+(ty>>k)); if(pt&&pt.ok){ t=pt; dz=k; sw=S.size/2**k; sx=(xx-((xx>>k)<<k))*sw; sy=(ty-((ty>>k)<<k))*sw; } } }
+    if(!t.ok) continue;
+    const a=P(mercLa(ty,n),mercLo(tx,n)), b=P(mercLa(ty,n),mercLo(tx+1,n)), d=P(mercLa(ty+1,n),mercLo(tx,n));
+    g.setTransform(dpr*(b[0]-a[0])/sw, dpr*(b[1]-a[1])/sw, dpr*(d[0]-a[0])/sw, dpr*(d[1]-a[1])/sw, dpr*a[0], dpr*a[1]);
+    g.drawImage(t.im,sx,sy,sw,sw,-0.5,-0.5,sw+1,sw+1); drew=true; }   // +1: no hairline seams
+  g.restore();
+  // provider credit, as Esri's terms require
+  g.font='500 9px "IBM Plex Sans", sans-serif'; g.textAlign='right'; const tx=S.attr; g.lineWidth=3; g.strokeStyle='rgba(255,255,255,.85)'; g.strokeText(tx,W-4,Hh-4); g.fillStyle='#222'; g.fillText(tx,W-4,Hh-4); g.textAlign='left';
+  if(SAT.lastErr&&!drew){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--warn'); g.fillText('Satellite: '+SAT.lastErr,8,18); }
+  return drew; }
+function satUI(){ $('mapSat').setAttribute('aria-pressed',SAT.on&&!!satVia()); $('satVia').textContent= satVia()==='proxy'? 'Tiles come through your proxy ('+ntUrl().replace(/^https?:\/\//,'')+'), which holds the key: leave the key below empty.' : 'No proxy set: tiles come straight from Esri with the key below.'; $('satKey').value=SAT.key; $('satSrc').value=SAT.src; $('satOp').value=SAT.op; }
 function drawCharts(g0,W,Hh,inv){
   if(!CH.on||!CH.idx.length) return false;
   // drawn opaque into an offscreen canvas, then laid on the map at the chart opacity (the triangles overlap slightly)
@@ -1893,6 +1953,17 @@ $('map').addEventListener('pointerdown',()=>{ if($('chartBox').open) $('chartBox
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('chartBox').open) $('chartBox').open=false; });
 $('chartBox').addEventListener('toggle',()=>{ if($('chartBox').open) $('mapSec').scrollIntoView({block:'nearest'}); });
 $('chartOp').addEventListener('input',()=>{ CH.op=+$('chartOp').value; ls.set('chartOp',CH.op); if(MAP.last) drawMap(...MAP.last); });
+$('mapSat').onclick=()=>{ if(!satVia()){ $('bOpts').click(); setTimeout(()=>{ $('satKey').scrollIntoView({block:'center'}); $('satKey').focus(); },150); return; } SAT.on=!SAT.on; ls.set('mapSat',SAT.on); satUI(); render(); };
+$('satKey').addEventListener('change',()=>{ SAT.key=$('satKey').value.trim(); ls.set('satKey',SAT.key); SAT.img.clear(); SAT.lastErr=''; if(satVia()&&!ls.get('mapSat',null)){ SAT.on=true; ls.set('mapSat',true); } satUI(); render(); });
+$('satSrc').addEventListener('change',()=>{ SAT.src=$('satSrc').value; ls.set('satSrc',SAT.src); SAT.lastErr=''; render(); });
+$('satOp').addEventListener('input',()=>{ SAT.op=+$('satOp').value; ls.set('satOp',SAT.op); render(); });
+$('satTest').onclick=()=>{ const k=$('satKey').value.trim(), px=satVia()==='proxy'&&!k; if(!k&&!px){ $('satStat').textContent='set the proxy or enter a key first'; return; } $('satStat').textContent='checking'+(px?' the proxy':'')+'…';
+  const res={}; let n=0; const done=()=>{ if(++n<2) return; const ok=Object.keys(res).filter(s=>res[s]);
+    $('satStat').textContent= ok.length? 'works: '+ok.map(s=>s==='wi'?'World Imagery':'imagery with labels').join(' and ') : 'no tiles: check the key and its basemap privileges';
+    if(ok.length&&!ok.includes($('satSrc').value)){ $('satSrc').value=ok[0]; $('satSrc').dispatchEvent(new Event('change')); } };
+  for(const s_ of ['wi','st']){ const im=new Image(), [z,y,x]= s_==='wi'? [8,158,230] : [7,79,115];   // Melbourne
+    im.onload=()=>{ res[s_]=true; done(); }; im.onerror=()=>{ res[s_]=false; done(); }; if(px) im.crossOrigin='anonymous'; im.src= px? satUrl(s_,z,y,x) : SAT_SRC[s_].url(z,y,x,k); } };
+satUI();
 $('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; $('chartBox').scrollIntoView({block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
 if(window.caches) chartIndexLoad();
 
@@ -1950,7 +2021,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
   const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
   const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
   MAP.inv=invPx; MAP.P=P;
-  const chartsShown=drawCharts(g,W,Hh,invPx);
+  const satShown=drawSat(g,W,Hh,P,invPx,la,cosl,sc);
+  const chartsShown=drawCharts(g,W,Hh,invPx)||satShown;   // over imagery, terrain draws only its warnings, as over a chart
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
   if(TER.ok && MAP.ter){
     const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
@@ -2625,7 +2697,7 @@ $('mapLead').setAttribute('aria-pressed',MAP.lead);
 $('mapLog').onclick=()=>{ MAP.log=!MAP.log; ls.set('mapLog',MAP.log); $('mapLog').setAttribute('aria-pressed',MAP.log); render(); };
 $('mapLog').setAttribute('aria-pressed',MAP.log);
 $('ntUrl').value=ntUrl();
-$('ntUrl').addEventListener('change',()=>{ const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
+$('ntUrl').addEventListener('change',()=>{ setTimeout(()=>{ SAT.img.clear(); SAT.lastErr=''; satUI(); render(); },0); const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
 function nbStatus(){ $('ntSum').textContent= NTN? `NAIPS · ${NTN.items.filter(n=>ntActive(n)).length} active${NTN.validTo&&Date.now()>NTN.validTo?' · expired':''}` : 'no briefing'; $('nbStat').innerHTML= NTN? `${esc(NTN.title)}: ${NTN.items.length} NOTAMs (${NTN.items.filter(n=>ntActive(n)).length} active now), ${NTN.none.length} locations with none. Issued ${new Date(NTN.issued).toISOString().slice(0,16).replace('T',' ')}Z${NTN.validTo?', valid to '+new Date(NTN.validTo).toISOString().slice(11,16)+'Z':''}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(expired: get a new briefing)</span>':''}.` : 'No NAIPS briefing loaded. Copy a location or area briefing from NAIPS (website or app) and paste it here; it stays on the phone for use offline.'; }
 function nbLoad(txt){ const r=naipsParse(txt); if(!r){ $('nbStat').innerHTML='<span class="w">That doesn\'t look like a NAIPS briefing (no "hhmm UTC dd/mm/yy" header).</span>'; return false; }
   NTN=r; try{ ls.set('naips',NTN); }catch(e){ $('nbStat').textContent='Too large to store on the phone; loaded for this session only.'; } $('nbText').value=''; nbStatus(); render(); return true; }
@@ -2771,7 +2843,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
   const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId};
     // press and hold (550 ms without moving): options for that point
     lpCancel(); const r=cv.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
-    lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
+    lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mmGuardOn(); mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
   cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(ptr.size===2){ lpCancel(); pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
     if(ptr.size>2) return;
@@ -2859,6 +2931,12 @@ function pointFreqs(la,lo){
     a=`<span><small>${g?'AREA':'ATC '+k}</small> <b style="${g?'':'color:var(--as-'+(k==='A'?'c':String(k).toLowerCase())+')'}">${f}</b> <small>${esc(who)}${ll?' · '+ll:''} · at ${Math.round(altFt/100)*100} ft</small></span>`; }
   return c+a; }
 function mapMenuClose(){ $('mapMenu').hidden=true; MAP.press=null; if(MAP.last) drawMap(...MAP.last); }
+// a press-and-hold opens the menu under the finger: ignore taps on it until that finger has lifted and 400 ms more, so
+// lifting (or a slight drag) can't press whichever button popped up under it
+let MM_GUARD=0;
+function mmGuardOn(){ MM_GUARD=Infinity; const lift=()=>{ MM_GUARD=Date.now()+400; window.removeEventListener('pointerup',lift,true); window.removeEventListener('pointercancel',lift,true); };
+  window.addEventListener('pointerup',lift,true); window.addEventListener('pointercancel',lift,true); }
+for(const ev of ['click','pointerdown','pointerup','touchend']) $('mapMenu').addEventListener(ev,e=>{ if(Date.now()<MM_GUARD){ e.preventDefault(); e.stopPropagation(); } },true);
 function mapMenu(px,py){
   if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
   let town=null; for(const t of TOWNS){ if(Math.abs(t.la-la)>0.2||Math.abs(t.lo-lo)>0.25) continue; const d=distBrg(t.la,t.lo,la,lo); if(!town||d[0]<town.d) town={t,d:d[0],b:d[1]}; }

@@ -1,4 +1,4 @@
-const C='radio-au-ad2592ba4c', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share';
+const C='radio-au-fe4281516f', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', SAT_MAX=6000;
 const CORE=['./','./index.html','./app.js','./data.json','./urban.json','./manifest.webmanifest','./icon-192.png','./icon-512.png','./data-next.json'];
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
@@ -14,7 +14,7 @@ async function precacheTerrain(){   // all SRTM tiles, a few at a time; safe to 
   }catch(e){}
 }
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S,SAT].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
 self.addEventListener('message',e=>{ if(e.data==='precache') e.waitUntil(precacheTerrain()); });
 self.addEventListener('fetch',e=>{
   const req=e.request, u=new URL(req.url);
@@ -28,6 +28,11 @@ self.addEventListener('fetch',e=>{
   if(req.method!=='GET') return;
   if(u.origin!==location.origin){
     if(/fonts\.(googleapis|gstatic)\.com/.test(u.host)) e.respondWith(caches.open(F).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ c.put(req,n.clone()); return n; }))));
+    // satellite tiles through the app's proxy (/tile/wi|st/z/y/x): cache first, stored as you view them (kept across builds,
+    // the oldest dropped past SAT_MAX); a tile fetched straight from Esri with a key is left to the browser
+    else if(/\/tile\/(wi|st)\/\d+\/\d+\/\d+$/.test(u.pathname)) e.respondWith(caches.open(SAT).then(c=>c.match(req,{ignoreVary:true}).then(r=>r||fetch(req).then(n=>{
+      if(n.ok&&n.type!=='opaque'){ c.put(req,n.clone()).then(()=>{ if(Math.random()<0.02) c.keys().then(k=>{ if(k.length>SAT_MAX) for(const q of k.slice(0,k.length-SAT_MAX)) c.delete(q); }); }); }
+      return n; }))));
     return; }
   if(/\/charts\/.+\.jpg$/.test(u.pathname) || /\/lib\//.test(u.pathname)){        // chart tiles (stored by the page) and pdf.js: cache first, kept across builds
     e.respondWith(caches.open(X).then(c=>c.match(req,{ignoreSearch:true}).then(r=>r||fetch(req).then(n=>{ if(n.ok&&/\/lib\//.test(u.pathname)) c.put(req,n.clone()); return n; }))));

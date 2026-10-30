@@ -23,3 +23,23 @@ globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.hea
 seen.length=0; globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.headers['x-api-key']||'-')); return u.includes('re-api')||o.headers['x-api-key']? new Response('api key bound to a different address',{status:401}) : new Response(JSON.stringify(AC)); };
 [s,o,c,j]=await go('/traffic?lat=-34.5&lon=144.9&nm=25'); console.log('bad key',s,j.src,j.n,seen.join(' | '));
 delete env.ADSBLOL_KEY;
+// satellite tiles: key from the secret, origin/referer and Australia checks, edge cache, Esri error passthrough
+{ const PNG=new Uint8Array([137,80,78,71,13,10,26,10]); const seen=[];
+  env.ESRI_KEY='secret-key';
+  globalThis.fetch=async(u)=>{ u=String(u); seen.push(u.replace(/token=[^&]+/,'token=…'));
+    if(!u.includes('token=secret-key')) return new Response('{"error":"token"}',{status:498});
+    if(u.includes('/19/')) return new Response('{"error":{"code":498}}',{status:200,headers:{'content-type':'application/json'}});
+    return new Response(PNG,{status:200,headers:{'content-type':'image/png'}}); };
+  const T=async(path,h={Origin:'https://meee1.github.io'})=>{ const r=await W.fetch(new Request('https://w.dev'+path,{headers:h}),env,ctx); return [r.status,r.headers.get('X-Cache'),r.headers.get('Cache-Control'),r.headers.get('Access-Control-Allow-Origin'),r.headers.get('content-type')]; };
+  // Melbourne at z10: x=924 y=631
+  console.log('tile wi', ...await T('/tile/wi/10/631/924'));
+  console.log('tile wi again', ...await T('/tile/wi/10/631/924'));
+  console.log('tile st referer', ...await T('/tile/st/9/315/462',{Referer:'https://meee1.github.io/airspace_assist/app/'}));
+  console.log('no origin', ...await T('/tile/wi/10/631/925',{}));
+  console.log('other site', ...await T('/tile/wi/10/631/925',{Origin:'https://evil.example'}));
+  console.log('outside AU (London)', ...await T('/tile/wi/10/340/511'));
+  console.log('zoom too low', ...await T('/tile/wi/1/1/1'));
+  console.log('bad path', ...await T('/tile/xx/1/1/1'));
+  console.log('esri json error', ...await T('/tile/wi/19/323224/473238'));
+  console.log('upstream', seen.join(' | '));
+  delete env.ESRI_KEY; console.log('no key', ...await T('/tile/wi/10/631/926')); }

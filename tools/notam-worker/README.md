@@ -34,11 +34,18 @@ folder keeps its old name.)
 - Another readsb-style feed: set `ADSB_URL` (wrangler.toml or the dashboard's Variables), e.g.
   `https://api.airplanes.live/v2/point/{lat}/{lon}/{nm}` once they've approved you, and `npx wrangler secret put ADSB_KEY` if it
   needs a key (sent as the `api-auth` header).
+- `GET /tile/{wi|st}/{z}/{y}/{x}`: **Esri satellite imagery** for the app's **Sat** layer.
+  - **Setup:** add your Esri API key as the secret `ESRI_KEY` (dashboard → the Worker → Settings → Variables and Secrets → Add → type **Secret**, or `npx wrangler secret put ESRI_KEY`), then redeploy `worker.js`. Get the key from a free ArcGIS Location Platform account at developers.arcgis.com, with the basemap privileges. Esri keys aren't tied to an IP address, so it works from Cloudflare.
+  - **Sources:** `wi` is World Imagery (256 px tiles, z 3–19). `st` is Esri's static basemap tiles, imagery with labels (512 px, z 2–20).
+  - **Who can use it:** only requests from the app (Origin or Referer in `ALLOW_ORIGIN`), and only tiles that touch Australia. Anything else gets 403 or 400, so nobody else can spend your Esri allowance through it.
+  - **Caching:** a tile is fetched from Esri once, then kept in Cloudflare's edge cache for 30 days. The key isn't part of the cache key, and repeat requests answer with `X-Cache: HIT`. Responses carry `Cache-Control: public, max-age=2592000, immutable` and CORS headers, so the app's service worker stores every tile you view (up to 6,000) and shows them again offline.
+  - **Errors:** without `ESRI_KEY` the answer is 503. If Esri refuses, its status and message come back as JSON.
+  - **Check:** `https://<your worker>/tile/wi/10/631/924` opened in a browser gets 403 (no Origin). That's expected: the route is working and only answers the app.
 - It's internet ADS-B: only aircraft transmitting ADS-B that a ground receiver hears, 5–10 s late, patchy at low
   level. Not TCAS.
 
 ## Test locally (no network)
-- `node test.mjs`: the Worker against fake feeds (parsing, adsb.lol → adsb.fi fallback, errors, cache, CORS).
+- `node test.mjs`: the Worker against fake feeds (parsing, adsb.lol → adsb.fi fallback, errors, cache, CORS; tiles: key, origin and Australia checks, edge cache MISS → HIT, Esri errors).
 - `node mockserver.mjs`: the Worker on http://localhost:8812 with four fake aircraft around the first position asked
   for (one converging, one proximate, one far, and VH-EAN itself); set the app's Traffic proxy to
-  `http://localhost:8812` (app served on :8811).
+  `http://localhost:8812` (app served on :8811). It also serves fake Esri tiles on `/tile/…` (green checks) and prints how many came from the edge cache; the app test `play/satproxy.js` uses it to check the Sat layer, service-worker storage and offline display.

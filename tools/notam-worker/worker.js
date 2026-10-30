@@ -13,7 +13,13 @@
 
    Vars (wrangler.toml or the dashboard): ALLOW_ORIGIN = "https://meee1.github.io,http://localhost:8811",
    optional secret ADSBLOL_KEY (adsb.lol API key: npx wrangler secret put ADSBLOL_KEY, or the dashboard → Settings →
-   Variables and Secrets, type Secret); optional ADSB_URL with optional secret ADSB_KEY (sent as the api-auth header). */
+   Variables and Secrets, type Secret); optional ADSB_URL with optional secret ADSB_KEY (sent as the api-auth header).
+
+   GET /tile/{src}/{z}/{y}/{x}   Esri satellite imagery for the app's Sat layer, with the key kept here (secret ESRI_KEY)
+     src wi: World Imagery raster tiles (256 px, z 3-19); st: static basemap tiles arcgis/imagery/labels (512 px, z 2-20).
+     Only for the app (Origin or Referer in ALLOW_ORIGIN) and only tiles touching Australia (lat -46..-8, lon 108..160),
+     so the proxy can't be used to spend the Esri allowance elsewhere. Cached at Cloudflare's edge for 30 days (the key
+     isn't part of the cache key), and sent with Cache-Control so the app's service worker keeps it for offline use. */
 const cors=(req,env)=>{ const o=req.headers.get('Origin')||'', ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean);
   return {'Access-Control-Allow-Origin': ok.includes(o)? o : ok[0]||'*', 'Access-Control-Allow-Methods':'GET, OPTIONS', 'Vary':'Origin'}; };
 const json=(o,status,h)=>new Response(JSON.stringify(o),{status,headers:{'Content-Type':'application/json',...h}});
@@ -24,7 +30,8 @@ export default {
     if(req.method==='OPTIONS') return new Response(null,{headers:{...H,'Access-Control-Max-Age':'86400'}});
     const u=new URL(req.url);
     if(u.pathname==='/traffic') return traffic(u,env,ctx,H);
-    return json({error:'use /traffic?lat=&lon=&nm='},404,H);
+    if(u.pathname.startsWith('/tile/')) return tile(req,u,env,ctx,H);
+    return json({error:'use /traffic?lat=&lon=&nm= or /tile/{wi|st}/{z}/{y}/{x}'},404,H);
   }
 };
 async function traffic(u,env,ctx,H){
@@ -57,4 +64,32 @@ async function traffic(u,env,ctx,H){
   const res=json({src:new URL(url).host,t:new Date().toISOString(),n:out.length,ac:out},200,{...H,'Cache-Control':'public, max-age=3'});
   ctx.waitUntil(cache.put(key,res.clone()));
   return res;
+}
+const TILE={
+  wi:{min:3,max:19,url:(z,y,x)=>`https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`},
+  st:{min:2,max:20,url:(z,y,x)=>`https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1/arcgis/imagery/labels/static/tile/${z}/${y}/${x}`}};
+const AU={la0:-46,la1:-8,lo0:108,lo1:160};
+const tileLL=(z,y,x)=>{ const n=2**z, lo=v=>v/n*360-180, la=v=>Math.atan(Math.sinh(Math.PI*(1-2*v/n)))*180/Math.PI; return {la0:la(y+1),la1:la(y),lo0:lo(x),lo1:lo(x+1)}; };
+async function tile(req,u,env,ctx,H){
+  const m=/^\/tile\/(wi|st)\/(\d{1,2})\/(\d{1,7})\/(\d{1,7})$/.exec(u.pathname);
+  if(!m) return json({error:'use /tile/{wi|st}/{z}/{y}/{x}'},400,H);
+  const [,src,zs,ys,xs]=m, z=+zs, y=+ys, x=+xs, S=TILE[src], n=2**z;
+  // only the app may use it: Origin (images loaded with crossorigin) or Referer must be one of ALLOW_ORIGIN
+  const ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean), org=req.headers.get('Origin')||'', ref=req.headers.get('Referer')||'';
+  if(ok.length && !ok.includes(org) && !ok.some(o=>ref.startsWith(o+'/')||ref===o)) return json({error:'not allowed'},403,H);
+  if(z<S.min||z>S.max||y>=n||x>=n) return json({error:'zoom or tile out of range'},400,H);
+  const b=tileLL(z,y,x);   // a 512-px static tile at level z covers the same box as a 256-px tile at z
+  if(b.la1<AU.la0||b.la0>AU.la1||b.lo1<AU.lo0||b.lo0>AU.lo1) return json({error:'outside Australia'},400,H);
+  if(!env.ESRI_KEY) return json({error:'proxy has no ESRI_KEY secret'},503,H);
+  const key=new Request(`https://esri.cache/${src}/${z}/${y}/${x}`), cache=caches.default, hit=await cache.match(key);
+  const out=(r,xc)=>{ const o=new Response(r.body,r); for(const [k,v] of Object.entries(H)) o.headers.set(k,v); o.headers.set('X-Cache',xc); return o; };
+  if(hit) return out(hit,'HIT');
+  let r; try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),8000);
+    r=await fetch(S.url(z,y,x)+'?token='+encodeURIComponent(env.ESRI_KEY),{signal:ac.signal,headers:{'User-Agent':'radio-au-proxy (personal VFR app)'}}).finally(()=>clearTimeout(tm)); }
+  catch(e){ return json({error:'Esri '+(e.name==='AbortError'?'timeout':e.message)},502,H); }
+  const ct=r.headers.get('content-type')||'';
+  if(!r.ok||!/^image\//.test(ct)){ const t=(await r.text()).slice(0,160); return json({error:`Esri ${r.status}`,detail:t},r.ok?502:r.status,H); }   // Esri errors come back as JSON with 200 sometimes
+  const res=new Response(r.body,{status:200,headers:{'Content-Type':ct,'Cache-Control':'public, max-age=2592000, immutable'}});
+  ctx.waitUntil(cache.put(key,res.clone()));
+  return out(res,'MISS');
 }
