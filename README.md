@@ -4,11 +4,11 @@
 
 Phone and tablet web app for VFR pilots (built with helicopters in mind):
 - the closest aerodrome (or the next one on your flight plan), with CTAF, ATIS/AWIS, tower and approach frequencies, runways and a radio call guide
-- the area frequency and airspace class for your position and altitude, with an alert when controlled or restricted airspace is within 10 NM ahead
-- an airspace map at the top of the screen (pan, pinch zoom, track or north up) with a 10 NM lead line ahead of you, terrain, VTC/VNC chart underlay, waypoints, towns and suburbs
+- the area frequency, airspace class and the band's cap and lower limit for your position and altitude, with an alert when controlled or restricted airspace is within 10 NM ahead and a warning while you're inside a restricted or danger area (its activity, and whether the loaded NAIPS briefing has it active or off)
+- an airspace map at the top of the screen (pan, pinch zoom, track or north up) with a 10 NM lead line ahead of you, terrain (grey relief or rainbow topographic), a CTAF layer (tower aerodromes by their control zone), VTC/VNC chart underlay, waypoints, towns and suburbs
 - GPX flight plans (or plans built and edited on the phone, saved back as GPX) with auto-advancing waypoints, direct-to and resume, an elevation profile and suggested VFR altitudes
 - the frequencies where you're going as well as where you are: CTAF/tower and area/ATC at the Go to point, tower hours at your ETA
-- NOTAMs from a NAIPS briefing (pasted, shared or opened as a PDF), on the aerodrome card, the map and along the route
+- NOTAMs from a NAIPS briefing (pasted, shared or opened as a PDF), on the aerodrome card, the map and along the route; restricted and danger areas shown active or off from it, and NOTAM temporary zones drawn
 - ADS-B traffic through a small proxy, with TCAS-style symbols and spoken alerts (not TCAS)
 - a flight log you can show on the map or download as GPX
 - search and Go to for any aerodrome, waypoint, navaid, town or suburb, typed or spoken (mic button, phonetic alphabet), or by pressing and holding on the map, which also shows any restricted or danger areas there with their ERSA status, hours and contact
