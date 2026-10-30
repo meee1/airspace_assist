@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793397139390;
+const APP_BUILT=1793397983552;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -905,13 +905,25 @@ $('sCtl').onclick=()=>$('adCard').scrollIntoView({block:'start',behavior:'smooth
 $('gCtl').onclick=()=>{ const i=$('gCtl').dataset.ad; if(i){ st.pin=i; render(); } $('adCard').scrollIntoView({block:'start',behavior:'smooth'}); };
 function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl', P+'CtafAd'); when: time for tower hours (ETA)
   const CI=ctafInfo(a), tp=twrPick(a,pk), ts=tp?twrStatus(a,when||new Date()):null, open=tp&&(ts?ts.on:true), pre=P==='g'?'→ ':'';   // hours unknown: assume the tower is active
-  const L=$(P+'CtafLbl'), F=$(P+'Ctaf'), W=$(P+'CtafAd');
+  const L=$(P+'CtafLbl'), F=$(P+'Ctaf'), W=$(P+'CtafAd'); let ap=null;
   if(open&&tp.ground&&P==='s'){ L.textContent='GND'; F.textContent=tp.ground[2]; W.textContent=a.i+' · on the ground'; }
+  else if(open&&P==='s'&&(ap=towerApp(a))){ L.textContent='APP'; F.textContent=ap[2]; W.textContent=a.i+' · '+unitShort(ap[1]||'')+' · not in plan'; }   // just passing a towered field: its approach unit
   else if(open){ const t=tp.tw; L.textContent=pre+(tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'); F.textContent=t[2]; W.textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
   else { L.textContent=pre+'CTAF'; F.textContent=CI.f||'—'; W.textContent=a.i; }
   W.textContent+=ntCountTxt(a.i);
   return {tp,ts,open,CI};
 }
+// A towered aerodrome you're only passing (not in the flight plan, not the Go to point or its aerodrome, and you're not
+// inside its control zone): the CTAF tile shows its approach frequency, the unit you'd talk to around it. ERSA APP
+// entries; with several, the one whose sector holds you at your altitude. null -> show the tower as before.
+function adPlanned(a){ if(FP&&FP.pts.some(p=>(p.c||'').toUpperCase()===a.i||distBrg(p.la,p.lo,a.la,a.lo)[0]<0.5)) return true;
+  if(GO&&(GO.c===a.i||distBrg(GO.la,GO.lo,a.la,a.lo)[0]<0.5)) return true; const g=goTarget(); return !!(g&&g.ad===a); }
+function towerApp(a){
+  const apps=(a.x||[]).filter(x=>x[0]==='APP'); if(!apps.length||!st.pos||adPlanned(a)) return null;
+  const alt=st.alt!=null?st.alt:0, t=terrainFt(st.pos[0],st.pos[1]);
+  if(ASP.some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)&&alt<limFt(z.hi,z.hik,t!=null?t:0,0))) return null;   // in its zone: tower
+  if(apps.length>1){ const fs=sectorsAt(st.pos[0],st.pos[1],alt).map(x=>x.f); const m=apps.find(x=>fs.includes(x[2])); if(m) return m; }
+  return apps[0]; }
 function goTarget(){ // the Go to point (flight plan waypoints set it too) and its aerodrome: the point itself, or the nearest within 10 NM
   if(!GO||!st.pos) return null;
   let ad=GO.k==='AD'? DATA.ap.find(x=>x.i===GO.c) : null, dA=0;
