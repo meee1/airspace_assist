@@ -17,7 +17,7 @@ It all runs offline once loaded (live NOTAMs and traffic need signal). While it 
 
 ## Top bar
 Always visible at the top of the screen:
-- **GPS:** fix accuracy (SIM in simulation).
+- **GPS:** an icon only, to save space. It's green when the phone reports accuracy better than 50 m, orange to 300 m, and red worse than that, or with no fix or permission denied. It's grey before the first fix. In the simulator it's orange with SIM under it. Hover or long-press for the accuracy (e.g. "GPS fix, accuracy ±8m").
 - **TRK / HDG:** your GPS track in °M, or the compass heading when you're too slow for a track (hovering, taxiing, on the ground).
 
 **Compass alignment:** a phone in a cradle rarely points exactly along the aircraft, and the airframe bends the compass too. While you fly straight and steady at 20 kt or more, the app averages the difference between GPS track and compass (about 20 s to align) and adds it to the compass whenever it falls back to it, so HDG lines up with where the nose points. The button below the map shows "Compass aligned +12°" (or "aligning …%"); tap it to reset after moving the phone. The offset also takes in the wind correction angle at the time, so it's best learnt into wind or in light wind. It's kept on the phone until you reset it. Simulation doesn't change it.

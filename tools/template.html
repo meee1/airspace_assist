@@ -53,7 +53,14 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
 /* status strip */
-.status{display:grid;grid-template-columns:.95fr 1fr 1fr .85fr 1.15fr 1.15fr;gap:5px}
+.status{display:grid;grid-template-columns:34px 1fr 1fr .85fr 1.15fr 1.15fr;gap:5px}
+/* GPS: an icon only, coloured by the fix (green < 50 m, orange < 300 m, red worse or none); accuracy in its tooltip */
+.st.gps{padding:4px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.st.gps .dot{width:auto;height:auto;background:none!important;margin:0;border-radius:0;color:var(--dim);display:block}
+.st.gps .dot.ok{color:var(--ok)} .st.gps .dot.warn{color:var(--accent)} .st.gps .dot.bad{color:var(--warn)}
+.st.gps svg{width:24px;height:24px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round} .st.gps svg .f{fill:currentColor;stroke:none}
+.st.gps b{display:none} .st.gps.gsim b{display:block;font:700 9px/1 var(--f-mono);margin:0;color:var(--accent)}   /* only "SIM" is spelled out */
+
 .st>small:first-child{display:block;white-space:nowrap;overflow:hidden}
 .st.plan b{color:var(--wp)} .st.plan small.turn{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.plan small.turn.off{color:var(--accent)}
@@ -373,7 +380,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 <div class="wrap">
 
   <div class="status" aria-live="off">
-    <div class="st"><small><span class="dot" id="gpsDot"></span>GPS</small><b id="sAcc">—</b></div>
+    <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b></div>
     <div class="st"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
     <div class="st plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st"><small>GS kt</small><b id="sGs">—</b></div>
@@ -1861,6 +1868,8 @@ $('chartFile').addEventListener('change',e=>{ const fs=[...e.target.files]; e.ta
 $('chartList').addEventListener('click',async e=>{ const b=e.target.closest('[data-del]'); if(!b) return; const sh=b.dataset.del;
   const dir=sh+'-local', c=await caches.open(CH_CACHE); for(const k of (await c.keys())) if(new URL(k.url).pathname.includes('/charts/'+dir+'/')) await c.delete(k);
   CH.local=CH.local.filter(s=>s.sheet!==sh); for(const k of [...CH.imgs.keys()]) if(k.startsWith(dir+'/')) CH.imgs.delete(k); await chartIndexSave(); chartUI(); render(); chartsPrecache(); });
+{ const gp=$('sAcc'), set=()=>{ const t=gp.textContent; $('gpsTile').title='GPS '+(t==='—'?'not started':/^±/.test(t)?'fix, accuracy '+t:t==='SIM'?'simulator':t); $('gpsTile').classList.toggle('gsim',t==='SIM'); $('gpsTile').setAttribute('aria-label',$('gpsTile').title); };
+  new MutationObserver(set).observe(gp,{childList:true,characterData:true,subtree:true}); set(); }   // icon-only GPS tile: what it means goes in the tooltip
 if(window.ResizeObserver){ const sb=document.querySelector('.status'); new ResizeObserver(()=>document.documentElement.style.setProperty('--stickH',sb.offsetHeight+'px')).observe(sb); }   // height of the sticky top bar (landscape)
 if(window.ResizeObserver){ let rz=0; new ResizeObserver(()=>{ if(rz) return; rz=requestAnimationFrame(()=>{ rz=0; if(MAP.last) drawMap(...MAP.last); }); }).observe($('map')); }
 $('chartClose').onclick=()=>{ $('chartBox').open=false; };
