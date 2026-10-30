@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793361199430;
+const APP_BUILT=1793391921517;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1120,7 +1120,7 @@ async function logsRender(){ const el=$('optsLogs');
 $('optCtafSplit').checked=ls.get('ctafSplit',true);
 $('optCtafSplit').addEventListener('change',()=>{ ls.set('ctafSplit',$('optCtafSplit').checked); $('optCtafSplit127').disabled=!$('optCtafSplit').checked; render(); });
 $('optCtafSplit127').checked=ls.get('ctafSplit127',false); $('optCtafSplit127').disabled=!$('optCtafSplit').checked;
-$('optTerRainbow').checked=ls.get('terRainbow',false); $('optTerRainbow').addEventListener('change',()=>{ ls.set('terRainbow',$('optTerRainbow').checked); legUI(); render(); });
+$('optTerRainbow').checked=ls.get('terRainbow',true); $('optTerRainbow').addEventListener('change',()=>{ ls.set('terRainbow',$('optTerRainbow').checked); legUI(); render(); });
 $('optCtafSplit127').addEventListener('change',()=>{ ls.set('ctafSplit127',$('optCtafSplit127').checked); render(); });
 $('optsDlg').addEventListener('click',e=>{ if(e.target===$('optsDlg')) $('optsDlg').close(); });   // tap outside the box
 $('optsCharts').addEventListener('change',e=>{ const cb=e.target.closest('[data-sheet]'); if(!cb) return;
@@ -1338,7 +1338,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
   if(TER.ok && MAP.ter){
     const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
-    const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink'), rb=ls.get('terRainbow',false);
+    const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink'), rb=ls.get('terRainbow',true);
     const hz=[], hw=[];   // rainbow mode: cells at/above you (and within 500 ft) get a hatch over the colour
     for(let py=0;py<Hh;py+=step) for(let px=0;px<W;px+=step){
       const [qa,qo]=inv(px+step/2,py+step/2), t=terrainFt(qa,qo); if(t==null||t<=0) continue;
@@ -1995,7 +1995,7 @@ $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('ma
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
 $('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); legUI(); render(); };
 // legend: tap an item to show / hide that layer (terrain is the same switch as the Terrain button)
-function legUI(){ if($('terRbLeg')) $('terRbLeg').hidden=!ls.get('terRainbow',false); for(const el of document.querySelectorAll('#mapLeg [data-leg]')){ const k=el.dataset.leg, on= k==='TER'? MAP.ter : !MAP.hide.has(k);
+function legUI(){ if($('terRbLeg')) $('terRbLeg').hidden=!ls.get('terRainbow',true); for(const el of document.querySelectorAll('#mapLeg [data-leg]')){ const k=el.dataset.leg, on= k==='TER'? MAP.ter : !MAP.hide.has(k);
   el.classList.toggle('off',!on); el.setAttribute('role','button'); el.tabIndex=0; el.setAttribute('aria-pressed',on); } }
 const legTap=e=>{ const el=e.target.closest('[data-leg]'); if(!el) return; const k=el.dataset.leg;
   if(k==='TER'){ $('mapTer').click(); return; }
