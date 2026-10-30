@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793333306185;
+const APP_BUILT=1793334068110;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1720,6 +1720,14 @@ function render(){
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
   nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
+  { // warning row: you're inside a restricted / prohibited / danger area at your altitude
+    const S=(DATA.sua&&DATA.sua.areas)||{}, inn=AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H), box=$('sInSua');
+    box.hidden=!inn.length;
+    box.innerHTML=inn.map(p=>{ const id=p.n.split(' ')[0], e=S[id], R_=p.k==='R'||p.k==='P', kind=p.k==='P'?'prohibited':p.k==='R'?'restricted':/^M/.test(id)?'military area':'danger area';
+      const lim=`${p.lok==='NOTAM'?'NTM':limTxt(p.L)}–${p.hik==='NOTAM'?'NTM':limTxt(p.H)}`, sta=e&&e.st?' '+e.st:'', hr=e&&e.hr?' · '+e.hr:'';
+      const act=e&&e.act? ' · '+e.act.toLowerCase().replace(/^parachuting( activity)?$/,'parachuting (skydiving)') : '';   // ERSA SUA activity
+      const full=`${p.n} · ${lim} · ${kind}${sta}${act}${hr} · ${R_?'clearance or check status':'check status'}`;   // the most useful part first: a narrow phone cuts the end
+      return `<div title="${esc(full)}"><small>IN</small><b style="color:${R_?'var(--as-r)':'var(--as-q)'}">${esc(id)}</b><span>${lim} · ${kind}${esc(sta)}${esc(act)} · ${R_?'clearance or check status':'check status'}${esc(hr)} · ${esc(p.n.slice(id.length).trim())}</span></div>`; }).join(''); }
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
     if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }

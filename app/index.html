@@ -79,6 +79,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 
 .mapctl #mapTraffic{font-size:12px}
 .ntset a.btn{text-decoration:none;display:inline-flex;align-items:center} .nbget{border-top:1px solid var(--rule);margin-top:8px;padding-top:4px} .ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+.st.insua{display:flex;flex-direction:column;align-items:stretch;gap:3px} .st.insua>div{display:flex;align-items:baseline;gap:8px;min-width:0} .st.insua>div>b,.st.insua small{flex:none} .st.insua span{white-space:normal}   /* a warning wraps rather than losing its end */
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -384,6 +385,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
+    <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -630,7 +632,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=441f515d44';
+    const s=document.createElement('script'); s.src='app.js?v=ee5554774e';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

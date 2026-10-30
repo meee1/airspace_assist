@@ -79,6 +79,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 
 .mapctl #mapTraffic{font-size:12px}
 .ntset a.btn{text-decoration:none;display:inline-flex;align-items:center} .nbget{border-top:1px solid var(--rule);margin-top:8px;padding-top:4px} .ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+.st.insua{display:flex;flex-direction:column;align-items:stretch;gap:3px} .st.insua>div{display:flex;align-items:baseline;gap:8px;min-width:0} .st.insua>div>b,.st.insua small{flex:none} .st.insua span{white-space:normal}   /* a warning wraps rather than losing its end */
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq{grid-column:span 3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -384,6 +385,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
+    <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -2315,6 +2317,14 @@ function render(){
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
   nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
+  { // warning row: you're inside a restricted / prohibited / danger area at your altitude
+    const S=(DATA.sua&&DATA.sua.areas)||{}, inn=AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H), box=$('sInSua');
+    box.hidden=!inn.length;
+    box.innerHTML=inn.map(p=>{ const id=p.n.split(' ')[0], e=S[id], R_=p.k==='R'||p.k==='P', kind=p.k==='P'?'prohibited':p.k==='R'?'restricted':/^M/.test(id)?'military area':'danger area';
+      const lim=`${p.lok==='NOTAM'?'NTM':limTxt(p.L)}–${p.hik==='NOTAM'?'NTM':limTxt(p.H)}`, sta=e&&e.st?' '+e.st:'', hr=e&&e.hr?' · '+e.hr:'';
+      const act=e&&e.act? ' · '+e.act.toLowerCase().replace(/^parachuting( activity)?$/,'parachuting (skydiving)') : '';   // ERSA SUA activity
+      const full=`${p.n} · ${lim} · ${kind}${sta}${act}${hr} · ${R_?'clearance or check status':'check status'}`;   // the most useful part first: a narrow phone cuts the end
+      return `<div title="${esc(full)}"><small>IN</small><b style="color:${R_?'var(--as-r)':'var(--as-q)'}">${esc(id)}</b><span>${lim} · ${kind}${esc(sta)}${esc(act)} · ${R_?'clearance or check status':'check status'}${esc(hr)} · ${esc(p.n.slice(id.length).trim())}</span></div>`; }).join(''); }
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
     if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }
