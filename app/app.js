@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793321339413;
+const APP_BUILT=1793333306185;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -918,7 +918,7 @@ function drawAdMap(a,pick,h){
   const ends=a.rw.map(r=>[xy(r[2],r[3]),xy(r[4],r[5])]);
   let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const [p,q] of ends) for(const v of [p,q]){ x0=Math.min(x0,v[0]);x1=Math.max(x1,v[0]);y0=Math.min(y0,v[1]);y1=Math.max(y1,v[1]); }
   const mx=(x0+x1)/2, my=(y0+y1)/2, ext=Math.max(150,(x1-x0)/2/(W/H>1?W/H:1),(y1-y0)/2);
-  const sc=(H/2-26)/ext, cx=W/2, cy=H/2, S=v=>[cx+(v[0]-mx)*sc, cy-(v[1]-my)*sc];
+  const sc=(H/2-34)/ext, cx=W/2, cy=H/2, S=v=>[cx+(v[0]-mx)*sc, cy-(v[1]-my)*sc];
   const placed=[];
   // runways (labels drawn after all runways so they sit on top)
   const pend=[];
@@ -930,6 +930,7 @@ function drawAdMap(a,pick,h){
     g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle';
     const lab=(d,x,y,sx,sy)=>{ const rh=(a.cct||{})[d]&&(a.cct||{})[d][0]==='R'; const tw=g.measureText(d).width+4;
       for(let k=0;k<5;k++){ const bx=[x-tw/2,y-6,tw,12]; if(!placed.some(b=>!(bx[0]>b[0]+b[2]||bx[0]+bx[2]<b[0]||bx[1]>b[1]+b[3]||bx[1]+bx[3]<b[1]))){ placed.push(bx); break; } x+=sx*9; y+=sy*9; }
+      x=Math.min(W-tw/2-2,Math.max(tw/2+2,x)); y=Math.min(H-16,Math.max(8,y));   // never off the canvas (track up turns the diagram)
       g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x-tw/2,y-6,tw,12); g.globalAlpha=1; g.fillStyle=rh?C.acc:C.ink; g.fillText(d,x,y); };
     pend.push(()=>{ lab(r[0],p[0]-ux*12,p[1]-uy*12,-ux,-uy); lab(r[1],q[0]+ux*12,q[1]+uy*12,ux,uy); });
   });

@@ -95,8 +95,8 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .dot.ok{background:var(--ok)} .dot.warn{background:var(--accent)} .dot.bad{background:var(--warn)}
 
 /* aerodrome block */
-.ad{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
-.ad-head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 10px}
+.ad{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:clip}   /* clip, not hidden: hidden would stop the sticky head */
+.ad-head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 10px;position:sticky;top:0;z-index:6;background:var(--panel);border-bottom:1px solid var(--rule)}   /* code and name stay in view while you read the runways and frequencies below */
 .ad-id{font:700 40px/1 var(--f-label);letter-spacing:.02em}
 .ad-name{font-weight:500;color:var(--dim);margin-top:2px;overflow-wrap:anywhere}
 .ad-mode{font:600 11px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;display:flex;gap:8px;align-items:center}
@@ -361,7 +361,8 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
   #mapSec:not([hidden]){display:flex;flex-direction:column} #mapSec .mapwrap{flex:1 1 auto;min-height:0}
   #mapSec .mapbox{flex:1 1 auto;min-height:260px} #map{position:absolute;inset:0;height:100%}   /* the map takes what the buttons and legends leave, so nothing needs scrolling */
   .status{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-top:-6px}
-  .wrap>*,#colA>*{scroll-margin-top:calc(var(--stickH,160px) + 8px)}   /* scrolling to the aerodrome card etc. lands below the sticky top bar */
+  .wrap>*,#colA>*{scroll-margin-top:calc(var(--stickH,160px) + 8px)}
+  .ad-head{top:var(--stickH,160px)}   /* under the sticky top bar */   /* scrolling to the aerodrome card etc. lands below the sticky top bar */
 }
 </style>
 </head>
@@ -1512,7 +1513,7 @@ function drawAdMap(a,pick,h){
   const ends=a.rw.map(r=>[xy(r[2],r[3]),xy(r[4],r[5])]);
   let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const [p,q] of ends) for(const v of [p,q]){ x0=Math.min(x0,v[0]);x1=Math.max(x1,v[0]);y0=Math.min(y0,v[1]);y1=Math.max(y1,v[1]); }
   const mx=(x0+x1)/2, my=(y0+y1)/2, ext=Math.max(150,(x1-x0)/2/(W/H>1?W/H:1),(y1-y0)/2);
-  const sc=(H/2-26)/ext, cx=W/2, cy=H/2, S=v=>[cx+(v[0]-mx)*sc, cy-(v[1]-my)*sc];
+  const sc=(H/2-34)/ext, cx=W/2, cy=H/2, S=v=>[cx+(v[0]-mx)*sc, cy-(v[1]-my)*sc];
   const placed=[];
   // runways (labels drawn after all runways so they sit on top)
   const pend=[];
@@ -1524,6 +1525,7 @@ function drawAdMap(a,pick,h){
     g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle';
     const lab=(d,x,y,sx,sy)=>{ const rh=(a.cct||{})[d]&&(a.cct||{})[d][0]==='R'; const tw=g.measureText(d).width+4;
       for(let k=0;k<5;k++){ const bx=[x-tw/2,y-6,tw,12]; if(!placed.some(b=>!(bx[0]>b[0]+b[2]||bx[0]+bx[2]<b[0]||bx[1]>b[1]+b[3]||bx[1]+bx[3]<b[1]))){ placed.push(bx); break; } x+=sx*9; y+=sy*9; }
+      x=Math.min(W-tw/2-2,Math.max(tw/2+2,x)); y=Math.min(H-16,Math.max(8,y));   // never off the canvas (track up turns the diagram)
       g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x-tw/2,y-6,tw,12); g.globalAlpha=1; g.fillStyle=rh?C.acc:C.ink; g.fillText(d,x,y); };
     pend.push(()=>{ lab(r[0],p[0]-ux*12,p[1]-uy*12,-ux,-uy); lab(r[1],q[0]+ux*12,q[1]+uy*12,ux,uy); });
   });

@@ -95,8 +95,8 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .dot.ok{background:var(--ok)} .dot.warn{background:var(--accent)} .dot.bad{background:var(--warn)}
 
 /* aerodrome block */
-.ad{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
-.ad-head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 10px}
+.ad{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:clip}   /* clip, not hidden: hidden would stop the sticky head */
+.ad-head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 10px;position:sticky;top:0;z-index:6;background:var(--panel);border-bottom:1px solid var(--rule)}   /* code and name stay in view while you read the runways and frequencies below */
 .ad-id{font:700 40px/1 var(--f-label);letter-spacing:.02em}
 .ad-name{font-weight:500;color:var(--dim);margin-top:2px;overflow-wrap:anywhere}
 .ad-mode{font:600 11px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;display:flex;gap:8px;align-items:center}
@@ -361,7 +361,8 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
   #mapSec:not([hidden]){display:flex;flex-direction:column} #mapSec .mapwrap{flex:1 1 auto;min-height:0}
   #mapSec .mapbox{flex:1 1 auto;min-height:260px} #map{position:absolute;inset:0;height:100%}   /* the map takes what the buttons and legends leave, so nothing needs scrolling */
   .status{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-top:-6px}
-  .wrap>*,#colA>*{scroll-margin-top:calc(var(--stickH,160px) + 8px)}   /* scrolling to the aerodrome card etc. lands below the sticky top bar */
+  .wrap>*,#colA>*{scroll-margin-top:calc(var(--stickH,160px) + 8px)}
+  .ad-head{top:var(--stickH,160px)}   /* under the sticky top bar */   /* scrolling to the aerodrome card etc. lands below the sticky top bar */
 }
 </style>
 </head>
@@ -629,7 +630,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=7037f7bbee';
+    const s=document.createElement('script'); s.src='app.js?v=441f515d44';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

@@ -99,6 +99,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
   - **Closing it:** tap elsewhere, drag the map or tap ✕.
 
 ## Runways and aerodrome diagram
+The aerodrome card's head (code, name, distance and arrow) stays at the top of the screen while you scroll down through the runways and frequencies; on a landscape tablet it sits under the top bar. In the runway diagram every runway number stays inside the box, whatever way track up turns it.
 The aerodrome card shows a small runway diagram and a runway list.
 - **Diagram:** runways are drawn to scale and labelled with their designators. You appear as an arrow, or on the edge of the diagram with your distance when you're further out, so you can see which side you're joining from. It follows the main map's track-up or north-up setting.
 - **List:** designator, length, surface and right-hand circuits, e.g. "17L/35R 1,341 m sealed 35R RH". Tap an RH tag for ERSA's conditions (Moorabbin's day and night circuit directions, for example). Other circuits are left-hand unless ERSA says otherwise.
