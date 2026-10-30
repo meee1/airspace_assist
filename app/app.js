@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793334068110;
+const APP_BUILT=1793336620844;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -151,7 +151,9 @@ function airStack(la,lo,gnd){
   }
   const ba=hit.filter(x=>x.k==='BA').map(x=>({...x,L:L(x),H:H(x)}));
   // R/D areas with 'NOTAM' limits (activated by NOTAM, extent set by NOTAM): keep them, from SFC and to UNL as a worst case, flagged
-  const prd=hit.filter(x=>x.k==='R'||x.k==='Q').map(x=>({...x,L:x.lok==='NOTAM'?0:L(x),H:x.hik==='NOTAM'?99999:H(x),ntm:x.lok==='NOTAM'||x.hik==='NOTAM'})).filter(x=>x.L<20000);
+  const prd=hit.filter(x=>x.k==='R'||x.k==='Q').map(x=>{ const st=suaStatus(x.n.split(' ')[0]), b={...x,L:x.lok==='NOTAM'?0:L(x),H:x.hik==='NOTAM'?99999:H(x),ntm:x.lok==='NOTAM'||x.hik==='NOTAM',st};
+    if(st&&st.s==='act'&&st.lo!=null&&st.hi!=null){ b.L=st.agl?st.lo+gnd:st.lo; b.H=st.agl?st.hi+gnd:st.hi; b.ntm=false; b.nl=true; }   // limits from the activating NOTAM ("PARTIAL ACT ... SFC TO 2500FT AMSL")
+    return b; }).filter(x=>x.L<20000);
   // resolve vertical overlaps: CTR > D > C > A > E > G, then merge
   const PR={CTR:6,D:5,C:4,A:3,E:2,G:1};
   const cuts=[...new Set(bands.flatMap(b=>[b.L,b.H]))].sort((a,b)=>a-b), segs=[];
@@ -354,6 +356,70 @@ function ntBox(el,list,title,open){ if(!list.length){ el.hidden=true; el.innerHT
 const ntIn=(n,la,lo,pad=0)=>n.la!=null&&n.lon!=null&&n.r!=null&&distBrg(la,lo,n.la,n.lon)[0]<=n.r+pad;
 function ntFor(i){ return ntHave()? ntAllItems().filter(n=>n.loc===i&&ntActive(n,Date.now(),24*3600e3)) : []; }
 function ntAt(la,lo){ return ntHave()? ntAllItems().filter(n=>ntActive(n,Date.now(),24*3600e3)&&n.r!=null&&n.r<=60&&ntIn(n,la,lo)&&!/^Q(M|F|L|C|N|I|P|S|A)/.test(n.q||'')).sort((a,b)=>(a.r||0)-(b.r||0)) : []; }
+/* ---------- SUA status from the NAIPS briefing ----------
+   R/D/M areas: "R352 PARTIAL ACT (RA3) / SFC TO 2500FT AMSL", "D342 DEACTIVATED", "R360CEF ACT (RA2)" (= R360C, E and F).
+   suaStatus(id,t) -> null (unknown: no briefing, or nothing to go on) or {s:'act'|'off'|'hrs', n (NOTAM), lo, hi (NOTAM
+   limits, ft AMSL), until (ms), why}. With no NOTAM in force: an area the briefing lists under "no current NOTAM" is off if
+   ERSA says it's activated only by NOTAM, on if H24, on/off by its daily hours or HJ/HN where ERSA gives them.
+   NOTAM schedules HJ, HN and DAILY hhmm-hhmm are applied; others count as the whole period. */
+function sunUTC(la,lo,t){ // sunrise/sunset (ms UTC) for the UTC day of t, NOAA approximation (~2 min)
+  const d=new Date(t), J=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())/864e5+2440587.5, n=Math.ceil(J-2451545+0.0008);
+  const Js=n-lo/360, M=(357.5291+0.98560028*Js)%360, Mr=M*R, C=1.9148*Math.sin(Mr)+0.02*Math.sin(2*Mr)+0.0003*Math.sin(3*Mr);
+  const lam=((M+C+180+102.9372)%360)*R, Jt=2451545+Js+0.0053*Math.sin(Mr)-0.0069*Math.sin(2*lam), dec=Math.asin(Math.sin(lam)*Math.sin(23.44*R));
+  const cw=(Math.sin(-0.833*R)-Math.sin(la*R)*Math.sin(dec))/(Math.cos(la*R)*Math.cos(dec)); if(cw<-1||cw>1) return null;
+  const w=Math.acos(cw)/R/360, toMs=j=>(j-2440587.5)*864e5; return [toMs(Jt-w), toMs(Jt+w)]; }
+function dayTime(t,la,lo){ const s=sunUTC(la,lo,t)||[0,0], s1=sunUTC(la,lo,t-864e5)||[0,0], s2=sunUTC(la,lo,t+864e5)||[0,0];   // the local day may straddle 0000Z
+  return [s1,s,s2].some(([r,e])=>t>=r&&t<e); }
+function schOn(sch,t,la,lo){ // a NOTAM / ERSA schedule at time t: true, false, or null (can't tell)
+  if(!sch) return true; const S=sch.toUpperCase();
+  if(/^(H24|ALL TIME)$/.test(S)) return true;
+  if(/^HJ\b/.test(S)) return la==null? null : dayTime(t,la,lo);
+  if(/^HN\b/.test(S)) return la==null? null : !dayTime(t,la,lo);
+  const m=/^(?:DAILY|DLY)\s+(\d{2})(\d{2})\s*-\s*(\d{2})(\d{2})\b/.exec(S); if(!m) return null;
+  const u=new Date(t), mins=u.getUTCHours()*60+u.getUTCMinutes(); let a=+m[1]*60+ +m[2], b=+m[3]*60+ +m[4];
+  if(/1\s*HR EARLIER HDS/.test(S) && la!=null){ let st='VIC', bd=1e9; for(const x of DATA.ap){ if(!x.st) continue; const q=Math.abs(x.la-la)+Math.abs(x.lo-lo); if(q<bd){ bd=q; st=x.st; } } if(isHDS(st,u)){ a=(a+1380)%1440; b=(b+1380)%1440; } }
+  return a<=b? mins>=a&&mins<b : mins>=a||mins<b; }
+function ntAreaIds(n){ // areas a NOTAM switches: [[id, 'act'|'off']]
+  const out=[], t=(n.text||'').replace(/\n/g,' ');
+  for(const m of t.matchAll(/\b([PRDM])(\d{3})([A-Z]{0,5})\s+(PARTIAL\s+ACT|ACTIVATED|ACT|DEACTIVATED|NOT\s+ACT(?:IVE)?)\b/g)){
+    const k=/DEACT|NOT/.test(m[4])?'off':'act', base=m[1]+m[2];
+    if(!m[3]) out.push([base,k]); else if(m[3].length===1) out.push([base+m[3],k]); else for(const c of m[3]) out.push([base+c,k]); }
+  return out; }
+const SUAC=new Map();
+function suaStatus(id,t=Date.now()){
+  if(!ntHave()) return null;
+  const key=id+'|'+Math.floor(t/60e3)+'|'+NTN.t; if(SUAC.has(key)) return SUAC.get(key); if(SUAC.size>4000) SUAC.clear();
+  const x=ASP.find(z=>z.n.split(' ')[0]===id), la=x?(x.bb[0]+x.bb[1])/2:null, lo=x?(x.bb[2]+x.bb[3])/2:null;
+  let r=null;
+  for(const n of ntAllItems()){ const hit=ntAreaIds(n).find(([i])=>i===id||(id.startsWith(i)&&/^[PRDM]\d{3}$/.test(i))); if(!hit) continue;
+    if(!ntActive(n,t)) continue; const on=schOn(n.sch,t,la,lo); if(on===false) continue;
+    const per=n.per&&n.per.find(([p,q])=>Date.parse(p)<=t&&Date.parse(q)>t), until=per? Date.parse(per[1]) : ntTime(n.to);
+    r={s:hit[1], n, lo:n.lo, hi:n.hi, agl:n.agl, until: isFinite(until)?until:null, why:'NOTAM '+n.id}; if(hit[1]==='act') break; }
+  if(!r && t<=(NTN.validTo||NTN.issued+12*3600e3) && (NTN.none||[]).includes(id)){   // the briefing says: no current NOTAM for it
+    const e=((DATA.sua&&DATA.sua.areas)||{})[id], hr=e&&e.hr||'';
+    if(/^NOTAM$/.test(hr)) r={s:'off', why:'no NOTAM'};
+    else if(/^H24$/.test(hr)) r={s:'act', why:'H24'};
+    else { const on=schOn(hr,t,la,lo); if(on!=null) r={s:on?'act':'off', why:hr.replace(/\s*\(.*$/,'').replace(/ or as amended by NOTAM/,'')}; } }
+  SUAC.set(key,r); return r; }
+const suaOn=(id,t)=>{ const s=suaStatus(id,t); return !(s&&s.s==='off'); };
+const hhmmZ=ms=>{ const d=new Date(ms); return String(d.getUTCHours()).padStart(2,'0')+String(d.getUTCMinutes()).padStart(2,'0')+'Z'; };
+function suaShort(s){ return !s? '' : s.s==='off'? 'OFF' : s.s==='act'? 'ACT'+(s.until&&s.until-Date.now()<36*3600e3?' →'+hhmmZ(s.until):'') : ''; }
+/* Temporary zones: a NOTAM that bounds an area with 3+ coordinates ("WI 3730S 14500E 3740S 14510E ...", a temporary
+   restricted or danger area, an airshow box) is drawn and counts in the warning rows; circles ("WI 3NM RADIUS OF ...")
+   are parsed already (n.r). Obstacle lists and apron/taxiway charts are left out. */
+const NTP=new Map();
+function ntPoly(n){ if(NTP.has(n)) return NTP.get(n); let poly=null; const t=(n.text||'').replace(/\n/g,' ');
+  if(!/\b(OBST|CRANE|TREE|MAST|LGT|LIGHT|APN|APRON|TWY|BAY|CHART|PSN\s+\d{4,6}(?:\.\d+)?[NS]\s+\d{5,7}(?:\.\d+)?[EW]\s+(?:BRG|'|\(|$))/.test(t) &&
+     /\b(AREA|BOUNDED|BOUNDARY|WI|WITHIN|TEMPO|TEMPORARY|RESTRICTED|DANGER|AIRSPACE|TRA|TDA|AIRSHOW|DISPLAY|FIRE)\b/.test(t)){
+    const pts=[...t.matchAll(/\b(\d{4,6}(?:\.\d+)?[NS])\s*-?\s*(\d{5,7}(?:\.\d+)?[EW])\b/g)].map(m=>naipsLL(m[1],m[2])).filter(Boolean);
+    if(pts.length>=3 && Math.max(...pts.map(q=>q[0]))-Math.min(...pts.map(q=>q[0]))<5) poly=pts; }
+  NTP.set(n,poly); return poly; }
+function ntZonesAt(la,lo,altFt,gnd,t=Date.now()){ // temporary zones you're inside (horizontally and vertically)
+  if(!ntHave()) return [];
+  return ntAllItems().filter(n=>{ if(!ntActive(n,t)||schOn(n.sch,t,la,lo)===false) return false;
+    const poly=ntPoly(n), inH= poly? inRing(la,lo,poly.map(q=>[q[0],q[1]])) : (n.r!=null&&n.r<=60&&n.la!=null&&!/^Q(M|F|L|C|N|I|P|S|A)/.test(n.q||'')&&ntIn(n,la,lo));
+    if(!inH) return false; if(n.lo==null||n.hi==null) return !!poly;   // circles without limits are usually obstacles or works: only polygons count then
+    const lo_=n.agl?n.lo+(gnd||0):n.lo, hi_=n.agl?n.hi+(gnd||0):n.hi; return altFt>=lo_-50&&altFt<hi_; }); }
 function ntForArea(ident){ return ntHave()? ntAllItems().filter(n=>ntActive(n,Date.now(),24*3600e3)&&(n.area===ident||new RegExp('\\b'+ident+'\\b').test(n.text||''))) : []; }
 function ntCountTxt(i){ const k=ntFor(i).filter(n=>ntActive(n)).length; return k? ` · ${k} NOTAM` : ''; }
 function ntRoute(){ if(!ntHave()||!FP||FP.pts.length<2) return [];
@@ -1365,10 +1431,12 @@ function drawMap(la,lo,h,pick,AS,altFt){
     const col=C[x.k]||C.dim;
     if(x.k==='FIA'){ g.setLineDash([2,4]); g.lineWidth=1.2; g.strokeStyle=col; g.stroke(); g.setLineDash([]); }
     else{
-      const here=curSet.has(x.n);
-      if(here||x.k==='R'){ g.globalAlpha= here?0.18:0.06; g.fillStyle=col; g.fill(); g.globalAlpha=1; }
-      g.setLineDash(x.k==='D'||x.k==='CTR'?[6,3]:x.k==='Q'?[3,3]:[]);
-      g.lineWidth= here?2.4:(x.k==='E'?1:1.6); g.strokeStyle=col; g.stroke(); g.setLineDash([]);
+      const here=curSet.has(x.n), ss=(x.k==='R'||x.k==='Q'||x.k==='P')? suaStatus(x.n.split(' ')[0]) : null;   // briefing status: ACT strong, OFF grey
+      if(ss&&ss.s==='off'){ g.setLineDash([5,4]); g.lineWidth=1.2; g.strokeStyle=C.dim; g.globalAlpha=.7; g.stroke(); g.globalAlpha=1; g.setLineDash([]); }
+      else{
+        if(here||x.k==='R'||(ss&&ss.s==='act')){ g.globalAlpha= here?0.18:ss&&ss.s==='act'?0.16:0.06; g.fillStyle=col; g.fill(); g.globalAlpha=1; }
+        g.setLineDash(x.k==='D'||x.k==='CTR'?[6,3]:x.k==='Q'&&!(ss&&ss.s==='act')?[3,3]:[]);
+        g.lineWidth= here?2.4:ss&&ss.s==='act'?2.4:(x.k==='E'?1:1.6); g.strokeStyle=col; g.stroke(); g.setLineDash([]); }
     }
     // label: the whole box must sit inside the visible part of this airspace and, for controlled airspace, where no
     // lower controlled airspace overlaps (otherwise e.g. a C A045 label lands inside the A025 step or a CTR)
@@ -1381,6 +1449,9 @@ function drawMap(la,lo,h,pick,AS,altFt){
       const gnd=0, top=x.hik==='NOTAM'?'NOTAM':x.hik==='BCTA'?'BCTA':limTxt(limFt(x.hi,x.hik,gnd,0)), bot=x.lok==='AGL'?x.lo+' AGL':x.lok==='NOTAM'?'NOTAM':limTxt(limFt(x.lo,x.lok,gnd,0));
       const cls=x.k==='CTR'?((x.n.match(/\(([A-Z])\)/)||[])[1]||'D'):x.k==='Q'?'D':x.k;
       lines=[(x.k==='R'||x.k==='Q'?x.n.split(' ')[0]+' ':'')+cls, top, bot];
+      if(x.k==='R'||x.k==='Q'||x.k==='P'){ const ss=suaStatus(x.n.split(' ')[0]);   // short status line under the name: "ACT →0600Z" / "OFF"
+        if(ss&&ss.s==='off') lines=[x.n.split(' ')[0]+' '+cls,'OFF'];
+        else if(ss&&ss.s==='act'){ if(ss.lo!=null&&ss.hi!=null) lines=[lines[0], ss.hi>=99900?'UNL':ss.agl?ss.hi+'AGL':limTxt(ss.hi), ss.lo<=0?'SFC':ss.agl?ss.lo+'AGL':limTxt(ss.lo)]; lines.push(suaShort(ss)); } }
     }
     g.font='600 10.5px "IBM Plex Mono", ui-monospace, monospace';
     const w=Math.max(...lines.map(t=>g.measureText(t).width))+8, hh=lines.length*12+4;
@@ -1483,6 +1554,13 @@ function drawMap(la,lo,h,pick,AS,altFt){
       const [x,y]=P(n.la,n.lon), rr=n.r*sc; if(x+rr<0||y+rr<0||x-rr>W||y-rr>Hh) continue;
       g.strokeStyle=C.R; g.globalAlpha=.85; g.lineWidth=1.6; g.setLineDash([3,3]); g.beginPath(); g.arc(x,y,rr,0,2*Math.PI); g.stroke(); g.setLineDash([]); g.globalAlpha=1;
       if(MAP.range<=40&&rr>14){ const t='NOTAM '+n.id, ty=y+rr-5; g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(t,x,ty); g.fillStyle=C.R; g.fillText(t,x,ty); } }
+    for(const n of ntAllItems()){ const poly=ntPoly(n); if(!poly||!ntActive(n,now,3*3600e3)) continue;   // temporary zones by coordinates (also 3 h before they start: dimmer)
+      const sp=poly.map(q=>P(q[0],q[1])), on=ntActive(n,now)&&schOn(n.sch,now,poly[0][0],poly[0][1])!==false;
+      g.beginPath(); sp.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.closePath();
+      g.globalAlpha=on?.14:.05; g.fillStyle=C.R; g.fill(); g.globalAlpha=on?.95:.6; g.strokeStyle=C.R; g.lineWidth=2; g.setLineDash([7,3]); g.stroke(); g.setLineDash([]); g.globalAlpha=1;
+      if(MAP.range<=40){ let cx=0,cy=0; sp.forEach(q=>{ cx+=q[0]; cy+=q[1]; }); cx/=sp.length; cy/=sp.length;
+        const l1='NOTAM '+n.id, l2=(n.lo!=null&&n.hi!=null? `${n.lo<=0?'SFC':n.agl?n.lo+'AGL':limTxt(n.lo)}–${n.hi>=99900?'UNL':n.agl?n.hi+'AGL':limTxt(n.hi)}` : '')+(on?'':' from '+hhmmZ(ntTime(n.from)));
+        g.lineWidth=3; g.strokeStyle=C.bg; g.fillStyle=C.R; for(const [t,dy] of [[l1,-2],[l2,9]]){ if(!t) continue; g.strokeText(t,cx,cy+dy); g.fillText(t,cx,cy+dy); } } }
     g.textAlign='left'; }
   // pressed point (map menu open): a crosshair
   if(MAP.press && !$('mapMenu').hidden){ const [x,y]=P(MAP.press[0],MAP.press[1]); g.strokeStyle=cssv('--wp'); g.lineWidth=2;
@@ -1587,9 +1665,9 @@ function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace 
   const sp=!R_&&f&&st.pos? splitTwr(f,st.pos[0],st.pos[1]) : null;   // Moorabbin from the west: 123.0, as the tiles will say
   if(sp){ f=sp[2]; who=unitShort(sp[1]||n.b.unit)+' '+sp[4][0]; }
   box.hidden=false;
-  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?' · restricted, check status':(who?' · '+esc(who):'')+(f?' '+f:'')+' · clearance'}</span>`; }
+  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?(()=>{ const s_=suaStatus(n.prd.n.split(' ')[0]); return s_&&s_.s==='act'? ' · ACTIVE'+(s_.until?' →'+hhmmZ(s_.until):'')+' · clearance' : ' · restricted, check status'; })():(who?' · '+esc(who):'')+(f?' '+f:'')+' · clearance'}</span>`; }
 function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
-  const key=[la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la+':'+(FP.rev||0):'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
+  const key=[NTN?NTN.t:0,Math.floor(Date.now()/300e3),la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la+':'+(FP.rev||0):'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
   if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
     const path=nxPath(la,lo);
     if(path.length){
@@ -1602,7 +1680,8 @@ function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
         if(!NX.area||!NX.cls){ const t=terrainFt(pa,po), AS=airStack(pa,po,t!=null?t:0), b=AS.bands.find(b=>altFt>=b.L-50&&altFt<b.H)||AS.bands[AS.bands.length-1];
           if(!NX.area && b&&b.f&&b.f!==(cur&&cur.f)) NX.area={f:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:b.unit,d:D};
           const bx=AS.bands.find(q=>altFt>=q.L-50&&altFt<q.H);   // no fallback band here: a gap in the data is not a class change
-          if(!NX.cls && D<=10 && bx){ const ck=clsKey(bx,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')); if(ck.key!==clsNow && (ck.prd||/^(A|C|D)$/.test(ck.k))) NX.cls={...ck,b:bx,d:D}; } }
+          const eta=Date.now()+(st.gs>20? D/st.gs*3600e3 : 0);   // an R area counts if it's on when you'd get there
+          if(!NX.cls && D<=10 && bx){ const ck=clsKey(bx,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R'&&suaOn(q.n.split(' ')[0],eta))); if(ck.key!==clsNow && (ck.prd||/^(A|C|D)$/.test(ck.k))) NX.cls={...ck,b:bx,d:D}; } }
         if(NX.ctaf&&NX.area&&NX.cls) break; } } }
   const dd=d=>d<10?d.toFixed(1):Math.round(d);
   clsNext(dd);
@@ -1702,7 +1781,7 @@ function render(){
   const cur=AS.bands.find(b=>altFt>=b.L-50 && altFt<b.H) || AS.bands[AS.bands.length-1];
   { // status tile: class here and its cap (top of this band = where the next class starts)
     const k=cur? (cur.k==='CTR'?cur.ctrCls:cur.k) : null;
-    const inP=AS.prd.find(p=>altFt>=p.L-50&&altFt<p.H);
+    const inP=AS.prd.find(p=>altFt>=p.L-50&&altFt<p.H&&!(p.st&&p.st.s==='off'));   // an area a NOTAM (or no NOTAM) has switched off doesn't count
     $('sCls').textContent = k ? k+(inP?' · '+(inP.k==='R'?'R':'D'):'') : '—';
     $('sCls').style.color = k ? `var(--as-${k==='A'?'c':k.toLowerCase()})` : '';
     if(k==='G') $('sCls').style.color='var(--ink)';
@@ -1719,15 +1798,23 @@ function render(){
     if(above) sub+=`<br>Above ${limTxt(above.L)}: class ${above.k==='CTR'?above.ctrCls:above.k}${above.f?` <b class="mono">${above.f}</b>`:''}`;
     html+=freqRow(cur.k==='G'||cur.k==='E'?'AREA':'ATC',cur.f,sub,cur.k==='G'||cur.k==='E'?'':'ctl');
   } else html+=freqRow('AREA','', 'No airspace data here');
-  nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R')).key);
-  { // warning row: you're inside a restricted / prohibited / danger area at your altitude
+  nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R'&&!(q.st&&q.st.s==='off'))).key);
+  { // warning row: you're inside a restricted / prohibited / danger area at your altitude (status from the NAIPS briefing first), or a NOTAM temporary zone
     const S=(DATA.sua&&DATA.sua.areas)||{}, inn=AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H), box=$('sInSua');
-    box.hidden=!inn.length;
-    box.innerHTML=inn.map(p=>{ const id=p.n.split(' ')[0], e=S[id], R_=p.k==='R'||p.k==='P', kind=p.k==='P'?'prohibited':p.k==='R'?'restricted':/^M/.test(id)?'military area':'danger area';
-      const lim=`${p.lok==='NOTAM'?'NTM':limTxt(p.L)}–${p.hik==='NOTAM'?'NTM':limTxt(p.H)}`, sta=e&&e.st?' '+e.st:'', hr=e&&e.hr?' · '+e.hr:'';
+    const tz=ntZonesAt(la,lo,altFt,gnd);
+    const rows=inn.map(p=>{ const id=p.n.split(' ')[0], e=S[id], R_=p.k==='R'||p.k==='P', kind=p.k==='P'?'prohibited':p.k==='R'?'restricted':/^M/.test(id)?'military area':'danger area', ss=p.st;
+      const lim=`${p.lok==='NOTAM'&&!p.nl?'NTM':limTxt(p.L)}–${p.hik==='NOTAM'&&!p.nl?'NTM':limTxt(p.H)}`, sta=e&&e.st?' '+e.st:'', hr=e&&e.hr&&!ss?' · '+e.hr:'';
       const act=e&&e.act? ' · '+e.act.toLowerCase().replace(/^parachuting( activity)?$/,'parachuting (skydiving)') : '';   // ERSA SUA activity
-      const full=`${p.n} · ${lim} · ${kind}${sta}${act}${hr} · ${R_?'clearance or check status':'check status'}`;   // the most useful part first: a narrow phone cuts the end
-      return `<div title="${esc(full)}"><small>IN</small><b style="color:${R_?'var(--as-r)':'var(--as-q)'}">${esc(id)}</b><span>${lim} · ${kind}${esc(sta)}${esc(act)} · ${R_?'clearance or check status':'check status'}${esc(hr)} · ${esc(p.n.slice(id.length).trim())}</span></div>`; }).join(''); }
+      if(ss&&ss.s==='off') return {off:true, h:`<div class="off" title="${esc(p.n+' · not active ('+ss.why+')')}"><small>IN</small><b>${esc(id)}</b><span><b class="stt">OFF</b> ${esc(ss.why)}${ss.until?' till '+hhmmZ(ss.until):''} · ${esc(p.n.slice(id.length).trim())}</span></div>`};
+      const st_= ss&&ss.s==='act'? `<b class="stt" style="color:${R_?'var(--as-r)':'var(--as-q)'}">ACTIVE</b> ${esc(ss.why)}${ss.until?' →'+hhmmZ(ss.until):''} · ` : '';
+      const tail= ss&&ss.s==='act'? (R_?'clearance required':'avoid or keep watch') : (R_?'clearance or check status':'check status');
+      const full=`${p.n} · ${ss&&ss.s==='act'?'ACTIVE '+ss.why+' · ':''}${lim} · ${kind}${sta}${act}${hr} · ${tail}`;   // the most useful part first: a narrow phone cuts the end
+      return {h:`<div title="${esc(full)}"><small>IN</small><b style="color:${R_?'var(--as-r)':'var(--as-q)'}">${esc(id)}</b><span>${st_}${lim} · ${kind}${esc(sta)}${esc(act)} · ${tail}${esc(hr)} · ${esc(p.n.slice(id.length).trim())}</span></div>`}; });
+    for(const n of tz){ const l=n.lo!=null&&n.hi!=null? ` · ${n.lo<=0?'SFC':n.agl?n.lo+' ft AGL':limTxt(n.lo)}–${n.hi>=99900?'UNL':n.agl?n.hi+' ft AGL':limTxt(n.hi)}` : '';
+      const what=(n.text||'').split('\n')[0].slice(0,70);
+      rows.push({h:`<div title="${esc(n.text||'')}"><small>IN</small><b style="color:var(--as-r)">NOTAM</b><span>${esc(n.id)}${l} · ${esc(what)}${ntPoly(n)?' · temporary zone':''} · ${esc(n.loc||'')}</span></div>`}); }
+    box.hidden=!rows.length; box.classList.toggle('warn',rows.some(r=>!r.off)); box.classList.toggle('quiet',rows.length>0&&rows.every(r=>r.off));
+    box.innerHTML=rows.map(r=>r.h).join(''); }
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
     if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }
@@ -1737,7 +1824,8 @@ function render(){
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
   for(const p of AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H))
-    html+=freqRow(p.k==='R'?'R AREA':'DANGER','',`<em>${esc(p.n)}</em><br><span class="tag w">${p.lok==='NOTAM'?'NTM':limTxt(p.L)}–${p.hik==='NOTAM'?'NTM':limTxt(p.H)}</span> ${p.ntm?'limits set by NOTAM · ':''}check status`,'prd');
+    html+=freqRow(p.k==='R'?'R AREA':'DANGER','',`<em>${esc(p.n)}</em><br><span class="tag w">${p.lok==='NOTAM'&&!p.nl?'NTM':limTxt(p.L)}–${p.hik==='NOTAM'&&!p.nl?'NTM':limTxt(p.H)}</span> `+
+      (p.st? (p.st.s==='off'? `<b>not active</b> (${esc(p.st.why)}${p.st.until?' till '+hhmmZ(p.st.until):''})` : p.st.s==='act'? `<b>active</b> (${esc(p.st.why)}${p.st.until?' until '+hhmmZ(p.st.until):''})${p.nl?' · limits from the NOTAM':''}` : '') : `${p.ntm?'limits set by NOTAM · ':''}check status`),'prd'+(p.st&&p.st.s==='off'?' off':''));
   // the selected aerodrome's own approach unit
   const adName=callName(a.n).toLowerCase(), shown=new Set([cur&&cur.f]);
   for(const x of (a.x||[]).filter(x=>x[0]==='APP'||x[0]==='DEP')) shown.add(x[2]);
@@ -2111,7 +2199,8 @@ function suaHere(la,lo){
     const lim=`${aspLim(x.lo,x.lok)}–${aspLim(x.hi,x.hik)}`, st=e&&e.st || (x.x&&x.x.st) || '';
     const hr=e&&e.hr? esc(e.hr)+(HRS[e.hr]? ` (${HRS[e.hr]})` : /\bHJ\b/.test(e.hr)? ' (HJ = sunrise to sunset)' : /\bHN\b/.test(e.hr)? ' (HN = sunset to sunrise)' : '') : '';
     const ph=e&&e.ph? ` · <a href="tel:${esc(e.ph.match(/[\d ]{8,}/)?e.ph.match(/[\d ]{8,}/)[0].replace(/\s/g,''):'')}">${esc(e.ph)}</a>` : '';
-    return `<div class="sua ${x.k==='R'||x.k==='P'?'r':''}"><b class="id">${esc(x.n)}</b> · ${kind}${st?` · <b>${esc(st)}</b>`:''}<br>`+
+    const ss=suaStatus(id), now_= ss? (ss.s==='act'? ` · <b style="color:var(--as-r)">ACTIVE</b> (${esc(ss.why)}${ss.until?' until '+hhmmZ(ss.until):''})` : ss.s==='off'? ` · <b>not active</b> (${esc(ss.why)}${ss.until?' till '+hhmmZ(ss.until):''})` : '') : '';
+    return `<div class="sua ${x.k==='R'||x.k==='P'?'r':''}"><b class="id">${esc(x.n)}</b> · ${kind}${st?` · <b>${esc(st)}</b>`:''}${now_}<br>`+
       `${lim}${hr?' · hours '+hr:''}${e&&e.act?' · '+esc(titleCase(e.act)):''}`+
       (e&&e.auth? `<br>${x.k==='R'?'Controlling authority':'Contact'}: ${esc(e.auth)}${ph}` : '')+
       (st&&RA[st]? `<div class="ra">${esc(st)}: ${esc(RA[st].charAt(0).toUpperCase()+RA[st].slice(1))} (ERSA SUA)</div>` : '')+
