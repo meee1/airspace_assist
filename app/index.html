@@ -237,6 +237,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list label input{width:20px;height:20px;flex:none} .opts-list .meta{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
 .opts-list .new{font-size:10.5px;color:var(--accent);font-weight:700;margin-left:6px}
 .mapmenu .mm-sua:empty{display:none}
+.mapmenu .mm-fq{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font:600 12px/1.3 var(--f-mono)} .mapmenu .mm-fq:empty{display:none} .mapmenu .mm-fq b{font-size:15px;color:var(--freq)} .mapmenu .mm-fq small{color:var(--dim);font-weight:500}
 .mapmenu .sua{margin-top:8px;padding:7px 9px;border-radius:8px;border-left:4px solid var(--as-q);background:color-mix(in srgb,var(--as-q) 8%,var(--panel));font-size:12.5px;line-height:1.35}
 .mapmenu .sua.r{border-left-color:var(--as-r);background:color-mix(in srgb,var(--as-r) 9%,var(--panel))}
 .mapmenu .sua b.id{font:700 13px/1.2 var(--f-mono)} .mapmenu .sua .ra{color:var(--dim);font-size:11.5px;margin-top:3px}
@@ -424,6 +425,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
         <div class="mm-head"><b id="mmName"></b><button class="btn" id="mmClose" aria-label="Close">✕</button></div>
         <div class="mm-sub" id="mmSub"></div>
         <div class="mm-ll mono" id="mmLL"></div>
+        <div class="mm-fq" id="mmFq"></div>
         <div class="mm-sua" id="mmSua"></div>
         <div class="mm-btns" id="mmBtns"></div>
       </div>
@@ -649,7 +651,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=b8e4392a39';
+    const s=document.createElement('script'); s.src='app.js?v=ecd5d105e5';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

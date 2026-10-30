@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793352126310;
+const APP_BUILT=1793361199430;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2221,6 +2221,27 @@ function suaHere(la,lo){
       ntForArea(id).map(n=>`<div class="ra"><b>NOTAM ${esc(n.id)}</b> (${esc(ntWhen(n))}): ${esc((n.text||'').slice(0,200))}</div>`).join('')+`</div>`; }).join('')+
     (hits.length? `<div class="ra" style="margin-top:4px;color:var(--dim);font-size:11px">ERSA SUA ${esc(META.ersa||'')} · limits from the DAH. Activation, hours and status can change by NOTAM.</div>` : ''); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('mapMenu').hidden) mapMenuClose(); });
+// CTAF and area/ATC frequency at a map point (press-and-hold menu), at your current altitude: the CTAF of the nearest
+// aerodrome within 10 NM (as the CTAF tile picks: tower frequency during tower hours, split tower by the point's side), else
+// the broadcast area, else none; the area band at that point as the AREA tile does
+function pointFreqs(la,lo){
+  const altFt=st.alt!=null? st.alt : 1500;
+  let ad=null, dA=0; for(const x of DATA.ap){ if(x.t==='H'&&!st.heli) continue; if(!st.all&&x.s!=='E'&&x.t!=='H') continue; if(Math.abs(x.la-la)>0.17||Math.abs(x.lo-lo)>0.22) continue;
+    const d=distBrg(la,lo,x.la,x.lo)[0]; if(d<=10&&(!ad||d<dA)){ ad=x; dA=d; } }
+  let c='';
+  if(ad){ const CI=ctafInfo(ad), tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad):null, open=tw.length&&(ts?ts.on:true);
+    let t=tw[0]; if(open&&tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,la,lo)[1]<180?'East':'West'; t=tw.find(x=>x[4]===side)||t; }
+    const dd=dA<0.3?'':` ${dA<10?dA.toFixed(1):Math.round(dA)} NM`;
+    c= open? `<span><small>TWR${t[4]?' '+t[4][0]:''}</small> <b>${t[2]}</b> <small>${esc(ad.i)}${dd}</small></span>`
+      : CI.f? `<span><small>CTAF</small> <b>${CI.f}</b> <small>${esc(ad.i)}${dd}${CI.src!=='ERSA'?' · '+esc(CI.src):''}</small></span>` : ''; }
+  else { const ba=baAt(la,lo); c= ba&&ba.f? `<span><small>CTAF</small> <b>${ba.f}</b> <small>${esc(titleCase(ba.n))} BA</small></span>` : `<span><small>CTAF</small> <small>no aerodrome within 10 NM</small></span>`; }
+  const t=terrainFt(la,lo), AS=airStack(la,lo,t!=null?t:0), b=AS.bands.find(q=>altFt>=q.L-50&&altFt<q.H)||AS.bands[AS.bands.length-1];
+  let a='';
+  if(b&&b.f){ const k=b.k==='CTR'?b.ctrCls:b.k, g=k==='G'||k==='E'; let f=b.f, who=b.unit?unitShort(b.unit):'';
+    const sp=!g? splitTwr(f,la,lo) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
+    const ll=areaLL(AS,b);
+    a=`<span><small>${g?'AREA':'ATC '+k}</small> <b style="${g?'':'color:var(--as-'+(k==='A'?'c':String(k).toLowerCase())+')'}">${f}</b> <small>${esc(who)}${ll?' · '+ll:''} · at ${Math.round(altFt/100)*100} ft</small></span>`; }
+  return c+a; }
 function mapMenuClose(){ $('mapMenu').hidden=true; MAP.press=null; if(MAP.last) drawMap(...MAP.last); }
 function mapMenu(px,py){
   if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
@@ -2232,6 +2253,7 @@ function mapMenu(px,py){
   let sub=kind; if(st.pos){ const [d,b]=distBrg(st.pos[0],st.pos[1],la,lo); sub+=(sub?' · ':'')+`${d<10?d.toFixed(1):Math.round(d)} NM ${fmt3(b-variation(st.pos[0],st.pos[1]))}°M from you`; }
   const t=terrainFt(la,lo); if(t!=null) sub+=` · terrain ${Math.round(t/10)*10} ft`;
   $('mmName').textContent=place; $('mmSub').textContent=sub; $('mmLL').textContent=`${dm}  ·  ${ll}`;
+  $('mmFq').innerHTML=pointFreqs(la,lo);
   $('mmSua').innerHTML=suaHere(la,lo);
   { const L=ntAt(la,lo); const box=document.createElement('details'); box.className='notams'; $('mmSua').appendChild(box); ntBox(box,L,`NOTAMs here (${L.length})`,true); }
   const goPt={k:'USR',c:town&&town.d<1.5? town.t.n : dm,n:`${town&&town.d<1.5?(kind||'Map point'):place} · ${dm}`,la,lo};

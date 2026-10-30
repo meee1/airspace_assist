@@ -90,6 +90,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Legend:** tap an item (C, D / CTR, E, R, Danger, Area freq boundary, VFR waypoint, Terrain) to hide or show it on the map; hidden items are struck through and remembered. Terrain is the same switch as the Terrain button.
 - **Computer / landscape tablet:** the map takes the full window height left after its buttons and legends, so everything shows without scrolling, even with CTAF on.
 - **Press and hold** anywhere on the map (right-click on a computer; the note beside the zoom buttons is a reminder) for that point's details, with a crosshair marking it:
+  - **Frequencies there:** the CTAF of the nearest aerodrome within 10 NM of the point (with its distance), or its tower frequency during tower hours. A split tower gives the side the point is on, e.g. TWR W 123.0 at Beaumaris. With no aerodrome nearby it shows the broadcast-area CTAF, if any. Under that is the area or ATC frequency over the point at your current altitude.
   - **Where it is:** the nearest town, locality or suburb ("St Andrews", or "1.6 NM N of Seville East").
   - **Its position:** degrees and decimal minutes plus decimal lat/lon, its distance and bearing from you, and the terrain height there.
   - **Special use airspace there:** every prohibited, restricted, danger and military operating area over the point, at all levels, from the ERSA SUA list:
