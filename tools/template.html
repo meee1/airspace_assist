@@ -270,6 +270,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .chart-head{display:flex;align-items:center;gap:8px} .chart-head b{font-size:14px} .chart-head .btn{margin-left:auto;padding:4px 10px}
 #chartBox[open]>summary{color:var(--accent)} .chart-op{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-left:auto} .chart-op input{width:110px}
 .chart-prog{font-size:12px;color:var(--accent)} .chart-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.chart-all>summary{cursor:pointer;font-size:13px;font-weight:600;padding:4px 0} .chart-all .chart-list{max-height:40vh;overflow:auto;margin-top:4px}
 .chart-list li{display:flex;gap:8px;align-items:center} .chart-list li span{flex:1} .chart-list li .btn{padding:3px 8px;font-size:11px}
 #fpProf{width:100%;height:180px;display:block;border-radius:8px;background:var(--bg);border:1px solid var(--rule);touch-action:manipulation;cursor:crosshair}
 .fp-pinfo{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.4} .fp-pinfo b{color:var(--ink);font-family:var(--f-mono);font-weight:600} .fp-pinfo .w{color:var(--warn)}
@@ -430,7 +431,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
           <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
             <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
           <div class="chart-prog" id="chartProg" hidden></div>
-          <ul class="chart-list" id="chartList"></ul>
+          <details class="chart-all" id="chartAll"><summary id="chartAllSum"></summary><ul class="chart-list" id="chartList"></ul></details>
           <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
         </div>
       </details>
@@ -1732,7 +1733,10 @@ function drawCharts(g0,W,Hh,inv){
   return drew; }
 function chartUI(){
   const n=CH.idx.length, dl=CH.need&&CH.have<CH.need? ` · downloading ${CH.have}/${CH.need}` : CH.need? ' · stored' : '';
-  $('chartSum').textContent= n? CH.idx.map(s=>s.name+(s.ed?' '+s.ed:'')).join(' · ')+dl : 'none';
+  // a few sheets by name; more than that as a count (the full list is one tap away in the pop-up)
+  const mb=(CH.idx.reduce((t,s)=>t+(s.bytes||0),0)/1048576).toFixed(0);
+  $('chartSum').textContent= n? (n<=2? CH.idx.map(s=>s.name+(s.ed?' '+s.ed:'')).join(' · ') : `${n} charts · ${mb} MB`)+dl : 'none';
+  $('chartAll').hidden=!n; $('chartAllSum').textContent=`${n} chart${n===1?'':'s'} · ${mb} MB${n>4?' · tap to list':''}`; if(n<=4) $('chartAll').open=true;
   $('chartList').innerHTML=CH.idx.map(s=>`<li><span><b>${esc(s.name)}</b> ${esc(s.ed||'')} · ${(s.bytes/1048576).toFixed(1)} MB · ${s.src==='site'?'from the app':'imported on this device'}${s.edT&&s.edT>Date.now()?' · <span class="w">effective '+esc(s.ed)+'</span>':''}</span>${s.src==='site'?'':`<button class="btn" data-del="${s.sheet}">Remove</button>`}</li>`).join('');
   $('mapChart').setAttribute('aria-pressed',CH.on&&n>0); $('chartOp').value=CH.op; }
 function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>no(new Error('could not load '+src)); document.head.appendChild(s); }); }
