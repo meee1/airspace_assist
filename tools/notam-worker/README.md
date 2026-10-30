@@ -27,7 +27,9 @@ folder keeps its old name.)
 - **adsb.lol API key:** add it as the secret `ADSBLOL_KEY` (Cloudflare dashboard → the Worker → Settings → Variables and
   Secrets → Add → type **Secret**, or `npx wrangler secret put ADSBLOL_KEY`). Never put it in wrangler.toml or the repo. With it
   set, the Worker asks adsb.lol's keyed feed `https://re-api.adsb.lol/?circle=lat,lon,nm` first (key in the `x-api-key`
-  header), then the public `api.adsb.lol` v2 API (key sent there too), then adsb.fi. Without it, nothing changes. The
+  header), then the public `api.adsb.lol` v2 API (without the key), then adsb.fi. adsb.lol binds a key to an IP address
+  (your feeder's); a request from anywhere else gets 401 "api key bound to a different address". Cloudflare Workers
+  don't have a fixed address, so the keyed feed only works from a proxy running at that address. Without it, nothing changes. The
   answer's `src` says which feed answered (`re-api.adsb.lol` when the key works).
 - Another readsb-style feed: set `ADSB_URL` (wrangler.toml or the dashboard's Variables), e.g.
   `https://api.airplanes.live/v2/point/{lat}/{lon}/{nm}` once they've approved you, and `npx wrangler secret put ADSB_KEY` if it

@@ -20,6 +20,6 @@ globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.hea
   if(u.startsWith('https://re-api.adsb.lol/?circle=-35.50,144.90,25')&&o.headers['x-api-key']==='test-key') return new Response(JSON.stringify({now:1,aircraft:AC.ac}));
   return new Response('x',{status:500}); };
 [s,o,c,j]=await go('/traffic?lat=-35.5&lon=144.9&nm=25'); console.log('keyed',s,j.src,j.n,seen.join(' | '));
-seen.length=0; globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.headers['x-api-key']||'-')); return u.includes('re-api')? new Response('bad key',{status:401}) : new Response(JSON.stringify(AC)); };
+seen.length=0; globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.headers['x-api-key']||'-')); return u.includes('re-api')||o.headers['x-api-key']? new Response('api key bound to a different address',{status:401}) : new Response(JSON.stringify(AC)); };
 [s,o,c,j]=await go('/traffic?lat=-34.5&lon=144.9&nm=25'); console.log('bad key',s,j.src,j.n,seen.join(' | '));
 delete env.ADSBLOL_KEY;

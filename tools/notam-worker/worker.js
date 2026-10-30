@@ -34,11 +34,13 @@ async function traffic(u,env,ctx,H){
   const key=new Request(`https://adsb.cache/v1?${la},${lo},${nm}`), cache=caches.default, hit=await cache.match(key);
   if(hit){ const r=new Response(hit.body,hit); for(const [k,v] of Object.entries(H)) r.headers.set(k,v); r.headers.set('X-Cache','HIT'); return r; }
   // feeds in order, each [url template, extra headers]. With the ADSBLOL_KEY secret: adsb.lol's keyed re-api first
-  // (x-api-key header), then its public v2 API (sent the key too), then adsb.fi. ADSB_URL (+ ADSB_KEY as api-auth) replaces the list.
+  // (x-api-key header), then its public v2 API WITHOUT the key (a key bound to another address makes it answer 401
+  // "api key bound to a different address" even though the public API needs none), then adsb.fi.
+  // ADSB_URL (+ ADSB_KEY as api-auth) replaces the list.
   const UA={Accept:'application/json','User-Agent':'radio-au-proxy (personal VFR app)'}, LK=env.ADSBLOL_KEY? {'x-api-key':env.ADSBLOL_KEY} : {};
   const feeds=env.ADSB_URL? [[env.ADSB_URL, env.ADSB_KEY?{'api-auth':env.ADSB_KEY}:{}]] : [
     ...(env.ADSBLOL_KEY? [['https://re-api.adsb.lol/?circle={lat},{lon},{nm}',LK]] : []),
-    ['https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}',LK],
+    ['https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}',{}],
     ['https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{nm}',{}]];
   let j=null, url='', errs=[];
   for(const [tpl,hd] of feeds){ url=tpl.replace('{lat}',la).replace('{lon}',lo).replace('{nm}',nm); const host=new URL(url).host;
