@@ -66,7 +66,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.gps .dot{width:auto;height:auto;background:none!important;margin:0;border-radius:0;color:var(--dim);display:block}
 .st.gps .dot.ok{color:var(--ok)} .st.gps .dot.warn{color:var(--accent)} .st.gps .dot.bad{color:var(--warn)}
 .st.gps svg{width:24px;height:24px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round} .st.gps svg .f{fill:currentColor;stroke:none}
-.st.gps b{display:none} .st.gps.gsim b{display:block;font:700 9px/1 var(--f-mono);margin:0;color:var(--accent)}   /* only "SIM" is spelled out */
+.st.gps b{display:none} .st.gps #gpsAge{font:700 9px/1 var(--f-mono);font-style:normal;color:var(--warn)} .st.gps #gpsAge:empty{display:none} .st.gps.gsim b{display:block;font:700 9px/1 var(--f-mono);margin:0;color:var(--accent)}   /* only "SIM" is spelled out */
 
 .st>small:first-child{display:block;white-space:nowrap;overflow:hidden}
 .st.plan b{color:var(--wp)} .st.plan small.turn{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -96,7 +96,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.insua{display:flex;flex-direction:column;align-items:stretch;gap:3px} .st.insua>div{display:flex;align-items:baseline;gap:8px;min-width:0} .st.insua>div>b,.st.insua small{flex:none} .st.insua span{white-space:normal}   /* a warning wraps rather than losing its end */
 .st.insua .off{color:var(--dim)} .st.insua .off>b{color:var(--dim)} .st.insua b.stt{font:inherit;font-weight:700} .st.insua.quiet{border-color:var(--rule);background:var(--panel)}
 .opts-sat{display:flex;flex-direction:column;gap:8px;font-size:13px} .opts-sat label{display:flex;flex-direction:column;gap:3px} .opts-sat input[type=password],.opts-sat select{font:500 14px/1.2 var(--f-mono);padding:8px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .opts-sat .ctl{display:flex;gap:10px;align-items:center} .opts-sat small{color:var(--dim);line-height:1.35}
+.notams.wx .wxd{margin:3px 0} .notams.wx .wxrw{display:flex;flex-wrap:wrap;gap:2px 12px;font:600 11.5px/1.3 var(--f-mono);color:var(--dim);margin-bottom:3px} .notams.wx .tx.mono{font:500 11.5px/1.35 var(--f-mono);white-space:normal}
 .rbramp{display:inline-block;width:56px;height:8px;border-radius:2px;vertical-align:0;margin:0 4px;background:linear-gradient(90deg,rgb(38,150,160),rgb(120,190,80) 14%,rgb(245,200,70) 41%,rgb(220,90,60) 68%,rgb(130,60,170))}
+.st.nxcls.amber{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
 .st.fq.l{grid-column:1/span 7} .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -235,10 +237,11 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-head{display:flex;align-items:center;gap:8px;margin-bottom:10px} .opts-head b{font-size:16px} .opts-head .btn{margin-left:auto;padding:4px 10px}
 .opts-list{display:flex;flex-direction:column;gap:2px;margin:6px 0 8px}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
+.opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
 .opts-list label input{width:20px;height:20px;flex:none} .opts-list .meta{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
 .opts-list .new{font-size:10.5px;color:var(--accent);font-weight:700;margin-left:6px}
 .mapmenu .mm-sua:empty{display:none}
-.mapmenu .mm-fq{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font:600 12px/1.3 var(--f-mono)} .mapmenu .mm-fq:empty{display:none} .mapmenu .mm-fq b{font-size:15px;color:var(--freq)} .mapmenu .mm-fq small{color:var(--dim);font-weight:500}
+.mapmenu .mm-fq{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font:600 12px/1.3 var(--f-mono)} .mapmenu .mm-fq:empty{display:none} .mapmenu .mm-ob{flex-basis:100%;display:flex;flex-direction:column;gap:2px} .mapmenu .mm-ob b{font-size:12px!important} .mapmenu .mm-fq b{font-size:15px;color:var(--freq)} .mapmenu .mm-fq small{color:var(--dim);font-weight:500}
 .mapmenu .sua{margin-top:8px;padding:7px 9px;border-radius:8px;border-left:4px solid var(--as-q);background:color-mix(in srgb,var(--as-q) 8%,var(--panel));font-size:12.5px;line-height:1.35}
 .mapmenu .sua.r{border-left-color:var(--as-r);background:color-mix(in srgb,var(--as-r) 9%,var(--panel))}
 .mapmenu .sua b.id{font:700 13px/1.2 var(--f-mono)} .mapmenu .sua .ra{color:var(--dim);font-size:11.5px;margin-top:3px}
@@ -390,9 +393,9 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 <div class="wrap">
 
   <div class="status" aria-live="off">
-    <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b></div>
+    <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b><i id="gpsAge"></i></div>
     <div class="st t"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
-    <div class="st t"><small>GS kt</small><b id="sGs">—</b></div>
+    <div class="st t" id="sGsBox"><small>GS kt</small><b id="sGs">—</b><small id="sLast" class="agl" title="Last light: end of evening civil twilight here (sun 6° below the horizon), the end of VFR day"></small></div>
     <div class="st t plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st t" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st t cls" id="sClsBox" title="Airspace class at your position and altitude, and the restricted or danger area you're in"><small>CLASS</small><b id="sCls">—</b><small id="sClsP" class="cap"></small></div>
@@ -404,6 +407,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
+    <div class="st nxcls warn" id="sLastRow" hidden></div>
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
@@ -547,6 +551,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
       <div class="rwlist" id="rwList"></div>
     </div>
     <div class="stack" id="ctafRow"></div>
+    <details class="notams wx" id="adWx" hidden></details>
     <details class="notams" id="adNotam" hidden></details>
     <details class="calls" id="calls">
       <summary><span class="lbl">Radio calls</span><span class="calls-at" id="callsAt"></span></summary>
@@ -662,7 +667,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=520ba86bd8';
+    const s=document.createElement('script'); s.src='app.js?v=83b59f0e75';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
