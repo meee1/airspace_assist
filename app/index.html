@@ -239,7 +239,11 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list{display:flex;flex-direction:column;gap:2px;margin:6px 0 8px}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
-.st.off{display:none!important} .opts-tiles label{padding:6px 4px} .opts-tiles label>span:not(.tpv){flex:1 1 auto;min-width:0}
+.st.off{display:none!important}
+.st.nxcls.ahead.amber b{color:var(--accent)} .st.nxcls.ahead.warn b{color:var(--warn)} .st.nxcls.ahead small{color:var(--dim)}
+.pcdlg{max-width:760px} .pc-in{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:end;margin:4px 0 8px} .pc-in label{display:flex;flex-direction:column;font-size:12px;color:var(--dim);gap:3px} .pc-in input{width:96px;font:600 15px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)}
+.pc-t{width:100%;border-collapse:collapse;font-size:12.5px} .pc-t td{padding:5px 4px;border-bottom:1px solid var(--rule);vertical-align:top} .pc-t td.m{font:600 12px var(--f-mono);white-space:nowrap;color:var(--dim)} .pc-t td.k{font:700 11px var(--f-label);letter-spacing:.04em;white-space:nowrap} .pc-t b.f{font:700 14px var(--f-mono);color:var(--freq)} .pc-t tr.wp td{background:color-mix(in srgb,var(--wp) 8%,transparent)} .pc-t tr.w td.k{color:var(--warn)} .pc-t tr.a td.k{color:var(--accent)}
+.pc-sec{font:700 11px var(--f-label);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px} .opts-tiles label{padding:6px 4px} .opts-tiles label>span:not(.tpv){flex:1 1 auto;min-width:0}
 .tpv{flex:none;width:250px;zoom:.56;pointer-events:none;margin-left:auto} .tpv .status{display:block;position:static;padding:0;margin:0;background:none} .tpv .st{margin:0} .tpv .st[hidden]{display:flex}
 .tpv .st.t{display:inline-flex;flex-direction:column;width:110px} .tpv .st.gps{display:inline-flex;width:44px;height:64px} .tpv .st>small:first-child{line-height:1.3;overflow:visible} .tpv .st.t small{line-height:1.3}
 .opts-list label input{width:20px;height:20px;flex:none} .opts-list .meta{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
@@ -413,6 +417,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
     <div class="st nxcls warn" id="sLastRow" hidden></div>
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
+    <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -532,7 +537,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
       <details class="notams" id="fpNotam" hidden></details>
-      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
+      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpCheck" title="Frequencies, airspace, areas, NOTAMs, obstacles and LSALT along the whole plan, in order">Plan check</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
       <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Save GPX downloads the plan as it is now, edits included. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
@@ -617,6 +622,14 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     </div>
   </dialog>
 
+  <dialog class="opts pcdlg" id="pcDlg" aria-labelledby="pcTitle">
+    <div class="opts-head"><b id="pcTitle">Plan check</b><button class="btn" id="pcClose" aria-label="Close">✕</button></div>
+    <div class="pc-in"><label>Altitude ft <input id="pcAlt" type="number" inputmode="numeric" step="100" min="0"></label><label>GS kt <input id="pcGs" type="number" inputmode="numeric" step="5" min="20"></label><label>Departure (local) <input id="pcDep" type="time"></label><button class="btn" id="pcRun">Check</button></div>
+    <div class="vnote" id="pcStat"></div>
+    <div id="pcOut"></div>
+    <div class="ctl"><button class="btn" id="pcCopy">Copy text</button><button class="btn" id="pcPrint">Print / PDF</button></div>
+  </dialog>
+
   <details class="calls ntset" id="ntSet">
     <summary><span class="lbl">NOTAMs (NAIPS) and traffic</span><span class="calls-at" id="ntSum">no briefing</span></summary>
     <label><span class="lbl">Traffic proxy</span><input id="ntUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="empty = off (default https://test.mission.workers.dev)"></label>
@@ -674,7 +687,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=310cbed948';
+    const s=document.createElement('script'); s.src='app.js?v=a5142a01a1';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

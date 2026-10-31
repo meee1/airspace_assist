@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793431879801;
+const APP_BUILT=1793437101313;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1217,7 +1217,7 @@ async function logsRender(){ const el=$('optsLogs');
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -1240,6 +1240,7 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   ctl:`<div class="st ctl"><small>YMMB</small><span>ATIS<b>120.9</b></span><span>TWR<b>118.1</b><i>E</i></span><span>TWR<b>123.0</b><i>W</i></span><span>GND<b>134.25</b></span></div>`,
   insua:`<div class="st nxcls insua warn"><div><small>IN</small><b style="color:var(--as-q)">D373</b><span>SFC–FL125 · danger area · parachuting</span></div></div>`,
   nxcls:`<div class="st nxcls warn"><small>NEXT CLASS</small><b style="color:var(--as-d)">D</b><span>SFC–A025 in 4.0 NM · Moorabbin Twr W 123.0</span></div>`,
+  ahead:`<div class="st nxcls ahead"><small>LSALT</small><b>2,500</b><span>highest 1,450 ft terrain in 6.2 NM</span></div>`,
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`};
 function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
@@ -1857,6 +1858,101 @@ const unitShort=u=>titleCase(u||'').replace(/\s*\(E Frequency\)/i,' E').replace(
    within 10 NM of an ERSA aerodrome (the CTAF call distance; private strips and HLS are left out) whose CTAF differs from the one on screen. Next area
    frequency: the first point where the band at your altitude has a different frequency (DAH, as in the stack). */
 const NX={key:'',ctaf:null,area:null};
+// ---- highest terrain / NOTAM obstacle in a corridor (halfW NM either side of a polyline [[la,lo],...], first maxD NM).
+// Terrain is the SRTM 30" grid sampled every 0.25 NM along and 0.5 NM across; unk counts samples whose tile isn't loaded.
+function segDist(a0,o0,a1,o1,la,lo){ const c=Math.cos(a0*R), bx=(o1-o0)*60*c, by=(a1-a0)*60, px=(lo-o0)*60*c, py=(la-a0)*60, L2=bx*bx+by*by;
+  const u=L2? Math.max(0,Math.min(1,(px*bx+py*by)/L2)) : 0; return [Math.hypot(px-u*bx,py-u*by), u*Math.sqrt(L2)]; }
+function corridorHigh(pts,halfW,maxD=Infinity){ let best=null, unk=0, n_=0, D0=0; const lat=[]; for(let w=-halfW;w<=halfW+1e-9;w+=0.5) lat.push(w);
+  for(let k=1;k<pts.length&&D0<=maxD;k++){ const [a0,o0]=pts[k-1],[a1,o1]=pts[k], [L,B]=distBrg(a0,o0,a1,o1), n=Math.max(1,Math.ceil(L/0.25)), pb=(B+90)*R;
+    for(let j=(k===1?0:1);j<=n;j++){ const D=D0+L*j/n; if(D>maxD) break; const la=a0+(a1-a0)*j/n, lo=o0+(o1-o0)*j/n, c=Math.cos(la*R);
+      for(const w of lat){ const pa=la+w/60*Math.cos(pb), po=lo+w/60*Math.sin(pb)/c, t=terrainFt(pa,po); n_++; if(t==null){ unk++; continue; } if(!best||t>best.ft) best={ft:t,la:pa,lo:po,D,what:'terrain'}; } }
+    D0+=L; }
+  for(const o of ntObstacles()){ if(o.ft==null) continue; let D1=0;
+    for(let k=1;k<pts.length;k++){ const [a0,o0]=pts[k-1],[a1,o1]=pts[k], L=distBrg(a0,o0,a1,o1)[0], [d,al]=segDist(a0,o0,a1,o1,o.la,o.lo);
+      if(d<=halfW&&D1+al<=maxD){ if(!best||o.ft>best.ft) best={ft:o.ft,la:o.la,lo:o.lo,D:D1+al,what:o.what+(o.n&&o.n.id?' NOTAM '+o.n.id:''),obs:o}; break; } D1+=L; } }
+  return {best,unk,n:n_}; }
+const lsaltOf=ft=>Math.ceil((ft+1000)/100)*100;
+// AHEAD row: LSALT for the next 10 NM along the plan (or your track) within 2 NM, highest point and where it is. Amber when
+// the highest point is within 500 ft below you, red when it's at or above you. Hidden when stationary with no plan.
+function aheadUI(){ const box=$('sAhead'); if(!st.pos){ box.hidden=true; return; }
+  const P=nxPath(st.pos[0],st.pos[1]).filter(p=>p[2]<=10.01); if(!P.length){ box.hidden=true; return; }
+  const r=corridorHigh([[st.pos[0],st.pos[1]],...P.map(p=>[p[0],p[1]])],2,10), b=r.best;
+  if(!b){ box.hidden=false; box.classList.remove('amber','warn'); box.innerHTML='<small>LSALT</small><span>terrain not loaded yet</span>'; return; }
+  const alt=st.alt, cls= alt==null? '' : b.ft>=alt-50? ' warn' : b.ft>=alt-500? ' amber' : '';
+  box.hidden=false; box.classList.remove('amber','warn'); if(cls) box.classList.add(cls.trim());
+  box.innerHTML=`<small>LSALT</small><b>${lsaltOf(b.ft).toLocaleString('en-AU')}</b><span>highest ${Math.round(b.ft).toLocaleString('en-AU')} ft ${esc(b.what)} in ${b.D<10?b.D.toFixed(1):Math.round(b.D)} NM${r.unk>r.n*0.2?' · terrain partly loaded':''} · 10 NM ahead ±2 NM</span>`; }
+setInterval(()=>{ try{ aheadUI(); }catch(e){} },3000);
+
+// ---- Plan check: the whole flight plan sampled every 0.5 NM at a planned altitude, GS and departure time: waypoints,
+// CTAF / tower (tower hours at ETA, split side), area / ATC changes, class changes, R/D/P areas (status at ETA), NOTAM
+// zones, obstacles within 1 NM, LSALT per leg (±2 NM, +1000 ft), last light; NOTAMs along the route listed after
+const PC={rows:[],text:''};
+function planCheck(alt,gs,dep){ const P_=FP.pts, ev=[], seenA=new Set(), seenZ=new Set(), legs=[]; let D0=0, prevC=null, prevA=null, unk=0;
+  const eta=D=>dep+D/gs*3600e3, add=(D,k,html,txt,cl='')=>ev.push({D,k,html,txt,cl,t:eta(D)});
+  const ads=DATA.ap.filter(a=>(st.all||a.s==='E')&&(a.t!=='H'||st.heli));
+  for(let k=0;k<P_.length;k++){ const p=P_[k];
+    if(k>0){ const q=P_[k-1], [L]=distBrg(q.la,q.lo,p.la,p.lo), n=Math.max(1,Math.ceil(L/0.5));
+      const ch=corridorHigh([[q.la,q.lo],[p.la,p.lo]],2); unk+=ch.unk; legs.push({k,from:q,to:p,L,hi:ch.best,D:D0,unk:ch.unk>ch.n*0.02});
+      for(let j=1;j<=n;j++) sample(q.la+(p.la-q.la)*j/n, q.lo+(p.lo-q.lo)*j/n, D0+L*j/n);
+      D0+=L; } else sample(p.la,p.lo,0);
+    add(D0,'WP',`<b>${esc(p.c||p.n||'WP'+(k+1))}</b>${p.n&&p.c&&p.n!==p.c?' '+esc(titleCase(p.n)):''}`,(p.c||p.n||'WP'+(k+1)),'wp'); }
+  function sample(la,lo,D){ const t=eta(D);
+    // CTAF / TWR of the nearest aerodrome within 10 NM
+    let ad=null, dA=0; for(const x of ads){ if(Math.abs(x.la-la)>0.17||Math.abs(x.lo-lo)>0.25) continue; const d=distBrg(la,lo,x.la,x.lo)[0]; if(d<=10&&(!ad||d<dA)){ ad=x; dA=d; } }
+    let c=null;
+    if(ad){ const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(t)):null, open=tw.length&&(ts?ts.on:true), cn=callName(ad.n,ad.i);
+      if(open){ let w=tw[0]; if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,la,lo)[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }
+        c={key:'T'+w[2]+ad.i, lab:'TWR'+(w[4]?' '+w[4][0]:''), f:w[2], who:cn+' Tower', ad}; }
+      else { const CI=ctafInfo(ad); c={key:'C'+(CI.f||'')+ad.i, lab:'CTAF', f:CI.f||'—', who:cn+' traffic'+(CI.src!=='ERSA'?' ('+CI.src+')':''), ad}; } }
+    else { const ba=baAt(la,lo); c= ba&&ba.f? {key:'B'+ba.f, lab:'CTAF', f:ba.f, who:titleCase(ba.n)+' broadcast area'} : {key:'-',quiet:true}; }   // no aerodrome within 10 NM: no row
+    if(c.quiet) prevC=c; else if(!prevC||prevC.key!==c.key){ add(D,c.lab,`<b class="f">${c.f}</b> ${esc(c.who)}${c.ad?` <small>${c.ad.i}</small>`:''}`,`${c.lab} ${c.f} ${c.who}${c.ad?' '+c.ad.i:''}`); prevC=c; }
+    // area / ATC band at the planned altitude
+    const tr=terrainFt(la,lo), AS=airStack(la,lo,tr!=null?tr:0), b=AS.bands.find(q=>alt>=q.L-50&&alt<q.H);
+    if(b){ const kk=b.k==='CTR'?b.ctrCls:b.k, g=kk==='G'||kk==='E'; let f=b.f||'—', who=b.unit?unitShort(b.unit):'';
+      const sp=!g&&b.f? splitTwr(b.f,la,lo) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
+      const key=kk+'|'+f+'|'+who;
+      if(!prevA||prevA.key!==key){ const lim=`${b.L<=0?'SFC':limTxt(b.L)}–${limTxt(b.H)}`;
+        add(D,g?'AREA':'ATC '+kk,`<b class="f">${f}</b> ${esc(who)} · class ${kk} ${lim}${g?'':' · <b>clearance required</b>'}`,`${g?'AREA':'ATC'} ${f} ${who} class ${kk} ${lim}${g?'':' clearance required'}`, g?'':'w'); prevA={key}; } }
+    // restricted / prohibited / danger areas at the planned altitude
+    for(const q of AS.prd){ if(!(alt>=q.L-50&&alt<q.H)) continue; const id=q.n.split(' ')[0]; if(seenA.has(id)) continue; seenA.add(id);
+      const S=(DATA.sua&&DATA.sua.areas||{})[id], ss=suaStatus(id,t), R_=q.k==='R'||q.k==='P';
+      const stt= ss? (ss.s==='act'?'ACTIVE'+(ss.until?' →'+hhmmZ(ss.until):''):ss.s==='off'?'OFF':'') : 'check status';
+      add(D,q.k==='P'?'PROHIB':R_?'RESTR':'DANGER',`<b>${esc(id)}</b> ${limTxt(q.L)}–${limTxt(q.H)}${S&&S.act?' · '+esc(S.act.toLowerCase()):''}${S&&S.st?' · '+S.st:''} · ${stt}`,`${id} ${limTxt(q.L)}-${limTxt(q.H)}${S&&S.act?' '+S.act.toLowerCase():''} ${stt}`, ss&&ss.s==='off'?'':R_?'w':'a'); }
+    for(const z of ntZonesAt(la,lo,alt,tr||0,t)){ if(seenZ.has(z.id)) continue; seenZ.add(z.id);
+      add(D,'NOTAM',`<b>${esc(z.id)}</b> ${esc((z.text||'').slice(0,90))}`,`NOTAM ${z.id} ${(z.text||'').slice(0,90)}`,'w'); } }
+  // obstacles within 1 NM of the route
+  for(const o of ntObstacles()){ let D1=0; for(let k=1;k<P_.length;k++){ const a=P_[k-1], b=P_[k], L=distBrg(a.la,a.lo,b.la,b.lo)[0], [d,al]=segDist(a.la,a.lo,b.la,b.lo,o.la,o.lo);
+      if(d<=1){ add(D1+al,'OBST',`<b>${o.ft!=null?o.ft+' ft':'?'}</b> ${esc(o.what)}${o.hAgl!=null?' '+o.hAgl+' AGL':''}${o.lit?' lit':''} · ${d.toFixed(1)} NM off track · NOTAM ${esc(o.n.id)}`,`OBST ${o.ft} ft ${o.what} ${d.toFixed(1)} NM off track NOTAM ${o.n.id}`, o.ft!=null&&o.ft>=alt-300?'w':'a'); break; } D1+=L; } }
+  // last light along the route
+  const end=P_[P_.length-1], ll=lastLight(end.la,end.lo,dep);
+  if(ll&&!ll.night&&ll.ll<eta(D0)){ const Dl=Math.max(0,(ll.ll-dep)/3600e3*gs); add(Math.min(Dl,D0),'LAST LT',`<b>last light ${hhmmZ(ll.ll)}</b> — the plan ends after last light`,`LAST LIGHT ${hhmmZ(ll.ll)} plan ends after last light`,'w'); }
+  else if(ll&&ll.night) add(0,'NIGHT',`<b>departure after last light</b>${ll.fl?' · first light '+hhmmZ(ll.fl):''}`,'NIGHT departure after last light','w');
+  ev.sort((x,y)=>x.D-y.D||(x.k==='WP'?(x.D<0.01?-1:1):0)-(y.k==='WP'?(y.D<0.01?-1:1):0));   // the departure point first, other waypoints after the calls at the same spot
+  return {ev,legs,D:D0,unk,ll}; }
+function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vnote">Load or build a flight plan first.</div>'; return; }
+  const alt=+$('pcAlt').value||1500, gs=Math.max(20,+$('pcGs').value||90), tv=$('pcDep').value||'';
+  ls.set('pcAlt',alt); ls.set('pcGs',gs);
+  let dep=Date.now(); if(/^\d\d:\d\d$/.test(tv)){ const d=new Date(); d.setHours(+tv.slice(0,2),+tv.slice(3),0,0); if(d.getTime()<Date.now()-3600e3) d.setDate(d.getDate()+1); dep=d.getTime(); }
+  const r=planCheck(alt,gs,dep), lt=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const fmtD=D=>D<10?D.toFixed(1):Math.round(D);
+  let h=`<div class="pc-sec">${esc(FP.name||'Flight plan')} · ${fmtD(r.D)} NM · ${hmm(r.D/gs*3600e3)} at ${gs} kt · ${alt.toLocaleString('en-AU')} ft · dep ${lt(dep)} (${hhmmZ(dep)})</div>`;
+  h+='<table class="pc-t"><tbody>'+r.ev.map(e=>`<tr class="${e.cl}"><td class="m">${fmtD(e.D)}</td><td class="m">${lt(e.t)}</td><td class="k">${e.k}</td><td>${e.html}</td></tr>`).join('')+'</tbody></table>';
+  h+='<div class="pc-sec">LSALT by leg (highest terrain or NOTAM obstacle within 2 NM, +1000 ft)</div><table class="pc-t"><tbody>'+r.legs.map(l=>{ const b=l.hi, w=b&&b.ft>=alt-500;
+    return `<tr class="${b&&b.ft>=alt-50?'w':w?'a':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="m">${fmtD(l.L)} NM</td><td>${b?`<b>LSALT ${lsaltOf(b.ft).toLocaleString('en-AU')}</b> · highest ${Math.round(b.ft).toLocaleString('en-AU')} ft ${esc(b.what)} ${fmtD(b.D-l.D>=0?b.D-l.D:b.D)} NM into the leg`:'terrain not loaded'}${l.unk?' <i>(terrain partly loaded)</i>':''}</td></tr>`; }).join('')+'</tbody></table>';
+  const N=ntRoute(); h+=`<div class="pc-sec">NOTAMs along the route (${N.length})</div>`+(N.length? '<table class="pc-t"><tbody>'+N.map(n=>`<tr><td class="k">${esc(n.loc||'')} ${esc(n.id||'')}</td><td>${esc((n.text||'').slice(0,240))}</td></tr>`).join('')+'</tbody></table>' : `<div class="vnote">${ntHave()?'None in the loaded briefing.':'No NAIPS briefing loaded: load one for NOTAMs, area status and obstacles.'}</div>`);
+  $('pcOut').innerHTML=h;
+  $('pcStat').textContent= r.legs.some(l=>l.unk)? 'Some terrain along the route isn\'t loaded yet: checking again…' : 'Planned altitude, GS and departure are kept on this device. Tower hours and area status are at your ETA; check the ATIS, NOTAMs and ERSA before flight.';
+  PC.text=`PLAN CHECK ${FP.name||''} ${fmtD(r.D)} NM ${alt} ft ${gs} kt dep ${lt(dep)}\n`+r.ev.map(e=>`${String(fmtD(e.D)).padStart(5)} NM ${lt(e.t)}  ${e.k.padEnd(8)} ${e.txt}`).join('\n')+'\n\nLSALT by leg\n'+r.legs.map(l=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${l.hi?'LSALT '+lsaltOf(l.hi.ft)+' (highest '+Math.round(l.hi.ft)+' ft '+l.hi.what+')':'terrain not loaded'}${l.unk?' (terrain partly loaded)':''}`).join('\n')+'\n\nNOTAMs along the route\n'+N.map(n=>`${n.loc||''} ${n.id||''}: ${n.text||''}`).join('\n')+'\n';
+  if(r.legs.some(l=>l.unk)&&TER.ok&&(PC.retry=(PC.retry||0)+1)<=12&&$('pcDlg').open) setTimeout(pcRun,2000); else { PC.retry=0; if(r.legs.some(l=>l.unk)) $('pcStat').textContent='Terrain isn\'t available for part of the route (not downloaded, or offline): those legs\' LSALT may be low.'; } }
+$('fpCheck').onclick=()=>{ $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>30?Math.round(st.alt/100)*100:1500); $('pcGs').value=ls.get('pcGs',90);
+  if(!$('pcDep').value){ const d=new Date(); $('pcDep').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+  if(FP) for(const p of FP.pts) terPrefetch(p.la,p.lo);
+  const d=$('pcDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); PC.retry=0; pcRun(); };
+$('pcRun').onclick=()=>{ PC.retry=0; pcRun(); }; $('pcClose').onclick=()=>$('pcDlg').close();
+$('pcCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(PC.text); $('pcStat').textContent='Copied.'; }catch(e){ dlFile('plan-check.txt',PC.text,'text/plain'); } };
+$('pcPrint').onclick=()=>{ const w=window.open('','_blank'); if(!w){ dlFile('plan-check.txt',PC.text,'text/plain'); return; }
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Plan check</title><style>body{font:12px system-ui,sans-serif;margin:16px;color:#111} table{width:100%;border-collapse:collapse} td{padding:4px;border-bottom:1px solid #ccc;vertical-align:top} td.m{font-family:monospace;white-space:nowrap} td.k{font-weight:700;white-space:nowrap} tr.w td.k{color:#b00} tr.wp td{background:#f3eef7} .pc-sec{font-weight:700;margin:12px 0 4px;text-transform:uppercase;font-size:11px}</style>${$('pcOut').innerHTML}`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),300); };
 function nxPath(la,lo){
   const pts=[[la,lo]], MAX=80;
   if(FP&&FP.dct&&GO) pts.push([GO.la,GO.lo]);   // direct-to: straight to the point
@@ -1955,6 +2051,7 @@ function render(){
   $('mapSec').hidden=!st.pos;
   if(!st.pos){ return; }
   if(!render.llT||Date.now()-render.llT>20000||render.llP!==Math.round(st.pos[0]*10)+','+Math.round(st.pos[1]*10)){ render.llT=Date.now(); render.llP=Math.round(st.pos[0]*10)+','+Math.round(st.pos[1]*10); lastLightUI(); }
+  if(!render.ahT||Date.now()-render.ahT>3000){ render.ahT=Date.now(); aheadUI(); }
   const [la,lo]=st.pos, varE=variation(la,lo), h=heading();
   $('hdgLbl').textContent=h?h.src+' °M':'TRK';
   $('sHdg').textContent=h?fmt3(h.deg-varE):'—';
