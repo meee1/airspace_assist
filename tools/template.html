@@ -239,6 +239,9 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list{display:flex;flex-direction:column;gap:2px;margin:6px 0 8px}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
+.st.off{display:none!important} .opts-tiles label{padding:6px 4px} .opts-tiles label>span:not(.tpv){flex:1 1 auto;min-width:0}
+.tpv{flex:none;width:250px;zoom:.56;pointer-events:none;margin-left:auto} .tpv .status{display:block;position:static;padding:0;margin:0;background:none} .tpv .st{margin:0} .tpv .st[hidden]{display:flex}
+.tpv .st.t{display:inline-flex;flex-direction:column;width:110px} .tpv .st.gps{display:inline-flex;width:44px;height:64px} .tpv .st>small:first-child{line-height:1.3;overflow:visible} .tpv .st.t small{line-height:1.3}
 .opts-list label input{width:20px;height:20px;flex:none} .opts-list .meta{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
 .opts-list .new{font-size:10.5px;color:var(--accent);font-weight:700;margin-left:6px}
 .mapmenu .mm-sua:empty{display:none}
@@ -395,14 +398,14 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 
   <div class="status" aria-live="off">
     <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b><i id="gpsAge"></i></div>
-    <div class="st t"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
+    <div class="st t" id="sHdgBox"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
     <div class="st t" id="sGsBox"><small>GS kt</small><b id="sGs">—</b><small id="sLast" class="agl" title="Last light: end of evening civil twilight here (sun 6° below the horizon), the end of VFR day"></small></div>
-    <div class="st t plan" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
+    <div class="st t plan" id="sPlanBox" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st t" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st t cls" id="sClsBox" title="Airspace class at your position and altitude, and the restricted or danger area you're in"><small>CLASS</small><b id="sCls">—</b><small id="sClsP" class="cap"></small></div>
     <div class="st t lims" id="sLimBox" title="This band of airspace: CAP = its top (where the next class starts), LL = its lower limit"><div class="ln"><small>CAP</small><b id="sCap">—</b></div><div class="ln"><small>LL</small><b id="sLL">—</b></div></div>
-    <div class="st fq l" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafCn" class="cn"></small><small id="sCtafNx" class="nx"></small></div>
-    <div class="st fq" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
+    <div class="st fq l" id="sCtafBox" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafCn" class="cn"></small><small id="sCtafNx" class="nx"></small></div>
+    <div class="st fq" id="sAreaBox" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
     <div class="st fq gt l" id="gCtafBox" hidden title="Go to: CTAF of the aerodrome at (or nearest within 10 NM of) the Go to point or flight plan waypoint; tower hours at your ETA"><small id="gCtafLbl">→ CTAF</small><b id="gCtaf">—</b><small id="gCtafAd" class="who"></small><small id="gCtafCn" class="cn"></small><small id="gCtafNx" class="nx"></small></div>
     <div class="st fq gt" id="gAreaBox" hidden title="Go to: area or ATC frequency over the Go to point at your current altitude"><small id="gAreaLbl">→ AREA</small><b id="gArea">—</b><small id="gAreaWho" class="who"></small><small id="gAreaNx" class="nx"></small></div>
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
@@ -598,6 +601,9 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
     <div class="vnote" id="optsNote"></div>
     <div class="lbl" style="margin-top:10px">Flight logs (kept 90 days)</div>
     <div class="opts-list" id="optsLogs"></div>
+    <div class="lbl" style="margin-top:10px">Top bar tiles</div>
+    <div class="opts-list opts-tiles" id="optsTiles"></div>
+    <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optCtafSplit"><span><b>Split overlapping CTAF areas</b><br><small>Where two aerodromes with different CTAFs are less than 20 NM apart, their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency.</small></span></label><label><input type="checkbox" id="optCtafSplit127"><span><b>Split 126.7 areas too</b><br><small>Off: the grey 126.7 circles of strips without their own CTAF are drawn whole under the others and don't cut them, so a specific CTAF keeps its full 10 NM circle. On: they take part in the split like any other frequency.</small></span></label><label><input type="checkbox" id="optTerRainbow"><span><b>Rainbow topographic terrain</b><br><small>With <b>Terrain</b> on, colour the ground by height (sea-level teal through green, yellow and orange to purple on the highest ranges) instead of grey relief. Terrain at or above you is still marked: cross-hatched in red, and within 500 ft in orange.</small></span></label></div>
     <div class="lbl" style="margin-top:10px">Satellite imagery (Esri)</div>
@@ -1801,7 +1807,7 @@ function optsRender(){
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); logsRender(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+$('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // flights stored in IndexedDB: fixes split where there's a gap of more than 30 min, newest first, each downloadable as GPX
@@ -1846,6 +1852,41 @@ async function logsRender(){ const el=$('optsLogs');
     const b=e.target.closest('[data-log]'); if(!b) return; const f=L[+b.dataset.log];
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0))],{type:'application/gpx+xml'}));
     a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }; }
+// top bar tiles on/off (Options): rc_tilesOff = keys of hidden tiles. On a wide screen the top row's grid columns and the
+// frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
+const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
+  ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
+function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
+  for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
+  const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
+  sb.style.gridAutoFlow= off.size? 'row dense' : '';   // fill the holes hidden tiles leave (narrow layout spans)
+  if(narrow||!off.size){ sb.style.gridTemplateColumns=''; for(const id of fqIds) $(id).style.gridColumn=''; return; }
+  let n=0; for(const [k,sp] of [['trk',2],['gs',2],['plan',2],['alt',2],['cls',2],['lims',3]]) if(!off.has(k)) n+=sp;
+  const gps=!off.has('gps'), T=Math.max(2,n+(gps?1:0)), cols=n? (gps?'30px ':'')+`repeat(${n},minmax(0,1fr))` : `repeat(${T},minmax(0,1fr))`;
+  sb.style.gridTemplateColumns=cols; const half=Math.max(1,Math.round(T/2));
+  const pair=(a,b,on)=>{ if(on.a&&on.b){ $(a).style.gridColumn=`1/span ${half}`; $(b).style.gridColumn=`${half+1}/-1`; } else { $(a).style.gridColumn='1/-1'; $(b).style.gridColumn='1/-1'; } };
+  pair('sCtafBox','sAreaBox',{a:!off.has('ctaf'),b:!off.has('area')}); pair('gCtafBox','gAreaBox',{a:true,b:true}); }
+// small examples beside each tick box (fixed sample values, the tiles' own classes, shrunk with zoom)
+const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').innerHTML}</span></div>`,
+  trk:`<div class="st t"><small>TRK °M</small><b>275</b></div>`, gs:`<div class="st t"><small>GS kt</small><b>95</b><small class="agl">last 0920Z</small></div>`,
+  plan:`<div class="st t plan"><small>PLAN</small><b style="color:var(--wp)">312</b><small class="turn">CARR</small><small class="turn">R 12°</small></div>`,
+  alt:`<div class="st t"><small>ALT ft</small><b>1500</b><small class="agl">AGL 1420</small></div>`, cls:`<div class="st t cls"><small>CLASS</small><b style="color:var(--ink)">G</b></div>`,
+  lims:`<div class="st t lims" style="width:130px"><div class="ln"><small>CAP</small><b>A085</b></div><div class="ln"><small>LL</small><b>SFC</b></div></div>`,
+  ctaf:`<div class="st fq l"><small>CTAF</small><b>119.0</b><small class="who">YBRS</small><small class="cn">Barwon Heads traffic</small><small class="nx">next <b>126.7</b> in 9.0 NM · YTQY</small></div>`,
+  area:`<div class="st fq"><small>AREA</small><b>123.35</b><small class="who">Melbourne Ctr · LL SFC</small><small class="nx">next <b>135.7</b> in 12 NM</small></div>`,
+  go:`<div class="st fq gt l"><small>→ CTAF</small><b>119.1</b><small class="who">YLIL 25 NM · 16 min</small><small class="cn">Lilydale traffic</small></div>`,
+  ctl:`<div class="st ctl"><small>YMMB</small><span>ATIS<b>120.9</b></span><span>TWR<b>118.1</b><i>E</i></span><span>TWR<b>123.0</b><i>W</i></span><span>GND<b>134.25</b></span></div>`,
+  insua:`<div class="st nxcls insua warn"><div><small>IN</small><b style="color:var(--as-q)">D373</b><span>SFC–FL125 · danger area · parachuting</span></div></div>`,
+  nxcls:`<div class="st nxcls warn"><small>NEXT CLASS</small><b style="color:var(--as-d)">D</b><span>SFC–A025 in 4.0 NM · Moorabbin Twr W 123.0</span></div>`,
+  last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
+  traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`};
+function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
+  $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
+$('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));
+  if(c.checked) off.delete(c.dataset.tile); else off.add(c.dataset.tile); ls.set('tilesOff',[...off]); tilesLayout(); });
+matchMedia('(max-width:370px)').addEventListener('change',tilesLayout);
+tilesLayout();
 $('optCtafSplit').checked=ls.get('ctafSplit',true);
 $('optCtafSplit').addEventListener('change',()=>{ ls.set('ctafSplit',$('optCtafSplit').checked); $('optCtafSplit127').disabled=!$('optCtafSplit').checked; render(); });
 $('optCtafSplit127').checked=ls.get('ctafSplit127',false); $('optCtafSplit127').disabled=!$('optCtafSplit').checked;

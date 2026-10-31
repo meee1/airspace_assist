@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793417349474;
+const APP_BUILT=1793431879801;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1168,7 +1168,7 @@ function optsRender(){
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); logsRender(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+$('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // flights stored in IndexedDB: fixes split where there's a gap of more than 30 min, newest first, each downloadable as GPX
@@ -1213,6 +1213,41 @@ async function logsRender(){ const el=$('optsLogs');
     const b=e.target.closest('[data-log]'); if(!b) return; const f=L[+b.dataset.log];
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0))],{type:'application/gpx+xml'}));
     a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }; }
+// top bar tiles on/off (Options): rc_tilesOff = keys of hidden tiles. On a wide screen the top row's grid columns and the
+// frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
+const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
+  ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
+function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
+  for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
+  const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
+  sb.style.gridAutoFlow= off.size? 'row dense' : '';   // fill the holes hidden tiles leave (narrow layout spans)
+  if(narrow||!off.size){ sb.style.gridTemplateColumns=''; for(const id of fqIds) $(id).style.gridColumn=''; return; }
+  let n=0; for(const [k,sp] of [['trk',2],['gs',2],['plan',2],['alt',2],['cls',2],['lims',3]]) if(!off.has(k)) n+=sp;
+  const gps=!off.has('gps'), T=Math.max(2,n+(gps?1:0)), cols=n? (gps?'30px ':'')+`repeat(${n},minmax(0,1fr))` : `repeat(${T},minmax(0,1fr))`;
+  sb.style.gridTemplateColumns=cols; const half=Math.max(1,Math.round(T/2));
+  const pair=(a,b,on)=>{ if(on.a&&on.b){ $(a).style.gridColumn=`1/span ${half}`; $(b).style.gridColumn=`${half+1}/-1`; } else { $(a).style.gridColumn='1/-1'; $(b).style.gridColumn='1/-1'; } };
+  pair('sCtafBox','sAreaBox',{a:!off.has('ctaf'),b:!off.has('area')}); pair('gCtafBox','gAreaBox',{a:true,b:true}); }
+// small examples beside each tick box (fixed sample values, the tiles' own classes, shrunk with zoom)
+const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').innerHTML}</span></div>`,
+  trk:`<div class="st t"><small>TRK °M</small><b>275</b></div>`, gs:`<div class="st t"><small>GS kt</small><b>95</b><small class="agl">last 0920Z</small></div>`,
+  plan:`<div class="st t plan"><small>PLAN</small><b style="color:var(--wp)">312</b><small class="turn">CARR</small><small class="turn">R 12°</small></div>`,
+  alt:`<div class="st t"><small>ALT ft</small><b>1500</b><small class="agl">AGL 1420</small></div>`, cls:`<div class="st t cls"><small>CLASS</small><b style="color:var(--ink)">G</b></div>`,
+  lims:`<div class="st t lims" style="width:130px"><div class="ln"><small>CAP</small><b>A085</b></div><div class="ln"><small>LL</small><b>SFC</b></div></div>`,
+  ctaf:`<div class="st fq l"><small>CTAF</small><b>119.0</b><small class="who">YBRS</small><small class="cn">Barwon Heads traffic</small><small class="nx">next <b>126.7</b> in 9.0 NM · YTQY</small></div>`,
+  area:`<div class="st fq"><small>AREA</small><b>123.35</b><small class="who">Melbourne Ctr · LL SFC</small><small class="nx">next <b>135.7</b> in 12 NM</small></div>`,
+  go:`<div class="st fq gt l"><small>→ CTAF</small><b>119.1</b><small class="who">YLIL 25 NM · 16 min</small><small class="cn">Lilydale traffic</small></div>`,
+  ctl:`<div class="st ctl"><small>YMMB</small><span>ATIS<b>120.9</b></span><span>TWR<b>118.1</b><i>E</i></span><span>TWR<b>123.0</b><i>W</i></span><span>GND<b>134.25</b></span></div>`,
+  insua:`<div class="st nxcls insua warn"><div><small>IN</small><b style="color:var(--as-q)">D373</b><span>SFC–FL125 · danger area · parachuting</span></div></div>`,
+  nxcls:`<div class="st nxcls warn"><small>NEXT CLASS</small><b style="color:var(--as-d)">D</b><span>SFC–A025 in 4.0 NM · Moorabbin Twr W 123.0</span></div>`,
+  last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
+  traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`};
+function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
+  $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
+$('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));
+  if(c.checked) off.delete(c.dataset.tile); else off.add(c.dataset.tile); ls.set('tilesOff',[...off]); tilesLayout(); });
+matchMedia('(max-width:370px)').addEventListener('change',tilesLayout);
+tilesLayout();
 $('optCtafSplit').checked=ls.get('ctafSplit',true);
 $('optCtafSplit').addEventListener('change',()=>{ ls.set('ctafSplit',$('optCtafSplit').checked); $('optCtafSplit127').disabled=!$('optCtafSplit').checked; render(); });
 $('optCtafSplit127').checked=ls.get('ctafSplit127',false); $('optCtafSplit127').disabled=!$('optCtafSplit').checked;
