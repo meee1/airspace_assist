@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793442828408;
+const APP_BUILT=1793478688822;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -956,8 +956,8 @@ function renderCtl(a,tp,open,ts,id='sCtl'){ // controlled aerodrome: the other f
   box.innerHTML=`<small>${esc(a.i)}${closed}</small>`+items.map(i=>`<span class="${i.off?'off':''}">${i.lbl}<b>${i.f}</b>${i.side?`<i>${i.side}</i>`:''}</span>`).join('');
   box.hidden=false;
 }
-$('sCtl').onclick=()=>$('adCard').scrollIntoView({block:'start',behavior:'smooth'});
-$('gCtl').onclick=()=>{ const i=$('gCtl').dataset.ad; if(i){ st.pin=i; render(); } $('adCard').scrollIntoView({block:'start',behavior:'smooth'}); };
+$('sCtl').onclick=()=>{ if(FS.bar){ FS.bar=false; fsApply(); } fsShow($('adCard')); };
+$('gCtl').onclick=()=>{ const i=$('gCtl').dataset.ad; if(i){ st.pin=i; render(); } if(FS.bar){ FS.bar=false; fsApply(); } fsShow($('adCard')); };
 function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl', P+'CtafAd'); when: time for tower hours (ETA)
   const CI=ctafInfo(a), tp=twrPick(a,pk), ts=tp?twrStatus(a,when||new Date()):null, open=tp&&(ts?ts.on:true), pre=P==='g'?'→ ':'';   // hours unknown: assume the tower is active
   const L=$(P+'CtafLbl'), F=$(P+'Ctaf'), W=$(P+'CtafAd'); let ap=null;
@@ -1258,6 +1258,55 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   ahead:`<div class="st nxcls ahead"><small>LSALT</small><b>2,500</b><span>highest 1,450 ft terrain in 6.2 NM</span></div>`,
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`};
+// ---------- full-screen map. FS.on = rc_fsMap (default on); applied while the map is shown. Elements are moved, not copied, so
+// every render/handler keeps working: a comment marker is left where each one came from and fsBack puts it back.
+const FS={on:ls.get('fsMap',true), bar:false, marks:new Map(), s:'peek'};
+const FS_TABQ=matchMedia('(min-width:900px) and (orientation:landscape)');
+function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
+function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapLead','mapLog'];
+const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
+const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
+function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
+function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TABQ.matches, hud=want&&!tab&&!FS.bar;
+  document.body.classList.toggle('fsm',want); document.body.classList.toggle('fsm-tab',tab); document.body.classList.toggle('fsm-bar',want&&!tab&&FS.bar);
+  $('fsBtn').textContent= FS.on? '⤡' : '⤢'; $('fsBtn').title= FS.on? 'Exit the full-screen map (classic page)' : 'Full-screen map';
+  if(want){ for(const id of FS_LAY) fsMove($(id),$('fsLayBtns')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
+    for(const el of fsSecs()) fsMove(el,$('fsBody')); }
+  else for(const el of [...FS.marks.keys()]) if(!FS_HUD.includes(el.id)) fsBack(el);
+  if(hud){ for(const id of FS_HUD_L) fsMove($(id),$('hudL')); for(const id of FS_HUD_R) fsMove($(id),$('hudR')); for(const id of FS_HUD_A) fsMove($(id),$('hudA')); }
+  else for(const id of FS_HUD) fsBack($(id));
+  if(!$('fsTabs').children.length) $('fsTabs').innerHTML=FS_TABS.map(([l,id])=>`<button type="button" role="tab" data-fs="${id}">${l}</button>`).join('');
+  if(want){ fsSheet(FS.s); fsHudPos(); } tilesLayout(); }
+function fsHudPos(){ const r=$('hudL').getBoundingClientRect(); document.documentElement.style.setProperty('--hudAT',Math.round(r.bottom+5)+'px'); }
+function fsPeekH(){ return $('fsHead').offsetHeight+Math.max(0,parseFloat(getComputedStyle($('fsBody')).paddingBottom)-14); }
+function fsSheet(s){ FS.s=s; if(!document.body.classList.contains('fsm')) return; const pk=fsPeekH(), H=innerHeight;
+  const h= s==='full'? H-Math.max(56,Math.round(H*0.08)) : s==='half'? Math.round(H*0.5) : pk;
+  document.documentElement.style.setProperty('--fsPeek',pk+'px'); document.documentElement.style.setProperty('--fsH',h+'px'); $('fsSheet').dataset.s=s;
+  if(s==='peek') for(const b of $('fsTabs').children) b.classList.remove('on'); }
+function fsShow(el,opt={block:'start',behavior:'smooth'}){ if(!el) return; if(document.body.classList.contains('fsm')&&$('fsBody').contains(el)){ if(FS.s==='peek') fsSheet('half'); setTimeout(()=>el.scrollIntoView(opt),220); } else el.scrollIntoView(opt); }
+$('fsTabs').addEventListener('click',e=>{ const b=e.target.closest('[data-fs]'); if(!b) return; const el=$(b.dataset.fs);
+  if(b.classList.contains('on')&&FS.s!=='peek'){ fsSheet('peek'); return; }
+  for(const x of $('fsTabs').children) x.classList.toggle('on',x===b);
+  if(b.dataset.fs==='calls'&&el) el.open=true; if(FS.s==='peek') fsSheet('half'); setTimeout(()=>el&&el.scrollIntoView({block:'start',behavior:'smooth'}),220); });
+{ let y0=null,h0=0,moved=false,pid=null; const hd=$('fsHead');   // drag the tab bar / handle: the sheet follows, then snaps to peek, half or full
+  hd.addEventListener('pointerdown',e=>{ y0=e.clientY; h0=$('fsSheet').offsetHeight; moved=false; pid=e.pointerId; });
+  addEventListener('pointermove',e=>{ if(y0==null||e.pointerId!==pid) return; const dy=e.clientY-y0; if(!moved&&Math.abs(dy)<8) return;
+    if(!moved){ moved=true; try{ hd.setPointerCapture(pid); }catch(_){} $('fsSheet').classList.add('drag'); }
+    document.documentElement.style.setProperty('--fsH',Math.max(fsPeekH(),Math.min(innerHeight-40,h0-dy))+'px'); });
+  const end=e=>{ if(y0==null) return; const was=moved; y0=null; $('fsSheet').classList.remove('drag');
+    if(!was){ if(e.type==='pointerup'&&e.target.closest&&e.target.closest('.fs-grab')) fsSheet(FS.s==='peek'?'half':'peek'); return; }
+    const h=$('fsSheet').offsetHeight, H=innerHeight, opts=[['peek',fsPeekH()],['half',H*0.5],['full',H-Math.max(56,H*0.08)]];
+    fsSheet(opts.reduce((m,o)=>Math.abs(o[1]-h)<Math.abs(m[1]-h)?o:m)[0]); };
+  addEventListener('pointerup',end); addEventListener('pointercancel',end);
+  hd.addEventListener('click',e=>{ if(moved){ e.stopPropagation(); e.preventDefault(); moved=false; } },true); }
+$('hud').addEventListener('click',e=>{ if(e.target.closest('#hudA')) return; FS.bar=true; fsApply(); });   // tap the tiles: the whole top bar
+$('fsBarX').onclick=()=>{ FS.bar=false; fsApply(); };
+$('fsBtn').onclick=()=>{ FS.on=!FS.on; ls.set('fsMap',FS.on); FS.bar=false; $('optFs').checked=FS.on; fsApply(); render(); };
+$('optFs').checked=FS.on; $('optFs').addEventListener('change',()=>{ FS.on=$('optFs').checked; ls.set('fsMap',FS.on); FS.bar=false; fsApply(); render(); });
+FS_TABQ.addEventListener('change',()=>{ fsApply(); render(); }); addEventListener('resize',()=>{ if(document.body.classList.contains('fsm')){ fsSheet(FS.s); fsHudPos(); } });
+if(window.ResizeObserver) new ResizeObserver(()=>fsHudPos()).observe($('hudL'));
 function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
   $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
 $('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));
@@ -1490,7 +1539,7 @@ $('satTest').onclick=()=>{ const k=$('satKey').value.trim(), px=satVia()==='prox
   for(const s_ of ['wi','st']){ const im=new Image(), [z,y,x]= s_==='wi'? [8,158,230] : [7,79,115];   // Melbourne
     im.onload=()=>{ res[s_]=true; done(); }; im.onerror=()=>{ res[s_]=false; done(); }; if(px) im.crossOrigin='anonymous'; im.src= px? satUrl(s_,z,y,x) : SAT_SRC[s_].url(z,y,x,k); } };
 satUI();
-$('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; $('chartBox').scrollIntoView({block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
+$('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; fsShow($('chartBox'),{block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
 if(window.caches) chartIndexLoad();
 
 function drawLead(g,sc,C){   // in the ownship frame: forward is -y, 1 NM = sc px. Orange dashed, a cross line each NM, every 2nd numbered
@@ -2063,7 +2112,7 @@ function lastLightUI(){ if(!st.pos){ $('sLast').textContent=''; $('sLastRow').hi
   row.innerHTML=`<small>LAST LIGHT</small><b style="color:${m<=10?'var(--warn)':'var(--accent)'}">in ${Math.max(0,Math.round(m))} min</b><span>${hhmmZ(L.ll)} (${loc(L.ll)}) · end of civil twilight here</span>`; }
 setInterval(()=>{ try{ lastLightUI(); }catch(e){} },20000);
 function render(){
-  $('mapSec').hidden=!st.pos;
+  if($('mapSec').hidden!==!st.pos){ $('mapSec').hidden=!st.pos; fsApply(); }
   if(!st.pos){ return; }
   if(!render.llT||Date.now()-render.llT>20000||render.llP!==Math.round(st.pos[0]*10)+','+Math.round(st.pos[1]*10)){ render.llT=Date.now(); render.llP=Math.round(st.pos[0]*10)+','+Math.round(st.pos[1]*10); lastLightUI(); }
   if(!render.ahT||Date.now()-render.ahT>3000){ render.ahT=Date.now(); aheadUI(); }
@@ -2329,7 +2378,7 @@ $('bWake').onclick=()=>{ st.wakeWant=!st.wakeWant; ls.set('wake',st.wakeWant); s
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') wakeAcquire(); });
 document.addEventListener('pointerdown',e=>{ if(e.target.closest&&e.target.closest('#bWake')) return; if(st.wakeWant && !(st.wake&&!st.wake.released) && !(wakeVid&&!wakeVid.paused)) wakeAcquire(); },true);
 st.wakeWant=ls.get('wake',false); wakeSync(); wakeAcquire();   // the Wake Lock API needs no tap; the video fallback waits for the first one
-$('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); $('adCard').scrollIntoView({block:'start',behavior:'smooth'})});
+$('list').addEventListener('click',e=>{const b=e.target.closest('.row'); if(!b) return; st.pin=b.dataset.i; render(); fsShow($('adCard')); });
 const RANGES=[2.5,5,10,20,40,80,160,320];
 // buttons step through RANGES; pinch (or the mouse wheel) zooms smoothly in between, so step to the next one either way
 $('mapIn').onclick=()=>{ MAP.range=[...RANGES].reverse().find(r=>r<MAP.range-0.01)||RANGES[0]; ls.set('mapRange',MAP.range); render(); };
@@ -2400,11 +2449,11 @@ if(/[?&]shared=1/.test(location.search)&&window.caches){ history.replaceState(nu
   caches.open('radio-au-share').then(async c=>{ const fr=await c.match('share/file'), tr=await c.match('share/text'); await c.delete('share/file'); await c.delete('share/text');
     if(fr){ const b=await fr.blob(); await nbFile(new File([b],decodeURIComponent(fr.headers.get('x-name')||'shared'),{type:b.type})); }
     else if(tr){ const t=await tr.text(); if(nbLoad(t)) $('ntSet').open=true; else $('nbText').value=t; }
-    if(fr||tr) setTimeout(()=>$('ntSet').scrollIntoView({block:'center'}),300); }).catch(()=>{}); }
+    if(fr||tr) setTimeout(()=>fsShow($('ntSet'),{block:'center'}),300); }).catch(()=>{}); }
 { const q=new URLSearchParams(location.search), t=q.get('text'); if(t&&/UTC \d{2}\/\d{2}\/\d{2}/.test(t)){ if(nbLoad(t)){ $('ntSet').open=true; setTimeout(()=>$('ntSet').scrollIntoView({block:'center'}),300); } history.replaceState(null,'',location.pathname); } }   // shared to the installed app (manifest share_target)
 MAP.traffic=ls.get('mapTraffic',false); $('mapTraffic').setAttribute('aria-pressed',MAP.traffic);
 $('mapTraffic').onclick=()=>{ MAP.traffic=!MAP.traffic; ls.set('mapTraffic',MAP.traffic); $('mapTraffic').setAttribute('aria-pressed',MAP.traffic);
-  if(MAP.traffic&&!ntUrl()){ $('ntSet').open=true; $('ntStat').innerHTML='<span class="w">Traffic needs the proxy: enter its address here.</span>'; $('ntSet').scrollIntoView({block:'center'}); }
+  if(MAP.traffic&&!ntUrl()){ $('ntSet').open=true; $('ntStat').innerHTML='<span class="w">Traffic needs the proxy: enter its address here.</span>'; fsShow($('ntSet'),{block:'center'}); }
   if(MAP.traffic){ TR.t=0; TR.ac=[]; trPoll(); } render(); };
 $('trVoice').checked=trVoiceOn(); $('trVoice').onchange=()=>ls.set('trVoice',$('trVoice').checked);
 setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within 25 NM from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
@@ -2419,7 +2468,7 @@ suggest($('simPos'),$('simList'),p=>{ $('simPos').value= p.k==='TOWN'? p.la.toFi
 $('goClr').onclick=()=>setGo(null);
 $('goResume').onclick=()=>fpResume();
 $('fpBody').addEventListener('click',e=>{ if(e.target.closest('#fpResume')) fpResume(); });
-$('goIn').addEventListener('focus',()=>setTimeout(()=>$('goBox').scrollIntoView({block:'start',behavior:'smooth'}),250));
+$('goIn').addEventListener('focus',()=>{ if(document.body.classList.contains('fsm')) fsSheet('full'); setTimeout(()=>$('goBox').scrollIntoView({block:'start',behavior:'smooth'}),250); });
 /* Mic for Go to. Uses the browser's speech recognition, on the phone when it can (processLocally, with the English
    pack downloaded once while online), else the online service when there's signal. Alternatives are tried in order and
    the one whose best search match scores highest goes into the box, with the pick list open, so you confirm with a tap. */
@@ -2486,7 +2535,7 @@ function fpAddPick(p){
   else fpAdd(p,$('fpAddAt').value);
   $('fpAddIn').value=''; $('fpAddErr').hidden=true; $('fpAddIn').focus(); }   // stay in the box for the next point
 suggest($('fpAddIn'),$('fpAddList'),fpAddPick);
-$('fpAddIn').addEventListener('focus',()=>setTimeout(()=>$('fpAddRow').scrollIntoView({block:'start',behavior:'smooth'}),250));   // keep the list above the keyboard
+$('fpAddIn').addEventListener('focus',()=>{ if(document.body.classList.contains('fsm')) fsSheet('full'); setTimeout(()=>$('fpAddRow').scrollIntoView({block:'start',behavior:'smooth'}),250); });   // keep the list above the keyboard
 $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preventDefault(); const v=$('fpAddIn').value.trim(); if(!v) return; const p=findPoint(v);
   if(p) fpAddPick(p); else { $('fpAddErr').textContent=`${v.toUpperCase()} not found. Use a VFR waypoint code (CARR), navaid ident (AV), IFR waypoint, aerodrome code or a place name.`; $('fpAddErr').hidden=false; } });
 // tap the map to pick a waypoint, navaid or aerodrome as go-to
@@ -2606,7 +2655,7 @@ let MM_GUARD=0;
 function mmGuardOn(){ MM_GUARD=Infinity; const lift=()=>{ MM_GUARD=Date.now()+400; window.removeEventListener('pointerup',lift,true); window.removeEventListener('pointercancel',lift,true); };
   window.addEventListener('pointerup',lift,true); window.addEventListener('pointercancel',lift,true); }
 for(const ev of ['click','pointerdown','pointerup','touchend']) $('mapMenu').addEventListener(ev,e=>{ if(Date.now()<MM_GUARD){ e.preventDefault(); e.stopPropagation(); } },true);
-function mapMenu(px,py){
+function mapMenu(px,py){ if(document.body.classList.contains('fsm')&&FS.s!=='peek') fsSheet('peek');
   if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
   let town=null; for(const t of TOWNS){ if(Math.abs(t.la-la)>0.2||Math.abs(t.lo-lo)>0.25) continue; const d=distBrg(t.la,t.lo,la,lo); if(!town||d[0]<town.d) town={t,d:d[0],b:d[1]}; }
   let near=null; for(const it of searchIdx()){ const q=it.p; if(!q||!/^(AD|VFR|NAV)$/.test(q.k)||Math.abs(q.la-la)>0.05||Math.abs(q.lo-lo)>0.07) continue; const d=distBrg(la,lo,q.la,q.lo)[0]; if(d<=2&&(!near||d<near.d)) near={p:q,d}; }
@@ -2933,7 +2982,7 @@ function setSim(on){
     if(s){ $('simPos').value=s.p; $('simAlt').value=s.a; $('simTrk').value=s.t; $('simGs').value=s.g; }
     if(!$('simPos').value) $('simPos').value='YMAV';
     simApply(); simFold(ls.get('simOpen',true)); }
-  else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null; $('mapSec').hidden=true;
+  else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null; $('mapSec').hidden=true; fsApply();
     $('sAcc').textContent='—'; $('gpsDot').className='dot'; $('sGs').textContent='—'; $('sAlt').textContent='—';
     $('adId').textContent='----'; $('adName').textContent='Waiting for position'; $('stack').innerHTML=''; $('list').innerHTML='';
     if(!watching) $('startBox').hidden=false; }
