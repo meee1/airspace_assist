@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793508461904;
+const APP_BUILT=1793514712658;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1884,6 +1884,21 @@ function drawMap(la,lo,h,pick,AS,altFt){
   { const hd=heading(); g.save(); g.translate(ox,oy); g.rotate(((hd?hd.deg:0)-rot)*R); }
   g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,4); g.lineTo(-7,8); g.closePath();
   g.fillStyle=C.fr; g.strokeStyle=C.bg; g.lineWidth=2; g.stroke(); g.fill(); g.restore();
+  // its magnetic bearing and distance from you, on the line (up to 95 px out from your arrow, so it clears the tiles and buttons over the map; drawn over the lead line)
+  if(st.pos&&pick.d!=null&&pick.b!=null&&Math.hypot(sx-ox,sy-oy)>60){ const W_=g.canvas.clientWidth||g.canvas.width, H_=g.canvas.clientHeight||g.canvas.height;
+    const t0=0; let t1=1;
+    const ex=(t)=>[ox+(sx-ox)*t, oy+(sy-oy)*t], inside=([x,y])=>x>8&&y>8&&x<W_-8&&y<H_-8;
+    while(t1>0.1&&!inside(ex(t1))) t1-=0.05;   // the aerodrome may be off screen: label the part you can see
+    const Lv=Math.hypot(sx-ox,sy-oy)*(t1-t0), [mx,my]=ex(Math.min(0.6*Lv,95)/Math.hypot(sx-ox,sy-oy)), lab=`${fmt3(pick.b-variation(st.pos[0],st.pos[1]))}°/${Math.round(pick.d)}NM`;   // short: magnetic bearing / whole NM
+    const nx=-(sy-oy), ny=(sx-ox), nl=Math.hypot(nx,ny)||1, off=0, lx=mx+nx/nl*off, ly=my+ny/nl*off;
+    g.font='700 10.5px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+    let ang=Math.atan2(sy-oy,sx-ox), fl=false; if(ang>Math.PI/2){ ang-=Math.PI; fl=true; } else if(ang<-Math.PI/2){ ang+=Math.PI; fl=true; }   // on the line, never upside down
+    const tw0=g.measureText(lab).width, tw=tw0+23, dir=fl?-1:1;   // a drawn arrowhead at the aerodrome end of the box (the font's arrows are too small)
+    g.save(); g.translate(lx,ly); g.rotate(ang);
+    g.fillStyle=C.bg; g.globalAlpha=.92; g.beginPath(); g.roundRect? g.roundRect(-tw/2,-8,tw,16,5) : g.rect(-tw/2,-8,tw,16); g.fill(); g.globalAlpha=1;
+    g.strokeStyle=C.acc; g.lineWidth=1.2; g.stroke(); g.fillStyle=C.acc; g.fillText(lab,-dir*6,0.5);
+    const ax=dir*(tw/2-8); g.beginPath(); g.moveTo(ax+dir*4.5,0); g.lineTo(ax-dir*3.5,-4.5); g.lineTo(ax-dir*3.5,4.5); g.closePath(); g.fill();
+    g.restore(); g.textAlign='left'; g.textBaseline='alphabetic'; }
   if(MAP.traffic&&MAP.trBox) MAP.trBox();   // selected traffic details, on top
   // north pointer
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';

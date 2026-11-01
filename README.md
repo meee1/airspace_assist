@@ -70,6 +70,8 @@ The area frequency depends on altitude. The app builds the airspace stack above 
 ## Airspace map
 The map sits at the top of the screen, straight under the top bar, with Go to, the flight plan and the aerodrome card below it. Pinch to zoom (2.5 to 320 NM; the mouse wheel on a computer), or use − and + to step through 2.5, 5, 10, 20, 40, 80, 160 and 320 NM, and the button to switch between track up and north up. Below them, **CTAF**, **Terrain**, **Charts**, **Lead** and **Log** turn those layers on and off (remembered on the phone).
 
+**Selected aerodrome line:** the dashed orange line from your arrow to the aerodrome on the card (closest, flight plan, or one you tapped) carries its magnetic bearing and distance from you in a small box on the line near your arrow, written along it (never upside down) with an arrowhead pointing to the aerodrome, e.g. **227°/5NM ▶** (magnetic bearing / whole NM), the same figures as the card.
+
 **Log** draws the flight log on the map: the track you've flown in the last 6 hours (the same fixes that **Flight log** downloads), as a dark line that fades with age, broken where there's a gap of over a minute or 1.5 NM (screen off, app closed). A ring marked →4 shows where the flight plan moved on to waypoint 4. In simulation, the simulated track of this session is shown in grey; it's never stored or exported. Off by default.
 - Lines follow chart conventions: C solid blue, D and CTR dashed blue, E violet, restricted areas red, danger areas dashed orange.
 - Each step is labelled chart-style: class, then upper over lower limit.
