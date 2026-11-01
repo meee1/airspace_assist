@@ -426,8 +426,8 @@ body.fsm #fsSheet{display:flex;flex-direction:column;position:fixed;left:0;right
 body.fsm #fsBody .ad-head{top:0}
 body.fsm #fsBody #colA{display:flex;flex-direction:column;gap:12px}
 body.fsm:not(.fsm-tab):not(.fsm-bar) #hud{display:block}
-body.fsm:not(.fsm-tab) .status{display:none}
-body.fsm.fsm-bar .status{display:grid;position:fixed!important;top:0;left:0;right:0;z-index:25;background:var(--bg);padding:max(6px,env(safe-area-inset-top,0px)) 8px 8px!important;margin:0!important;max-height:85dvh;overflow:auto;box-shadow:0 6px 22px rgba(0,0,0,.25)}
+body.fsm:not(.fsm-tab) .wrap>.status{display:none}
+body.fsm.fsm-bar .wrap>.status{display:grid;position:fixed!important;top:0;left:0;right:0;z-index:25;background:var(--bg);padding:max(6px,env(safe-area-inset-top,0px)) 8px 8px!important;margin:0!important;max-height:85dvh;overflow:auto;box-shadow:0 6px 22px rgba(0,0,0,.25)}
 body.fsm.fsm-bar .fsbar-x{display:block;grid-column:1/-1;font:700 13px var(--f-label);padding:9px;cursor:pointer;color:var(--ink)}
 #hudL,#hudR,#hudA{position:fixed;z-index:20;display:flex;flex-direction:column;gap:5px}
 #hudL{top:max(8px,env(safe-area-inset-top,0px));left:max(8px,env(safe-area-inset-left,0px));width:min(60vw,330px)}
@@ -442,13 +442,13 @@ body.fsm .mapmenu{z-index:9}
 #hud .st.t b{font-size:19px;margin:0} #hud .st.t small.agl,#hud .st.t small.cap{font-size:10.5px}
 #hud .st.gps{flex-direction:row;height:auto;padding:4px 8px;justify-content:flex-start;gap:6px;align-self:flex-end;width:auto}
 #hud .st.nxcls{flex-wrap:wrap;font-size:12.5px;padding:5px 8px} #hud .st.nxcls span{white-space:normal;flex-basis:100%} #hud .st.traffic{font-size:13px}
-body.fsm.fsm-tab .status{position:fixed!important;top:0;bottom:0;left:0;width:300px;z-index:20;margin:0!important;padding:max(8px,env(safe-area-inset-top,0px)) 8px 8px max(8px,env(safe-area-inset-left,0px))!important;overflow:auto;background:var(--bg);grid-template-columns:repeat(2,minmax(0,1fr))!important;align-content:start;border-right:1px solid var(--rule)}
-body.fsm.fsm-tab .status{grid-template-columns:repeat(6,minmax(0,1fr))!important}
-body.fsm.fsm-tab .status>.st{grid-column:span 3!important}
-body.fsm.fsm-tab .status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .status>#sHdgBox,body.fsm.fsm-tab .status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .status>#sLimBox{grid-column:span 4!important}
-body.fsm.fsm-tab .status>.st.fq,body.fsm.fsm-tab .status>.st.ctl,body.fsm.fsm-tab .status>.st.nxcls,body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>.fsbar-x{grid-column:1/-1!important}
-body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>#sInbound,body.fsm.fsm-tab .status>#sInSua,body.fsm.fsm-tab .status>#sNxCls,body.fsm.fsm-tab .status>#sLastRow{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
-body.fsm.fsm-tab .status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .status>.st.nxcls span{white-space:normal;flex-basis:100%}
+body.fsm.fsm-tab .wrap>.status{position:fixed!important;top:0;bottom:0;left:0;width:300px;z-index:20;margin:0!important;padding:max(8px,env(safe-area-inset-top,0px)) 8px 8px max(8px,env(safe-area-inset-left,0px))!important;overflow:auto;background:var(--bg);grid-template-columns:repeat(2,minmax(0,1fr))!important;align-content:start;border-right:1px solid var(--rule)}
+body.fsm.fsm-tab .wrap>.status{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+body.fsm.fsm-tab .wrap>.status>.st{grid-column:span 3!important}
+body.fsm.fsm-tab .wrap>.status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .wrap>.status>#sHdgBox,body.fsm.fsm-tab .wrap>.status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .wrap>.status>#sLimBox{grid-column:span 4!important}
+body.fsm.fsm-tab .wrap>.status>.st.fq,body.fsm.fsm-tab .wrap>.status>.st.ctl,body.fsm.fsm-tab .wrap>.status>.st.nxcls,body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>.fsbar-x{grid-column:1/-1!important}
+body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
+body.fsm.fsm-tab .wrap>.status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .wrap>.status>.st.nxcls span{white-space:normal;flex-basis:100%}
 body.fsm.fsm-tab #mapSec{left:300px}
 body.fsm.fsm-tab #fsSheet{left:300px}
 </style>
@@ -752,7 +752,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=661b99b571';
+    const s=document.createElement('script'); s.src='app.js?v=ea02a035e6';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
