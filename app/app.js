@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793498832493;
+const APP_BUILT=1793507749884;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -961,6 +961,17 @@ $('gCtl').onclick=()=>{ const i=$('gCtl').dataset.ad; if(i){ st.pin=i; render();
 function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl', P+'CtafAd'); when: time for tower hours (ETA)
   const CI=ctafInfo(a), tp=twrPick(a,pk), ts=tp?twrStatus(a,when||new Date()):null, open=tp&&(ts?ts.on:true), pre=P==='g'?'→ ':'';   // hours unknown: assume the tower is active
   const L=$(P+'CtafLbl'), F=$(P+'Ctaf'), W=$(P+'CtafAd'); let ap=null;
+  // top tile with no aerodrome within 10 NM of you (and not inside the control zone of an open tower): the broadcast area's
+  // frequency where there is one, else 126.7, as the map menu does; the closest aerodrome stays on the card and the ATC row
+  if(P==='s'&&pk&&pk.d>10&&st.pos&&!(open&&ASP.some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)))){
+    // no broadcast area either: the area frequency for your position and altitude (owner, 1 Nov 2026)
+    const ba=baAt(st.pos[0],st.pos[1]); let f, lab='CTAF', who, cn;
+    if(ba&&ba.f){ f=ba.f; who='broadcast area'; cn=titleCase(ba.n)+' broadcast area'; }
+    else { const t=terrainFt(st.pos[0],st.pos[1]), alt=st.alt!=null?st.alt:0, AS=airStack(st.pos[0],st.pos[1],t!=null?t:0), b=AS.bands.find(q=>alt>=q.L-50&&alt<q.H)||AS.bands[AS.bands.length-1];
+      f=b&&b.f||'—'; lab='AREA'; who=b&&b.unit? unitShort(b.unit) : 'area'; cn=`no aerodrome within 10 NM (${a.i} ${Math.round(pk.d)} NM)`; }
+    L.textContent=lab; F.textContent=f; W.textContent=who;
+    const N=$(P+'CtafCn'); if(N) N.textContent=cn;
+    return {tp:null,ts:null,open:false,CI:{f,src:ba&&ba.f?ASRC:'DAH',far:true}}; }
   if(open&&tp.ground&&P==='s'){ L.textContent='GND'; F.textContent=tp.ground[2]; W.textContent=a.i+' · on the ground'; }
   else if(open&&P==='s'&&(ap=towerApp(a))){ L.textContent='APP'; F.textContent=ap[2]; W.textContent=a.i+' · '+unitShort(ap[1]||'')+' · not in plan'; }   // just passing a towered field: its approach unit
   else if(open){ const t=tp.tw; L.textContent=pre+(tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'); F.textContent=t[2]; W.textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
@@ -978,7 +989,7 @@ function adPlanned(a){ if(FP&&FP.pts.some(p=>(p.c||'').toUpperCase()===a.i||dist
 function towerApp(a){
   const apps=(a.x||[]).filter(x=>x[0]==='APP'); if(!apps.length||!st.pos||adPlanned(a)) return null;
   const alt=st.alt!=null?st.alt:0, t=terrainFt(st.pos[0],st.pos[1]);
-  if(ASP.some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)&&alt<limFt(z.hi,z.hik,t!=null?t:0,0))) return null;   // in its zone: tower
+  if(distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]<3&&ASP.some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)&&alt<limFt(z.hi,z.hik,t!=null?t:0,0))) return null;   // in its zone within 3 NM of the field (circuit, departing): tower. Elsewhere in the zone you're transiting: approach (owner, 1 Nov 2026)
   if(apps.length>1){ const fs=sectorsAt(st.pos[0],st.pos[1],alt).map(x=>x.f); const m=apps.find(x=>fs.includes(x[2])); if(m) return m; }
   return apps[0]; }
 // weather box on the aerodrome card (trial): the briefing's METAR/SPECI with wind, QNH, temperature, density altitude
@@ -2090,6 +2101,12 @@ function heading(){ // returns {deg(true), src}
   if(st.compass!=null) return {deg: norm(cmpTrue()+(CMP.n>=CMP_MIN?CMP.off:0)), src:'HDG'};
   return null;
 }
+function ctafSplitPair(a,b){ // would the map (split on) cut between these two aerodromes' CTAF circles?
+  if(!ls.get('ctafSplit',true)) return false;
+  const fa=ctafInfo(a).f||'TWR '+a.i, fb=ctafInfo(b).f||'TWR '+b.i; if(fa===fb) return false;
+  if(!ls.get('ctafSplit127',false)&&(fa==='126.7'||fb==='126.7')) return false;
+  const inCtr=x=>!(x.x&&x.x.some(y=>y[0]==='TWR'))&&ASP.some(z=>z.k==='CTR'&&inAsp(z,x.la,x.lo));
+  return !inCtr(a)&&!inCtr(b)&&distBrg(a.la,a.lo,b.la,b.lo)[0]<20; }
 function score(c,h){
   if(!st.ahead||!h) return c.d;
   const rel=Math.abs(((c.b-h.deg+540)%360)-180);
@@ -2164,7 +2181,15 @@ function render(){
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
   // top tiles: where you are (closest aerodrome), whatever the card below is showing (pinned, flight plan, Go to)
-  const herePk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0], here=herePk.a; st.ntHere=here;
+  let herePk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0];
+  { // stay on the CTAF you're in: the aerodrome the tile showed keeps it while you're within 10 NM of it, unless the closer one
+    // is your plan / Go to aerodrome or you're within 3 NM of it (joining, overhead); a jump of more than 5 NM (sim, GPS restart) resets
+    // ... but follow the map's split CTAF areas: with Options → split on, two different frequencies (126.7 only when
+    // "split 126.7" is ticked; not for a strip inside a control zone) are divided halfway, so the nearer one is right there
+    const hold=st.ctafHold, prev=hold&&cands.find(c=>c.a.i===hold.i);
+    if(prev&&prev.a!==herePk.a&&prev.d<=10&&distBrg(hold.la,hold.lo,la,lo)[0]<5&&!(herePk.d<=3||adPlanned(herePk.a))&&!ctafSplitPair(prev.a,herePk.a)) herePk=prev;
+    st.ctafHold={i:herePk.a.i,la,lo}; }
+  const here=herePk.a; st.ntHere=here;
   { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; renderCtl(here,r.tp,r.open,r.ts); }
   $('ctafRow').innerHTML=html; html='';
   { const L=ntFor(a.i).sort((x,y)=>ntTime(x.from)-ntTime(y.from)), key=L.some(n=>/\b(CLSD|CLOSED|U\/S|NOT AVBL)\b/.test(n.text||''));
@@ -2233,8 +2258,10 @@ function render(){
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
     const T=st.twrTile, spl=!g&&cur&&T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===cur.f);   // e.g. in Moorabbin's zone, west of the field: 123.0
     if(spl){ $('sAreaLbl').textContent='TWR '+T.tp.tw[4][0]; $('sArea').textContent=T.tp.tw[2]; }
+    const capp= cur&&cur.k==='CTR'? ctrApp(cur).app : null;   // transiting a control zone (its aerodrome not in your plan / Go to, more than 3 NM from it): the approach unit
+    if(capp){ $('sAreaLbl').textContent='APP'; $('sArea').textContent=capp[2]; }
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
-    { const ll=areaLL(AS,cur), u=cur? unitShort(cur.unit) : ''; $('sAreaWho').textContent=u+(ll?(u?' · ':'')+ll:''); } if(spl) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); }
+    { const ll=areaLL(AS,cur), u=cur? unitShort(cur.unit) : ''; $('sAreaWho').textContent=u+(ll?(u?' · ':'')+ll:''); } if(spl&&!capp) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); if(capp) $('sAreaWho').textContent=unitShort(capp[1]||'')+' · zone transit'; }
   renderGoTiles(here,$('sArea').textContent,altFt);
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);
