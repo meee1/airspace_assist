@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793507749884;
+const APP_BUILT=1793508461904;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -977,7 +977,9 @@ function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl',
   else if(open){ const t=tp.tw; L.textContent=pre+(tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'); F.textContent=t[2]; W.textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
   else { L.textContent=pre+'CTAF'; F.textContent=CI.f||'—'; W.textContent=a.i; }
   { const cn=callName(a.n,a.i), N=$(P+'CtafCn');   // the name you say on the radio, on its own line: "Barwon Heads traffic", "Moorabbin Tower"
-    if(N) N.textContent= ap? titleCase(ap[1]||a.i+' approach').replace(/\bApp\b/,'Approach') : open&&tp.ground&&P==='s'? cn+' Ground' : open? cn+' Tower' : cn+' traffic'; }
+    if(N) N.textContent= ap? titleCase(ap[1]||a.i+' approach').replace(/\bApp\b/,'Approach') : open&&tp.ground&&P==='s'? cn+' Ground' : open? cn+' Tower' : cn+' traffic';
+    // where you are from the aerodrome, as you'd say it in a call: "Riddell traffic · 4.2 NM NW" (the bearing reversed: from the field to you)
+    if(N&&P==='s'&&pk&&pk.d!=null&&!(open&&tp.ground)){ const r=((pk.b+180)%360+360)%360; N.textContent+= pk.d<0.5? ' · overhead' : ` · ${pk.d<10?pk.d.toFixed(1):Math.round(pk.d)} NM ${COMP[Math.round(r/45)%8]}`; } }
   W.textContent+=ntCountTxt(a.i);
   return {tp,ts,open,CI};
 }
