@@ -240,6 +240,20 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
 .st.off{display:none!important}
+.tafwrap{overflow-x:auto;margin:6px 0;border:1px solid var(--rule);border-radius:8px;-webkit-overflow-scrolling:touch}
+.taft{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+.taft th{position:sticky;left:0;z-index:1;background:var(--panel);text-align:left;font:600 11px var(--f-label);color:var(--dim);padding:6px 8px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.taft td{text-align:center;padding:6px 8px;border-bottom:1px solid var(--rule);border-right:1px solid color-mix(in srgb,var(--rule) 60%,transparent);min-width:62px;vertical-align:middle}
+.taft td small{display:block;color:var(--dim);font-size:10.5px;white-space:normal;max-width:84px;margin:0 auto}
+.taft td b{display:block;font:700 14px var(--f-mono)}
+.taft td.now{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.tafc{display:inline-block;font:700 11px var(--f-label);padding:3px 8px;border-radius:10px;color:#fff}
+.tafc.vfr{background:#2e9d4a} .tafc.mvfr{background:#2f6fd0} .tafc.ifr{background:#c8202f} .tafc.lifr{background:#9b2fb8}
+.tafi{font-size:22px;line-height:1.2;display:block}
+.tafw{width:20px;height:20px;display:block;margin:0 auto;fill:var(--ink);stroke:var(--ink)}
+.taftmp{font-size:11px;font-weight:700;color:var(--accent);white-space:normal} .taftmp+.taftmp{margin-top:4px;border-top:1px dashed var(--rule);padding-top:4px}
+.taft tr.tmp td{vertical-align:top}
+
 .st.nxcls.clr{cursor:pointer;border-color:var(--as-c);background:color-mix(in srgb,var(--as-c) 10%,var(--panel))} .st.nxcls.clr b{color:var(--as-c);font-family:var(--f-mono)} #hud .st.nxcls.clr span{-webkit-line-clamp:unset;display:block}
 #sNxCls{cursor:pointer}
 .atis-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:5px;margin:4px 0 10px} .atis-grid .btn{padding:8px 0;justify-content:center;font:700 15px var(--f-mono)} .atis-grid .btn.on{background:var(--freq);color:#fff;border-color:var(--freq)}
@@ -779,7 +793,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=43c5521a5f';
+    const s=document.createElement('script'); s.src='app.js?v=28b13abbaa';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

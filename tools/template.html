@@ -240,6 +240,20 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
 .st.off{display:none!important}
+.tafwrap{overflow-x:auto;margin:6px 0;border:1px solid var(--rule);border-radius:8px;-webkit-overflow-scrolling:touch}
+.taft{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+.taft th{position:sticky;left:0;z-index:1;background:var(--panel);text-align:left;font:600 11px var(--f-label);color:var(--dim);padding:6px 8px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.taft td{text-align:center;padding:6px 8px;border-bottom:1px solid var(--rule);border-right:1px solid color-mix(in srgb,var(--rule) 60%,transparent);min-width:62px;vertical-align:middle}
+.taft td small{display:block;color:var(--dim);font-size:10.5px;white-space:normal;max-width:84px;margin:0 auto}
+.taft td b{display:block;font:700 14px var(--f-mono)}
+.taft td.now{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.tafc{display:inline-block;font:700 11px var(--f-label);padding:3px 8px;border-radius:10px;color:#fff}
+.tafc.vfr{background:#2e9d4a} .tafc.mvfr{background:#2f6fd0} .tafc.ifr{background:#c8202f} .tafc.lifr{background:#9b2fb8}
+.tafi{font-size:22px;line-height:1.2;display:block}
+.tafw{width:20px;height:20px;display:block;margin:0 auto;fill:var(--ink);stroke:var(--ink)}
+.taftmp{font-size:11px;font-weight:700;color:var(--accent);white-space:normal} .taftmp+.taftmp{margin-top:4px;border-top:1px dashed var(--rule);padding-top:4px}
+.taft tr.tmp td{vertical-align:top}
+
 .st.nxcls.clr{cursor:pointer;border-color:var(--as-c);background:color-mix(in srgb,var(--as-c) 10%,var(--panel))} .st.nxcls.clr b{color:var(--as-c);font-family:var(--f-mono)} #hud .st.nxcls.clr span{-webkit-line-clamp:unset;display:block}
 #sNxCls{cursor:pointer}
 .atis-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:5px;margin:4px 0 10px} .atis-grid .btn{padding:8px 0;justify-content:center;font:700 15px var(--f-mono)} .atis-grid .btn.on{background:var(--freq);color:#fff;border-color:var(--freq)}
@@ -1743,6 +1757,84 @@ function towerApp(a){
   return apps[0]; }
 // weather box on the aerodrome card (trial): the briefing's METAR/SPECI with wind, QNH, temperature, density altitude
 // and the wind on each runway, and its TAF as published
+// ---------- TAF decoder: the briefing's TAF as an hour-by-hour table (like metar-taf.com): flight category (VFR / MVFR / IFR /
+// LIFR from ceiling and visibility), weather, visibility, ceiling, wind (arrow points downwind) and speed, gusts, the RMK T/Q
+// temperatures and QNH (3-hourly from the start of validity), and TEMPO / INTER / PROB periods as a second line per hour.
+// FM replaces the whole forecast from its time; BECMG changes the groups it lists from the start of its period.
+const TAF_WX={DZ:'drizzle',RA:'rain',SN:'snow',SG:'snow grains',GR:'hail',GS:'small hail',PL:'ice pellets',BR:'mist',FG:'fog',FU:'smoke',HZ:'haze',DU:'dust',SA:'sand',VA:'ash',SQ:'squalls',FC:'funnel cloud',SS:'sandstorm',DS:'duststorm',PO:'dust whirls',UP:'precipitation'};
+function tafCond(toks){ const c={wx:[],cl:[]}; let any=false;
+  for(const t of toks){ let m;
+    if((m=/^(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?(KT|MPS)$/.exec(t))){ c.vrb=m[1]==='VRB'; c.dir=c.vrb?null:+m[1]; c.spd=+m[2]; c.gust=m[3]?+m[3]:null; if(m[4]==='MPS'){ c.spd=Math.round(c.spd*1.944); if(c.gust) c.gust=Math.round(c.gust*1.944); } c.wind=true; any=true; }
+    else if(t==='CAVOK'){ c.cavok=true; c.vis=10000; c.cl=[]; c.nsw=true; any=true; }
+    else if(/^\d{4}$/.test(t)){ c.vis=+t; any=true; }
+    else if((m=/^(FEW|SCT|BKN|OVC)(\d{3})(CB|TCU)?$/.exec(t))){ c.cl.push({c:m[1],h:+m[2]*100,cb:m[3]||''}); c.clSet=true; any=true; }
+    else if(t==='NSC'||t==='SKC'||t==='NCD'){ c.cl=[]; c.clSet=true; any=true; }
+    else if(t==='NSW'){ c.wx=[]; c.nsw=true; any=true; }
+    else if((m=/^(VV)(\d{3})$/.exec(t))){ c.cl.push({c:'OVC',h:+m[2]*100}); c.clSet=true; any=true; }
+    else if((m=/^([+-]|VC)?(MI|BC|PR|DR|BL|SH|TS|FZ)?((?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PO|SQ|FC|SS|DS)*)$/.exec(t))&&(m[2]||m[3])){ c.wx.push(t); c.wxSet=true; any=true; } }
+  return any? c : null; }
+function tafTime(dd,hh,mm,ref){ const r=new Date(ref); let t=Date.UTC(r.getUTCFullYear(),r.getUTCMonth(),+dd,+hh,+(mm||0)); if(t-ref>15*864e5) t=Date.UTC(r.getUTCFullYear(),r.getUTCMonth()-1,+dd,+hh,+(mm||0)); else if(ref-t>15*864e5) t=Date.UTC(r.getUTCFullYear(),r.getUTCMonth()+1,+dd,+hh,+(mm||0)); return t; }
+function tafDecode(raw,issued){ const T=raw.replace(/=\s*$/,'').split(/\s+/), ref=issued||Date.now(); let i=0;
+  while(i<T.length&&/^(TAF|AMD|COR)$/.test(T[i])) i++; const icao=T[i++]; if(/^\d{6}Z$/.test(T[i]||'')) i++;
+  const v=/^(\d{2})(\d{2})\/(\d{2})(\d{2})$/.exec(T[i]||''); if(!v) return null; i++;
+  const from=tafTime(v[1],v[2],0,ref), to=tafTime(v[3],v[4],0,ref);
+  const groups=[]; let cur={k:'BASE',t0:from,t1:to,toks:[]}; const rmk=[];
+  for(;i<T.length;i++){ const t=T[i]; let m;
+    if(t==='RMK'){ rmk.push(...T.slice(i+1)); break; }
+    if((m=/^FM(\d{2})(\d{2})(\d{2})$/.exec(t))){ groups.push(cur); cur={k:'FM',t0:tafTime(m[1],m[2],m[3],ref),toks:[]}; continue; }
+    if(t==='BECMG'||t==='TEMPO'||t==='INTER'||/^PROB\d{2}$/.test(t)){ groups.push(cur); let k=t, p=null; if(/^PROB/.test(t)){ p=+t.slice(4); if(T[i+1]==='TEMPO'||T[i+1]==='INTER'){ k=T[i+1]; i++; } else k='PROB'; }
+      const pm=/^(\d{2})(\d{2})\/(\d{2})(\d{2})$/.exec(T[i+1]||''); if(pm) i++;
+      cur={k,prob:p,t0:pm?tafTime(pm[1],pm[2],0,ref):null,t1:pm?tafTime(pm[3],pm[4],0,ref):null,toks:[]}; continue; }
+    cur.toks.push(t); }
+  groups.push(cur);
+  for(const g of groups) g.c=tafCond(g.toks)||{wx:[],cl:[]};
+  // RMK: T and Q lists, 3-hourly from the start of validity
+  const tq={T:[],Q:[]}; let key=null; for(const r of rmk){ if(r==='T'||r==='Q'){ key=r; continue; } if(key&&/^M?\d{1,4}$/.test(r)) tq[key].push(r[0]==='M'?-(+r.slice(1)):+r); else key=null; }
+  return {icao,from,to,groups,tq}; }
+function tafAt(D,t){ let s=null, becm=false; const tmp=[];
+  for(const g of D.groups){ if(g.k==='BASE'||(g.k==='FM'&&g.t0<=t)){ s=JSON.parse(JSON.stringify(g.c)); becm=false; continue; }
+    if(g.k==='BECMG'&&g.t0!=null&&g.t0<=t&&s){ const c=g.c; if(c.wind) Object.assign(s,{dir:c.dir,vrb:c.vrb,spd:c.spd,gust:c.gust,wind:true}); if(c.vis!=null) s.vis=c.vis; if(c.cavok){ s.cavok=true; s.cl=[]; s.wx=[]; }
+      if(c.clSet){ s.cl=c.cl; s.cavok=false; } if(c.wxSet||c.nsw) s.wx=c.wx; if(t<g.t1) becm=true; continue; }
+    if((g.k==='TEMPO'||g.k==='INTER'||g.k==='PROB')&&g.t0!=null&&g.t0<=t&&t<g.t1) tmp.push(g); }
+  return {s:s||{wx:[],cl:[]},becm,tmp}; }
+function tafCeil(c){ if(c.cavok) return null; const b=c.cl.filter(x=>x.c==='BKN'||x.c==='OVC').map(x=>x.h); return b.length? Math.min(...b) : null; }
+function tafCat(c){ const ce=tafCeil(c), v=c.vis!=null?c.vis:10000;
+  return (ce!=null&&ce<500)||v<1600? 'LIFR' : (ce!=null&&ce<1000)||v<5000? 'IFR' : (ce!=null&&ce<=3000)||v<=8000? 'MVFR' : 'VFR'; }
+const TAF_RANK={VFR:0,MVFR:1,IFR:2,LIFR:3};
+function tafWxTxt(c){ const w=(c.wx||[]).map(x=>{ const m=/^([+-]|VC)?(MI|BC|PR|DR|BL|SH|TS|FZ)?(.*)$/.exec(x), ph=(m[3].match(/../g)||[]).map(p=>TAF_WX[p]||p).join(' and ');
+    const q=m[1]==='+'?'heavy ':m[1]==='-'?'light ':m[1]==='VC'?'nearby ':'', d={SH:'showers of ',TS:'thunderstorm',FZ:'freezing ',BL:'blowing ',DR:'drifting ',MI:'shallow ',BC:'patches of ',PR:'partial '}[m[2]]||'';
+    return (q+(m[2]==='TS'?'thunderstorm'+(ph?' with '+ph:''):d+ph)).trim(); });
+  const top=c.cavok?'':['OVC','BKN','SCT','FEW'].find(k=>c.cl.some(x=>x.c===k)), cl={OVC:'overcast',BKN:'broken cloud',SCT:'scattered cloud',FEW:'few clouds'}[top]||(c.cavok?'CAVOK':'clear');
+  return w.length? w.join(', ') : cl; }
+function tafIcon(c,night){ const wx=(c.wx||[]).join(' '), top=['OVC','BKN','SCT','FEW'].find(k=>(c.cl||[]).some(x=>x.c===k));
+  if(/TS/.test(wx)) return '⛈️'; if(/SH/.test(wx)) return night?'🌧️':'🌦️'; if(/RA|DZ/.test(wx)) return '🌧️'; if(/SN|GR|GS|PL/.test(wx)) return '🌨️'; if(/FG|BR|HZ|FU|DU/.test(wx)) return '🌫️';
+  if(top==='OVC'||top==='BKN') return '☁️'; if(top==='SCT') return night?'☁️':'⛅'; if(top==='FEW') return night?'🌙':'🌤️'; return night?'🌙':'☀️'; }
+function tafVis(v){ return v==null? '—' : v>=9999? '10 km+' : v>=5000? Math.round(v/1000)+' km' : v>=1000? (v/1000).toFixed(1)+' km' : v+' m'; }
+function tafTable(raw,issued,ad){ const D=tafDecode(raw,issued); if(!D) return '';
+  const now=Date.now(), h0=Math.max(D.from,Math.floor(now/3600e3)*3600e3), cols=[];
+  for(let t=h0;t<D.to&&cols.length<30;t+=3600e3) cols.push(t);
+  if(!cols.length) return '<div class="vnote">This TAF has expired.</div>';
+  const loc=t=>new Date(t), dn=t=>loc(t).toLocaleDateString('en-AU',{weekday:'short'}), hh=t=>String(loc(t).getHours()).padStart(2,'0')+':00';
+  const night=t=>{ const L=ad? lastLight(ad.la,ad.lo,t) : null; return !!(L&&L.night); };
+  const tqAt=(k,t)=>{ const a=D.tq[k]; if(!a.length) return null; const i=Math.floor((t-D.from)/(3*3600e3)); return i>=0&&i<a.length? a[i] : null; };
+  const arrow=d=>d==null? '' : `<svg class="tafw" viewBox="0 0 20 20" style="transform:rotate(${(d+180)%360}deg)"><path d="M10 2 15 12 10 9.5 5 12Z"/><path d="M10 9 V18" stroke-width="2"/></svg>`;
+  const A=cols.map(t=>({t,...tafAt(D,t)}));
+  const badge=c=>`<span class="tafc ${c.toLowerCase()}">${c}</span>`;
+  const row=(lab,f,cls='')=>`<tr class="${cls}"><th>${lab}</th>${A.map((x,i)=>`<td class="${x.t<=now&&now<x.t+3600e3?'now':''}">${f(x,i)}</td>`).join('')}</tr>`;
+  let h='<div class="tafwrap"><table class="taft"><tbody>';
+  h+=row('Time',x=>`<small>${dn(x.t)}</small><b>${hh(x.t)}</b><small>${new Date(x.t).toISOString().slice(11,13)}Z</small>`);
+  h+=row('Code',x=>badge(tafCat(x.s))+(x.becm?'<small>becoming</small>':''));
+  h+=row('Weather',x=>`<span class="tafi">${tafIcon(x.s,night(x.t))}</span><small>${esc(tafWxTxt(x.s))}</small>`);
+  h+=row('Visibility',x=>tafVis(x.s.vis));
+  h+=row('Ceiling',x=>{ const c=tafCeil(x.s); return c==null? '–' : c.toLocaleString('en-AU')+' ft'; });
+  h+=row('Cloud',x=>x.s.cavok?'CAVOK':(x.s.cl||[]).map(c=>`${c.c} ${c.h/100|0}${c.cb?' '+c.cb:''}`).join('<br>')||'–');
+  h+=row('Wind',x=>x.s.vrb? 'VRB' : x.s.dir!=null? arrow(x.s.dir)+`<small>${String(x.s.dir).padStart(3,'0')}°T</small>` : '–');
+  h+=row('Speed',x=>x.s.spd!=null? x.s.spd+' kt' : '–');
+  h+=row('Gusts',x=>x.s.gust? x.s.gust+' kt' : '');
+  if(D.tq.T.length||D.tq.Q.length) h+=row('Temp / QNH',x=>{ const T=tqAt('T',x.t), Q=tqAt('Q',x.t); return [T!=null?T+'°C':'',Q!=null?'Q'+Q:''].filter(Boolean).join('<br>'); });
+  if(A.some(x=>x.tmp.length)) h+=row('TEMPO / INTER',x=>x.tmp.map(g=>{ const c={...x.s,...g.c, cl:g.c.clSet?g.c.cl:x.s.cl, wx:g.c.wxSet?g.c.wx:x.s.wx, vis:g.c.vis!=null?g.c.vis:x.s.vis}; const cat=tafCat(c);
+      return `<div class="taftmp">${g.prob?'PROB'+g.prob+' ':''}${g.k==='PROB'?'':g.k}<br>${TAF_RANK[cat]>TAF_RANK[tafCat(x.s)]?badge(cat):''}<small>${esc([g.c.vis!=null?tafVis(g.c.vis):'',g.c.wx.length?tafWxTxt(g.c):'',g.c.clSet?(g.c.cl.map(q=>q.c+' '+(q.h/100|0)).join(' ')||'NSC'):'',g.c.wind?(g.c.vrb?'VRB':String(g.c.dir).padStart(3,'0'))+'/'+g.c.spd+(g.c.gust?'G'+g.c.gust:''):''].filter(Boolean).join(' · '))}</small></div>`; }).join(''),'tmp');
+  return h+'</tbody></table></div><div class="vnote">Decoded from the briefing\'s TAF, local times; wind °T (the arrow points downwind). Categories: VFR ceiling above 3,000 ft and visibility over 8 km, MVFR 1,000–3,000 ft or 5–8 km, IFR 500–1,000 ft or 1.6–5 km, LIFR below that (US-style codes, a guide only).</div>'; }
 function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i];
   if(!M){ el.hidden=true; el.innerHTML=''; return; }
   const was=el.open; el.hidden=false; let h=''; const age=t=>{ if(!t) return ''; const m=Math.round((Date.now()-t)/60e3); return m<0?'':m<90? m+' min ago' : Math.round(m/60)+' h ago'; };
@@ -1754,7 +1846,8 @@ function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i];
       const ends=a.rw.flatMap(r=>[r[0],r[1]]).filter(x=>/^\d{2}/.test(x)).map(x=>{ const hd=+x.slice(0,2)*10, r_=(wm-hd)*R, hw=Math.round(d.spd*Math.cos(r_)), xw=Math.round(d.spd*Math.sin(r_)); return {x,hw,xw}; }).sort((p,q)=>q.hw-p.hw);
       rw=`<div class="wxrw">${ends.map(e=>`<span>${e.x}: ${e.hw>=0?'head '+e.hw:'<span class="w">tail '+(-e.hw)+'</span>'}, cross ${Math.abs(e.xw)}${e.xw?(e.xw>0?' R':' L'):''}</span>`).join('')}</div>`; }
     h+=`<div class="nt"><div class="h"><b>${esc(M.metar.kind)}</b> ${esc(age(M.metar.t))}${old?' · <span class="w">old</span>':''}</div><div class="wxd">${bits.join(' · ')}</div>${rw}<div class="tx mono">${esc(M.metar.raw)}</div></div>`; }
-  if(M.taf) h+=`<div class="nt"><div class="h"><b>TAF</b> ${esc(age(M.taf.t))}</div><div class="tx mono">${esc(M.taf.raw).replace(/ (FM\d{6}|BECMG|TEMPO|INTER|PROB\d{2}|RMK)/g,'<br>$1')}</div></div>`;
+  if(M.taf){ let tt=''; try{ tt=tafTable(M.taf.raw,M.taf.t,a); }catch(e){ tt=''; }
+    h+=`<div class="nt"><div class="h"><b>TAF</b> ${esc(age(M.taf.t))}</div>${tt}<details class="tafraw"><summary>Original</summary><div class="tx mono">${esc(M.taf.raw).replace(/ (FM\d{6}|BECMG|TEMPO|INTER|PROB\d{2}|RMK)/g,'<br>$1')}</div></details></div>`; }
   const d=M.metar?metDecode(M.metar.raw):null;
   el.innerHTML=`<summary>Weather ${esc(a.i)}${d&&d.spd!=null?' · '+(d.vrb?'VRB':String(d.dir).padStart(3,'0'))+'/'+d.spd+(d.gust?'G'+d.gust:'')+(d.qnh?' · Q'+d.qnh:''):''} <small>(NAIPS briefing, trial)</small></summary>`+h; el.open=was; }
 function goTarget(){ // the Go to point (flight plan waypoints set it too) and its aerodrome: the point itself, or the nearest within 10 NM
