@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793478688822;
+const APP_BUILT=1793498832493;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1307,6 +1307,16 @@ $('fsBtn').onclick=()=>{ FS.on=!FS.on; ls.set('fsMap',FS.on); FS.bar=false; $('o
 $('optFs').checked=FS.on; $('optFs').addEventListener('change',()=>{ FS.on=$('optFs').checked; ls.set('fsMap',FS.on); FS.bar=false; fsApply(); render(); });
 FS_TABQ.addEventListener('change',()=>{ fsApply(); render(); }); addEventListener('resize',()=>{ if(document.body.classList.contains('fsm')){ fsSheet(FS.s); fsHudPos(); } });
 if(window.ResizeObserver) new ResizeObserver(()=>fsHudPos()).observe($('hudL'));
+// flash the CTAF / AREA tile when its frequency (or label: CTAF -> TWR, AREA -> ATC) changes: rc_fqFlash pulses (default 5, 0 = off).
+// Watches the tiles' text, so every path that updates them (GPS, sim, Go to, tower hours) is covered; the first value doesn't flash.
+const FQF={n:ls.get('fqFlash',5)};
+for(const [box,lbl,f] of [['sCtafBox','sCtafLbl','sCtaf'],['sAreaBox','sAreaLbl','sArea']]){ let last=null, q=0;
+  const chk=()=>{ q=0; const v=$(f).textContent.trim(), k=$(lbl).textContent.trim()+' '+v; if(!v||v==='—'){ return; }
+    if(last!==null&&k!==last&&FQF.n>0){ const el=$(box); el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); }
+    last=k; };
+  new MutationObserver(()=>{ if(!q) q=requestAnimationFrame(chk); }).observe($(box),{subtree:true,childList:true,characterData:true});
+  $(box).addEventListener('animationend',()=>$(box).classList.remove('fqflash')); }
+$('optFlash').value=String(FQF.n); $('optFlash').addEventListener('change',()=>{ FQF.n=+$('optFlash').value; ls.set('fqFlash',FQF.n); });
 function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
   $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
 $('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));

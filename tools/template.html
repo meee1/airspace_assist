@@ -240,6 +240,9 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
 .st.off{display:none!important}
+@keyframes fqflash{0%,100%{box-shadow:0 0 0 0 transparent}45%,55%{background:color-mix(in srgb,var(--accent) 38%,var(--panel));box-shadow:0 0 0 3px var(--accent)}}
+.st.fqflash{animation:fqflash .7s ease-in-out var(--flashN,5)}
+@media (prefers-reduced-motion:reduce){.st.fqflash{animation-duration:1.2s}}
 .st.nxcls.ahead.amber b{color:var(--accent)} .st.nxcls.ahead.warn b{color:var(--warn)} .st.nxcls.ahead small{color:var(--dim)}
 .pcdlg{max-width:760px} .pc-in{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:end;margin:4px 0 8px} .pc-in label{display:flex;flex-direction:column;font-size:12px;color:var(--dim);gap:3px} .pc-in input{width:96px;font:600 15px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)}
 .pc-t{width:100%;border-collapse:collapse;font-size:12.5px} .pc-t td{padding:5px 4px;border-bottom:1px solid var(--rule);vertical-align:top} .pc-t td.m{font:600 12px var(--f-mono);white-space:nowrap;color:var(--dim)} .pc-t td.k{font:700 11px var(--f-label);letter-spacing:.04em;white-space:nowrap} .pc-t b.f{font:700 14px var(--f-mono);color:var(--freq)} .pc-t tr.wp td{background:color-mix(in srgb,var(--wp) 8%,transparent)} .pc-t tr.w td.k{color:var(--warn)} .pc-t tr.a td.k{color:var(--accent)}
@@ -439,9 +442,12 @@ body.fsm .mapmenu{z-index:9}
 #hud .st.gps{flex-direction:row;height:auto;padding:4px 8px;justify-content:flex-start;gap:6px;align-self:flex-end;width:auto}
 #hud .st.nxcls{flex-wrap:wrap;font-size:12.5px;padding:5px 8px} #hud .st.nxcls span{white-space:normal;flex-basis:100%} #hud .st.traffic{font-size:13px}
 body.fsm.fsm-tab .status{position:fixed!important;top:0;bottom:0;left:0;width:300px;z-index:20;margin:0!important;padding:max(8px,env(safe-area-inset-top,0px)) 8px 8px max(8px,env(safe-area-inset-left,0px))!important;overflow:auto;background:var(--bg);grid-template-columns:repeat(2,minmax(0,1fr))!important;align-content:start;border-right:1px solid var(--rule)}
-body.fsm.fsm-tab .status>.st{grid-column:auto!important}
-body.fsm.fsm-tab .status>.st.fq,body.fsm.fsm-tab .status>.st.ctl,body.fsm.fsm-tab .status>.st.nxcls,body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>.lims,body.fsm.fsm-tab .status>.gps{grid-column:1/-1!important}
-body.fsm.fsm-tab .status>.gps{flex-direction:row;height:34px}
+body.fsm.fsm-tab .status{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+body.fsm.fsm-tab .status>.st{grid-column:span 3!important}
+body.fsm.fsm-tab .status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .status>#sHdgBox,body.fsm.fsm-tab .status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .status>#sLimBox{grid-column:span 4!important}
+body.fsm.fsm-tab .status>.st.fq,body.fsm.fsm-tab .status>.st.ctl,body.fsm.fsm-tab .status>.st.nxcls,body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>.fsbar-x{grid-column:1/-1!important}
+body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>#sInSua,body.fsm.fsm-tab .status>#sNxCls,body.fsm.fsm-tab .status>#sLastRow{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
+body.fsm.fsm-tab .status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .status>.st.nxcls span{white-space:normal;flex-basis:100%}
 body.fsm.fsm-tab #mapSec{left:300px}
 body.fsm.fsm-tab #fsSheet{left:300px}
 </style>
@@ -661,6 +667,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl" style="margin-top:10px">Flight logs (kept 90 days)</div>
     <div class="opts-list" id="optsLogs"></div>
     <div class="lbl" style="margin-top:10px">Top bar tiles</div>
+    <div class="opts-list"><label style="cursor:default"><span><b>Flash CTAF and AREA when they change</b><br><small>The tile pulses when its frequency changes, so a new CTAF or area frequency catches your eye. 0 = off.</small></span><select id="optFlash" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)"><option value="0">0 (off)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select><span class="meta">pulses</span></label></div>
     <div class="opts-list opts-tiles" id="optsTiles"></div>
     <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
@@ -2014,6 +2021,16 @@ $('fsBtn').onclick=()=>{ FS.on=!FS.on; ls.set('fsMap',FS.on); FS.bar=false; $('o
 $('optFs').checked=FS.on; $('optFs').addEventListener('change',()=>{ FS.on=$('optFs').checked; ls.set('fsMap',FS.on); FS.bar=false; fsApply(); render(); });
 FS_TABQ.addEventListener('change',()=>{ fsApply(); render(); }); addEventListener('resize',()=>{ if(document.body.classList.contains('fsm')){ fsSheet(FS.s); fsHudPos(); } });
 if(window.ResizeObserver) new ResizeObserver(()=>fsHudPos()).observe($('hudL'));
+// flash the CTAF / AREA tile when its frequency (or label: CTAF -> TWR, AREA -> ATC) changes: rc_fqFlash pulses (default 5, 0 = off).
+// Watches the tiles' text, so every path that updates them (GPS, sim, Go to, tower hours) is covered; the first value doesn't flash.
+const FQF={n:ls.get('fqFlash',5)};
+for(const [box,lbl,f] of [['sCtafBox','sCtafLbl','sCtaf'],['sAreaBox','sAreaLbl','sArea']]){ let last=null, q=0;
+  const chk=()=>{ q=0; const v=$(f).textContent.trim(), k=$(lbl).textContent.trim()+' '+v; if(!v||v==='—'){ return; }
+    if(last!==null&&k!==last&&FQF.n>0){ const el=$(box); el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); }
+    last=k; };
+  new MutationObserver(()=>{ if(!q) q=requestAnimationFrame(chk); }).observe($(box),{subtree:true,childList:true,characterData:true});
+  $(box).addEventListener('animationend',()=>$(box).classList.remove('fqflash')); }
+$('optFlash').value=String(FQF.n); $('optFlash').addEventListener('change',()=>{ FQF.n=+$('optFlash').value; ls.set('fqFlash',FQF.n); });
 function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
   $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
 $('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));
