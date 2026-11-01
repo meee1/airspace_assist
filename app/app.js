@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793525641125;
+const APP_BUILT=1793529313244;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -122,6 +122,8 @@ const REV=DATA.ap.filter(a=>a.x&&a.x.some(x=>x[0]==='TWR')).map(a=>{
   const t=(a.cnotes||[]).concat(...Object.values(a.proc||{})).join(' ');
   const m=t.match(/Outside TWR HRS?,?\s*(?:[A-Z][A-Za-z ]+ Class D airspace|airspace) becomes Class G\b(?! and)[^.]*\./);
   return m? {a, w:callName(a.n).split(' ')[0].toUpperCase()+' ', ev:m[0]} : null; }).filter(Boolean);
+// owner's choice (1 Nov 2026): Avalon's zone is treated as Class G outside tower hours too (its ERSA reversion has conditions)
+for(const c of ['YMAV']){ const a=DATA.ap.find(x=>x.i===c); if(a&&!REV.some(r=>r.a===a)) REV.push({a, w:callName(a.n).split(' ')[0].toUpperCase()+' ', ev:'Outside tower hours the Avalon CTR is not active: Class G below the Avalon CTA E1 (700 ft AGL), Class E above (app setting; check ERSA and the ATIS)'}); }
 function revAd(x){ if(x.k!=='CTR'&&x.k!=='D') return null; const r=REV.find(r=>x.n.startsWith(r.w)); if(!r) return null;
   const ts=twrStatus(r.a); return ts&&!ts.on? r : null; }
 function airStack(la,lo,gnd){
@@ -968,7 +970,7 @@ function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl',
     const ba=baAt(st.pos[0],st.pos[1]); let f, lab='CTAF', who, cn;
     if(ba&&ba.f){ f=ba.f; who='broadcast area'; cn=titleCase(ba.n)+' broadcast area'; }
     else { const t=terrainFt(st.pos[0],st.pos[1]), alt=st.alt!=null?st.alt:0, AS=airStack(st.pos[0],st.pos[1],t!=null?t:0), b=AS.bands.find(q=>alt>=q.L-50&&alt<q.H)||AS.bands[AS.bands.length-1];
-      f=b&&b.f||'—'; lab='AREA'; who=b&&b.unit? unitShort(b.unit) : 'area'; cn=`no aerodrome within 10 NM (${a.i} ${Math.round(pk.d)} NM)`; }
+      f=b&&b.f||'—'; lab= b&&!(b.k==='G'||b.k==='E')? 'ATC' : 'AREA'; who=b&&b.unit? unitShort(b.unit) : 'area'; cn=`no aerodrome within 10 NM (${a.i} ${Math.round(pk.d)} NM)`; }
     L.textContent=lab; F.textContent=f; W.textContent=who;
     const N=$(P+'CtafCn'); if(N) N.textContent=cn;
     return {tp:null,ts:null,open:false,CI:{f,src:ba&&ba.f?ASRC:'DAH',far:true}}; }
@@ -2281,16 +2283,27 @@ function render(){
   const cf=(a.cf||[]).find(c=>c[0]==='c'); if(cf && CI.src==='ERSA') csub+=`<br><span class="tag">${SRC[cf[2]]||cf[2]} had ${cf[1]}</span>`;
   html+=freqRow('CTAF',CI.f,csub,'hero');
   // top tiles: where you are (closest aerodrome), whatever the card below is showing (pinned, flight plan, Go to)
-  let herePk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0];
+  // the CTAF tile follows the map's areas: an aerodrome with its tower open has its control zone as its area (not a 10 NM
+  // circle), so it counts only while you're inside that zone below its top, and then it wins over strips inside the zone
+  // (YAVE in Avalon's). Tower closed: an ordinary CTAF aerodrome. The card and the controlled-aerodrome row still use the closest.
+  const twrOpenNow=a=>{ const tw=(a.x||[]).filter(x=>x[0]==='TWR'); if(!tw.length) return false; const ts=twrStatus(a); return ts?ts.on:true; };
+  const tHere=terrainFt(la,lo), aHere=st.alt!=null?st.alt:0;
+  const zoneTwr=cands.filter(c=>c.d<40&&twrOpenNow(c.a)&&ASP.some(z=>z.k==='CTR'&&inAsp(z,la,lo)&&inAsp(z,c.a.la,c.a.lo)&&aHere<limFt(z.hi,z.hik,tHere!=null?tHere:0,0)))[0];
+  const inOpenZone=a=>ASP.some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&cands.some(c=>c.d<40&&c.a!==a&&twrOpenNow(c.a)&&inAsp(z,c.a.la,c.a.lo)));   // a strip inside an open tower's zone (YAVE): under the tower, no CTAF area of its own
+  const tileC=cands.filter(c=>!twrOpenNow(c.a)&&!(c.d<15&&inOpenZone(c.a)));
+  const nearPk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0];
+  let herePk= zoneTwr || [...tileC].sort((x,y)=>score(x,h)-score(y,h))[0] || {a:nearPk.a,d:999,b:nearPk.b};
   { // stay on the CTAF you're in: the aerodrome the tile showed keeps it while you're within 10 NM of it, unless the closer one
     // is your plan / Go to aerodrome or you're within 3 NM of it (joining, overhead); a jump of more than 5 NM (sim, GPS restart) resets
     // ... but follow the map's split CTAF areas: with Options → split on, two different frequencies (126.7 only when
     // "split 126.7" is ticked; not for a strip inside a control zone) are divided halfway, so the nearer one is right there
-    const hold=st.ctafHold, prev=hold&&cands.find(c=>c.a.i===hold.i);
+    const hold=st.ctafHold, prev=!zoneTwr&&hold&&tileC.find(c=>c.a.i===hold.i);
     if(prev&&prev.a!==herePk.a&&prev.d<=10&&distBrg(hold.la,hold.lo,la,lo)[0]<5&&!(herePk.d<=3||adPlanned(herePk.a))&&!ctafSplitPair(prev.a,herePk.a)) herePk=prev;
     st.ctafHold={i:herePk.a.i,la,lo}; }
   const here=herePk.a; st.ntHere=here;
-  { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here; renderCtl(here,r.tp,r.open,r.ts); }
+  { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here;
+    if(nearPk.a!==here&&twrOpenNow(nearPk.a)&&nearPk.d<=10){ const r2=twrPick(nearPk.a,nearPk), ts2=twrStatus(nearPk.a); renderCtl(nearPk.a,r2,true,ts2); }   // a towered field you're near but not in: its ATIS / TWR row still shows
+    else renderCtl(here,r.tp,r.open,r.ts); }
   $('ctafRow').innerHTML=html; html='';
   { const L=ntFor(a.i).sort((x,y)=>ntTime(x.from)-ntTime(y.from)), key=L.some(n=>/\b(CLSD|CLOSED|U\/S|NOT AVBL)\b/.test(n.text||''));
     wxBox(a);
