@@ -640,6 +640,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <details class="notams" id="adNotam" hidden></details>
     <details class="calls" id="calls">
       <summary><span class="lbl">Radio calls</span><span class="calls-at" id="callsAt"></span></summary>
+      <div class="ctl"><button class="btn" id="cAtis" type="button" title="Note the ATIS letter, squawk, level and route">ATIS / clearance</button><span class="mono" id="cAtisNow"></span></div>
       <div class="calls-set">
         <label for="cType"><span class="lbl">Aircraft type</span><input id="cType" autocomplete="off" placeholder="Helicopter"></label>
         <label for="cSign"><span class="lbl">Callsign</span><input id="cSign" autocomplete="off" autocapitalize="characters" placeholder="EAN or VH-EAN"><small class="cs-say" id="cSay"></small></label>
@@ -2175,6 +2176,7 @@ $('clrOk').onclick=()=>$('clrDlg').close(); $('clrClose').onclick=()=>$('clrDlg'
 $('clrClear').onclick=()=>{ for(const k of Object.keys(CLR)) delete CLR[k]; const ad=$('clrDlg').dataset.ad; if(ad) delete ATIS[ad]; clrSave(); $('clrDlg').close(); render(); };
 $('sNxCls').addEventListener('click',()=>clrOpen());
 $('sClr').addEventListener('click',()=>clrOpen());
+$('cAtis').onclick=()=>{ const a=st.cardAd; clrOpen(a&&a.a? a : atisAdNow()); };   // the card's aerodrome if it has an ATIS, else the nearest relevant one (or none: notes only)
 function clrUI(cur){ const box=$('sClr'), ctl=cur&&!(cur.k==='G'||cur.k==='E'), has=CLR.sq||CLR.lvl||CLR.rt;
   if(ctl){ CLR.was=true; CLR.leftT=0; } else if(CLR.was&&has){ if(!CLR.leftT){ CLR.leftT=Date.now(); clrSave(); } else if(Date.now()-CLR.leftT>120e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); } }
   if(has&&!CLR.was&&CLR.t&&Date.now()-CLR.t>45*60e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); }
@@ -3810,6 +3812,7 @@ function ersaProcHtml(a,heli){
   return out.join('');
 }
 function renderCalls(a,pick,varE){
+  st.cardAd=a; { const l=a&&atisOf(a.i), n=[l&&a.a?'ATIS '+a.i+' '+l:'',CLR.sq?'squawk '+CLR.sq:'',CLR.lvl||''].filter(Boolean).join(' · '); $('cAtisNow').textContent=n; }
   const loc=callName(a.n,a.i), T=v=>esc(v), heli=$('cCat').value==='H';
   const typeRaw=$('cType').value.trim(), csRaw=sayCallsign($('cSign').value);
   const type=typeRaw?T(typeRaw):'<i>[type]</i>', cs=csRaw?T(csRaw):'<i>[callsign]</i>';

@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793532034197;
+const APP_BUILT=1793535906761;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1432,6 +1432,7 @@ $('clrOk').onclick=()=>$('clrDlg').close(); $('clrClose').onclick=()=>$('clrDlg'
 $('clrClear').onclick=()=>{ for(const k of Object.keys(CLR)) delete CLR[k]; const ad=$('clrDlg').dataset.ad; if(ad) delete ATIS[ad]; clrSave(); $('clrDlg').close(); render(); };
 $('sNxCls').addEventListener('click',()=>clrOpen());
 $('sClr').addEventListener('click',()=>clrOpen());
+$('cAtis').onclick=()=>{ const a=st.cardAd; clrOpen(a&&a.a? a : atisAdNow()); };   // the card's aerodrome if it has an ATIS, else the nearest relevant one (or none: notes only)
 function clrUI(cur){ const box=$('sClr'), ctl=cur&&!(cur.k==='G'||cur.k==='E'), has=CLR.sq||CLR.lvl||CLR.rt;
   if(ctl){ CLR.was=true; CLR.leftT=0; } else if(CLR.was&&has){ if(!CLR.leftT){ CLR.leftT=Date.now(); clrSave(); } else if(Date.now()-CLR.leftT>120e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); } }
   if(has&&!CLR.was&&CLR.t&&Date.now()-CLR.t>45*60e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); }
@@ -3067,6 +3068,7 @@ function ersaProcHtml(a,heli){
   return out.join('');
 }
 function renderCalls(a,pick,varE){
+  st.cardAd=a; { const l=a&&atisOf(a.i), n=[l&&a.a?'ATIS '+a.i+' '+l:'',CLR.sq?'squawk '+CLR.sq:'',CLR.lvl||''].filter(Boolean).join(' · '); $('cAtisNow').textContent=n; }
   const loc=callName(a.n,a.i), T=v=>esc(v), heli=$('cCat').value==='H';
   const typeRaw=$('cType').value.trim(), csRaw=sayCallsign($('cSign').value);
   const type=typeRaw?T(typeRaw):'<i>[type]</i>', cs=csRaw?T(csRaw):'<i>[callsign]</i>';

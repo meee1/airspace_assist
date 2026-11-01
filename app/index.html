@@ -640,6 +640,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <details class="notams" id="adNotam" hidden></details>
     <details class="calls" id="calls">
       <summary><span class="lbl">Radio calls</span><span class="calls-at" id="callsAt"></span></summary>
+      <div class="ctl"><button class="btn" id="cAtis" type="button" title="Note the ATIS letter, squawk, level and route">ATIS / clearance</button><span class="mono" id="cAtisNow"></span></div>
       <div class="calls-set">
         <label for="cType"><span class="lbl">Aircraft type</span><input id="cType" autocomplete="off" placeholder="Helicopter"></label>
         <label for="cSign"><span class="lbl">Callsign</span><input id="cSign" autocomplete="off" autocapitalize="characters" placeholder="EAN or VH-EAN"><small class="cs-say" id="cSay"></small></label>
@@ -778,7 +779,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=334c794eda';
+    const s=document.createElement('script'); s.src='app.js?v=43c5521a5f';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
