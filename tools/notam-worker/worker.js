@@ -18,7 +18,7 @@
    GET /tile/{src}/{z}/{y}/{x}   Esri satellite imagery for the app's Sat layer, with the key kept here (secret ESRI_KEY)
      src wi: World Imagery raster tiles (256 px, z 3-19); st: static basemap tiles arcgis/imagery/labels (512 px, z 2-20).
      Only for the app (Origin or Referer in ALLOW_ORIGIN) and only tiles touching Australia (lat -46..-8, lon 108..160),
-     so the proxy can't be used to spend the Esri allowance elsewhere. Cached at Cloudflare's edge for 30 days (the key
+     so the proxy can't be used to spend the Esri allowance elsewhere. Cached at Cloudflare's edge for 90 days (the key
      isn't part of the cache key), and sent with Cache-Control so the app's service worker keeps it for offline use. */
 const cors=(req,env)=>{ const o=req.headers.get('Origin')||'', ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean);
   return {'Access-Control-Allow-Origin': ok.includes(o)? o : ok[0]||'*', 'Access-Control-Allow-Methods':'GET, OPTIONS', 'Vary':'Origin'}; };
@@ -38,7 +38,8 @@ async function traffic(u,env,ctx,H){
   const lat=parseFloat(u.searchParams.get('lat')), lon=parseFloat(u.searchParams.get('lon')), nm=Math.min(40,Math.max(1,Math.round(parseFloat(u.searchParams.get('nm'))||25)));
   if(!(Math.abs(lat)<=90&&Math.abs(lon)<=180)) return json({error:'give lat/lon'},400,H);
   const la=lat.toFixed(2), lo=lon.toFixed(2);   // ~0.6 NM: nearby callers share an answer
-  const key=new Request(`https://adsb.cache/v1?${la},${lo},${nm}`), cache=caches.default, hit=await cache.match(key);
+  const dbg=u.searchParams.has('debug');   // ?debug=1: skip the cache, so every feed is asked now
+  const key=new Request(`https://adsb.cache/v1?${la},${lo},${nm}`), cache=caches.default, hit=dbg? null : await cache.match(key);
   if(hit){ const r=new Response(hit.body,hit); for(const [k,v] of Object.entries(H)) r.headers.set(k,v); r.headers.set('X-Cache','HIT'); return r; }
   // feeds in order, each [url template, extra headers]. With the ADSBLOL_KEY secret: adsb.lol's keyed re-api first
   // (x-api-key header), then its public v2 API WITHOUT the key (a key bound to another address makes it answer 401
@@ -56,12 +57,13 @@ async function traffic(u,env,ctx,H){
       if(!r.ok){ errs.push(`${host} ${r.status}: ${(await r.text()).slice(0,120)}`); continue; }
       j=await r.json(); break; }
     catch(e){ errs.push(`${host}: ${e.name==='AbortError'?'timeout':e.message}`); } }
-  if(!j) return json({error:'ADS-B feed unavailable',errors:errs},502,H);
+  if(!j) return json({error:'ADS-B feed unavailable',keyed:!!env.ADSBLOL_KEY,errors:errs},502,H);
   const num=v=>typeof v==='number'&&isFinite(v)? v : null;
-  const out=(j.ac||j.aircraft||[]).filter(a=>num(a.lat)!=null&&num(a.lon)!=null).map(a=>({hex:a.hex||'', flt:(a.flight||'').trim(), reg:a.r||'', type:a.t||'',
+  const out=(j.ac||j.aircraft||[]).filter(a=>num(a.lat)!=null&&num(a.lon)!=null).map(a=>({hex:a.hex||'', flt:(a.flight||'').replace(/@/g,'').trim(), reg:a.r||'', type:a.t||'',
     la:a.lat, lo:a.lon, ab:num(a.alt_baro), gnd:a.alt_baro==='ground'||undefined, ag:num(a.alt_geom), gs:num(a.gs), trk:num(a.track)??num(a.true_heading),
     vs:num(a.baro_rate)??num(a.geom_rate), cat:a.category||'', seen:num(a.seen_pos)??num(a.seen)??0}));
-  const res=json({src:new URL(url).host,t:new Date().toISOString(),n:out.length,ac:out},200,{...H,'Cache-Control':'public, max-age=3'});
+  // keyed: the ADSBLOL_KEY secret is set; skipped: why earlier feeds were passed over (e.g. re-api 401 invalid api key)
+  const res=json({src:new URL(url).host,keyed:!!env.ADSBLOL_KEY,skipped:errs,t:new Date().toISOString(),n:out.length,ac:out},200,{...H,'Cache-Control':'public, max-age=3'});
   ctx.waitUntil(cache.put(key,res.clone()));
   return res;
 }
@@ -89,7 +91,7 @@ async function tile(req,u,env,ctx,H){
   catch(e){ return json({error:'Esri '+(e.name==='AbortError'?'timeout':e.message)},502,H); }
   const ct=r.headers.get('content-type')||'';
   if(!r.ok||!/^image\//.test(ct)){ const t=(await r.text()).slice(0,160); return json({error:`Esri ${r.status}`,detail:t},r.ok?502:r.status,H); }   // Esri errors come back as JSON with 200 sometimes
-  const res=new Response(r.body,{status:200,headers:{'Content-Type':ct,'Cache-Control':'public, max-age=2592000, immutable'}});
+  const res=new Response(r.body,{status:200,headers:{'Content-Type':ct,'Cache-Control':'public, max-age=7776000, immutable'}});
   ctx.waitUntil(cache.put(key,res.clone()));
   return out(res,'MISS');
 }

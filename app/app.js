@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793574222683;
+const APP_BUILT=1793575417898;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -543,7 +543,7 @@ async function trPoll(){
   try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),12000);   // the proxy may try two feeds (5 s each)
     const r=await fetch(`${u}/traffic?lat=${st.pos[0].toFixed(3)}&lon=${st.pos[1].toFixed(3)}&nm=25`,{signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(tm));
     const j=await r.json().catch(()=>({})); if(!r.ok||!Array.isArray(j.ac)) throw new Error((j.error||('HTTP '+r.status))+(Array.isArray(j.errors)&&j.errors.length? ' ('+j.errors.join('; ')+')' : ''));
-    TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.err=null;
+    TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.skip=Array.isArray(j.skipped)?j.skipped:[]; TR.err=null;
   }catch(e){ TR.err=String(e&&e.message||e).slice(0,220); }
   TR.busy=false; render(); }
 setInterval(trPoll,10000);   // ADS-B refresh: every 10 s
@@ -2823,7 +2823,7 @@ $('mapTraffic').onclick=()=>{ MAP.traffic=!MAP.traffic; ls.set('mapTraffic',MAP.
   if(MAP.traffic&&!ntUrl()){ $('ntSet').open=true; $('ntStat').innerHTML='<span class="w">Traffic needs the proxy: enter its address here.</span>'; fsShow($('ntSet'),{block:'center'}); }
   if(MAP.traffic){ TR.t=0; TR.ac=[]; trPoll(); } render(); };
 $('trVoice').checked=trVoiceOn(); $('trVoice').onchange=()=>ls.set('trVoice',$('trVoice').checked);
-setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within 25 NM from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
+setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within 25 NM from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+((TR.skip||[]).length?` Skipped first: ${TR.skip.join('; ')}.`:'')+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
 $('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
 addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';

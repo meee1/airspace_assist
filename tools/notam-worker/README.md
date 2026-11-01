@@ -30,7 +30,7 @@ folder keeps its old name.)
   header), then the public `api.adsb.lol` v2 API (without the key), then adsb.fi. adsb.lol binds a key to an IP address
   (your feeder's); a request from anywhere else gets 401 "api key bound to a different address". Cloudflare Workers
   don't have a fixed address, so the keyed feed only works from a proxy running at that address. Without it, nothing changes. The
-  answer's `src` says which feed answered (`re-api.adsb.lol` when the key works).
+  answer's `src` says which feed answered (`re-api.adsb.lol` when the key works). `keyed` says whether the secret is set, and `skipped` lists why earlier feeds were passed over (e.g. `re-api.adsb.lol 401: invalid api key`); the app shows it in Settings. Add `&debug=1` to bypass the 3 s cache when testing. re-api answers `api key required` (no/unknown header), `invalid api key` (the `x-api-key` header was read but the key isn't accepted: get a new key), or `api key bound to a different address`.
 - Another readsb-style feed: set `ADSB_URL` (wrangler.toml or the dashboard's Variables), e.g.
   `https://api.airplanes.live/v2/point/{lat}/{lon}/{nm}` once they've approved you, and `npx wrangler secret put ADSB_KEY` if it
   needs a key (sent as the `api-auth` header).
@@ -38,7 +38,7 @@ folder keeps its old name.)
   - **Setup:** add your Esri API key as the secret `ESRI_KEY` (dashboard → the Worker → Settings → Variables and Secrets → Add → type **Secret**, or `npx wrangler secret put ESRI_KEY`), then redeploy `worker.js`. Get the key from a free ArcGIS Location Platform account at developers.arcgis.com, with the basemap privileges. Esri keys aren't tied to an IP address, so it works from Cloudflare.
   - **Sources:** `wi` is World Imagery (256 px tiles, z 3–19). `st` is Esri's static basemap tiles, imagery with labels (512 px, z 2–20).
   - **Who can use it:** only requests from the app (Origin or Referer in `ALLOW_ORIGIN`), and only tiles that touch Australia. Anything else gets 403 or 400, so nobody else can spend your Esri allowance through it.
-  - **Caching:** a tile is fetched from Esri once, then kept in Cloudflare's edge cache for 30 days. The key isn't part of the cache key, and repeat requests answer with `X-Cache: HIT`. Responses carry `Cache-Control: public, max-age=2592000, immutable` and CORS headers, so the app's service worker stores every tile you view (up to 6,000) and shows them again offline.
+  - **Caching:** a tile is fetched from Esri once, then kept in Cloudflare's edge cache for 90 days. The key isn't part of the cache key, and repeat requests answer with `X-Cache: HIT`. Responses carry `Cache-Control: public, max-age=7776000, immutable` and CORS headers, so the app's service worker stores every tile you view (up to 6,000) and shows them again offline.
   - **Errors:** without `ESRI_KEY` the answer is 503. If Esri refuses, its status and message come back as JSON.
   - **Check:** `https://<your worker>/tile/wi/10/631/924` opened in a browser gets 403 (no Origin). That's expected: the route is working and only answers the app.
 - It's internet ADS-B: only aircraft transmitting ADS-B that a ground receiver hears, 5–10 s late, patchy at low
