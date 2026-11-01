@@ -240,6 +240,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
 .st.off{display:none!important}
+#hud .st.nxcls.inbound span{display:block;-webkit-line-clamp:unset;overflow:visible} .st.nxcls.inbound{flex-wrap:wrap;cursor:pointer} .st.nxcls.inbound span{white-space:normal;flex-basis:100%;font-weight:600} .st.nxcls.inbound .x{margin-left:auto;font:700 12px var(--f-label);color:var(--dim)}
 @keyframes fqflash{0%,100%{box-shadow:0 0 0 0 transparent}45%,55%{background:color-mix(in srgb,var(--accent) 38%,var(--panel));box-shadow:0 0 0 3px var(--accent)}}
 .st.fqflash{animation:fqflash .7s ease-in-out var(--flashN,5)}
 @media (prefers-reduced-motion:reduce){.st.fqflash{animation-duration:1.2s}}
@@ -446,7 +447,7 @@ body.fsm.fsm-tab .status{grid-template-columns:repeat(6,minmax(0,1fr))!important
 body.fsm.fsm-tab .status>.st{grid-column:span 3!important}
 body.fsm.fsm-tab .status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .status>#sHdgBox,body.fsm.fsm-tab .status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .status>#sLimBox{grid-column:span 4!important}
 body.fsm.fsm-tab .status>.st.fq,body.fsm.fsm-tab .status>.st.ctl,body.fsm.fsm-tab .status>.st.nxcls,body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>.fsbar-x{grid-column:1/-1!important}
-body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>#sInSua,body.fsm.fsm-tab .status>#sNxCls,body.fsm.fsm-tab .status>#sLastRow{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
+body.fsm.fsm-tab .status>.st.traffic,body.fsm.fsm-tab .status>#sInbound,body.fsm.fsm-tab .status>#sInSua,body.fsm.fsm-tab .status>#sNxCls,body.fsm.fsm-tab .status>#sLastRow{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
 body.fsm.fsm-tab .status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .status>.st.nxcls span{white-space:normal;flex-basis:100%}
 body.fsm.fsm-tab #mapSec{left:300px}
 body.fsm.fsm-tab #fsSheet{left:300px}
@@ -458,7 +459,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
 
   <div class="status" aria-live="off">
     <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b><i id="gpsAge"></i></div>
-    <div class="st t" id="sHdgBox"><small id="hdgLbl">TRK</small><b id="sHdg">—</b></div>
+    <div class="st t" id="sHdgBox"><small id="hdgLbl">TRK</small><b id="sHdg">—</b><small id="sWind" class="agl" title="Wind estimated from GPS while you turn (ground speed vectors around a circle): direction it blows from, °M / kt"></small></div>
     <div class="st t" id="sGsBox"><small>GS kt</small><b id="sGs">—</b><small id="sLast" class="agl" title="Last light: end of evening civil twilight here (sun 6° below the horizon), the end of VFR day"></small></div>
     <div class="st t plan" id="sPlanBox" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st t" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
@@ -475,6 +476,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
     <button class="st fsbar-x" id="fsBarX">▲ Back to the map</button>
+    <div class="st nxcls amber inbound" id="sInbound" hidden title="Inbound call reminder: 10 NM from your Go to / flight plan aerodrome"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -672,6 +674,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optFs"><span><b>Full-screen map</b><br><small>The map fills the screen. Phone: CTAF, AREA, ALT, TRK, GS, CLASS and the alerts float over it (tap them for the whole top bar). Tablet in landscape: the top bar is a column on the left. Everything else is in the sheet at the bottom: drag it up or tap a tab. Also the ⤢ button on the map.</small></span></label>
+      <label><input type="checkbox" id="optZoneHi"><span><b>Highlight the area you're in</b><br><small>The control zone you're inside, or the CTAF area of the aerodrome in the CTAF tile (cut where the map splits it), drawn with a bold edge and the distance to its nearest edge.</small></span></label>
       <label><input type="checkbox" id="optCtafSplit"><span><b>Split overlapping CTAF areas</b><br><small>Where two aerodromes with different CTAFs are less than 20 NM apart, their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency.</small></span></label><label><input type="checkbox" id="optCtafSplit127"><span><b>Split 126.7 areas too</b><br><small>Off: the grey 126.7 circles of strips without their own CTAF are drawn whole under the others and don't cut them, so a specific CTAF keeps its full 10 NM circle. On: they take part in the split like any other frequency.</small></span></label><label><input type="checkbox" id="optTerRainbow"><span><b>Rainbow topographic terrain</b><br><small>With <b>Terrain</b> on, colour the ground by height (sea-level teal through green, yellow and orange to purple on the highest ranges) instead of grey relief. Terrain at or above you is still marked: cross-hatched in red, and within 500 ft in orange.</small></span></label></div>
     <div class="lbl" style="margin-top:10px">Satellite imagery (Esri)</div>
     <div class="opts-sat">
@@ -749,7 +752,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=6f78167c7d';
+    const s=document.createElement('script'); s.src='app.js?v=5f565bac62';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

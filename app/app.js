@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793514712658;
+const APP_BUILT=1793515356640;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1245,7 +1245,7 @@ async function logsRender(){ const el=$('optsLogs');
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['inbound','Inbound call reminder',['sInbound']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -1269,6 +1269,7 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   insua:`<div class="st nxcls insua warn"><div><small>IN</small><b style="color:var(--as-q)">D373</b><span>SFC–FL125 · danger area · parachuting</span></div></div>`,
   nxcls:`<div class="st nxcls warn"><small>NEXT CLASS</small><b style="color:var(--as-d)">D</b><span>SFC–A025 in 4.0 NM · Moorabbin Twr W 123.0</span></div>`,
   ahead:`<div class="st nxcls ahead"><small>LSALT</small><b>2,500</b><span>highest 1,450 ft terrain in 6.2 NM</span></div>`,
+  inbound:`<div class="st nxcls amber inbound"><small>INBOUND CALL</small><b>119.1</b><span>Lilydale traffic, Bell 206 …, 10 miles south, 1,500 feet, inbound …</span></div>`,
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`};
 // ---------- full-screen map. FS.on = rc_fsMap (default on); applied while the map is shown. Elements are moved, not copied, so
@@ -1277,7 +1278,7 @@ const FS={on:ls.get('fsMap',true), bar:false, marks:new Map(), s:'peek'};
 const FS_TABQ=matchMedia('(min-width:900px) and (orientation:landscape)');
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInbound','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
 const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapLead','mapLog'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
@@ -1330,6 +1331,58 @@ for(const [box,lbl,f] of [['sCtafBox','sCtafLbl','sCtaf'],['sAreaBox','sAreaLbl'
   new MutationObserver(()=>{ if(!q) q=requestAnimationFrame(chk); }).observe($(box),{subtree:true,childList:true,characterData:true});
   $(box).addEventListener('animationend',()=>$(box).classList.remove('fqflash')); }
 $('optFlash').value=String(FQF.n); $('optFlash').addEventListener('change',()=>{ FQF.n=+$('optFlash').value; ls.set('fqFlash',FQF.n); });
+// ---------- inbound call reminder: crossing 10 NM (closing, more than 3 NM out) from the Go to / flight plan aerodrome, once per
+// approach (re-armed beyond 12 NM). Row #sInbound with the frequency and the inbound call filled in; the Go to tile flashes.
+// Tap the row to dismiss; it goes by itself inside 4 NM or after 4 min.
+const INB={armed:{}, on:null, t:0, lastD:{}};
+function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('cSign').value), typ=$('cType').value.trim(), cs=csR||'[callsign]', ty=typ||'[type]';
+  const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), pos=`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
+  const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
+  const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(eta)):null, open=tw.length&&(ts?ts.on:true);
+  if(open){ let w=tw[0]; if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,st.pos[0],st.pos[1])[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }
+    return {f:w[2], txt:`${cn} Tower, ${cs}, ${ty}, ${pos}, ${lvl}${ad.a?', received [ATIS '+ad.i+']':''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
+  const f=ctafInfo(ad).f||'126.7';
+  return {f, txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
+function inboundUI(){ const box=$('sInbound'); const g=goTarget(), ad=g&&g.ad;
+  if(!ad||!st.pos){ box.hidden=true; INB.on=null; return; }
+  const [d,b]=distBrg(st.pos[0],st.pos[1],ad.la,ad.lo), prev=INB.lastD[ad.i]; INB.lastD[ad.i]=d;
+  if(d>12) INB.armed[ad.i]=true;
+  const closing= prev!=null? d<prev-0.002 : st.gs>30;
+  if(INB.armed[ad.i]&&d<=10.2&&d>3&&closing&&st.gs>30){ INB.armed[ad.i]=false; INB.on=ad.i; INB.t=Date.now();
+    const el=$('gCtafBox'); if(el&&FQF.n>0){ el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); el.addEventListener('animationend',()=>el.classList.remove('fqflash'),{once:true}); } }
+  if(INB.on!==ad.i||d<4||Date.now()-INB.t>240e3){ if(INB.on===ad.i&&(d<4||Date.now()-INB.t>240e3)) INB.on=null; box.hidden=true; return; }
+  const c=inboundCall(ad,d,b); box.hidden=false;
+  box.innerHTML=`<small>INBOUND CALL</small><b>${c.f}</b><small class="x">✕</small><span>${esc(c.txt)}</span>`; }
+$('sInbound').addEventListener('click',()=>{ INB.on=null; $('sInbound').hidden=true; });
+
+// ---------- wind from GPS: the ground-velocity vectors you fly at one airspeed lie on a circle whose centre is the wind (the
+// "circle method"). Last 3 min of 1 s samples at 30 kt+; once the tracks span 120°+ (a turn, an orbit), a least-squares
+// circle fit (Kasa) gives wind and TAS. Accepted when the fit is tight (RMS < 4 kt). Shown on the TRK tile as W/V °M/kt.
+const WIND={s:[], est:null, fitT:0};
+function windAdd(t,gs,trk){ if(!(gs>30)||trk==null) return; const a=trk*R; WIND.s.push({t,x:gs*Math.sin(a),y:gs*Math.cos(a),trk});
+  while(WIND.s.length&&WIND.s[0].t<t-180e3) WIND.s.shift(); if(t-WIND.fitT>4000){ WIND.fitT=t; windFit(t); } }
+function windFit(t){ const S=WIND.s; if(S.length<15) return;
+  const an=S.map(p=>((p.trk%360)+360)%360).sort((a,b)=>a-b); let gap=360-an[an.length-1]+an[0]; for(let i=1;i<an.length;i++) gap=Math.max(gap,an[i]-an[i-1]);
+  if(360-gap<120) return;   // not enough turn yet
+  let Sx=0,Sy=0,Sxx=0,Syy=0,Sxy=0,Sz=0,Sxz=0,Syz=0; const n=S.length;
+  for(const p of S){ const z=p.x*p.x+p.y*p.y; Sx+=p.x; Sy+=p.y; Sxx+=p.x*p.x; Syy+=p.y*p.y; Sxy+=p.x*p.y; Sz+=z; Sxz+=p.x*z; Syz+=p.y*z; }
+  // normal equations for x²+y²+Dx+Ey+F=0
+  const A=[[Sxx,Sxy,Sx],[Sxy,Syy,Sy],[Sx,Sy,n]], B=[-Sxz,-Syz,-Sz];
+  const det=m=>m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])-m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])+m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+  const D0=det(A); if(Math.abs(D0)<1e-9) return; const col=(k)=>A.map((r,i)=>r.map((v,j)=>j===k?B[i]:v));
+  const D=det(col(0))/D0, E=det(col(1))/D0, F=det(col(2))/D0, cx=-D/2, cy=-E/2, r2=cx*cx+cy*cy-F; if(!(r2>0)) return; const r=Math.sqrt(r2);
+  let ss=0; for(const p of S){ const e=Math.hypot(p.x-cx,p.y-cy)-r; ss+=e*e; } const rms=Math.sqrt(ss/n), spd=Math.hypot(cx,cy);
+  if(rms>4||r<30||r>250||spd>80) return;
+  const to=Math.atan2(cx,cy)/R, from=((to+180)%360+360)%360;
+  WIND.est={from, spd, tas:r, rms, t, la:st.pos&&st.pos[0], lo:st.pos&&st.pos[1]}; windUI(); }
+function windUI(){ const el=$('sWind'), w=WIND.est; if(!el) return;
+  if(!w||Date.now()-w.t>20*60e3){ el.textContent=''; return; }
+  const m=((w.from-(w.la!=null?variation(w.la,w.lo):0))%360+360)%360, age=Math.round((Date.now()-w.t)/60e3);
+  el.textContent= w.spd<3? 'W/V calm' : `W/V ${fmt3(m)}/${Math.round(w.spd)}${age>=5?' '+age+'m':''}`;
+  el.title=`Wind from GPS (circle fit over ${Math.round(WIND.s.length)} s of turning): from ${fmt3(m)}°M at ${Math.round(w.spd)} kt, TAS ${Math.round(w.tas)} kt, fit ±${w.rms.toFixed(1)} kt, ${age} min ago`; }
+setInterval(()=>{ try{ if(st.pos&&st.trk!=null&&st.gs>30) windAdd(Date.now(),st.gs,st.trk); windUI(); }catch(e){} },1000);
+const ZHI={on:ls.get('zoneHi',true)};
+$('optZoneHi').checked=ZHI.on; $('optZoneHi').addEventListener('change',()=>{ ZHI.on=$('optZoneHi').checked; ls.set('zoneHi',ZHI.on); render(); });
 function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
   $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
 $('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));
@@ -1870,6 +1923,36 @@ function drawMap(la,lo,h,pick,AS,altFt){
       if(o.lit){ g.beginPath(); g.arc(x,y-9,1.6,0,2*Math.PI); g.fill(); }
       if(MAP.range<=10&&o.ft!=null){ const t=String(o.ft); g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(t,x,y+15); g.fillText(t,x,y+15); } }
     g.textAlign='left'; }
+  // the area you're in, highlighted: the control zone you're inside (below its top), else the CTAF area of the aerodrome on the
+  // CTAF tile, cut by the same halfway lines as the split CTAF areas; a marker at its nearest edge with the distance to it
+  if(ZHI.on&&!MAP.pan){ const edge=[]; let drew=false;
+    const t0=terrainFt(own[0],own[1]);
+    for(const z of ASP){ if(z.k!=='CTR'||!z.p||!inAsp(z,own[0],own[1])) continue; if(altFt!=null&&altFt>=limFt(z.hi,z.hik,t0!=null?t0:0,0)) continue;
+      const pp=z.p.map(q=>P(q[0],q[1])), col=cssv('--as-'+String(z.ctrCls||'d').toLowerCase())||C.acc;
+      g.beginPath(); pp.forEach((q,k)=>k?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.closePath();
+      g.globalAlpha=.25; g.lineWidth=9; g.strokeStyle=col; g.stroke(); g.globalAlpha=1; g.lineWidth=3; g.stroke();
+      for(let k=0;k<pp.length;k++){ const A=pp[k], B=pp[(k+1)%pp.length], vx=B[0]-A[0], vy=B[1]-A[1], L2=vx*vx+vy*vy||1, u=Math.max(0,Math.min(1,((ox-A[0])*vx+(oy-A[1])*vy)/L2));
+        edge.push([A[0]+vx*u, A[1]+vy*u, col]); }
+      drew=true; break; }
+    const a=!drew&&st.ctafTileAd;
+    if(a){ const [ax,ay]=P(a.la,a.lo), R0=CTAF_NM*sc, col=cssv('--freq'), cuts=[];
+      for(const b of DATA.ap){ if(b===a||Math.abs(b.la-a.la)>0.34||Math.abs(b.lo-a.lo)>0.45) continue; if(b.t==='H'&&!st.heli) continue; if(!st.all&&b.s!=='E'&&b.t!=='H') continue;
+        if(!(b.x&&b.x.some(y=>y[0]==='TWR'))&&ctafSplitPair(a,b)){ const [bx,by]=P(b.la,b.lo); cuts.push([(ax+bx)/2,(ay+by)/2,ax-bx,ay-by]); } }   // tower fields: their zone (not a halfway line) bounds the CTAF areas
+      // control zones at your level (towers have priority over CTAF areas on the map): cut out of the ring, and their edge counts
+      const zs=ASP.filter(z=>z.k==='CTR'&&z.p&&z.p.some(q=>distBrg(a.la,a.lo,q[0],q[1])[0]<CTAF_NM+3)&&!(altFt!=null&&altFt>=limFt(z.hi,z.hik,t0!=null?t0:0,0))).map(z=>z.p.map(q=>P(q[0],q[1])));
+      g.save(); for(const pp of zs){ g.beginPath(); g.rect(-5000,-5000,W+10000,Hh+10000); pp.forEach((q,k)=>k?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.closePath(); g.clip('evenodd'); }
+      for(const [mx,my,nx,ny] of cuts){ const n=Math.hypot(nx,ny)||1, ux=nx/n, uy=ny/n, vx=-uy, vy=ux, Lb=5000;
+        g.beginPath(); g.moveTo(mx+vx*Lb,my+vy*Lb); g.lineTo(mx+vx*Lb+ux*Lb,my+vy*Lb+uy*Lb); g.lineTo(mx-vx*Lb+ux*Lb,my-vy*Lb+uy*Lb); g.lineTo(mx-vx*Lb,my-vy*Lb); g.closePath(); g.clip(); }
+      g.beginPath(); g.arc(ax,ay,R0,0,2*Math.PI); g.globalAlpha=.22; g.lineWidth=9; g.strokeStyle=col; g.stroke(); g.globalAlpha=1; g.lineWidth=2.6; g.stroke(); g.restore();
+      const dx=ox-ax, dy=oy-ay, dd=Math.hypot(dx,dy)||1; if(dd<=R0) edge.push([ax+dx/dd*R0, ay+dy/dd*R0, col]);
+      for(const [mx,my,nx,ny] of cuts){ const n=Math.hypot(nx,ny)||1, ux=nx/n, uy=ny/n, s_=(ox-mx)*ux+(oy-my)*uy; if(s_>0) edge.push([ox-ux*s_, oy-uy*s_, col]); }
+      for(const pp of zs) for(let k=0;k<pp.length;k++){ const A=pp[k], B=pp[(k+1)%pp.length], vx=B[0]-A[0], vy=B[1]-A[1], L2=vx*vx+vy*vy||1, u=Math.max(0,Math.min(1,((ox-A[0])*vx+(oy-A[1])*vy)/L2)), ex=A[0]+vx*u, ey=A[1]+vy*u;
+        if(Math.hypot(ex-ax,ey-ay)<=R0) edge.push([ex,ey,col]); } }
+    if(edge.length){ const [ex,ey,col]=edge.reduce((m,e)=>Math.hypot(e[0]-ox,e[1]-oy)<Math.hypot(m[0]-ox,m[1]-oy)?e:m), dn=Math.hypot(ex-ox,ey-oy)/sc;
+      g.fillStyle=col; g.beginPath(); g.arc(ex,ey,4.5,0,2*Math.PI); g.fill(); g.strokeStyle=C.bg; g.lineWidth=1.5; g.stroke();
+      const lab=`edge ${dn<10?dn.toFixed(1):Math.round(dn)} NM`; g.font='700 10.5px "IBM Plex Mono", monospace'; g.textBaseline='middle';
+      const tw=g.measureText(lab).width+8, lx=Math.max(4,Math.min(W-tw-4,ex+8)), ly=Math.max(10,Math.min(Hh-10,ey));
+      g.fillStyle=C.bg; g.globalAlpha=.9; g.fillRect(lx,ly-8,tw,16); g.globalAlpha=1; g.strokeStyle=col; g.lineWidth=1; g.strokeRect(lx,ly-8,tw,16); g.fillStyle=col; g.textAlign='left'; g.fillText(lab,lx+4,ly+0.5); g.textBaseline='alphabetic'; } }
   // pressed point (map menu open): a crosshair
   if(MAP.press && !$('mapMenu').hidden){ const [x,y]=P(MAP.press[0],MAP.press[1]); g.strokeStyle=cssv('--wp'); g.lineWidth=2;
     g.beginPath(); g.arc(x,y,7,0,2*Math.PI); g.moveTo(x-12,y); g.lineTo(x-4,y); g.moveTo(x+4,y); g.lineTo(x+12,y); g.moveTo(x,y-12); g.lineTo(x,y-4); g.moveTo(x,y+4); g.lineTo(x,y+12); g.stroke(); }
@@ -2207,7 +2290,7 @@ function render(){
     if(prev&&prev.a!==herePk.a&&prev.d<=10&&distBrg(hold.la,hold.lo,la,lo)[0]<5&&!(herePk.d<=3||adPlanned(herePk.a))&&!ctafSplitPair(prev.a,herePk.a)) herePk=prev;
     st.ctafHold={i:herePk.a.i,la,lo}; }
   const here=herePk.a; st.ntHere=here;
-  { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; renderCtl(here,r.tp,r.open,r.ts); }
+  { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here; renderCtl(here,r.tp,r.open,r.ts); }
   $('ctafRow').innerHTML=html; html='';
   { const L=ntFor(a.i).sort((x,y)=>ntTime(x.from)-ntTime(y.from)), key=L.some(n=>/\b(CLSD|CLOSED|U\/S|NOT AVBL)\b/.test(n.text||''));
     wxBox(a);
@@ -2256,6 +2339,7 @@ function render(){
   } else html+=freqRow('AREA','', 'No airspace data here');
   nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R'&&!(q.st&&q.st.s==='off'))).key);
   renderCalls(a,pick,varE);   // after nextFreqs: the clearance-request call uses NX.cls
+  inboundUI();
   { // warning row: you're inside a restricted / prohibited / danger area at your altitude (status from the NAIPS briefing first), or a NOTAM temporary zone
     const S=(DATA.sua&&DATA.sua.areas)||{}, inn=AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H), box=$('sInSua');
     const tz=ntZonesAt(la,lo,altFt,gnd);
