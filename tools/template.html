@@ -2053,11 +2053,11 @@ $('optFlash').value=String(FQF.n); $('optFlash').addEventListener('change',()=>{
 // Tap the row to dismiss; it goes by itself inside 4 NM or after 4 min.
 const INB={armed:{}, on:null, t:0, lastD:{}};
 function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('cSign').value), typ=$('cType').value.trim(), cs=csR||'[callsign]', ty=typ||'[type]';
-  const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), pos=`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
+  const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), nv=nearestVFR(st.pos[0],st.pos[1],1.5), pos=(nv?`over ${titleCase(nv.p.n)}, `:'')+`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
   const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
   const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(eta)):null, open=tw.length&&(ts?ts.on:true);
-  if(open){ let w=tw[0]; if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,st.pos[0],st.pos[1])[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }
-    return {f:w[2], txt:`${cn} Tower, ${cs}, ${ty}, ${pos}, ${lvl}${ad.a?', received [ATIS '+ad.i+']':''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
+  if(open){ let w=tw[0]; const tp=twrPick(ad,{a:ad,d,b}); if(tp&&tp.tw) w=tp.tw; else if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,st.pos[0],st.pos[1])[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }   // the tile's rules: side, and ERSA reporting-point rules (CARR -> 123.0)
+    return {f:w[2], txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received [ATIS '+ad.i+']':''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
   const f=ctafInfo(ad).f||'126.7';
   return {f, txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
 function inboundUI(){ const box=$('sInbound'); const g=goTarget(), ad=g&&g.ad;
