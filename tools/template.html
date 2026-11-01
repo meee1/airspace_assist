@@ -447,6 +447,7 @@ body.fsm #fsSheet{display:flex;flex-direction:column;position:fixed;left:0;right
 #fsBody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 12px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
 #fsBody>*{scroll-margin-top:4px;flex:none} #fsLayers{display:none} body.fsm #fsLayers{display:flex;flex-direction:column;gap:8px} #fsLayBtns{display:flex;flex-wrap:wrap;gap:6px}
 body.fsm #fsBody .ad-head{top:0}
+body.fsm #fsBody>*,body.fsm #fsBody #colA>*{scroll-margin-top:4px}   /* not the classic landscape top-bar margin (--stickH is the whole left column in fsm-tab) */
 body.fsm #fsBody #colA{display:flex;flex-direction:column;gap:12px}
 body.fsm:not(.fsm-tab):not(.fsm-bar) #hud{display:block}
 body.fsm:not(.fsm-tab) .wrap>.status{display:none}

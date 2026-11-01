@@ -447,6 +447,7 @@ body.fsm #fsSheet{display:flex;flex-direction:column;position:fixed;left:0;right
 #fsBody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 12px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
 #fsBody>*{scroll-margin-top:4px;flex:none} #fsLayers{display:none} body.fsm #fsLayers{display:flex;flex-direction:column;gap:8px} #fsLayBtns{display:flex;flex-wrap:wrap;gap:6px}
 body.fsm #fsBody .ad-head{top:0}
+body.fsm #fsBody>*,body.fsm #fsBody #colA>*{scroll-margin-top:4px}   /* not the classic landscape top-bar margin (--stickH is the whole left column in fsm-tab) */
 body.fsm #fsBody #colA{display:flex;flex-direction:column;gap:12px}
 body.fsm:not(.fsm-tab):not(.fsm-bar) #hud{display:block}
 body.fsm:not(.fsm-tab) .wrap>.status{display:none}
@@ -793,7 +794,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=caa7844bc7';
+    const s=document.createElement('script'); s.src='app.js?v=264e8f13ef';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
