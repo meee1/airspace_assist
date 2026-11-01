@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793529313244;
+const APP_BUILT=1793530444850;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2173,8 +2173,9 @@ function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace 
   if(ca.app){ f=ca.app[2]; who=unitShort(ca.app[1]||ca.ad.i+' APP'); }   // a transit: approach, as the clearance-request call
   else { const sp=!R_&&f&&st.pos? splitTwr(f,st.pos[0],st.pos[1]) : null;   // Moorabbin from the west: 123.0, as the tiles will say
     if(sp){ f=sp[2]; who=unitShort(sp[1]||n.b.unit)+' '+sp[4][0]; } }
+  const atisAd= !R_&&n.b? (ca&&ca.ad || (n.b.k==='CTR'? ctrApp(n.b).ad : null)) : null, atis= atisAd&&atisAd.a&&atisAd.a[0]? ` · ATIS ${atisAd.a[0]}` : '';   // the zone's aerodrome ATIS, to listen to before calling
   box.hidden=false;
-  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?(()=>{ const s_=suaStatus(n.prd.n.split(' ')[0]); return s_&&s_.s==='act'? ' · ACTIVE'+(s_.until?' →'+hhmmZ(s_.until):'')+' · clearance' : ' · restricted, check status'; })():(who?' · '+esc(who):'')+(f?' '+f:'')+' · clearance'}</span>`; }
+  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?(()=>{ const s_=suaStatus(n.prd.n.split(' ')[0]); return s_&&s_.s==='act'? ' · ACTIVE'+(s_.until?' →'+hhmmZ(s_.until):'')+' · clearance' : ' · restricted, check status'; })():(who?' · '+esc(who):'')+(f?' '+f:'')+atis+' · clearance'}</span>`; }
 function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
   const key=[NTN?NTN.t:0,Math.floor(Date.now()/300e3),la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la+':'+(FP.rev||0):'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
   if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
