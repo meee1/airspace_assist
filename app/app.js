@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793530444850;
+const APP_BUILT=1793532034197;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -630,7 +630,7 @@ function drawTraffic(g,P,C,W,Hh,sc){
   return T; }
 const SIMT=[];   // simulated fixes, this session only (shown by Log on the map, never stored or exported)
 function fpLogFix(){ if(!st.pos) return; const t=Date.now();
-  if(st.sim){ const q=SIMT[SIMT.length-1]; if(!q||Math.abs(q[1]-st.pos[0])+Math.abs(q[2]-st.pos[1])>2e-4){ SIMT.push([t,st.pos[0],st.pos[1]]); if(SIMT.length>5000) SIMT.shift(); } return; } if(t-TLOG.last<5000) return; TLOG.last=t;
+  if(st.sim){ const q=SIMT[SIMT.length-1]; if(!q||Math.abs(q[1]-st.pos[0])+Math.abs(q[2]-st.pos[1])>2e-4){ SIMT.push([t,st.pos[0],st.pos[1],st.alt!=null?Math.round(st.alt):null]); if(SIMT.length>5000) SIMT.shift(); } return; } if(t-TLOG.last<5000) return; TLOG.last=t;
   TLOG.pts.push([t,+st.pos[0].toFixed(6),+st.pos[1].toFixed(6),st.alt!=null?Math.round(st.alt):null,st.gs!=null?Math.round(st.gs):null,st.trk!=null?Math.round(st.trk):null,st.acc!=null?Math.round(st.acc):null,FP?FP.i:null]);
   const cut=t-6*3600e3; while(TLOG.pts.length&&TLOG.pts[0][0]<cut) TLOG.pts.shift(); logDbAdd([TLOG.pts[TLOG.pts.length-1]]); }
 function fpLogEv(kind,a,b,d){ if(st.sim) return; const r=[Date.now(),'ev',kind,a,b,+d.toFixed(2)]; TLOG.pts.push(r); logDbAdd([r]); }
@@ -955,11 +955,12 @@ function renderCtl(a,tp,open,ts,id='sCtl'){ // controlled aerodrome: the other f
     if(k==='DEP'&&items.some(i=>i.lbl==='DEP')) continue;   // one departures frequency is enough here
     add(k,x[2],x[4]?x[4][0]:'',(k==='TWR'||k==='GND'||k==='DEL')&&!open); }
   const closed=!open&&ts? ' · TWR closed' : '';
-  box.innerHTML=`<small>${esc(a.i)}${closed}</small>`+items.map(i=>`<span class="${i.off?'off':''}">${i.lbl}<b>${i.f}</b>${i.side?`<i>${i.side}</i>`:''}</span>`).join('');
+  const al=atisOf(a.i); box.dataset.ad=a.i;
+  box.innerHTML=`<small>${esc(a.i)}${closed}</small>`+items.map(i=>`<span class="${i.off?'off':''}"${i.lbl==='ATIS'?' data-atis="1"':''}>${i.lbl}<b>${i.f}</b>${i.side?`<i>${i.side}</i>`:''}${i.lbl==='ATIS'?`<i class="atl">${al||'?'}</i>`:''}</span>`).join('');
   box.hidden=false;
 }
-$('sCtl').onclick=()=>{ if(FS.bar){ FS.bar=false; fsApply(); } fsShow($('adCard')); };
-$('gCtl').onclick=()=>{ const i=$('gCtl').dataset.ad; if(i){ st.pin=i; render(); } if(FS.bar){ FS.bar=false; fsApply(); } fsShow($('adCard')); };
+$('sCtl').onclick=e=>{ if(e.target.closest('[data-atis]')){ clrOpen(DATA.ap.find(x=>x.i===$('sCtl').dataset.ad)); return; } if(FS.bar){ FS.bar=false; fsApply(); } fsShow($('adCard')); };
+$('gCtl').onclick=e=>{ if(e.target.closest('[data-atis]')){ clrOpen(DATA.ap.find(x=>x.i===$('gCtl').dataset.ad)); return; } const i=$('gCtl').dataset.ad; if(i){ st.pin=i; render(); } if(FS.bar){ FS.bar=false; fsApply(); } fsShow($('adCard')); };
 function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl', P+'CtafAd'); when: time for tower hours (ETA)
   const CI=ctafInfo(a), tp=twrPick(a,pk), ts=tp?twrStatus(a,when||new Date()):null, open=tp&&(ts?ts.on:true), pre=P==='g'?'→ ':'';   // hours unknown: assume the tower is active
   const L=$(P+'CtafLbl'), F=$(P+'Ctaf'), W=$(P+'CtafAd'); let ap=null;
@@ -1217,37 +1218,51 @@ function logLegs(rows){ const fx=rows.filter(r=>r[1]!=='ev'&&r[4]!=null), legs=[
     if(end<0) end=fx.length-1;
     let nm=0, hi=null; for(let k=s+1;k<=end;k++) nm+=distBrg(fx[k-1][1],fx[k-1][2],fx[k][1],fx[k][2])[0]; for(let k=s;k<=end;k++) if(fx[k][3]!=null) hi=Math.max(hi??-1e9,fx[k][3]);
     const off=fx[s][0], on=fx[end][0];
-    if(on-off>=60e3&&nm>=0.3) legs.push({from:place(fx[s][1],fx[s][2]),to:place(fx[end][1],fx[end][2]),off,on,nm,hi});
+    if(on-off>=60e3&&nm>=0.3) legs.push({from:place(fx[s][1],fx[s][2]),to:place(fx[end][1],fx[end][2]),off,on,nm,hi,la:fx[s][1],lo:fx[s][2]});
     i=end+1; }
   return legs; }
 const hmm=ms=>{ const m=Math.round(ms/60e3); return Math.floor(m/60)+':'+String(m%60).padStart(2,'0'); };
 function logCsv(legs){ const z=t=>new Date(t).toISOString().slice(11,16), lc=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false});
   const dt=t=>{ const d=new Date(t); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
   const reg=($('cSign')&&$('cSign').value||'').toUpperCase(), typ=$('cType')&&$('cType').value||'';
-  return 'Date (local),Aircraft,Type,From,To,Off UTC,On UTC,Off local,On local,Airborne h:mm,Airborne hrs,Distance NM,Max alt ft\n'+
-    legs.map(l=>[dt(l.off),reg,typ,l.from,l.to,z(l.off),z(l.on),lc(l.off),lc(l.on),hmm(l.on-l.off),((l.on-l.off)/3600e3).toFixed(1),l.nm.toFixed(1),l.hi!=null?Math.round(l.hi):''].map(v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v).join(',')).join('\n')+'\n'; }
+  return 'Date (local),Aircraft,Type,From,To,Off UTC,On UTC,Off local,On local,Airborne h:mm,Airborne hrs,Day hrs,Night hrs,Landings,Distance NM,Max alt ft\n'+
+    legs.map(l=>[dt(l.off),reg,typ,l.from,l.to,z(l.off),z(l.on),lc(l.off),lc(l.on),hmm(l.on-l.off),((l.on-l.off)/3600e3).toFixed(1),((l.on-l.off)/3600e3-(l.night||0)/60).toFixed(1),((l.night||0)/60).toFixed(1),l.ldg!=null?l.ldg:1,l.nm.toFixed(1),l.hi!=null?Math.round(l.hi):''].map(v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v).join(',')).join('\n')+'\n'; }
 async function logsRender(){ const el=$('optsLogs');
   if(!LOGDB.db){ el.innerHTML='<div class="vnote">'+(LOGDB.ok?'Loading…':'This browser can\'t store the log (no IndexedDB).')+'</div>'; return; }
   const all=await logRead(Date.now()-LOG_KEEP,Date.now()+1), fl=[];
   for(const r of all){ if(r[1]==='ev'){ if(fl.length) fl[fl.length-1].rows.push(r); continue; }
     const f=fl[fl.length-1]; if(!f||r[0]-f.t1>30*60e3) fl.push({t0:r[0],t1:r[0],n:0,rows:[]}); const g=fl[fl.length-1]; g.t1=r[0]; g.n++; g.rows.push(r); }
   const fmt=t=>new Date(t).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}), tm=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
-  const L=fl.filter(f=>f.n>=6).reverse(); for(const f of L) f.legs=logLegs(f.rows);
-  const all_=L.flatMap(f=>f.legs).sort((x,y)=>x.off-y.off), tl=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
-  el.innerHTML= L.length? (all_.length?`<label style="cursor:default"><span><b>Logbook</b><br><small>${all_.length} flight${all_.length>1?'s':''} · ${hmm(all_.reduce((a,l)=>a+l.on-l.off,0))} airborne (last 90 days, from GPS)</small></span><button class="btn meta" data-csv="all" style="margin-left:auto">CSV</button></label>`:'')+
-      L.map((f,i)=>`<label style="cursor:default;flex-wrap:wrap"><span><b>${fmt(f.t0)}–${tm(f.t1)}</b><br><small>${Math.round((f.t1-f.t0)/60e3)} min · ${f.n} fixes</small></span><span style="margin-left:auto;display:flex;gap:6px">${f.legs.length?`<button class="btn meta" data-csv="${i}">CSV</button>`:''}<button class="btn meta" data-log="${i}">GPX</button></span>`+
-        (f.legs.length?`<div class="legs">${f.legs.map(l=>`<div><b>${esc(l.from)} → ${esc(l.to)}</b> · off ${tl(l.off)} · on ${tl(l.on)} · <b>${hmm(l.on-l.off)}</b> · ${Math.round(l.nm)} NM${l.hi!=null?' · max '+Math.round(l.hi).toLocaleString('en-AU')+' ft':''}</div>`).join('')}</div>`:'')+`</label>`).join('')
+  const L=fl.filter(f=>f.n>=6).reverse(); for(const f of L){ f.raw=logLegs(f.rows); f.legs=legsEdited(f.raw); logbookStore(f.legs,f.raw); }
+  const all_=L.flatMap(f=>f.legs).filter(l=>!l.del).sort((x,y)=>x.off-y.off), tl=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
+  const T=logTotals(), totRow=`<div class="logtot">${T.map(t=>`<span><b>${t.d} days</b> ${hmm(t.ms)} · ${t.n} leg${t.n===1?'':'s'} · ${t.ldg} ldg${t.night?' · night '+hmm(t.night*60e3):''}</span>`).join('')}</div>`;
+  const legRow=(l,fi,li)=>`<div class="lg${l.del?' del':''}" data-f="${fi}" data-l="${li}"><b>${esc(l.from)} → ${esc(l.to)}</b> · off ${tl(l.off)} · on ${tl(l.on)} · <b>${hmm(l.on-l.off)}</b>${l.night?' (night '+hmm(l.night*60e3)+')':''} · ${l.ldg} ldg · ${Math.round(l.nm)} NM${l.hi!=null?' · max '+Math.round(l.hi).toLocaleString('en-AU')+' ft':''}${l.merged?' · merged':''} <button class="btn meta" data-ed="${fi}:${li}">Edit</button></div>`;
+  el.innerHTML= L.length? (all_.length?`<label style="cursor:default;flex-wrap:wrap"><span><b>Logbook</b><br><small>${all_.length} leg${all_.length>1?'s':''} · ${hmm(all_.reduce((a,l)=>a+l.on-l.off,0))} airborne (last 90 days, from GPS)</small></span><button class="btn meta" data-csv="all" style="margin-left:auto">CSV</button>${totRow}</label>`:'')+
+      L.map((f,i)=>`<label style="cursor:default;flex-wrap:wrap"><span><b>${fmt(f.t0)}–${tm(f.t1)}</b><br><small>${Math.round((f.t1-f.t0)/60e3)} min · ${f.n} fixes</small></span><span style="margin-left:auto;display:flex;gap:6px">${f.legs.length?`<button class="btn meta" data-csv="${i}">CSV</button>`:''}<button class="btn meta" data-rp="${i}" title="Replay this flight through the app">▶</button><button class="btn meta" data-log="${i}">GPX</button></span>`+
+        (f.legs.length?`<div class="legs">${f.legs.map((l,j)=>legRow(l,i,j)).join('')}</div>`:'')+`</label>`).join('')
     : '<div class="vnote">No flights logged yet.</div>';
-  el.onclick=e=>{ const c=e.target.closest('[data-csv]'); if(c){ const lg=c.dataset.csv==='all'? all_ : L[+c.dataset.csv].legs, t0=lg[0].off;
+  el.onclick=e=>{ const c=e.target.closest('[data-csv]'); if(c){ const lg=c.dataset.csv==='all'? all_ : L[+c.dataset.csv].legs.filter(l=>!l.del), t0=lg[0].off;
       dlFile('radio-calls-logbook-'+(c.dataset.csv==='all'?'all-':'')+new Date(t0).toISOString().slice(0,10)+'.csv',logCsv(lg),'text/csv'); return; }
+    const rp=e.target.closest('[data-rp]'); if(rp){ const f=L[+rp.dataset.rp]; rpLoad(f.rows.filter(r=>r[1]!=='ev').map(r=>({t:r[0],la:r[1],lo:r[2],alt:r[3],gs:r[4],trk:r[5]})),fmt(f.t0)); $('optsDlg').close(); fsShow($('simBox')); return; }
+    const ed=e.target.closest('[data-ed]'); if(ed){ const [fi,li]=ed.dataset.ed.split(':').map(Number); logEdit(L[fi],li,ed.closest('.lg')); return; }
     const b=e.target.closest('[data-log]'); if(!b) return; const f=L[+b.dataset.log];
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0))],{type:'application/gpx+xml'}));
     a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }; }
+function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=f.raw.findIndex(r=>String(r.off)===k), next=f.raw[idxRaw+1];
+  row.insertAdjacentHTML('afterend',`<div class="lgedit"><label>From <input data-k="from" value="${esc(l.from)}"></label><label>To <input data-k="to" value="${esc(l.to)}"></label><label>Landings <input data-k="ldg" type="number" min="0" value="${l.ldg}" style="width:60px"></label>
+    <span class="ctl">${next?'<button class="btn meta" data-a="merge">Merge with next leg</button>':''}${l.merged?'<button class="btn meta" data-a="unmerge">Split again</button>':''}<button class="btn meta" data-a="del">${l.del?'Restore':'Not a flight'}</button><button class="btn meta" data-a="save">Save</button></span></div>`);
+  const box=row.nextElementSibling;
+  box.addEventListener('click',ev=>{ const a=ev.target.closest('[data-a]'); if(!a) return; ev.preventDefault(); const E=LOGED[k]=LOGED[k]||{};
+    if(a.dataset.a==='save'){ for(const i of box.querySelectorAll('[data-k]')){ const v=i.value.trim(); if(i.dataset.k==='ldg') E.ldg=Math.max(0,parseInt(v)||0); else if(v) E[i.dataset.k]=v.toUpperCase(); } }
+    if(a.dataset.a==='merge'&&next){ (LOGED[String(next.off)]=LOGED[String(next.off)]||{}).merge=true; }
+    if(a.dataset.a==='unmerge'){ for(const r of f.raw) if(r.off>l.off&&r.off<=l.on&&LOGED[String(r.off)]) delete LOGED[String(r.off)].merge; }
+    if(a.dataset.a==='del') E.del=!E.del;
+    ls.set('logEd',LOGED); logsRender(); }); }
 // top bar tiles on/off (Options): rc_tilesOff = keys of hidden tiles. On a wide screen the top row's grid columns and the
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['inbound','Inbound call reminder',['sInbound']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -1271,6 +1286,7 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   insua:`<div class="st nxcls insua warn"><div><small>IN</small><b style="color:var(--as-q)">D373</b><span>SFC–FL125 · danger area · parachuting</span></div></div>`,
   nxcls:`<div class="st nxcls warn"><small>NEXT CLASS</small><b style="color:var(--as-d)">D</b><span>SFC–A025 in 4.0 NM · Moorabbin Twr W 123.0</span></div>`,
   ahead:`<div class="st nxcls ahead"><small>LSALT</small><b>2,500</b><span>highest 1,450 ft terrain in 6.2 NM</span></div>`,
+  clr:`<div class="st nxcls clr"><small>CLEARANCE</small><b>4123</b><span>A015 · via CARR · ATIS C</span></div>`,
   inbound:`<div class="st nxcls amber inbound"><small>INBOUND CALL</small><b>119.1</b><span>Lilydale traffic, Bell 206 …, 10 miles south, 1,500 feet, inbound …</span></div>`,
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`};
@@ -1280,7 +1296,7 @@ const FS={on:ls.get('fsMap',true), bar:false, marks:new Map(), s:'peek'};
 const FS_TABQ=matchMedia('(min-width:900px) and (orientation:landscape)');
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInbound','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
 const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapLead','mapLog'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
@@ -1342,7 +1358,7 @@ function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('c
   const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
   const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(eta)):null, open=tw.length&&(ts?ts.on:true);
   if(open){ let w=tw[0]; const tp=twrPick(ad,{a:ad,d,b}); if(tp&&tp.tw) w=tp.tw; else if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,st.pos[0],st.pos[1])[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }   // the tile's rules: side, and ERSA reporting-point rules (CARR -> 123.0)
-    return {f:w[2], txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received [ATIS '+ad.i+']':''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
+    return {f:w[2], txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
   const f=ctafInfo(ad).f||'126.7';
   return {f, txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
 function inboundUI(){ const box=$('sInbound'); const g=goTarget(), ad=g&&g.ad;
@@ -1385,6 +1401,88 @@ function windUI(){ const el=$('sWind'), w=WIND.est; if(!el) return;
 setInterval(()=>{ try{ if(st.pos&&st.trk!=null&&st.gs>30) windAdd(Date.now(),st.gs,st.trk); windUI(); }catch(e){} },1000);
 const ZHI={on:ls.get('zoneHi',true)};
 $('optZoneHi').checked=ZHI.on; $('optZoneHi').addEventListener('change',()=>{ ZHI.on=$('optZoneHi').checked; ls.set('zoneHi',ZHI.on); render(); });
+// ---------- ATIS letter + clearance notes. ATIS[code]={l,t} (60 min), CLR={sq,lvl,rt,t,ad,was,leftT}. One dialog #clrDlg, opened by
+// tapping the NEXT CLASS row, the CLR row, or the ATIS frequency in the controlled-aerodrome row. The letter goes into the
+// tower / clearance / inbound calls ("received Charlie"); the notes show as the CLR row while you're in or about to enter
+// controlled airspace, and clear themselves 2 min after you leave it.
+const ATIS=ls.get('atis',{}), CLR=ls.get('clr',{});
+const ATIS_W=['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliett','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo','Sierra','Tango','Uniform','Victor','Whiskey','X-ray','Yankee','Zulu'];
+function atisOf(code){ const x=code&&ATIS[code]; return x&&Date.now()-x.t<60*60e3? x.l : null; }
+function atisWord(code){ const l=atisOf(code); return l? ATIS_W[l.charCodeAt(0)-65] : null; }
+function atisRecv(code){ const w=atisWord(code); return w? w : `<i>[ATIS${code?' '+code:''}]</i>`; }   // for calls: "received Charlie"
+function atisAdNow(){ const n=NX.cls; let a=null;
+  if(n&&!n.prd&&n.b&&n.b.k==='CTR') a=ctrApp(n.b).ad;
+  if(!a&&st.curBand&&st.curBand.k==='CTR') a=ctrApp(st.curBand).ad;
+  if(!a){ const g=goTarget(); if(g&&g.ad&&g.ad.a&&distBrg(st.pos[0],st.pos[1],g.ad.la,g.ad.lo)[0]<30) a=g.ad; }
+  if(!a&&st.ctlAd) a=st.ctlAd;
+  return a&&a.a? a : a; }
+function clrOpen(ad){ ad=ad||atisAdNow(); const d=$('clrDlg'); d.dataset.ad=ad?ad.i:'';
+  $('clrAtisLbl').textContent= ad&&ad.a? `ATIS ${ad.i} ${ad.a[0]} · letter` : 'ATIS (no ATIS aerodrome nearby)';
+  const cur=ad&&atisOf(ad.i);
+  $('clrAtis').innerHTML= ad&&ad.a? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c=>`<button type="button" class="btn${cur===c?' on':''}" data-l="${c}">${c}</button>`).join('') : '';
+  $('clrSq').value=CLR.sq||''; $('clrLvl').value=CLR.lvl||''; $('clrRt').value=CLR.rt||'';
+  if(d.showModal) d.showModal(); else d.setAttribute('open',''); }
+function clrSave(){ ls.set('atis',ATIS); ls.set('clr',CLR); }
+$('clrAtis').addEventListener('click',e=>{ const b=e.target.closest('[data-l]'); if(!b) return; const ad=$('clrDlg').dataset.ad; if(!ad) return;
+  if(atisOf(ad)===b.dataset.l) delete ATIS[ad]; else ATIS[ad]={l:b.dataset.l,t:Date.now()}; clrSave();
+  for(const x of $('clrAtis').children) x.classList.toggle('on',atisOf(ad)===x.dataset.l); render(); });
+const clrIn=()=>{ CLR.sq=$('clrSq').value.replace(/\D/g,'').slice(0,4); CLR.lvl=$('clrLvl').value.trim(); CLR.rt=$('clrRt').value.trim(); CLR.t=Date.now(); CLR.leftT=0; clrSave(); render(); };
+for(const id of ['clrSq','clrLvl','clrRt']) $(id).addEventListener('input',clrIn);
+$('clrOk').onclick=()=>$('clrDlg').close(); $('clrClose').onclick=()=>$('clrDlg').close();
+$('clrClear').onclick=()=>{ for(const k of Object.keys(CLR)) delete CLR[k]; const ad=$('clrDlg').dataset.ad; if(ad) delete ATIS[ad]; clrSave(); $('clrDlg').close(); render(); };
+$('sNxCls').addEventListener('click',()=>clrOpen());
+$('sClr').addEventListener('click',()=>clrOpen());
+function clrUI(cur){ const box=$('sClr'), ctl=cur&&!(cur.k==='G'||cur.k==='E'), has=CLR.sq||CLR.lvl||CLR.rt;
+  if(ctl){ CLR.was=true; CLR.leftT=0; } else if(CLR.was&&has){ if(!CLR.leftT){ CLR.leftT=Date.now(); clrSave(); } else if(Date.now()-CLR.leftT>120e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); } }
+  if(has&&!CLR.was&&CLR.t&&Date.now()-CLR.t>45*60e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); }
+  const ad=atisAdNow(), l=ad&&atisOf(ad.i);
+  if(!(CLR.sq||CLR.lvl||CLR.rt)){ box.hidden=true; return; }
+  box.hidden=false; box.innerHTML=`<small>CLEARANCE</small>${CLR.sq?`<b>${esc(CLR.sq)}</b>`:''}<span>${[CLR.lvl,CLR.rt,l?'ATIS '+l:''].filter(Boolean).map(esc).join(' · ')}</span>`; }
+// ---------- flight replay: a GPX track (file, or a flight from Options → Flight logs) played through the app at 1–10×, as the
+// simulator (so nothing is logged). Position interpolated between fixes; GS and track from the fixes; altitude from <ele>.
+// The app's clock is not shifted: tower hours, last light and NOTAM times are for now, not for the flight.
+const RP={pts:[],i:0,on:false,wall:0,t:0,spd:5,timer:null};
+function rpLoad(pts,name){ pts=pts.filter(p=>p.t&&p.la!=null).sort((a,b)=>a.t-b.t); if(pts.length<2){ $('rpStat').textContent='No timed track points in that file.'; return; }
+  RP.pts=pts; RP.t=pts[0].t; RP.i=0; $('rpPos').max=String(pts[pts.length-1].t-pts[0].t); $('rpPos').value='0'; $('rpBox').hidden=false;
+  if(!st.sim) setSim(true); setFly(false); rpShow(); $('rpStat').textContent=`${name||'Track'}: ${pts.length} fixes, ${hmm(pts[pts.length-1].t-pts[0].t)}`; }
+function rpParseGpx(txt){ const d=new DOMParser().parseFromString(txt,'application/xml'), out=[];
+  for(const p of d.querySelectorAll('trkpt,rtept')){ const t=p.querySelector('time'), e=p.querySelector('ele'), ds=p.querySelector('desc');
+    const g=ds&&/gs (\d+)/.exec(ds.textContent), tr=ds&&/trk (\d+)/.exec(ds.textContent);
+    out.push({t:t?Date.parse(t.textContent):null, la:+p.getAttribute('lat'), lo:+p.getAttribute('lon'), alt:e?+e.textContent*3.28084:null, gs:g?+g[1]:null, trk:tr?+tr[1]:null}); }
+  return out; }
+function rpShow(){ const P=RP.pts; if(!P.length) return; let i=RP.i; while(i>0&&P[i].t>RP.t) i--; while(i<P.length-2&&P[i+1].t<=RP.t) i++; RP.i=i;
+  const a=P[i], b=P[Math.min(i+1,P.length-1)], f=b.t>a.t? Math.max(0,Math.min(1,(RP.t-a.t)/(b.t-a.t))) : 0;
+  const la=a.la+(b.la-a.la)*f, lo=a.lo+(b.lo-a.lo)*f; const [d,brg]=distBrg(a.la,a.lo,b.la,b.lo), dt=(b.t-a.t)/3600e3;
+  st.pos=[la,lo]; st.acc=0; st.alt= a.alt!=null&&b.alt!=null? a.alt+(b.alt-a.alt)*f : a.alt;
+  st.gs= a.gs!=null? a.gs : dt>0? d/dt : 0; if(d>0.01) st.trk= brg; else if(a.trk!=null) st.trk=a.trk; st.simHdg=st.trk;
+  $('simPos').value=la.toFixed(5)+', '+lo.toFixed(5); $('simAlt').value=st.alt!=null?String(Math.round(st.alt)):''; $('simGs').value=String(Math.round(st.gs||0)); if(st.trk!=null) $('simTrk').value=fmt3(st.trk-variation(la,lo));
+  $('rpPos').value=String(RP.t-P[0].t); $('rpTime').textContent=`${hmm(RP.t-P[0].t)} / ${hmm(P[P.length-1].t-P[0].t)} · ${new Date(RP.t).toISOString().slice(11,16)}Z`;
+  simStatus(); fpLogFix(); render(); }
+function rpPlay(on){ RP.on=on; $('rpPlay').textContent=on?'❚❚':'▶'; clearInterval(RP.timer); RP.timer=null;
+  if(on){ if(RP.t>=RP.pts[RP.pts.length-1].t) RP.t=RP.pts[0].t; RP.wall=performance.now();
+    RP.timer=setInterval(()=>{ const now=performance.now(); RP.t+= (now-RP.wall)*RP.spd; RP.wall=now; if(RP.t>=RP.pts[RP.pts.length-1].t){ RP.t=RP.pts[RP.pts.length-1].t; rpShow(); rpPlay(false); return; } rpShow(); },250); } }
+$('rpFile').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; rpLoad(rpParseGpx(await f.text()),f.name); e.target.value=''; });
+$('rpPlay').onclick=()=>rpPlay(!RP.on);
+$('rpSpd').onchange=()=>{ RP.spd=+$('rpSpd').value; };
+$('rpPos').addEventListener('input',()=>{ RP.t=RP.pts[0].t+(+$('rpPos').value); RP.i=0; rpShow(); });
+$('rpStop').onclick=()=>{ rpPlay(false); $('rpBox').hidden=true; RP.pts=[]; };
+// ---------- logbook: legs from logLegs, with your edits (rc_logEd {key:{from,to,ldg,del,merge}}; key = off time) and a
+// permanent summary (rc_logbook {key:{off,on,from,to,ldg,night,nm,hi}}) so 7/28/365-day totals outlive the 90-day fix log.
+// Night = minutes after last light / before first light (civil twilight) at the departure point, sampled every 2 min.
+const LOGED=ls.get('logEd',{}), LOGBK=ls.get('logbook',{});
+function nightMin(la,lo,off,on){ let n=0; for(let t=off;t<on;t+=120e3){ const L=lastLight(la,lo,t); if(L&&L.night) n+=Math.min(2,(on-t)/60e3); } return Math.round(n); }
+function legsEdited(legs){ const out=[];
+  for(const l of legs){ const k=String(l.off), e=LOGED[k]||{}, x={...l,key:k,from:e.from||l.from,to:e.to||l.to,ldg:e.ldg!=null?e.ldg:1,del:!!e.del,merge:!!e.merge};
+    if(x.night==null) x.night= l.la!=null? nightMin(l.la,l.lo,l.off,l.on) : 0;
+    const p=out[out.length-1];
+    if(x.merge&&p&&!p.del){ p.on=x.on; p.to=x.to; p.nm+=x.nm; p.hi=Math.max(p.hi??-1e9,x.hi??-1e9); p.ldg+=x.ldg; p.night+=x.night; p.merged=(p.merged||0)+1; x.hidden=true; }
+    out.push(x); }
+  return out.filter(x=>!x.hidden); }
+function logbookStore(legs,raw){ let ch=false; const keep=new Set(legs.map(l=>l.key)); for(const r of raw||[]){ const k=String(r.off); if(!keep.has(k)&&LOGBK[k]){ delete LOGBK[k]; ch=true; } } for(const l of legs){ const v={off:l.off,on:l.on,from:l.from,to:l.to,ldg:l.del?0:l.ldg,night:l.night,nm:Math.round(l.nm*10)/10,hi:l.hi,del:l.del||undefined};   // merged-away legs leave the summary
+    if(JSON.stringify(LOGBK[l.key])!==JSON.stringify(v)){ LOGBK[l.key]=v; ch=true; } } if(ch) ls.set('logbook',LOGBK); }
+function logTotals(){ const now=Date.now(), V=Object.values(LOGBK).filter(v=>!v.del);
+  return [7,28,365].map(d=>{ const S=V.filter(v=>v.off>now-d*86400e3); const ms=S.reduce((a,v)=>a+v.on-v.off,0);
+    return {d, n:S.length, ms, night:S.reduce((a,v)=>a+(v.night||0),0), ldg:S.reduce((a,v)=>a+(v.ldg||0),0)}; }); }
 function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
   $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
 $('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));
@@ -1631,6 +1729,8 @@ function drawLead(g,sc,C){   // in the ownship frame: forward is -y, 1 NM = sc p
     if(k%2===0){ g.lineWidth=3; g.strokeStyle=halo; g.strokeText(String(k),10,-k*sc); g.fillStyle=acc; g.fillText(String(k),10,-k*sc); } }
   g.lineCap='butt'; g.textBaseline='alphabetic';
 }
+// Log track colour by altitude: blue (surface) through green, yellow and orange to red at 6,000 ft and above
+function logAltCol(ft){ const f=Math.max(0,Math.min(1,(ft||0)/6000)); return `hsl(${Math.round(230-230*f)},85%,${f<.3?45:42}%)`; }
 function drawTrail(g,P,C,W,Hh){ // flight log on the map: fixes joined where they're under 60 s and 1.5 NM apart; older is fainter
   const now=Date.now(), fx=TLOG.pts.filter(p=>p[1]!=='ev'), runs=[[fx,1]];
   if(st.sim&&SIMT.length) runs.push([SIMT,0]);
@@ -1638,14 +1738,16 @@ function drawTrail(g,P,C,W,Hh){ // flight log on the map: fixes joined where the
     let prev=null, path=null; const segs=[];
     for(const p of pts){ const xy=P(p[1],p[2]);
       if(!prev || p[0]-prev[0]>60e3 || Math.abs(p[1]-prev[1])>0.025 || Math.abs(p[2]-prev[2])>0.032){ path=[]; segs.push(path); }
-      path.push([xy[0],xy[1],p[0]]); prev=p; }
+      path.push([xy[0],xy[1],p[0],p[3]]); prev=p; }
     g.lineJoin='round'; g.lineCap='round';
     for(const halo of [1,0]) for(const sg of segs){ if(sg.length<2) continue;
       // one path per run of points with the same fade step (every ~20 min), so joins don't double up
       let k=0; while(k<sg.length-1){ const step=real? Math.min(17,Math.floor((now-sg[k][2])/(20*60e3))) : 0; let j=k+1;
         while(j<sg.length-1 && (real? Math.min(17,Math.floor((now-sg[j][2])/(20*60e3))) : 0)===step) j++;
-        g.globalAlpha= halo? .55 : real? .95-.6*step/17 : .85; g.strokeStyle= halo? C.bg : real? C.ink : C.dim; g.lineWidth= halo? 4.5 : 2;
-        g.beginPath(); g.moveTo(sg[k][0],sg[k][1]); for(let q=k+1;q<=j;q++) g.lineTo(sg[q][0],sg[q][1]); g.stroke(); k=j; } }
+        g.globalAlpha= halo? .55 : real? .95-.6*step/17 : .85; g.lineWidth= halo? 4.5 : 2.4;
+        if(halo){ g.strokeStyle=C.bg; g.beginPath(); g.moveTo(sg[k][0],sg[k][1]); for(let q=k+1;q<=j;q++) g.lineTo(sg[q][0],sg[q][1]); g.stroke(); }
+        else for(let q=k+1;q<=j;q++){ const a1=sg[q-1][3], a2=sg[q][3]; g.strokeStyle= a1!=null||a2!=null? logAltCol(((a1??a2)+(a2??a1))/2) : (real?C.ink:C.dim); g.beginPath(); g.moveTo(sg[q-1][0],sg[q-1][1]); g.lineTo(sg[q][0],sg[q][1]); g.stroke(); }
+        k=j; } }
     g.globalAlpha=1; g.lineCap='butt'; }
   // waypoint sequencing events: a ring at the nearest fix, labelled with the new waypoint number
   g.font='700 9.5px "IBM Plex Mono", monospace'; g.textAlign='left';
@@ -2099,7 +2201,8 @@ function planCheck(alt,gs,dep){ const P_=FP.pts, ev=[], seenA=new Set(), seenZ=n
       const sp=!g&&b.f? splitTwr(b.f,la,lo) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
       const key=kk+'|'+f+'|'+who;
       if(!prevA||prevA.key!==key){ const lim=`${b.L<=0?'SFC':limTxt(b.L)}–${limTxt(b.H)}`;
-        add(D,g?'AREA':'ATC '+kk,`<b class="f">${f}</b> ${esc(who)} · class ${kk} ${lim}${g?'':' · <b>clearance required</b>'}`,`${g?'AREA':'ATC'} ${f} ${who} class ${kk} ${lim}${g?'':' clearance required'}`, g?'':'w'); prevA={key}; } }
+        const zad= b.k==='CTR'? ctrApp(b).ad : null, at= zad&&zad.a? ` · ATIS ${zad.a[0]}` : '';
+        add(D,g?'AREA':'ATC '+kk,`<b class="f">${f}</b> ${esc(who)} · class ${kk} ${lim}${at}${g?'':' · <b>clearance required</b>'}`,`${g?'AREA':'ATC'} ${f} ${who} class ${kk} ${lim}${at}${g?'':' clearance required'}`, g?'':'w'); prevA={key}; } }
     // restricted / prohibited / danger areas at the planned altitude
     for(const q of AS.prd){ if(!(alt>=q.L-50&&alt<q.H)) continue; const id=q.n.split(' ')[0]; if(seenA.has(id)) continue; seenA.add(id);
       const S=(DATA.sua&&DATA.sua.areas||{})[id], ss=suaStatus(id,t), R_=q.k==='R'||q.k==='P';
@@ -2116,22 +2219,29 @@ function planCheck(alt,gs,dep){ const P_=FP.pts, ev=[], seenA=new Set(), seenZ=n
   else if(ll&&ll.night) add(0,'NIGHT',`<b>departure after last light</b>${ll.fl?' · first light '+hhmmZ(ll.fl):''}`,'NIGHT departure after last light','w');
   ev.sort((x,y)=>x.D-y.D||(x.k==='WP'?(x.D<0.01?-1:1):0)-(y.k==='WP'?(y.D<0.01?-1:1):0));   // the departure point first, other waypoints after the calls at the same spot
   return {ev,legs,D:D0,unk,ll}; }
+function ntByLeg(N){ const P_=FP.pts, groups=new Map(), lab=k=>`Leg ${k}: ${P_[k-1].c||P_[k-1].n||''} → ${P_[k].c||P_[k].n||''}`;   // each NOTAM under the first leg it touches (aerodrome: the leg arriving there, or the first)
+  for(const n of N){ let k=0; const ai=P_.findIndex(p=>(p.c||'').toUpperCase()===n.loc); if(ai>=0) k=Math.max(1,ai);
+    if(!k&&n.la!=null) for(let j=1;j<P_.length&&!k;j++){ const a=P_[j-1], b=P_[j], [L]=distBrg(a.la,a.lo,b.la,b.lo), steps=Math.max(1,Math.ceil(L/2)); for(let q=0;q<=steps;q++){ const f=q/steps; if(ntIn(n,a.la+(b.la-a.la)*f,a.lo+(b.lo-a.lo)*f,1)){ k=j; break; } } }
+    const key=k? lab(k) : 'Other'; if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(n); }
+  return [...groups.entries()].sort((a,b)=>(parseInt(a[0].slice(4))||99)-(parseInt(b[0].slice(4))||99)); }
 function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vnote">Load or build a flight plan first.</div>'; return; }
   const alt=+$('pcAlt').value||1500, gs=Math.max(20,+$('pcGs').value||90), tv=$('pcDep').value||'';
-  ls.set('pcAlt',alt); ls.set('pcGs',gs);
+  const burn=+$('pcBurn').value||0, fob=+$('pcFuel').value||0; ls.set('pcAlt',alt); ls.set('pcGs',gs); ls.set('pcBurn',burn||null); ls.set('pcFuel',fob||null);
   let dep=Date.now(); if(/^\d\d:\d\d$/.test(tv)){ const d=new Date(); d.setHours(+tv.slice(0,2),+tv.slice(3),0,0); if(d.getTime()<Date.now()-3600e3) d.setDate(d.getDate()+1); dep=d.getTime(); }
   const r=planCheck(alt,gs,dep), lt=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false});
   const fmtD=D=>D<10?D.toFixed(1):Math.round(D);
   let h=`<div class="pc-sec">${esc(FP.name||'Flight plan')} · ${fmtD(r.D)} NM · ${hmm(r.D/gs*3600e3)} at ${gs} kt · ${alt.toLocaleString('en-AU')} ft · dep ${lt(dep)} (${hhmmZ(dep)})</div>`;
   h+='<table class="pc-t"><tbody>'+r.ev.map(e=>`<tr class="${e.cl}"><td class="m">${fmtD(e.D)}</td><td class="m">${lt(e.t)}</td><td class="k">${e.k}</td><td>${e.html}</td></tr>`).join('')+'</tbody></table>';
+  let rem=fob, tot=0; const fl=r.legs.map(l=>{ const t=l.L/gs*3600e3, f=burn? t/3600e3*burn : 0; tot+=f; rem-=f; return {t,f,rem}; }), resv=burn*0.5;
+  if(burn) h+=`<div class="pc-sec">Time and fuel by leg (${burn} L/h${fob?', '+fob+' L on board, reserve 30 min = '+Math.round(resv)+' L':''})</div><table class="pc-t"><tbody>`+r.legs.map((l,k)=>`<tr class="${fob&&fl[k].rem<resv?'low':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="f">${fmtD(l.L)} NM</td><td class="f">${hmm(fl[k].t)}</td><td class="f">${Math.round(fl[k].f)} L</td><td class="f">${fob?Math.round(fl[k].rem)+' L left':''}</td></tr>`).join('')+`<tr><td class="k">Total</td><td class="f">${fmtD(r.D)} NM</td><td class="f">${hmm(r.D/gs*3600e3)}</td><td class="f">${Math.round(tot)} L</td><td class="f">${fob?Math.round(fob-tot)+' L left':''}</td></tr></tbody></table>`;
   h+='<div class="pc-sec">LSALT by leg (highest terrain or NOTAM obstacle within 2 NM, +1000 ft)</div><table class="pc-t"><tbody>'+r.legs.map(l=>{ const b=l.hi, w=b&&b.ft>=alt-500;
     return `<tr class="${b&&b.ft>=alt-50?'w':w?'a':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="m">${fmtD(l.L)} NM</td><td>${b?`<b>LSALT ${lsaltOf(b.ft).toLocaleString('en-AU')}</b> · highest ${Math.round(b.ft).toLocaleString('en-AU')} ft ${esc(b.what)} ${fmtD(b.D-l.D>=0?b.D-l.D:b.D)} NM into the leg`:'terrain not loaded'}${l.unk?' <i>(terrain partly loaded)</i>':''}</td></tr>`; }).join('')+'</tbody></table>';
-  const N=ntRoute(); h+=`<div class="pc-sec">NOTAMs along the route (${N.length})</div>`+(N.length? '<table class="pc-t"><tbody>'+N.map(n=>`<tr><td class="k">${esc(n.loc||'')} ${esc(n.id||'')}</td><td>${esc((n.text||'').slice(0,240))}</td></tr>`).join('')+'</tbody></table>' : `<div class="vnote">${ntHave()?'None in the loaded briefing.':'No NAIPS briefing loaded: load one for NOTAMs, area status and obstacles.'}</div>`);
+  const N=ntRoute(), NL=ntByLeg(N); h+=`<div class="pc-sec">NOTAMs along the route (${N.length}), by leg</div>`+(N.length? '<table class="pc-t"><tbody>'+NL.map(([lab,ns])=>`<tr class="wp"><td class="k" colspan="2">${esc(lab)}</td></tr>`+ns.map(n=>`<tr><td class="k">${esc(n.loc||'')} ${esc(n.id||'')}</td><td>${esc((n.text||'').slice(0,240))}</td></tr>`).join('')).join('')+'</tbody></table>' : `<div class="vnote">${ntHave()?'None in the loaded briefing.':'No NAIPS briefing loaded: load one for NOTAMs, area status and obstacles.'}</div>`);
   $('pcOut').innerHTML=h;
   $('pcStat').textContent= r.legs.some(l=>l.unk)? 'Some terrain along the route isn\'t loaded yet: checking again…' : 'Planned altitude, GS and departure are kept on this device. Tower hours and area status are at your ETA; check the ATIS, NOTAMs and ERSA before flight.';
-  PC.text=`PLAN CHECK ${FP.name||''} ${fmtD(r.D)} NM ${alt} ft ${gs} kt dep ${lt(dep)}\n`+r.ev.map(e=>`${String(fmtD(e.D)).padStart(5)} NM ${lt(e.t)}  ${e.k.padEnd(8)} ${e.txt}`).join('\n')+'\n\nLSALT by leg\n'+r.legs.map(l=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${l.hi?'LSALT '+lsaltOf(l.hi.ft)+' (highest '+Math.round(l.hi.ft)+' ft '+l.hi.what+')':'terrain not loaded'}${l.unk?' (terrain partly loaded)':''}`).join('\n')+'\n\nNOTAMs along the route\n'+N.map(n=>`${n.loc||''} ${n.id||''}: ${n.text||''}`).join('\n')+'\n';
+  PC.text=`PLAN CHECK ${FP.name||''} ${fmtD(r.D)} NM ${alt} ft ${gs} kt dep ${lt(dep)}\n`+r.ev.map(e=>`${String(fmtD(e.D)).padStart(5)} NM ${lt(e.t)}  ${e.k.padEnd(8)} ${e.txt}`).join('\n')+'\n\nLSALT by leg\n'+r.legs.map(l=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${l.hi?'LSALT '+lsaltOf(l.hi.ft)+' (highest '+Math.round(l.hi.ft)+' ft '+l.hi.what+')':'terrain not loaded'}${l.unk?' (terrain partly loaded)':''}`).join('\n')+(burn?'\n\nTime and fuel\n'+r.legs.map((l,k)=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${hmm(fl[k].t)} ${Math.round(fl[k].f)} L${fob?' ('+Math.round(fl[k].rem)+' L left)':''}`).join('\n'):'')+'\n\nNOTAMs along the route\n'+NL.map(([lab,ns])=>lab+'\n'+ns.map(n=>`  ${n.loc||''} ${n.id||''}: ${n.text||''}`).join('\n')).join('\n')+'\n';
   if(r.legs.some(l=>l.unk)&&TER.ok&&(PC.retry=(PC.retry||0)+1)<=12&&$('pcDlg').open) setTimeout(pcRun,2000); else { PC.retry=0; if(r.legs.some(l=>l.unk)) $('pcStat').textContent='Terrain isn\'t available for part of the route (not downloaded, or offline): those legs\' LSALT may be low.'; } }
-$('fpCheck').onclick=()=>{ $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>30?Math.round(st.alt/100)*100:1500); $('pcGs').value=ls.get('pcGs',90);
+$('fpCheck').onclick=()=>{ $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>30?Math.round(st.alt/100)*100:1500); $('pcGs').value=ls.get('pcGs',90); $('pcBurn').value=ls.get('pcBurn','')||''; $('pcFuel').value=ls.get('pcFuel','')||'';
   if(!$('pcDep').value){ const d=new Date(); $('pcDep').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
   if(FP) for(const p of FP.pts) terPrefetch(p.la,p.lo);
   const d=$('pcDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); PC.retry=0; pcRun(); };
@@ -2173,7 +2283,7 @@ function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace 
   if(ca.app){ f=ca.app[2]; who=unitShort(ca.app[1]||ca.ad.i+' APP'); }   // a transit: approach, as the clearance-request call
   else { const sp=!R_&&f&&st.pos? splitTwr(f,st.pos[0],st.pos[1]) : null;   // Moorabbin from the west: 123.0, as the tiles will say
     if(sp){ f=sp[2]; who=unitShort(sp[1]||n.b.unit)+' '+sp[4][0]; } }
-  const atisAd= !R_&&n.b? (ca&&ca.ad || (n.b.k==='CTR'? ctrApp(n.b).ad : null)) : null, atis= atisAd&&atisAd.a&&atisAd.a[0]? ` · ATIS ${atisAd.a[0]}` : '';   // the zone's aerodrome ATIS, to listen to before calling
+  const atisAd= !R_&&n.b? (ca&&ca.ad || (n.b.k==='CTR'? ctrApp(n.b).ad : null)) : null, atis= atisAd&&atisAd.a&&atisAd.a[0]? ` · ATIS ${atisAd.a[0]}${atisOf(atisAd.i)?' ('+atisOf(atisAd.i)+')':''}` : '';   // the zone's aerodrome ATIS, to listen to before calling
   box.hidden=false;
   box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?(()=>{ const s_=suaStatus(n.prd.n.split(' ')[0]); return s_&&s_.s==='act'? ' · ACTIVE'+(s_.until?' →'+hhmmZ(s_.until):'')+' · clearance' : ' · restricted, check status'; })():(who?' · '+esc(who):'')+(f?' '+f:'')+atis+' · clearance'}</span>`; }
 function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
@@ -2303,8 +2413,8 @@ function render(){
     st.ctafHold={i:herePk.a.i,la,lo}; }
   const here=herePk.a; st.ntHere=here;
   { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here;
-    if(nearPk.a!==here&&twrOpenNow(nearPk.a)&&nearPk.d<=10){ const r2=twrPick(nearPk.a,nearPk), ts2=twrStatus(nearPk.a); renderCtl(nearPk.a,r2,true,ts2); }   // a towered field you're near but not in: its ATIS / TWR row still shows
-    else renderCtl(here,r.tp,r.open,r.ts); }
+    if(nearPk.a!==here&&twrOpenNow(nearPk.a)&&nearPk.d<=10){ const r2=twrPick(nearPk.a,nearPk), ts2=twrStatus(nearPk.a); renderCtl(nearPk.a,r2,true,ts2); st.ctlAd=nearPk.a; }   // a towered field you're near but not in: its ATIS / TWR row still shows
+    else { renderCtl(here,r.tp,r.open,r.ts); st.ctlAd= here.a||(here.x||[]).some(x=>x[0]==='TWR')? here : null; } }
   $('ctafRow').innerHTML=html; html='';
   { const L=ntFor(a.i).sort((x,y)=>ntTime(x.from)-ntTime(y.from)), key=L.some(n=>/\b(CLSD|CLOSED|U\/S|NOT AVBL)\b/.test(n.text||''));
     wxBox(a);
@@ -2353,7 +2463,7 @@ function render(){
   } else html+=freqRow('AREA','', 'No airspace data here');
   nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R'&&!(q.st&&q.st.s==='off'))).key);
   renderCalls(a,pick,varE);   // after nextFreqs: the clearance-request call uses NX.cls
-  inboundUI();
+  inboundUI(); st.curBand=cur; clrUI(cur);
   { // warning row: you're inside a restricted / prohibited / danger area at your altitude (status from the NAIPS briefing first), or a NOTAM temporary zone
     const S=(DATA.sua&&DATA.sua.areas)||{}, inn=AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H), box=$('sInSua');
     const tz=ntZonesAt(la,lo,altFt,gnd);
@@ -2551,7 +2661,8 @@ legUI();
 $('mapTer').setAttribute('aria-pressed',MAP.ter);
 $('mapLead').onclick=()=>{ MAP.lead=!MAP.lead; ls.set('mapLead',MAP.lead); $('mapLead').setAttribute('aria-pressed',MAP.lead); render(); };
 $('mapLead').setAttribute('aria-pressed',MAP.lead);
-$('mapLog').onclick=()=>{ MAP.log=!MAP.log; ls.set('mapLog',MAP.log); $('mapLog').setAttribute('aria-pressed',MAP.log); render(); };
+$('mapLog').onclick=()=>{ MAP.log=!MAP.log; ls.set('mapLog',MAP.log); $('mapLog').setAttribute('aria-pressed',MAP.log); $('logLeg').hidden=!MAP.log; render(); };
+$('logLeg').hidden=!MAP.log;
 $('mapLog').setAttribute('aria-pressed',MAP.log);
 $('ntUrl').value=ntUrl();
 $('ntUrl').addEventListener('change',()=>{ setTimeout(()=>{ SAT.img.clear(); SAT.lastErr=''; satUI(); render(); },0); const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
@@ -2986,7 +3097,7 @@ function renderCalls(a,pick,varE){
     const twAll=twrs.map(t=>`${titleCase(t[1])}${t[4]?' '+t[4]:''} ${t[2]}`).join(' · ');
     const sideNote = twrs.some(t=>t[4]) && !sideNow ? ` You are on the aerodrome: ERSA ties ${twrs.map(t=>`${t[4]||'?'} ${t[2]}`).join(' and ')} to departures and arrivals on that side. The ATIS says which frequency is in use.`
       : twrs.some(t=>t[4]) ? ` ${onAd&&fpT?`Your next waypoint (${esc(fpT.c||fpT.n)}) is to the ${sideNow.toLowerCase()}`:onAd?`Over the aerodrome: you came from, or are heading, ${sideNow.toLowerCase()}`:`You are ${sideNow.toLowerCase()} of the aerodrome`}, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
-    const atisL = a.a?`<i>[ATIS letter]</i>`:'';
+    const atisL = a.a? (atisWord(a.i)||`<i>[ATIS letter]</i>`) : '';
     const rptPts=(K.rpts||'').split(/,\s*|\s+or\s+/).map(x=>x.trim()).filter(Boolean).map(c=>VWby.get(c)||{c,n:c,missing:1});
     const nearR=rptPts.filter(p=>!p.missing).map(p=>({p,d:distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0]})).sort((x,y)=>x.d-y.d)[0];
     const rp = nearR && nearR.d<3 ? `over ${T(titleCase(nearR.p.n))}` : K.rpts? `over <i>[${T(rptPts.map(p=>titleCase(p.n)).join(' / '))}]</i>` : dist;
@@ -2996,10 +3107,10 @@ function renderCalls(a,pick,varE){
     modeTxt=`<b>Tower procedures (Class D)</b> · ${twAll}${gn?` · ${gn} ${gnd[2]}`:''}${a.a?` · ATIS ${a.a[0]}`:''}<br>`+
       (ts? `ERSA tower hours today ${ts.today||'none'} local${ts.hds?' (daylight saving)':''}: <b>${ts.on?'tower likely active':'tower likely closed'}</b>. Public holidays and NOTAMs not included; confirm on the ATIS.` : 'Tower hours not found in ERSA: <b>tower assumed active</b>; confirm on the ATIS or switch to CTAF below.');
     if(a.a) calls.push(['Before first contact',`Listen to ATIS ${a.a[0]} and note the information letter${heli?'. Nominate your landing site or aiming point on first contact if ERSA requires it':''}.`]);
-    if(gn) calls.push(['Taxi · '+gn+' '+gnd[2],`${T(gn)}, ${cs}, ${type}, <i>[position on aerodrome]</i>, received ${atisL||'<i>[ATIS]</i>'}, request taxi ${heli?'<i>[for aiming point / HLS]</i> ':''}for <i>[circuits / VFR departure to the …]</i>.`]);
+    if(gn) calls.push(['Taxi · '+gn+' '+gnd[2],`${T(gn)}, ${type} ${cs}, <i>[position on aerodrome]</i>, received ${atisL||'<i>[ATIS]</i>'}, request taxi ${heli?'<i>[for aiming point / HLS]</i> ':''}for <i>[circuits / VFR departure to the …]</i>.`]);
     const twOf=side=>{ const t=twrs.find(t=>t[4]===side)||twSide; return [titleCase(t[1]), t[2], t[4]||'']; };
     calls.push(['Ready · '+(twrs.some(t=>t[4])? twrs.map(t=>(t[4]||'')+' '+t[2]).join(' / ')+' by departure direction' : tw+' '+tf),`${T(tw)}, ${cs}, ready ${heli?'<i>[aiming point / HLS]</i>':rwy}, <i>[circuits / departing to the … at … feet]</i>.`]);
-    calls.push(['Inbound · '+tw+(twSide[4]?' '+twSide[4]:'')+' '+tf+' · before entering the CTR',`${T(tw)}, ${cs}, ${type}, ${rp}, ${inAlt}, received ${atisL||'<i>[ATIS]</i>'}, inbound${heli?' for <i>[HLS / aiming point]</i>':' for landing'}.`]);
+    calls.push(['Inbound · '+tw+(twSide[4]?' '+twSide[4]:'')+' '+tf+' · before entering the CTR',`${T(tw)}, ${type} ${cs}, ${rp}, ${inAlt}, received ${atisL||'<i>[ATIS]</i>'}, inbound${heli?' for <i>[HLS / aiming point]</i>':' for landing'}.`]);
     if(/report turning downwind/i.test(JSON.stringify(a.proc||{}))) calls.push(['Turning downwind (ERSA requires)',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
     else calls.push(['Circuit',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
     calls.push(['Leaving the CTR',`Follow ATC instructions. ${a.fia?`For class G, ERSA lists ${T(titleCase(a.fia[0][0]))} ${a.fia[0][1]}.`:''}`]);
@@ -3032,10 +3143,10 @@ function renderCalls(a,pick,varE){
       const posTxt= atField? `over ${T(loc)}` : `${dist} of ${T(loc)}`;
       const dest= GO? T(GO.k==='AD'? callName(GO.n||GO.c,GO.c) : titleCase(GO.c||GO.n||'')) : '';
       const want= dest? `request clearance to track direct ${dest} at ${lvl}` : `request clearance to transit <i>[direction / via …]</i> at ${lvl}`;
-      const atis= ctrAd&&ctrAd.a? `, received <i>[ATIS ${ctrAd.i}]</i>` : '';
+      const atis= ctrAd&&ctrAd.a? `, received ${atisRecv(ctrAd.i)}` : '';
       const lim=`${n.b.L<=0?'SFC':limTxt(n.b.L)}–${limTxt(n.b.H)}`;
       calls.unshift([`Clearance request · ${unitS} ${f||'<i>[freq]</i>'} · class ${n.k} ${lim} in ${n.d<10?n.d.toFixed(1):Math.round(n.d)} NM (trial)`,
-        `${unitS}, ${cs}, ${type}, ${posTxt}, ${lvl}${atis}, ${want}. <small>Call well before the boundary and remain outside until cleared; read back the clearance, level and squawk.</small>`]); } }
+        `${unitS}, ${type} ${cs}, ${posTxt}, ${lvl}${atis}, ${want}. <small>Call well before the boundary and remain outside until cleared; read back the clearance, level and squawk.</small>`]); } }
   let rptHtml='';
   if(mode==='twr' && K.rpts){
     const pts=(K.rpts||'').split(/,\s*|\s+or\s+/).map(x=>x.trim()).filter(Boolean).map(c=>VWby.get(c)).filter(Boolean)

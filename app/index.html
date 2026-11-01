@@ -240,6 +240,15 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
 .st.off{display:none!important}
+.st.nxcls.clr{cursor:pointer;border-color:var(--as-c);background:color-mix(in srgb,var(--as-c) 10%,var(--panel))} .st.nxcls.clr b{color:var(--as-c);font-family:var(--f-mono)} #hud .st.nxcls.clr span{-webkit-line-clamp:unset;display:block}
+#sNxCls{cursor:pointer}
+.atis-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:5px;margin:4px 0 10px} .atis-grid .btn{padding:8px 0;justify-content:center;font:700 15px var(--f-mono)} .atis-grid .btn.on{background:var(--freq);color:#fff;border-color:var(--freq)}
+.clrdlg input{font:600 16px var(--f-mono)} .clrdlg .pc-in input{width:150px}
+.rpbox{display:flex;flex-direction:column;gap:6px;margin-top:6px} .rpbox select{font:600 14px var(--f-mono);padding:6px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
+.logtot{flex-basis:100%;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;margin-top:4px} .logtot b{font-weight:700}
+.opts-list .legs .lg{display:block} .opts-list .legs .lg .btn{padding:2px 7px;font-size:11px;margin-left:4px} .opts-list .legs .lg.del{opacity:.5;text-decoration:line-through}
+.lgedit{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:end;padding:6px 0 8px;font-size:12px} .lgedit label{display:flex;flex-direction:column;gap:2px} .lgedit input{font:600 14px var(--f-mono);width:90px;padding:5px 7px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink)}
+.pc-t td.f{font:600 12px var(--f-mono);white-space:nowrap} .pc-t tr.low td{color:var(--warn)}
 #hud .st.nxcls.inbound span{display:block;-webkit-line-clamp:unset;overflow:visible} .st.nxcls.inbound{flex-wrap:wrap;cursor:pointer} .st.nxcls.inbound span{white-space:normal;flex-basis:100%;font-weight:600} .st.nxcls.inbound .x{margin-left:auto;font:700 12px var(--f-label);color:var(--dim)}
 @keyframes fqflash{0%,100%{box-shadow:0 0 0 0 transparent}45%,55%{background:color-mix(in srgb,var(--accent) 38%,var(--panel));box-shadow:0 0 0 3px var(--accent)}}
 .st.fqflash{animation:fqflash .7s ease-in-out var(--flashN,5)}
@@ -447,7 +456,7 @@ body.fsm.fsm-tab .wrap>.status{grid-template-columns:repeat(6,minmax(0,1fr))!imp
 body.fsm.fsm-tab .wrap>.status>.st{grid-column:span 3!important}
 body.fsm.fsm-tab .wrap>.status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .wrap>.status>#sHdgBox,body.fsm.fsm-tab .wrap>.status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .wrap>.status>#sLimBox{grid-column:span 4!important}
 body.fsm.fsm-tab .wrap>.status>.st.fq,body.fsm.fsm-tab .wrap>.status>.st.ctl,body.fsm.fsm-tab .wrap>.status>.st.nxcls,body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>.fsbar-x{grid-column:1/-1!important}
-body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
+body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sClr,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
 body.fsm.fsm-tab .wrap>.status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .wrap>.status>.st.nxcls span{white-space:normal;flex-basis:100%}
 body.fsm.fsm-tab #mapSec{left:300px}
 body.fsm.fsm-tab #fsSheet{left:300px}
@@ -477,6 +486,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
     <button class="st fsbar-x" id="fsBarX">▲ Back to the map</button>
     <div class="st nxcls amber inbound" id="sInbound" hidden title="Inbound call reminder: 10 NM from your Go to / flight plan aerodrome"></div>
+    <div class="st nxcls clr" id="sClr" hidden title="Your clearance notes: tap to edit"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
 
@@ -531,7 +541,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
           <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
         </div>
       </details>
-      <div class="legend" id="mapLeg" title="Tap an item to show or hide it on the map"><span data-leg="C"><i class="sw c-C"></i>C</span><span data-leg="D"><i class="sw c-D dash"></i>D / CTR</span><span data-leg="E"><i class="sw c-E"></i>E</span><span data-leg="R"><i class="sw c-R"></i>R</span><span data-leg="Q"><i class="sw c-Q dash"></i>Danger</span><span data-leg="FIA"><i class="sw c-FIA dot"></i>Area freq boundary</span><span data-leg="VFR"><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" data-leg="TER" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft<span id="terRbLeg" hidden style="white-space:nowrap"> · <i class="rbramp"></i>SFC→7000 ft</span></span></div>
+      <div class="legend" id="mapLeg" title="Tap an item to show or hide it on the map"><span id="logLeg" hidden title="Log track colour by altitude"><i class="rbramp" style="background:linear-gradient(90deg,hsl(230,85%,45%),hsl(172,85%,45%),hsl(115,85%,42%),hsl(57,85%,42%),hsl(0,85%,42%))"></i>Log SFC→6000 ft</span><span data-leg="C"><i class="sw c-C"></i>C</span><span data-leg="D"><i class="sw c-D dash"></i>D / CTR</span><span data-leg="E"><i class="sw c-E"></i>E</span><span data-leg="R"><i class="sw c-R"></i>R</span><span data-leg="Q"><i class="sw c-Q dash"></i>Danger</span><span data-leg="FIA"><i class="sw c-FIA dot"></i>Area freq boundary</span><span data-leg="VFR"><i class="dotc" style="background:var(--wp);border-radius:1px;transform:rotate(45deg);width:8px;height:8px"></i>VFR waypoint · tap to go to</span><span id="terLeg" data-leg="TER" hidden><i class="sw" style="border-color:var(--warn);border-top-width:6px"></i>Terrain at/above you <i class="sw" style="border-color:var(--accent);border-top-width:6px"></i>within 500 ft<span id="terRbLeg" hidden style="white-space:nowrap"> · <i class="rbramp"></i>SFC→7000 ft</span></span></div>
     </div>
   </section>
 
@@ -569,6 +579,13 @@ body.fsm.fsm-tab #fsSheet{left:300px}
       <label for="simGs"><span class="lbl">GS kt</span><input id="simGs" inputmode="numeric" value="0"></label>
     </div>
     <div class="ctl"><button class="btn primary" id="simGo">Set position</button><button class="btn" id="simFly" aria-pressed="false">Fly</button></div>
+    <div class="ctl"><label class="btn" for="rpFile" title="Play a GPX track (e.g. a Flight log download) through the app">Replay GPX</label><input type="file" id="rpFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden></div>
+    <div class="rpbox" id="rpBox" hidden>
+      <div class="ctl"><button class="btn" id="rpPlay">▶</button><select id="rpSpd" aria-label="Replay speed"><option value="1">1×</option><option value="2">2×</option><option value="5" selected>5×</option><option value="10">10×</option></select><span class="mono" id="rpTime"></span><button class="btn" id="rpStop" style="margin-left:auto">Stop</button></div>
+      <input type="range" id="rpPos" min="0" max="1" value="0" step="1000" style="width:100%">
+    </div>
+    <div class="vnote" id="rpStat"></div>
+
     <div class="err" id="simErr" hidden></div>
     <div class="hint">Decimal degrees, DMS, an aerodrome code, a VFR waypoint (CARR), a navaid (AV) or an IFR waypoint. Fly moves you along the track at the set ground speed. Tap an aerodrome in Nearby to select it.</div>
     </div>
@@ -661,6 +678,15 @@ body.fsm.fsm-tab #fsSheet{left:300px}
   <div id="hud" aria-label="Key frequencies and flight data over the map"><div id="hudL"></div><div id="hudR"></div><div id="hudA"></div></div>
   <div id="fsSheet" data-s="peek"><div id="fsHead"><div class="fs-grab" aria-hidden="true"><i></i></div><div class="fs-tabs" id="fsTabs" role="tablist"></div></div><div id="fsBody"><div id="fsLayers" class="fs-sec"><div class="lbl">Map layers</div><div class="ctl" id="fsLayBtns"></div></div></div></div>
 
+  <dialog class="opts clrdlg" id="clrDlg" aria-labelledby="clrTitle">
+    <div class="opts-head"><b id="clrTitle">ATIS and clearance</b><button class="btn" id="clrClose" aria-label="Close">✕</button></div>
+    <div class="lbl" id="clrAtisLbl">ATIS</div>
+    <div class="atis-grid" id="clrAtis"></div>
+    <div class="pc-in"><label>Squawk <input id="clrSq" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"></label><label>Level <input id="clrLvl" autocomplete="off" placeholder="A015, not above 1500"></label></div>
+    <div class="pc-in"><label style="flex:1">Route / instructions <input id="clrRt" autocomplete="off" placeholder="via CARR, report BTO" style="width:100%"></label></div>
+    <div class="vnote">Shown as the CLEARANCE row while you're in (or about to enter) controlled airspace; cleared 2 min after you leave it. The ATIS letter goes into the tower and clearance calls for 60 min.</div>
+    <div class="ctl"><button class="btn" id="clrClear">Clear all</button><button class="btn primary" id="clrOk">Done</button></div>
+  </dialog>
   <dialog class="opts" id="optsDlg" aria-labelledby="optsTitle">
     <div class="opts-head"><b id="optsTitle">Options</b><button class="btn" id="optsClose" aria-label="Close">✕</button></div>
     <div class="lbl">Chart downloads (VNC / VTC)</div>
@@ -689,7 +715,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
 
   <dialog class="opts pcdlg" id="pcDlg" aria-labelledby="pcTitle">
     <div class="opts-head"><b id="pcTitle">Plan check</b><button class="btn" id="pcClose" aria-label="Close">✕</button></div>
-    <div class="pc-in"><label>Altitude ft <input id="pcAlt" type="number" inputmode="numeric" step="100" min="0"></label><label>GS kt <input id="pcGs" type="number" inputmode="numeric" step="5" min="20"></label><label>Departure (local) <input id="pcDep" type="time"></label><button class="btn" id="pcRun">Check</button></div>
+    <div class="pc-in"><label>Altitude ft <input id="pcAlt" type="number" inputmode="numeric" step="100" min="0"></label><label>GS kt <input id="pcGs" type="number" inputmode="numeric" step="5" min="20"></label><label>Departure (local) <input id="pcDep" type="time"></label><label>Burn L/h <input id="pcBurn" type="number" inputmode="decimal" step="1" min="0" placeholder="e.g. 100"></label><label>Fuel L <input id="pcFuel" type="number" inputmode="decimal" step="1" min="0" placeholder="on board"></label><button class="btn" id="pcRun">Check</button></div>
     <div class="vnote" id="pcStat"></div>
     <div id="pcOut"></div>
     <div class="ctl"><button class="btn" id="pcCopy">Copy text</button><button class="btn" id="pcPrint">Print / PDF</button></div>
@@ -752,7 +778,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=66c3d1e8e6';
+    const s=document.createElement('script'); s.src='app.js?v=334c794eda';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
