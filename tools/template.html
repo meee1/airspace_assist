@@ -3152,14 +3152,20 @@ function wbNew(name){ const id='p'+Date.now().toString(36); return {id,name:name
 // built-in starting profiles. Bell 206: BHT-206A/B-SERIES-MM-2 chapter 8 (Rev. 3, 12 Jul 2004), Fig. 8-4 weight record and
 // Table 8-2: pilot FS 65.0 BL +14.0 (right seat), fwd passenger FS 65.0 BL -11.0, aft passengers (3) FS 104.0 BL 0, engine oil
 // 12.3 lb at FS 179.0 (MIL-PRF-23699), fuel FS 118.0 (91 gal cell, 206B-3 S/N 3567+) or FS 116.0 (76 gal, S/N 4-3566), Jet A
-// 6.8 lb/gal, MGTOW 3200 lb (3350 lb with STC SR09397RC). Weight empty from the aircraft's own weighing record; the gross
-// weight flight CG limits and the baggage station are in the Flight Manual (RFM) limitations / W&B section, not in the MM.
+// 6.8 lb/gal, MGTOW 3200 lb (3350 lb with STC SR09397RC). Weight empty from the aircraft's own weighing record. BHT-206B-FM-1
+// (206B JetRanger II): longitudinal CG 106.0 to 114.2 in, aft limit 114.2 up to 2350 lb then straight to 111.4 at 3200 lb (doors on;
+// the chart starts at 2000 lb, the text gives 106.0-114.2 at any weight, so the envelope runs down to 1500 lb); lateral 3.0 in left,
+// 4.0 in right; front seat minimum 150 lb; baggage 250 lb (structural). The baggage arm isn't in either extract: the user enters it.
 const WB_TPL={
-  b206b3:{name:'Bell 206B-3 (91 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8',
-    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:null},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (91 gal)',k:'fuel',a:118.0,l:0,max:91}]},
-  b206ab76:{name:'Bell 206A/B (76 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8',
-    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:null},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (76 gal)',k:'fuel',a:116.0,l:0,max:76}]}};
-function wbFromTpl(key){ const T=WB_TPL[key]; if(!T) return wbNew(); const p=wbNew(T.name); Object.assign(p,JSON.parse(JSON.stringify(T)),{id:p.id,ew:null,ea:null,el:null,env:'',lenv:''}); return p; }
+  b206b3:{name:'Bell 206B-3 (91 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8 and BHT-206B-FM-1 sections 1 and 4',env:'106.0,1500\n106.0,3200\n111.4,3200\n114.2,2350\n114.2,1500', lenv:'-3.0,1500\n-3.0,3200\n4.0,3200\n4.0,1500', minFront:150,
+    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:250},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (91 gal)',k:'fuel',a:118.0,l:0,max:91}]},
+  b206ab76:{name:'Bell 206A/B (76 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8 and BHT-206B-FM-1 sections 1 and 4',env:'106.0,1500\n106.0,3200\n111.4,3200\n114.2,2350\n114.2,1500', lenv:'-3.0,1500\n-3.0,3200\n4.0,3200\n4.0,1500', minFront:150,
+    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:250},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (76 gal)',k:'fuel',a:116.0,l:0,max:76}]}};
+// a Bell profile made before the Flight Manual limits were added (2 Nov 2026): fill what's still empty, keep what you typed
+for(const P of WB.profiles) if(/^BHT-206A\/B-SERIES-MM-2 ch 8$/.test(P.src||'')){ const T=WB_TPL[/76/.test(P.name)?'b206ab76':'b206b3'];
+  if(!wbPoly(P.env).length) P.env=T.env; if(!wbPoly(P.lenv).length) P.lenv=T.lenv; if(P.minFront==null) P.minFront=T.minFront; P.src=T.src;
+  for(const s of P.st) if(s.k==='bag'&&/baggage/i.test(s.n)&&s.max==null) s.max=250; wbSave(); }
+function wbFromTpl(key){ const T=WB_TPL[key]; if(!T) return wbNew(); const p=wbNew(T.name); Object.assign(p,JSON.parse(JSON.stringify(T)),{id:p.id,ew:null,ea:null,el:null}); return p; }
 function wbCur(){ return WB.profiles.find(p=>p.id===WB.cur)||WB.profiles[0]||null; }
 function wbPoly(txt){ return String(txt||'').split(/\n|;/).map(l=>l.trim().split(/[\s,]+/).map(Number)).filter(r=>r.length>=2&&isFinite(r[0])&&isFinite(r[1])).map(r=>[r[0],r[1]]); }
 function wbIn(poly,x,y){ if(poly.length<3) return true; let c=false;   // ray casting; on the edge counts as inside (1e-6 slack)
@@ -3169,11 +3175,11 @@ function wbIn(poly,x,y){ if(poly.length<3) return true; let c=false;   // ray ca
   return c; }
 function wbReady(P){ const miss=[]; if(!P) return ['a profile'];
   if(!(P.ew>0)) miss.push('empty weight'); if(P.ea==null||!isFinite(P.ea)) miss.push('empty arm'); if(!(P.maxW>0)) miss.push('max take-off weight');
-  if(wbPoly(P.env).length<3) miss.push('CG envelope (3+ corners)'); P.st.forEach(s=>{ if(s.a==null||!isFinite(s.a)) miss.push(`${s.n||'station'} arm`); });
+  if(wbPoly(P.env).length<3) miss.push('CG envelope (3+ corners)'); P.st.forEach(s=>{ if(s.k!=='bag'&&(s.a==null||!isFinite(s.a))) miss.push(`${s.n||'station'} arm`); });   // a bag station without an arm just can't be loaded
   return miss; }
 const wbW=(P,s,v)=>s.k==='fuel'? v*(P.dens||WB_U[P.u].dens) : v;   // a station's weight: fuel litres/gallons × density
 function wbSum(P,vals){ let w=P.ew, m=P.ew*P.ea, ml=P.ew*(P.el||0);
-  P.st.forEach((s,k)=>{ const x= s.k==='fixed'? (+s.max||0) : wbW(P,s,+vals[k]||0); w+=x; m+=x*s.a; ml+=x*(s.l||0); });   // fixed: always carried (e.g. engine oil), weight in its max field
+  P.st.forEach((s,k)=>{ if(s.a==null||!isFinite(s.a)) return; const x= s.k==='fixed'? (+s.max||0) : wbW(P,s,+vals[k]||0); w+=x; m+=x*s.a; ml+=x*(s.l||0); });   // fixed: always carried (e.g. engine oil), weight in its max field
   return {w, a:m/w, l:ml/w}; }
 function wbFuelSet(P,vals,f){ const v=vals.slice(); let r=f;   // f fuel units filled into the tanks in listed order
   P.st.forEach((s,k)=>{ if(s.k!=='fuel') return; const c=s.max>0? s.max : Infinity, x=Math.max(0,Math.min(c,r)); v[k]=x; r-=x; }); return v; }
@@ -3185,7 +3191,7 @@ function wbPlanFuel(P){   // the loaded plan: time at Plan check's GS, fuel at i
   let D=0; for(let k=1;k<FP.pts.length;k++) D+=distBrg(FP.pts[k-1].la,FP.pts[k-1].lo,FP.pts[k].la,FP.pts[k].lo)[0];
   const h=D/gs, burn=P.u==='lb'? burnL/3.785 : burnL; return {D, h, burn, trip:h*burn, need:(h+0.5)*burn}; }
 // check one loading: take-off, landing, zero fuel, and the burn line between them
-function wbCheck(P,vals){ const env=wbPoly(P.env), lenv=wbPoly(P.lenv), pf=wbPlanFuel(P), F=wbFuelTot(P,vals), why=[];
+function wbCheck(P,vals,o={}){ const env=wbPoly(P.env), lenv=wbPoly(P.lenv), pf=wbPlanFuel(P), F=wbFuelTot(P,vals), why=[];
   const to=wbSum(P,vals), zf=wbSum(P,wbBurnScale(P,vals,0));
   const ldF= pf&&F>0? Math.max(0,F-pf.trip) : null, ld= ldF!=null? wbSum(P,wbBurnScale(P,vals,ldF/F)) : null;
   const okP=p=>wbIn(env,p.a,p.w)&&(lenv.length<3||wbIn(lenv,p.l,p.w));
@@ -3194,33 +3200,38 @@ function wbCheck(P,vals){ const env=wbPoly(P.env), lenv=wbPoly(P.lenv), pf=wbPla
     if(!wbIn(env,p.a,p.w)) why.push(`${nm} CG ${wbFmtA(P,p.a)} at ${wbFmtW(P,p.w)} is outside the envelope`);
     else if(lenv.length>=3&&!wbIn(lenv,p.l,p.w)) why.push(`${nm} lateral CG ${wbFmtA(P,p.l)} is outside the lateral limits`); }
   if(F>0&&!why.length) for(let i=1;i<20;i++){ const p=wbSum(P,wbBurnScale(P,vals,i/20)); if(!okP(p)){ why.push(`the CG leaves the envelope as fuel burns (at ${Math.round(F*i/20)} ${WB_U[P.u].f} left)`); break; } }
+  if(P.minFront>0&&!o.noFront){ const sts=P.st.map((s,k)=>({s,k})).filter(x=>x.s.k==='seat'), a0=sts.length?Math.min(...sts.map(x=>x.s.a)):null, fr=sts.filter(x=>x.s.a===a0).reduce((t,x)=>t+(+vals[x.k]||0),0);   // the front row: seats at the most forward arm
+    if(sts.length&&fr<P.minFront) why.push(`front seats ${Math.round(fr)} ${WB_U[P.u].w}: the minimum is ${P.minFront} ${WB_U[P.u].w}`); }
   P.st.forEach((s,k)=>{ if(s.k==='fixed') return; const v=+vals[k]||0; if(s.max>0&&v>s.max+1e-6) why.push(`${s.n}: ${v} is over its ${s.k==='fuel'?'capacity':'limit'} ${s.max} ${s.k==='fuel'?WB_U[P.u].f:WB_U[P.u].w}`); });
   return {ok:!why.length, why, to, ld, zf, ldF, F, pf}; }
 const wbFmtW=(P,w)=>Math.round(w).toLocaleString('en-AU')+' '+WB_U[P.u].w;
 const wbFmtA=(P,a)=>(WB_U[P.u].ad?a.toFixed(1):Math.round(a).toLocaleString('en-AU'))+' '+WB_U[P.u].a;
 // the most fuel you can carry with these people and bags: every point and the burn line inside the limits
 function wbMaxFuel(P,vals){ const cap=wbFuelCap(P), step=P.u==='lb'?0.5:1; if(!cap) return null;
-  for(let f=cap;f>=0;f-=step){ const v=wbFuelSet(P,vals,f), r=wbCheck(P,v); if(r.ok) return f; } return -1; }
+  for(let f=cap;f>=0;f-=step){ const v=wbFuelSet(P,vals,f), r=wbCheck(P,v,{noFront:1}); if(r.ok) return f; } return -1; }
 // smallest changes that make the loading fit: less fuel, move / leave out bags, swap passengers, add weight on the other side;
 // if one change isn't enough, the same with only the plan's fuel (+30 min); last, how much to offload
 function wbFixes(P,vals){ const out=[], U=WB_U[P.u], F=wbFuelTot(P,vals), pf=wbPlanFuel(P), stepW=P.u==='lb'?2:1;
+  { const sts=P.st.map((s,k)=>({s,k})).filter(x=>x.s.k==='seat'), a0=sts.length?Math.min(...sts.map(x=>x.s.a)):null, fr=sts.filter(x=>x.s.a===a0).reduce((t,x)=>t+(+vals[x.k]||0),0);
+    if(P.minFront>0&&sts.length&&fr<P.minFront) out.push({cost:-1, planOk:true, txt:`Front seats need ${Math.ceil(P.minFront-fr)} ${U.w} more (minimum ${P.minFront} ${U.w}): a front passenger, or ballast as the Flight Manual allows`});
+    if(wbCheck(P,vals,{noFront:1}).ok) return out; }   // only the front-seat minimum is short
   const mf=wbMaxFuel(P,vals);
   if(mf!=null&&mf>=0&&F>mf){ const less=F-mf; out.push({cost:less*(P.dens||U.dens), planOk:!pf||mf>=pf.need, txt:`Carry ${Math.ceil(less)} ${U.f} less fuel (at most ${Math.floor(mf)} ${U.f})`+(pf? (mf>=pf.need? `: still enough for the plan plus 30 min (${Math.ceil(pf.need)} ${U.f})` : ` <span class="w">: not enough for the plan plus 30 min (${Math.ceil(pf.need)} ${U.f})</span>`) : '')}); }
   const ix=P.st.map((s,k)=>({s,k})), bags=ix.filter(x=>x.s.k==='bag'), seats=ix.filter(x=>x.s.k==='seat'), pax=seats.filter(x=>!/pilot|^p1\b/i.test(x.s.n));
   const single=(v,pre)=>{ const r=[];
     for(const A of bags){ const have=+v[A.k]||0; if(!have) continue;
       for(const B of bags){ if(A===B) continue; const room=B.s.max>0? B.s.max-(+v[B.k]||0) : Infinity;
-        for(let m=stepW;m<=Math.min(have,room);m+=stepW){ const w=v.slice(); w[A.k]=have-m; w[B.k]=(+w[B.k]||0)+m; if(wbCheck(P,w).ok){ r.push({cost:m*0.5, txt:pre+`move ${m} ${U.w} of bags from ${esc(A.s.n)} to ${esc(B.s.n)}`}); break; } } }
-      for(let m=stepW;m<=have;m+=stepW){ const w=v.slice(); w[A.k]=have-m; if(wbCheck(P,w).ok){ r.push({cost:m, txt:pre+`leave ${m} ${U.w} of bags out of ${esc(A.s.n)}`}); break; } } }
+        for(let m=stepW;m<=Math.min(have,room);m+=stepW){ const w=v.slice(); w[A.k]=have-m; w[B.k]=(+w[B.k]||0)+m; if(wbCheck(P,w,{noFront:1}).ok){ r.push({cost:m*0.5, txt:pre+`move ${m} ${U.w} of bags from ${esc(A.s.n)} to ${esc(B.s.n)}`}); break; } } }
+      for(let m=stepW;m<=have;m+=stepW){ const w=v.slice(); w[A.k]=have-m; if(wbCheck(P,w,{noFront:1}).ok){ r.push({cost:m, txt:pre+`leave ${m} ${U.w} of bags out of ${esc(A.s.n)}`}); break; } } }
     for(let i=0;i<pax.length;i++) for(let j=i+1;j<pax.length;j++){ const a=pax[i], b=pax[j], va=+v[a.k]||0, vb=+v[b.k]||0; if(va===vb) continue;   // passengers only: the pilot stays in the pilot's seat
-      if(a.s.max>0&&vb>a.s.max||b.s.max>0&&va>b.s.max) continue; const w=v.slice(); w[a.k]=vb; w[b.k]=va; if(wbCheck(P,w).ok) r.push({cost:0.1, txt:pre+`swap ${esc(a.s.n)} (${va} ${U.w}) and ${esc(b.s.n)} (${vb} ${U.w})`}); }
+      if(a.s.max>0&&vb>a.s.max||b.s.max>0&&va>b.s.max) continue; const w=v.slice(); w[a.k]=vb; w[b.k]=va; if(wbCheck(P,w,{noFront:1}).ok) r.push({cost:0.1, txt:pre+`swap ${esc(a.s.n)} (${va} ${U.w}) and ${esc(b.s.n)} (${vb} ${U.w})`}); }
     for(const A of [...pax,...bags]){ const room=A.s.max>0? A.s.max-(+v[A.k]||0) : 100; if(room<=0) continue;   // weight on the other side (a passenger, bags, or ballast as the POH allows)
-      for(let m=stepW;m<=room;m+=stepW){ const w=v.slice(); w[A.k]=(+w[A.k]||0)+m; if(wbCheck(P,w).ok){ r.push({cost:m*1.5, txt:pre+`add ${m} ${U.w} in ${esc(A.s.n)} (passenger, bags or ballast as the POH allows)`}); break; } } }
+      for(let m=stepW;m<=room;m+=stepW){ const w=v.slice(); w[A.k]=(+w[A.k]||0)+m; if(wbCheck(P,w,{noFront:1}).ok){ r.push({cost:m*1.5, txt:pre+`add ${m} ${U.w} in ${esc(A.s.n)} (passenger, bags or ballast as the POH allows)`}); break; } } }
     return r; };
   const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
   out.push(...single(vals,'').map(f=>({...f,planOk:true,txt:cap(f.txt)})));
   if(!out.some(f=>f.planOk)&&pf&&F>pf.need){ const v=wbFuelSet(P,vals,pf.need);   // only the fuel the plan needs, then one more change
-    if(wbCheck(P,v).ok) out.push({cost:0,txt:`Carry only the plan fuel plus 30 min, ${Math.ceil(pf.need)} ${U.f}`});
+    if(wbCheck(P,v,{noFront:1}).ok) out.push({cost:0,txt:`Carry only the plan fuel plus 30 min, ${Math.ceil(pf.need)} ${U.f}`});
     else out.push(...single(v,`Carry ${Math.ceil(pf.need)} ${U.f} (plan + 30 min) and `).map(f=>({...f,planOk:true,cost:f.cost+1000}))); }
   if(!out.some(f=>f.planOk)){ const v= pf&&F>pf.need? wbFuelSet(P,vals,pf.need) : vals, r=wbSum(P,v), over=r.w-P.maxW;
     out.push({cost:9e9, txt: over>0? `<span class="w">Too heavy by ${Math.ceil(over)} ${U.w}${v!==vals?` even with only the plan fuel (${Math.ceil(pf.need)} ${U.f})`:''}: offload people or bags</span>` : `<span class="w">The CG is outside the envelope with this load: rearrange or offload people or bags</span>`}); }
@@ -3248,14 +3259,14 @@ function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=W
   // profile editor
   const num=(f,v,ph,st='any')=>`<input data-f="${f}" type="number" inputmode="decimal" step="${st}" value="${v==null?'':v}" placeholder="${ph||''}">`;
   if(!$('wbEd').contains(document.activeElement)) $('wbEd').innerHTML=`<div class="pc-in"><label>Name <input data-f="name" value="${esc(P.name)}" style="width:160px"></label><label>Units <select data-f="u"><option value="kg"${P.u==='kg'?' selected':''}>kg · mm · L</option><option value="lb"${P.u==='lb'?' selected':''}>lb · in · USG</option></select></label><label>Fuel ${U.w}/${U.f} ${num('dens',P.dens,U.dens)}</label></div>
-   ${P.src?`<div class="vnote">Started from ${esc(P.src)}: check every value against your aircraft's weighing record and Flight Manual.</div>`:''}<div class="pc-in"><label>Empty weight ${U.w} ${num('ew',P.ew,'weighing report')}</label><label>Empty arm ${U.a} ${num('ea',P.ea,'')}</label><label>Empty lateral ${U.a} ${num('el',P.el,'0')}</label><label>Max take-off ${U.w} ${num('maxW',P.maxW,'POH')}</label></div>
+   ${P.src?`<div class="vnote">Started from ${esc(P.src)}: check every value against your aircraft's weighing record and Flight Manual.</div>`:''}<div class="pc-in"><label>Empty weight ${U.w} ${num('ew',P.ew,'weighing report')}</label><label>Empty arm ${U.a} ${num('ea',P.ea,'')}</label><label>Empty lateral ${U.a} ${num('el',P.el,'0')}</label><label>Max take-off ${U.w} ${num('maxW',P.maxW,'POH')}</label><label>Front seats min ${U.w} ${num('minFront',P.minFront,'none')}</label></div>
    <div class="wb-stw"><table class="pc-t wb-st"><tbody><tr><td class="k">Station</td><td class="k">Kind</td><td class="k">Arm ${U.a}</td><td class="k">Lateral</td><td class="k">Max ${U.w} · tank ${U.f} · fixed ${U.w}</td><td></td></tr>${P.st.map((s,k)=>`<tr data-k="${k}"><td><input data-s="n" value="${esc(s.n)}"></td><td><select data-s="k"><option value="seat"${s.k==='seat'?' selected':''}>seat</option><option value="bag"${s.k==='bag'?' selected':''}>baggage</option><option value="fuel"${s.k==='fuel'?' selected':''}>fuel tank</option><option value="fixed"${s.k==='fixed'?' selected':''}>fixed (always on)</option></select></td><td><input data-s="a" type="number" inputmode="decimal" step="any" value="${s.a==null?'':s.a}"></td><td><input data-s="l" type="number" inputmode="decimal" step="any" value="${s.l==null?'':s.l}" placeholder="0"></td><td><input data-s="max" type="number" inputmode="decimal" step="any" value="${s.max==null?'':s.max}"></td><td><button class="btn" data-s="del" aria-label="Remove ${esc(s.n)}">✕</button></td></tr>`).join('')}</tbody></table></div>
    <div class="ctl"><button class="btn" id="wbAddSt">Add station</button></div>
    <label class="wb-ta">CG envelope: one corner per line, "arm, weight", in order around the shape (POH)<textarea data-f="env" rows="5" spellcheck="false" placeholder="e.g.\n2340, 680\n2340, 1000\n2480, 1135\n2550, 1135\n2550, 680">${esc(P.env||'')}</textarea></label>
    <label class="wb-ta">Lateral CG limits (optional): "lateral arm, weight" per line<textarea data-f="lenv" rows="3" spellcheck="false" placeholder="e.g.\n-76, 680\n-76, 1135\n76, 1135\n76, 680">${esc(P.lenv||'')}</textarea></label>`;
   // load sheet
   const miss=wbReady(P);
-  if(!$('wbLoad').contains(document.activeElement)) $('wbLoad').innerHTML= miss.length? '' : `<div class="pc-in">${P.st.map((s,k)=>s.k==='fixed'?'':`<label>${esc(s.n)} ${s.k==='fuel'?U.f:U.w}<input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null?'':vals[k]}" placeholder="${s.k==='fuel'&&s.max?'max '+s.max:'0'}"></label>`).join('')}</div>`;
+  if(!$('wbLoad').contains(document.activeElement)) $('wbLoad').innerHTML= miss.length? '' : `<div class="pc-in">${P.st.map((s,k)=>s.k==='fixed'?'':`<label>${esc(s.n)} ${s.k==='fuel'?U.f:U.w}<input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null||s.a==null?'':vals[k]}" placeholder="${s.a==null?'set its arm':s.k==='fuel'&&s.max?'max '+s.max:'0'}"${s.a==null?' disabled title="Set this station\'s arm in the Aircraft profile first"':''}></label>`).join('')}</div>`;
   if(miss.length){ box.innerHTML=`<div class="vnote">To work out weight and balance, fill in: <b>${miss.map(esc).join(', ')}</b> (Aircraft profile, above). Use the numbers from your POH and the aircraft's current weighing report.</div>`; $('wbProf').open=true; return; }
   const r=wbCheck(P,vals), lenv=wbPoly(P.lenv).length>=3, mf=wbMaxFuel(P,vals), pf=r.pf;
   let h=`<div class="wb-res ${r.ok?'ok':'bad'}"><b>${r.ok?'Within limits':'Out of limits'}</b>${r.ok?'':' · '+r.why.map(esc).join(' · ')}</div>`;
