@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793616395009;
+const APP_BUILT=1793617640799;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2399,6 +2399,17 @@ $('fpCheck').onclick=()=>{ $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>3
 const WB_U={kg:{w:'kg',a:'mm',f:'L',dens:0.72,ad:0},lb:{w:'lb',a:'in',f:'USG',dens:6.0,ad:1}};
 let WB=ls.get('wb',null)||{profiles:[],cur:null,load:{}};
 function wbSave(){ ls.set('wb',WB); }
+// load entry units (Weights in lb/kg, Fuel in USG/L), independent of the profile's units: what you type is converted to the
+// profile's units, which the limits and the stored load use. WB.eu = {w, f}; empty = the profile's own units.
+const WB_KGLB=2.20462262, WB_LUSG=3.78541178;
+function wbEU(P){ const U=WB_U[P.u], e=WB.eu||{}; return {w:e.w||U.w, f:e.f||U.f}; }
+function wbToE(P,s,v){ if(v==null||v==='') return v; const E=wbEU(P), U=WB_U[P.u];   // profile units -> entry units
+  if(s.k==='fuel') return E.f===U.f? v : E.f==='L'? v*WB_LUSG : v/WB_LUSG;
+  return E.w===U.w? v : E.w==='kg'? v/WB_KGLB : v*WB_KGLB; }
+function wbFromE(P,s,v){ if(v==null) return v; const E=wbEU(P), U=WB_U[P.u];        // entry units -> profile units
+  if(s.k==='fuel') return E.f===U.f? v : E.f==='L'? v/WB_LUSG : v*WB_LUSG;
+  return E.w===U.w? v : E.w==='kg'? v*WB_KGLB : v/WB_KGLB; }
+const wbR1=v=>v==null||v===''? '' : String(Math.round(v*10)/10);
 function wbNew(name){ const id='p'+Date.now().toString(36); return {id,name:name||'My aircraft',u:'kg',maxW:null,ew:null,ea:null,el:null,dens:0.72,
   st:[{n:'Pilot',k:'seat',a:null,l:null,max:null},{n:'Front passenger',k:'seat',a:null,l:null,max:null},{n:'Rear seats',k:'seat',a:null,l:null,max:null},{n:'Baggage',k:'bag',a:null,l:null,max:null},{n:'Fuel',k:'fuel',a:null,l:null,max:null}],
   env:'',lenv:''}; }
@@ -2543,18 +2554,19 @@ function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=W
   // load sheet
   const miss=wbReady(P);
   // load sheet: one row per station (weight box, arm, moment, how much more fits); the boxes are built once, the numbers update in place
+  const EU=wbEU(P); $('wbEuW').value=EU.w; $('wbEuF').value=EU.f;
   if(!$('wbLoad').contains(document.activeElement)) $('wbLoad').innerHTML= miss.length? '' : `<table class="pc-t wb-ls"><tbody><tr><td class="k">Station</td><td class="k">Load</td><td class="k">Arm</td><td class="k">Moment</td><td class="k">Can add</td></tr>
     <tr class="wb-e"><td>Empty weight</td><td class="m">${wbFmtW(P,P.ew)}</td><td class="m">${wbFmtA(P,P.ea)}</td><td class="m" data-c="em"></td><td></td></tr>
     ${P.st.map((s,k)=>s.k==='fixed'?`<tr class="wb-e"><td>${esc(s.n)}</td><td class="m">${wbFmtW(P,+s.max||0)}</td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m">fixed</td></tr>`
-      :`<tr><td>${esc(s.n)}${s.max>0?`<br><small>max ${s.max} ${s.k==='fuel'?U.f:U.w}</small>`:''}</td><td><span class="wb-in"><input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null||s.a==null?'':vals[k]}" placeholder="${s.a==null?'set its arm':'0'}"${s.a==null?' disabled title="Set this station\'s arm in the Aircraft profile first"':''}><small>${s.k==='fuel'?U.f:U.w}</small></span></td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m" data-c="r${k}"></td></tr>`).join('')}
+      :`<tr><td>${esc(s.n)}${s.max>0?`<br><small>max ${Math.round(wbToE(P,s,s.max))} ${s.k==='fuel'?EU.f:EU.w}</small>`:''}</td><td><span class="wb-in"><input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null||s.a==null?'':wbR1(wbToE(P,s,vals[k]))}" placeholder="${s.a==null?'set its arm':'0'}"${s.a==null?' disabled title="Set this station\'s arm in the Aircraft profile first"':''}><small>${s.k==='fuel'?EU.f:EU.w}</small></span></td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m" data-c="r${k}"></td></tr>`).join('')}
     <tr class="wb-tot"><td><b>Take-off</b></td><td class="m" data-c="tw"></td><td class="m" data-c="ta"></td><td class="m" data-c="tm"></td><td></td></tr></tbody></table>`;
   if(miss.length){ box.innerHTML=`<div class="vnote">To work out weight and balance, fill in: <b>${miss.map(esc).join(', ')}</b> (Aircraft profile, above). Use the numbers from your POH and the aircraft's current weighing report.</div>`; $('wbProf').open=true; return; }
   const r=wbCheck(P,vals), lenv=wbPoly(P.lenv).length>=3, mf=wbMaxFuel(P,vals), pf=r.pf;
   { const mom=v=>Math.round(v).toLocaleString('en-AU'), set=(c,t)=>{ const e=$('wbLoad').querySelector(`[data-c="${c}"]`); if(e) e.innerHTML=t; };
     set('em',mom(P.ew*P.ea));
     P.st.forEach((s,k)=>{ if(s.a==null) return; const w= s.k==='fixed'? (+s.max||0) : wbW(P,s,+vals[k]||0); set('m'+k, w?mom(w*s.a):'—');
-      if(s.k!=='fixed'){ const rm=wbRoom(P,vals,k); set('r'+k, rm==null? '<span class="w">—</span>' : rm<=0? '<span class="w">0</span>' : (s.k==='fuel'? Math.floor(rm)+' '+U.f : Math.floor(rm)+' '+U.w)); } });
-    set('tw',wbFmtW(P,r.to.w)); set('ta',wbFmtA(P,r.to.a)); set('tm',mom(r.to.w*r.to.a)); }
+      if(s.k!=='fixed'){ const rm=wbRoom(P,vals,k); set('r'+k, rm==null? '<span class="w">—</span>' : rm<=0? '<span class="w">0</span>' : (s.k==='fuel'? Math.floor(wbToE(P,s,rm))+' '+EU.f : Math.floor(wbToE(P,s,rm))+' '+EU.w)); } });
+    set('tw',wbFmtW(P,r.to.w)+(EU.w!==U.w?`<br><small>${Math.round(wbToE(P,{k:'seat'},r.to.w)).toLocaleString('en-AU')} ${EU.w}</small>`:'')); set('ta',wbFmtA(P,r.to.a)); set('tm',mom(r.to.w*r.to.a)); }
   r.path=wbPath(P,vals);
   let h=`<div class="wb-res ${r.ok?'ok':'bad'}"><b>${r.ok?'Within limits':'Out of limits'}</b>${r.ok?'':' · '+r.why.map(esc).join(' · ')}</div>`;
   h+=`<table class="pc-t"><tbody><tr><td class="k"></td><td class="k">Weight</td><td class="k">CG</td>${lenv?'<td class="k">Lateral</td>':''}<td class="k">Fuel</td></tr>`+
@@ -2589,7 +2601,8 @@ $('wbEd').addEventListener('click',e=>{ const P=wbCur(); if(!P) return;
   if(e.target.id==='wbAddSt'){ P.st.push({n:'Station '+(P.st.length+1),k:'bag',a:null,l:null,max:null}); }
   else { const b=e.target.closest('[data-s="del"]'); if(!b) return; const k=+b.closest('tr').dataset.k; P.st.splice(k,1); if(WB.load[P.id]) WB.load[P.id].splice(k,1); }
   wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); });
-$('wbLoad').addEventListener('input',e=>{ const P=wbCur(), k=e.target.dataset.v; if(!P||k==null) return; const L=WB.load[P.id]=WB.load[P.id]||[]; L[+k]=e.target.value===''?null:+e.target.value; wbSave(); wbRenderSoon(); });
+$('wbLoad').addEventListener('input',e=>{ const P=wbCur(), k=e.target.dataset.v; if(!P||k==null) return; const L=WB.load[P.id]=WB.load[P.id]||[]; L[+k]=e.target.value===''?null:wbFromE(P,P.st[+k],+e.target.value); wbSave(); wbRenderSoon(); });
+for(const [id,key] of [['wbEuW','w'],['wbEuF','f']]) $(id).addEventListener('change',()=>{ WB.eu=WB.eu||{}; WB.eu[key]=$(id).value; wbSave(); $('wbLoad').innerHTML=''; wbRender(); });
 let wbT=null; function wbRenderSoon(){ clearTimeout(wbT); wbT=setTimeout(wbRender,150); }
 addEventListener('resize',()=>{ if($('wbDlg').open) wbRenderSoon(); });
 
