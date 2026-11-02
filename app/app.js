@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793613648590;
+const APP_BUILT=1793614631282;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -950,7 +950,8 @@ function renderFP(h,varE){
   const lpA=PROF&&PROF.legs&&i>0?PROF.legs[i]:null;
   if(lpA && $('fpNext').innerHTML) $('fpNext').insertAdjacentHTML('beforeend',`<p class="fp-line fp-alt">${legAltNote(lpA)}</p>`);
   drawProf();
-  $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
+  // not while you're typing in it: the keyboard opening resizes the page, which re-renders
+  if(!$('fpLegs').contains(document.activeElement)) $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
     return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed">${k?`<input class="altin${p.alt!=null?' set':''}" data-k="${k}" type="text" inputmode="numeric" autocomplete="off" maxlength="6" value="${p.alt!=null?p.alt:''}" placeholder="${lp&&lp.set?(lp.sug!=null?lp.sug:''):(lp&&lp.alt!=null?lp.alt:'alt')}" title="Altitude for the leg to ${esc(p.c||p.n)} (ft AMSL, or A045 / FL095). Empty = the suggestion" aria-label="Altitude for the leg to ${esc(p.c||p.n)}">`:''}<button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button><button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
   if(FP_REPL!=null&&!P_[FP_REPL]) FP_REPL=null;
   { const r=FP_REPL!=null&&FP_EDIT? P_[FP_REPL] : null; $('fpAddLbl').textContent=r?'Replace':'Add'; $('fpAddAt').hidden=!!r;
@@ -1408,7 +1409,11 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
 // ---------- full-screen map. FS.on = rc_fsMap (default on); applied while the map is shown. Elements are moved, not copied, so
 // every render/handler keeps working: a comment marker is left where each one came from and fsBack puts it back.
 const FS={on:ls.get('fsMap',true), bar:false, marks:new Map(), s:'peek'};
-const FS_TABQ=matchMedia('(orientation:landscape) and (min-width:800px) and (min-height:460px)');   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
+const FS_TABQ=matchMedia('(orientation:landscape) and (min-width:800px) and (min-height:460px)');
+// tablet landscape from the screen, not the viewport: the on-screen keyboard shrinks the viewport (and can make a portrait
+// tablet look landscape), which used to switch layouts mid-typing and close the keyboard
+const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=800 && sw>sh && Math.min(sw,sh)>=460; };
+let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
 const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
@@ -1416,7 +1421,7 @@ const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapLead','mapLog'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
 function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
-function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TABQ.matches, hud=want&&!tab&&!FS.bar;
+function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud=want&&!tab&&!FS.bar;
   document.body.classList.toggle('fsm',want); document.body.classList.toggle('fsm-tab',tab); document.body.classList.toggle('fsm-bar',want&&!tab&&FS.bar);
   $('fsBtn').textContent= FS.on? '⤡' : '⤢'; $('fsBtn').title= FS.on? 'Exit the full-screen map (classic page)' : 'Full-screen map';
   if(want){ for(const id of FS_LAY) fsMove($(id),$('fsLayBtns')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
@@ -1452,7 +1457,7 @@ $('hud').addEventListener('click',e=>{ if(e.target.closest('#hudA')) return; FS.
 $('fsBarX').onclick=()=>{ FS.bar=false; fsApply(); };
 $('fsBtn').onclick=()=>{ FS.on=!FS.on; ls.set('fsMap',FS.on); FS.bar=false; $('optFs').checked=FS.on; fsApply(); render(); };
 $('optFs').checked=FS.on; $('optFs').addEventListener('change',()=>{ FS.on=$('optFs').checked; ls.set('fsMap',FS.on); FS.bar=false; fsApply(); render(); });
-FS_TABQ.addEventListener('change',()=>{ fsApply(); render(); }); addEventListener('resize',()=>{ if(document.body.classList.contains('fsm')){ fsSheet(FS.s); fsHudPos(); } });
+addEventListener('resize',()=>{ const t=fsTab(); if(t!==FS_TAB){ FS_TAB=t; fsApply(); render(); } else if(document.body.classList.contains('fsm')){ fsSheet(FS.s); fsHudPos(); } });
 if(window.ResizeObserver) new ResizeObserver(()=>fsHudPos()).observe($('hudL'));
 // flash the CTAF / AREA tile when its frequency (or label: CTAF -> TWR, AREA -> ATC) changes: rc_fqFlash pulses (default 5, 0 = off).
 // Watches the tiles' text, so every path that updates them (GPS, sim, Go to, tower hours) is covered; the first value doesn't flash.
