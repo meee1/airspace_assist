@@ -2,7 +2,7 @@
 const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
 (async()=>{ const b=await chromium.launch(); const p=await (await b.newContext({...PX9})).newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
  await p.goto('http://localhost:8811/index.html?sim=YBRS&alt=50&trk=000&gs=0'); await p.waitForFunction(()=>typeof wbCheck==='function'); await p.waitForTimeout(500);
- await p.evaluate(()=>{ localStorage.removeItem('rc_wb'); WB={profiles:[],cur:null,load:{}}; $('cType').value='R44'; $('fpWb').click(); });
+ await p.evaluate(()=>{ localStorage.removeItem('rc_wb'); WB={profiles:[],cur:null,load:{}}; $('fpWb').click(); $('wbTpl').value=''; $('wbNewP').click(); WB.profiles=WB.profiles.filter(q=>q.id===WB.cur); wbSave(); wbRender(); });   // a blank profile (first open makes the Bell 206 one)
  console.log('first open:', await p.evaluate(()=>$('wbProfSel').value&&$('wbProfSel').selectedOptions[0].textContent), '|', await p.evaluate(()=>$('wbOut').innerText.slice(0,90)));
  const f=async(sel,v)=>{ await p.fill(sel,v); await p.waitForTimeout(60); };
  await f('#wbEd [data-f="ew"]','680'); await f('#wbEd [data-f="ea"]','2600'); await f('#wbEd [data-f="maxW"]','1090');

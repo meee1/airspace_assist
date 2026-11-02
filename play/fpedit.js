@@ -18,7 +18,7 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
  await p.click('#fpLegs li[data-k="3"] [data-a="up"]'); console.log('move 4 up =>', await plan());
  await p.click('#fpLegs li[data-k="0"] [data-a="dn"]'); console.log('move 1 down =>', await plan());
  await p.click('#fpLegs li[data-k="2"] [data-a="del"]'); console.log('del 3 =>', await plan());
- await p.click('#fpLegs li[data-k="1"]'); console.log('tap row in edit (no pick) =>', await plan());
+ await p.click('#fpLegs li[data-k="1"] .w'); console.log('tap row in edit (no pick) =>', await plan());
  await p.click('#fpEdit'); await p.click('#fpLegs li[data-k="2"]'); console.log('tap row after done =>', await plan());
  console.log('nx key rev', await p.evaluate(()=>FP.rev));
  // persisted

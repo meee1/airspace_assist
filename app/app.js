@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793614631282;
+const APP_BUILT=1793616395009;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -228,8 +228,8 @@ function parseGPX(xml){
   if(!nodes.length) throw new Error('No route, waypoints or track found in that GPX file.');
   let pts=nodes.map((n,k)=>{ const la=parseFloat(n.getAttribute('lat')), lo=parseFloat(n.getAttribute('lon'));
     const nm=(n.getElementsByTagName('name')[0]?.textContent||'').trim(), ds=(n.getElementsByTagName('desc')[0]?.textContent||'').trim();
-    const cm=(n.getElementsByTagName('cmt')[0]?.textContent||'').trim(), al=/^ALT (\d{1,5})$/.exec(cm);   // leg altitude saved by this app
-    return {n:nm||('WP'+(k+1)), la, lo, gd:ds, ...(al&&k?{alt:+al[1]}:{})}; }).filter(p=>isFinite(p.la)&&isFinite(p.lo));
+    const cm=(n.getElementsByTagName('cmt')[0]?.textContent||'').trim(), al=/^(?:ALT (\d{1,5}))?\s*(LAND|NOLAND)?$/.exec(cm);   // leg altitude and Land mark saved by this app
+    return {n:nm||('WP'+(k+1)), la, lo, gd:ds, ...(al&&al[1]&&k?{alt:+al[1]}:{}), ...(al&&al[2]?{land:al[2]==='LAND'}:{})}; }).filter(p=>isFinite(p.la)&&isFinite(p.lo));
   if(!pts.length) throw new Error('No usable coordinates in that GPX file.');
   if(kind==='track' && pts.length>60){ const step=Math.ceil(pts.length/60); pts=pts.filter((p,k)=>k%step===0||k===pts.length-1); }
   // label from the AIP where the name or position matches
@@ -951,8 +951,8 @@ function renderFP(h,varE){
   if(lpA && $('fpNext').innerHTML) $('fpNext').insertAdjacentHTML('beforeend',`<p class="fp-line fp-alt">${legAltNote(lpA)}</p>`);
   drawProf();
   // not while you're typing in it: the keyboard opening resizes the page, which re-renders
-  if(!$('fpLegs').contains(document.activeElement)) $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
-    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed">${k?`<input class="altin${p.alt!=null?' set':''}" data-k="${k}" type="text" inputmode="numeric" autocomplete="off" maxlength="6" value="${p.alt!=null?p.alt:''}" placeholder="${lp&&lp.set?(lp.sug!=null?lp.sug:''):(lp&&lp.alt!=null?lp.alt:'alt')}" title="Altitude for the leg to ${esc(p.c||p.n)} (ft AMSL, or A045 / FL095). Empty = the suggestion" aria-label="Altitude for the leg to ${esc(p.c||p.n)}">`:''}<button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button><button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
+  if(!($('fpLegs').contains(document.activeElement)&&document.activeElement.tagName==='INPUT')) $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
+    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b>${fpAd(p)&&fpLand(k)?' <i class="landt">LAND</i>':''} <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed">${k?`<input class="altin${p.alt!=null?' set':''}" data-k="${k}" type="text" inputmode="numeric" autocomplete="off" maxlength="6" value="${p.alt!=null?p.alt:''}" placeholder="${lp&&lp.set?(lp.sug!=null?lp.sug:''):(lp&&lp.alt!=null?lp.alt:'alt')}" title="Altitude for the leg to ${esc(p.c||p.n)} (ft AMSL, or A045 / FL095). Empty = the suggestion" aria-label="Altitude for the leg to ${esc(p.c||p.n)}">`:''}<button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button>${fpAd(p)?`<button class="btn landb${fpLand(k)?' on':''}" data-a="land" aria-pressed="${fpLand(k)}" title="Landing here: the 10 NM reminder is an inbound call (otherwise a transit call)">Land</button>`:''}<button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
   if(FP_REPL!=null&&!P_[FP_REPL]) FP_REPL=null;
   { const r=FP_REPL!=null&&FP_EDIT? P_[FP_REPL] : null; $('fpAddLbl').textContent=r?'Replace':'Add'; $('fpAddAt').hidden=!!r;
     $('fpAddIn').placeholder=r? `Replace ${r.c||r.n} with: name or code` : 'Name or code: CARR, Lilydale, AV';
@@ -1469,10 +1469,21 @@ for(const [box,lbl,f] of [['sCtafBox','sCtafLbl','sCtaf'],['sAreaBox','sAreaLbl'
   new MutationObserver(()=>{ if(!q) q=requestAnimationFrame(chk); }).observe($(box),{subtree:true,childList:true,characterData:true});
   $(box).addEventListener('animationend',()=>$(box).classList.remove('fqflash')); }
 $('optFlash').value=String(FQF.n); $('optFlash').addEventListener('change',()=>{ FQF.n=+$('optFlash').value; ls.set('fqFlash',FQF.n); });
-// ---------- inbound call reminder: crossing 10 NM (closing, more than 3 NM out) from the Go to / flight plan aerodrome, once per
-// approach (re-armed beyond 12 NM). Row #sInbound with the frequency and the inbound call filled in; the Go to tile flashes.
+// ---------- inbound / transit call reminder: crossing 10 NM (closing, more than 3 NM out) of an aerodrome, once per approach (re-armed
+// beyond 12 NM). Inbound when you're landing there (adStop: last plan point, a point marked Land, or the Go to aerodrome without a plan);
+// otherwise, for a non-towered aerodrome, the transit call (CAAP 166: within 10 NM). Row #sInbound with the frequency and the inbound call filled in; the Go to tile flashes.
 // Tap the row to dismiss; it goes by itself inside 4 NM or after 4 min.
-const INB={armed:{}, on:null, t:0, lastD:{}};
+const INB={armed:{}, on:null, t:0, lastD:{}, kind:'inb'};
+// are you landing at this aerodrome? the plan's last point, or a plan point marked Land; with no plan, the Go to aerodrome
+function fpLand(k){ const p=FP&&FP.pts[k]; return !!p&&(p.land!=null? p.land : k===FP.pts.length-1); }
+function adStop(a){ if(!a) return false;
+  if(FP&&FP.pts.length>1){ const at=p=>(p.c||'').toUpperCase()===a.i||distBrg(p.la,p.lo,a.la,a.lo)[0]<0.5; return FP.pts.some((p,k)=>at(p)&&fpLand(k)); }
+  const g=goTarget(); return !!(g&&g.ad===a); }
+// "Ballarat traffic, Cessna 175 Alpha Bravo Charlie, 10 miles north, 4,500 feet, transiting east to west, Ballarat."
+function transitCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('cSign').value), typ=$('cType').value.trim(), cs=csR||'[callsign]', ty=typ||'[type]';
+  const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), nv=nearestVFR(st.pos[0],st.pos[1],1.5), pos=(nv?`over ${titleCase(nv.p.n)}, `:'')+`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
+  const trk=st.trk!=null? st.trk : norm(b), to=PTS[Math.round(norm(trk)/45)%8], fr=PTS[Math.round(norm(trk+180)/45)%8];
+  return {f:ctafInfo(ad).f||'126.7', txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, transiting ${fr} to ${to}, ${cn}.`}; }
 function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('cSign').value), typ=$('cType').value.trim(), cs=csR||'[callsign]', ty=typ||'[type]';
   const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), nv=nearestVFR(st.pos[0],st.pos[1],1.5), pos=(nv?`over ${titleCase(nv.p.n)}, `:'')+`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
   const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
@@ -1481,16 +1492,26 @@ function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('c
     return {f:w[2], txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
   const f=ctafInfo(ad).f||'126.7';
   return {f, txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
-function inboundUI(){ const box=$('sInbound'); const g=goTarget(), ad=g&&g.ad;
-  if(!ad||!st.pos){ box.hidden=true; INB.on=null; return; }
-  const [d,b]=distBrg(st.pos[0],st.pos[1],ad.la,ad.lo), prev=INB.lastD[ad.i]; INB.lastD[ad.i]=d;
-  if(d>12) INB.armed[ad.i]=true;
-  const closing= prev!=null? d<prev-0.002 : st.gs>30;
-  if(INB.armed[ad.i]&&d<=10.2&&d>3&&closing&&st.gs>30){ INB.armed[ad.i]=false; INB.on=ad.i; INB.t=Date.now();
-    const el=$('gCtafBox'); if(el&&FQF.n>0){ el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); el.addEventListener('animationend',()=>el.classList.remove('fqflash'),{once:true}); } }
-  if(INB.on!==ad.i||d<4||Date.now()-INB.t>240e3){ if(INB.on===ad.i&&(d<4||Date.now()-INB.t>240e3)) INB.on=null; box.hidden=true; return; }
-  const c=inboundCall(ad,d,b); box.hidden=false;
-  box.innerHTML=`<small>INBOUND CALL</small><b>${c.f}</b><small class="x">✕</small><span>${esc(c.txt)}</span>`; }
+function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB.on=null; return; }
+  // candidates: your Go to / plan aerodrome, and any non-towered aerodrome (tower closed counts) you come within 10 NM of
+  const g=goTarget(), tgt=g&&g.ad, la=st.pos[0], lo=st.pos[1];
+  const twrOpen=a=>{ const tw=(a.x||[]).filter(x=>x[0]==='TWR'); if(!tw.length) return false; const ts=twrStatus(a); return ts?ts.on:true; };
+  const inCtl= st.curBand&&/^(A|C|D|CTR)$/.test(st.curBand.k)&&!(st.curBand.k==='CTR'&&/^(G|E)$/.test(st.curBand.ctrCls||''));   // in controlled airspace: you're talking to ATC, no CTAF transit calls
+  const openZone=a=>ASP.some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&DATA.ap.some(t=>t!==a&&Math.abs(t.la-a.la)<0.3&&Math.abs(t.lo-a.lo)<0.4&&twrOpen(t)&&inAsp(z,t.la,t.lo)));   // a strip under an open tower's zone (YAVE, YVPC)
+  const C=DATA.ap.filter(a=>Math.abs(a.la-la)<0.25&&Math.abs(a.lo-lo)<0.32&&(a===tgt||(!inCtl&&(st.all||a.s==='E')&&(a.t!=='H'||st.heli)&&!twrOpen(a)&&!openZone(a))));
+  let hit=null;
+  for(const a of C){ const [d,b]=distBrg(la,lo,a.la,a.lo), prev=INB.lastD[a.i]; INB.lastD[a.i]=d;
+    if(d>12) INB.armed[a.i]=true;
+    const closing= prev!=null? d<prev-0.002 : st.gs>30, stop=adStop(a);
+    if(!stop&&twrOpen(a)) continue;   // passing a towered field: a clearance (NEXT CLASS / Radio calls), not a CTAF call
+    if(!INB.on&&INB.armed[a.i]&&d<=10.2&&d>3&&closing&&st.gs>30&&(!hit||d<hit.d)) hit={a,d,stop}; }
+  if(hit){ INB.armed[hit.a.i]=false; INB.on=hit.a.i; INB.kind=hit.stop?'inb':'trn'; INB.t=Date.now();
+    const el=$(hit.a===tgt?'gCtafBox':'sCtafBox'); if(el&&FQF.n>0){ el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); el.addEventListener('animationend',()=>el.classList.remove('fqflash'),{once:true}); } }
+  const ad=INB.on&&DATA.ap.find(a=>a.i===INB.on); if(!ad){ box.hidden=true; INB.on=null; return; }
+  const [d,b]=distBrg(la,lo,ad.la,ad.lo);
+  if(d<4&&INB.kind==='inb'||d>10.5&&INB.kind==='trn'||Date.now()-INB.t>240e3){ INB.on=null; box.hidden=true; return; }   // inbound: till 4 NM; transit: while inside 10 NM; 4 min at most
+  const c= INB.kind==='inb'? inboundCall(ad,d,b) : transitCall(ad,d,b); box.hidden=false;
+  box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b><small class="x">✕</small><span>${esc(c.txt)}</span>`; }
 $('sInbound').addEventListener('click',()=>{ INB.on=null; $('sInbound').hidden=true; });
 
 // ---------- wind from GPS: the ground-velocity vectors you fly at one airspeed lie on a circle whose centre is the wind (the
@@ -2387,16 +2408,18 @@ function wbNew(name){ const id='p'+Date.now().toString(36); return {id,name:name
 // 6.8 lb/gal, MGTOW 3200 lb (3350 lb with STC SR09397RC). Weight empty from the aircraft's own weighing record. BHT-206B-FM-1
 // (206B JetRanger II): longitudinal CG 106.0 to 114.2 in, aft limit 114.2 up to 2350 lb then straight to 111.4 at 3200 lb (doors on;
 // the chart starts at 2000 lb, the text gives 106.0-114.2 at any weight, so the envelope runs down to 1500 lb); lateral 3.0 in left,
-// 4.0 in right; front seat minimum 150 lb; baggage 250 lb (structural). The baggage arm isn't in either extract: the user enters it.
+// 4.0 in right; front seat minimum 150 lb; baggage 250 lb (structural). Baggage compartment FS 131.0, 250 lb (Michael, 2 Nov 2026).
 const WB_TPL={
   b206b3:{name:'Bell 206B-3 (91 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8 and BHT-206B-FM-1 sections 1 and 4',env:'106.0,1500\n106.0,3200\n111.4,3200\n114.2,2350\n114.2,1500', lenv:'-3.0,1500\n-3.0,3200\n4.0,3200\n4.0,1500', minFront:150,
-    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:250},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (91 gal)',k:'fuel',a:118.0,l:0,max:91}]},
+    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:131.0,l:0,max:250},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (91 gal)',k:'fuel',a:118.0,l:0,max:91}]},
   b206ab76:{name:'Bell 206A/B (76 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8 and BHT-206B-FM-1 sections 1 and 4',env:'106.0,1500\n106.0,3200\n111.4,3200\n114.2,2350\n114.2,1500', lenv:'-3.0,1500\n-3.0,3200\n4.0,3200\n4.0,1500', minFront:150,
-    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:250},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (76 gal)',k:'fuel',a:116.0,l:0,max:76}]}};
+    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:131.0,l:0,max:250},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (76 gal)',k:'fuel',a:116.0,l:0,max:76}]}};
 // a Bell profile made before the Flight Manual limits were added (2 Nov 2026): fill what's still empty, keep what you typed
 for(const P of WB.profiles) if(/^BHT-206A\/B-SERIES-MM-2 ch 8$/.test(P.src||'')){ const T=WB_TPL[/76/.test(P.name)?'b206ab76':'b206b3'];
   if(!wbPoly(P.env).length) P.env=T.env; if(!wbPoly(P.lenv).length) P.lenv=T.lenv; if(P.minFront==null) P.minFront=T.minFront; P.src=T.src;
   for(const s of P.st) if(s.k==='bag'&&/baggage/i.test(s.n)&&s.max==null) s.max=250; wbSave(); }
+// ... and before the baggage arm was known: FS 131.0 when still empty
+for(const P of WB.profiles) if(/^BHT-206/.test(P.src||'')) for(const s of P.st) if(s.k==='bag'&&/baggage/i.test(s.n)&&(s.a==null||!isFinite(s.a))){ s.a=131.0; wbSave(); }
 function wbFromTpl(key){ const T=WB_TPL[key]; if(!T) return wbNew(); const p=wbNew(T.name); Object.assign(p,JSON.parse(JSON.stringify(T)),{id:p.id,ew:null,ea:null,el:null}); return p; }
 function wbCur(){ return WB.profiles.find(p=>p.id===WB.cur)||WB.profiles[0]||null; }
 function wbPoly(txt){ return String(txt||'').split(/\n|;/).map(l=>l.trim().split(/[\s,]+/).map(Number)).filter(r=>r.length>=2&&isFinite(r[0])&&isFinite(r[1])).map(r=>[r[0],r[1]]); }
@@ -2468,8 +2491,21 @@ function wbFixes(P,vals){ const out=[], U=WB_U[P.u], F=wbFuelTot(P,vals), pf=wbP
   if(!out.some(f=>f.planOk)){ const v= pf&&F>pf.need? wbFuelSet(P,vals,pf.need) : vals, r=wbSum(P,v), over=r.w-P.maxW;
     out.push({cost:9e9, txt: over>0? `<span class="w">Too heavy by ${Math.ceil(over)} ${U.w}${v!==vals?` even with only the plan fuel (${Math.ceil(pf.need)} ${U.f})`:''}: offload people or bags</span>` : `<span class="w">The CG is outside the envelope with this load: rearrange or offload people or bags</span>`}); }
   return out.sort((x,y)=>(y.planOk?1:0)-(x.planOk?1:0)||x.cost-y.cost).slice(0,4); }
+// how much more a station can take with everything else as loaded: every point and the burn line inside the limits
+// (fuel in L/USG). Adding weight at one station moves the CG along a straight line, so the allowed amounts are one range: bisect.
+function wbRoom(P,vals,k){ const s=P.st[k], ok=v=>wbCheck(P,v,{noFront:1}).ok; if(!ok(vals)) return null;
+  const cur=+vals[k]||0, per=s.k==='fuel'? (P.dens||WB_U[P.u].dens) : 1, tw=wbSum(P,vals).w;
+  let hi=Math.max(0,(P.maxW-tw)/per); if(s.max>0) hi=Math.min(hi,s.max-cur); if(hi<=0) return 0;
+  const at=m=>{ const v=vals.slice(); v[k]=cur+m; return v; };
+  if(ok(at(hi))) return hi; let lo=0; for(let i=0;i<24;i++){ const mid=(lo+hi)/2; if(ok(at(mid))) lo=mid; else hi=mid; } return lo; }
+// the loading path for the plot: empty weight (+ fixed items), then each loaded station in turn, ending at take-off
+function wbPath(P,vals){ let w=P.ew, m=P.ew*P.ea, ml=P.ew*(P.el||0); const out=[];
+  P.st.forEach(s=>{ if(s.k==='fixed'&&s.a!=null){ const x=+s.max||0; w+=x; m+=x*s.a; ml+=x*(s.l||0); } });
+  out.push({n:'Empty',w,a:m/w,l:ml/w});
+  P.st.forEach((s,k)=>{ if(s.k==='fixed'||s.a==null) return; const x=wbW(P,s,+vals[k]||0); if(!x) return; w+=x; m+=x*s.a; ml+=x*(s.l||0); out.push({n:s.n.replace(/\s*\(.*\)$/,''),w,a:m/w,l:ml/w}); });
+  return out; }
 function wbDraw(cv,P,r,lat){ const g=cv.getContext('2d'), dpr=devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
-  const env=wbPoly(lat?P.lenv:P.env), pts=[r.to,r.ld,r.zf].filter(Boolean), X=p=>lat?p.l:p.a; if(env.length<3) return;
+  const env=wbPoly(lat?P.lenv:P.env), pts=[r.to,r.ld,r.zf,...(r.path||[])].filter(Boolean), X=p=>lat?p.l:p.a; if(env.length<3) return;
   let x0=Math.min(...env.map(e=>e[0]),...pts.map(X)), x1=Math.max(...env.map(e=>e[0]),...pts.map(X)), y0=Math.min(...env.map(e=>e[1]),...pts.map(p=>p.w)), y1=Math.max(...env.map(e=>e[1]),...pts.map(p=>p.w),P.maxW||0);
   const px=(x1-x0)*0.08||1, py=(y1-y0)*0.08||1; x0-=px; x1+=px; y0-=py; y1+=py;
   const L=46,R=10,T=18,B=26, x=v=>L+(v-x0)/(x1-x0)*(W-L-R), y=v=>H-B-(v-y0)/(y1-y0)*(H-T-B), C={ink:cssv('--ink'),dim:cssv('--dim'),ok:cssv('--ok'),w:cssv('--warn'),wp:cssv('--wp'),rule:cssv('--rule')};
@@ -2480,7 +2516,15 @@ function wbDraw(cv,P,r,lat){ const g=cv.getContext('2d'), dpr=devicePixelRatio||
   g.textAlign='left'; g.fillText((lat?'lateral arm ':'arm ')+WB_U[P.u].a,L,H-2); g.fillText(WB_U[P.u].w,4,11);
   g.beginPath(); env.forEach((e,k)=>k?g.lineTo(x(e[0]),y(e[1])):g.moveTo(x(e[0]),y(e[1]))); g.closePath(); g.fillStyle=C.ok+'22'; g.fill(); g.strokeStyle=C.ok; g.lineWidth=2; g.stroke();
   if(!lat&&P.maxW){ g.setLineDash([4,3]); g.strokeStyle=C.w; g.lineWidth=1; g.beginPath(); g.moveTo(L,y(P.maxW)); g.lineTo(W-R,y(P.maxW)); g.stroke(); g.setLineDash([]); }
-  g.strokeStyle=C.ink; g.lineWidth=1.5; g.beginPath(); g.moveTo(x(X(r.to)),y(r.to.w)); g.lineTo(x(X(r.zf)),y(r.zf.w)); g.stroke();
+  if(r.path&&r.path.length>1){ const pal=[cssv('--freq')||'#0a7',cssv('--accent')||'#c60',cssv('--wp')||'#739',cssv('--ok')||'#2a6','#3a7bd5','#b5651d'];   // loading path: one coloured step per station
+    g.lineWidth=2.5; g.font='600 10px '+cssv('--f-label'); const lab=[r.to,r.ld,r.zf].filter(Boolean).map(q=>[x(X(q))+8,y(q.w)+4]);   // keep clear of the TO / LDG / ZF labels
+    for(let i=1;i<r.path.length;i++){ const a=r.path[i-1], b_=r.path[i], col=pal[(i-1)%pal.length]; g.strokeStyle=col; g.beginPath(); g.moveTo(x(X(a)),y(a.w)); g.lineTo(x(X(b_)),y(b_.w)); g.stroke();
+      g.fillStyle=col; g.beginPath(); g.arc(x(X(b_)),y(b_.w),3,0,7); g.fill();
+      if(lat) continue;   // the lateral chart: colours only, the labels are on the main chart
+      const tw=g.measureText(b_.n).width; let lx=(x(X(a))+x(X(b_)))/2+6, ly=(y(a.w)+y(b_.w))/2+3; if(lx+tw>W-R) lx=W-R-tw;
+      while(lab.some(q=>Math.abs(q[1]-ly)<11&&lx<q[0]+60&&q[0]<lx+tw+4)) ly+=11; lab.push([lx,ly]); g.textAlign='left'; g.fillText(b_.n,lx,ly); }
+    const e=r.path[0], ew_=g.measureText('Empty').width; g.fillStyle=C.dim; g.beginPath(); g.arc(x(X(e)),y(e.w),4,0,7); g.fill(); if(!lat) g.fillText('Empty',Math.min(x(X(e))+6,W-R-ew_),y(e.w)+14); }
+  g.strokeStyle=C.ink; g.lineWidth=1.5; g.setLineDash([3,3]); g.beginPath(); g.moveTo(x(X(r.to)),y(r.to.w)); g.lineTo(x(X(r.zf)),y(r.zf.w)); g.stroke(); g.setLineDash([]);
   const used=[]; for(const [p,lb] of [[r.to,'TO'],[r.ld,'LDG'],[r.zf,'ZF']]){ if(!p) continue; const ok=wbIn(env,X(p),p.w)&&(lat||p.w<=P.maxW+1e-6), px_=x(X(p)), py_=y(p.w); g.fillStyle=ok?C.wp:C.w; g.beginPath(); g.arc(px_,py_,5,0,7); g.fill();
     g.fillStyle=C.ink; g.font='600 10px '+cssv('--f-label'); let lx=px_+8, ly=py_+4; const wTxt=g.measureText(lb).width; if(lx+wTxt>W-R) lx=px_-8-wTxt;
     while(used.some(u=>Math.abs(u[0]-lx)<wTxt+4&&Math.abs(u[1]-ly)<11)) ly+=11; used.push([lx,ly]); g.textAlign='left'; g.fillText(lb,lx,ly); } }
@@ -2498,9 +2542,20 @@ function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=W
    <label class="wb-ta">Lateral CG limits (optional): "lateral arm, weight" per line<textarea data-f="lenv" rows="3" spellcheck="false" placeholder="e.g.\n-76, 680\n-76, 1135\n76, 1135\n76, 680">${esc(P.lenv||'')}</textarea></label>`;
   // load sheet
   const miss=wbReady(P);
-  if(!$('wbLoad').contains(document.activeElement)) $('wbLoad').innerHTML= miss.length? '' : `<div class="pc-in">${P.st.map((s,k)=>s.k==='fixed'?'':`<label>${esc(s.n)} ${s.k==='fuel'?U.f:U.w}<input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null||s.a==null?'':vals[k]}" placeholder="${s.a==null?'set its arm':s.k==='fuel'&&s.max?'max '+s.max:'0'}"${s.a==null?' disabled title="Set this station\'s arm in the Aircraft profile first"':''}></label>`).join('')}</div>`;
+  // load sheet: one row per station (weight box, arm, moment, how much more fits); the boxes are built once, the numbers update in place
+  if(!$('wbLoad').contains(document.activeElement)) $('wbLoad').innerHTML= miss.length? '' : `<table class="pc-t wb-ls"><tbody><tr><td class="k">Station</td><td class="k">Load</td><td class="k">Arm</td><td class="k">Moment</td><td class="k">Can add</td></tr>
+    <tr class="wb-e"><td>Empty weight</td><td class="m">${wbFmtW(P,P.ew)}</td><td class="m">${wbFmtA(P,P.ea)}</td><td class="m" data-c="em"></td><td></td></tr>
+    ${P.st.map((s,k)=>s.k==='fixed'?`<tr class="wb-e"><td>${esc(s.n)}</td><td class="m">${wbFmtW(P,+s.max||0)}</td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m">fixed</td></tr>`
+      :`<tr><td>${esc(s.n)}${s.max>0?`<br><small>max ${s.max} ${s.k==='fuel'?U.f:U.w}</small>`:''}</td><td><span class="wb-in"><input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null||s.a==null?'':vals[k]}" placeholder="${s.a==null?'set its arm':'0'}"${s.a==null?' disabled title="Set this station\'s arm in the Aircraft profile first"':''}><small>${s.k==='fuel'?U.f:U.w}</small></span></td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m" data-c="r${k}"></td></tr>`).join('')}
+    <tr class="wb-tot"><td><b>Take-off</b></td><td class="m" data-c="tw"></td><td class="m" data-c="ta"></td><td class="m" data-c="tm"></td><td></td></tr></tbody></table>`;
   if(miss.length){ box.innerHTML=`<div class="vnote">To work out weight and balance, fill in: <b>${miss.map(esc).join(', ')}</b> (Aircraft profile, above). Use the numbers from your POH and the aircraft's current weighing report.</div>`; $('wbProf').open=true; return; }
   const r=wbCheck(P,vals), lenv=wbPoly(P.lenv).length>=3, mf=wbMaxFuel(P,vals), pf=r.pf;
+  { const mom=v=>Math.round(v).toLocaleString('en-AU'), set=(c,t)=>{ const e=$('wbLoad').querySelector(`[data-c="${c}"]`); if(e) e.innerHTML=t; };
+    set('em',mom(P.ew*P.ea));
+    P.st.forEach((s,k)=>{ if(s.a==null) return; const w= s.k==='fixed'? (+s.max||0) : wbW(P,s,+vals[k]||0); set('m'+k, w?mom(w*s.a):'—');
+      if(s.k!=='fixed'){ const rm=wbRoom(P,vals,k); set('r'+k, rm==null? '<span class="w">—</span>' : rm<=0? '<span class="w">0</span>' : (s.k==='fuel'? Math.floor(rm)+' '+U.f : Math.floor(rm)+' '+U.w)); } });
+    set('tw',wbFmtW(P,r.to.w)); set('ta',wbFmtA(P,r.to.a)); set('tm',mom(r.to.w*r.to.a)); }
+  r.path=wbPath(P,vals);
   let h=`<div class="wb-res ${r.ok?'ok':'bad'}"><b>${r.ok?'Within limits':'Out of limits'}</b>${r.ok?'':' · '+r.why.map(esc).join(' · ')}</div>`;
   h+=`<table class="pc-t"><tbody><tr><td class="k"></td><td class="k">Weight</td><td class="k">CG</td>${lenv?'<td class="k">Lateral</td>':''}<td class="k">Fuel</td></tr>`+
     [['Take-off',r.to,r.F],['Landing',r.ld,r.ldF],['Zero fuel',r.zf,0]].filter(x=>x[1]).map(([n,p,f])=>`<tr><td class="k">${n}</td><td class="m">${wbFmtW(P,p.w)}</td><td class="m">${wbFmtA(P,p.a)}</td>${lenv?`<td class="m">${wbFmtA(P,p.l)}</td>`:''}<td class="m">${f==null?'—':Math.round(f)+' '+U.f}</td></tr>`).join('')+'</tbody></table>';
@@ -2756,7 +2811,7 @@ function render(){
   } else html+=freqRow('AREA','', 'No airspace data here');
   nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R'&&!(q.st&&q.st.s==='off'))).key);
   renderCalls(a,pick,varE);   // after nextFreqs: the clearance-request call uses NX.cls
-  inboundUI(); st.curBand=cur; clrUI(cur);
+  st.curBand=cur; inboundUI(); clrUI(cur);
   { // warning row: you're inside a restricted / prohibited / danger area at your altitude (status from the NAIPS briefing first), or a NOTAM temporary zone
     const S=(DATA.sua&&DATA.sua.areas)||{}, inn=AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H), box=$('sInSua');
     const tz=ntZonesAt(la,lo,altFt,gnd);
@@ -3067,7 +3122,7 @@ $('fpSkip').onclick=()=>{ if(FP&&FP.i<FP.pts.length-1) fpPick(FP.i+1); };
 function dlFile(name,text,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); }
 function fpGpx(){ // the plan as a GPX 1.1 route: name = the AIP code where matched, else the point's own name
   const x=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const pts=FP.pts.map(p=>`  <rtept lat="${p.la.toFixed(6)}" lon="${p.lo.toFixed(6)}"><name>${x(p.c||p.n)}</name>${p.alt!=null?`<cmt>ALT ${p.alt}</cmt>`:''}${p.desc||p.gd?`<desc>${x(p.gd||p.desc)}</desc>`:''}</rtept>`).join('\n');
+  const pts=FP.pts.map(p=>`  <rtept lat="${p.la.toFixed(6)}" lon="${p.lo.toFixed(6)}"><name>${x(p.c||p.n)}</name>${p.alt!=null||p.land!=null?`<cmt>${[p.alt!=null?'ALT '+p.alt:'',p.land!=null?(p.land?'LAND':'NOLAND'):''].filter(Boolean).join(' ')}</cmt>`:''}${p.desc||p.gd?`<desc>${x(p.gd||p.desc)}</desc>`:''}</rtept>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${x(FP.name)}</name><time>${new Date().toISOString()}</time></metadata>\n<rte><name>${x(FP.name)}</name>\n${pts}\n</rte>\n</gpx>\n`; }
 $('fpSave').onclick=()=>{ if(!FP||!FP.pts.length) return; const P_=FP.pts, nm=q=>String(q.c||q.n).replace(/[^A-Za-z0-9]+/g,'').slice(0,12)||'WP';
   dlFile(`${nm(P_[0])}-${nm(P_[P_.length-1])}-${new Date().toISOString().slice(0,10)}.gpx`,fpGpx(),'application/gpx+xml');
@@ -3085,6 +3140,7 @@ $('fpLegs').addEventListener('change',e=>{ const t=e.target.closest('.altin'); i
 $('fpLegs').addEventListener('click',e=>{ if(e.target.closest('.altin')) return; const li=e.target.closest('li'); if(!li||!FP) return; const k=+li.dataset.k, a=e.target.closest('[data-a]');
   if(!FP_EDIT){ fpPick(k); return; } if(!a) return;
   const at=$('fpLegs').scrollTop;
+  if(a.dataset.a==='land'){ const v=!fpLand(k); fpEdit(P_=>{ if(P_[k]) P_[k].land=v; }); $('fpLegs').scrollTop=at; return; }
   if(a.dataset.a==='rep'){ FP_REPL=FP_REPL===k?null:k; render(); if(FP_REPL!=null){ $('fpAddIn').value=''; $('fpAddIn').focus(); } return; }
   if(a.dataset.a==='del'){ if(FP_REPL!=null&&k<=FP_REPL) FP_REPL=k===FP_REPL?null:FP_REPL-1; fpEdit(P_=>P_.splice(k,1)); }
   else { const j=a.dataset.a==='up'?k-1:k+1; if(j<0||j>=FP.pts.length) return; if(FP_REPL===k) FP_REPL=j; else if(FP_REPL===j) FP_REPL=k; fpEdit(P_=>{ [P_[k],P_[j]]=[P_[j],P_[k]]; }); }
