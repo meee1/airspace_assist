@@ -2155,7 +2155,7 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
 // ---------- full-screen map. FS.on = rc_fsMap (default on); applied while the map is shown. Elements are moved, not copied, so
 // every render/handler keeps working: a comment marker is left where each one came from and fsBack puts it back.
 const FS={on:ls.get('fsMap',true), bar:false, marks:new Map(), s:'peek'};
-const FS_TABQ=matchMedia('(min-width:900px) and (orientation:landscape)');
+const FS_TABQ=matchMedia('(orientation:landscape) and (min-width:800px) and (min-height:460px)');   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
 const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);

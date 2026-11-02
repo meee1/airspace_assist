@@ -160,7 +160,7 @@ nx=os.path.join(out,'data-next.json')
 if not any(s_[1].startswith('data-next.json') for s_ in sets) and os.path.exists(nx): os.remove(nx)
 ver=h(html+app+data+SW)
 open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver).replace('__NEXT__',",'./data-next.json'" if len(sets)>1 else ''))
-json.dump({"name":"Radio Calls AU","short_name":"Radio AU","start_url":"./","display":"standalone","orientation":"portrait",
+json.dump({"name":"Radio Calls AU","short_name":"Radio AU","start_url":"./","display":"standalone","orientation":"any",
   "background_color":"#0d1417","theme_color":"#0d1417",
   "share_target":{"action":"./share","method":"POST","enctype":"multipart/form-data",   # Android: share a NAIPS briefing (text or PDF) to the installed app
                    "params":{"title":"title","text":"text","files":[{"name":"file","accept":["application/pdf",".pdf","text/plain",".txt"]}]}},
