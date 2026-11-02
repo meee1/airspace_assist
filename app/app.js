@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793609170586;
+const APP_BUILT=1793612826778;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2353,6 +2353,8 @@ function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vn
   h+='<div class="pc-sec">LSALT by leg (highest terrain or NOTAM obstacle within 2 NM, +1000 ft)</div><table class="pc-t"><tbody>'+r.legs.map(l=>{ const b=l.hi, la_=l.alt!=null?l.alt:alt, w=b&&b.ft>=la_-500;
     return `<tr class="${b&&b.ft>=la_-50?'w':w?'a':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="m">${fmtD(l.L)} NM${l.set?'<br>'+la_.toLocaleString('en-AU')+' ft':''}</td><td>${b?`<b>LSALT ${lsaltOf(b.ft).toLocaleString('en-AU')}</b> · highest ${Math.round(b.ft).toLocaleString('en-AU')} ft ${esc(b.what)} ${fmtD(b.D-l.D>=0?b.D-l.D:b.D)} NM into the leg`:'terrain not loaded'}${l.unk?' <i>(terrain partly loaded)</i>':''}</td></tr>`; }).join('')+'</tbody></table>';
   const N=ntRoute(), NL=ntByLeg(N); h+=`<div class="pc-sec">NOTAMs along the route (${N.length}), by leg</div>`+(N.length? '<table class="pc-t"><tbody>'+NL.map(([lab,ns])=>`<tr class="wp"><td class="k" colspan="2">${esc(lab)}</td></tr>`+ns.map(n=>`<tr><td class="k">${esc(n.loc||'')} ${esc(n.id||'')}</td><td>${esc((n.text||'').slice(0,240))}</td></tr>`).join('')).join('')+'</tbody></table>' : `<div class="vnote">${ntHave()?'None in the loaded briefing.':'No NAIPS briefing loaded: load one for NOTAMs, area status and obstacles.'}</div>`);
+  { const S=wbSummary(); if(S){ const {P,r}=S, f=p=>`${wbFmtW(P,p.w)} CG ${wbFmtA(P,p.a)}`;   // weight and balance from your profile and load
+    h+=`<div class="pc-sec">Weight and balance (${esc(P.name)})</div><table class="pc-t"><tbody><tr class="${r.ok?'':'w'}"><td class="k">${r.ok?'OK':'OUT'}</td><td>Take-off ${f(r.to)}${r.ld?' · landing '+f(r.ld):''} · zero fuel ${f(r.zf)}${r.ok?'':' · <span class="w">'+r.why.map(esc).join(' · ')+'</span>'}${r.pf?` · fuel ${Math.round(r.F)} ${WB_U[P.u].f} on board, ${Math.ceil(r.pf.need)} needed with 30 min reserve${r.F<r.pf.need?' <span class="w">(short)</span>':''}`:''}</td></tr></tbody></table>`; } }
   $('pcOut').innerHTML=h;
   $('pcStat').textContent= r.legs.some(l=>l.unk)? 'Some terrain along the route isn\'t loaded yet: checking again…' : 'Planned altitude, GS and departure are kept on this device. Tower hours and area status are at your ETA; check the ATIS, NOTAMs and ERSA before flight.';
   PC.text=`PLAN CHECK ${FP.name||''} ${fmtD(r.D)} NM ${alt} ft ${gs} kt dep ${lt(dep)}\n`+r.ev.map(e=>`${String(fmtD(e.D)).padStart(5)} NM ${lt(e.t)}  ${e.k.padEnd(8)} ${e.txt}`).join('\n')+'\n\nLSALT by leg\n'+r.legs.map(l=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${l.hi?'LSALT '+lsaltOf(l.hi.ft)+' (highest '+Math.round(l.hi.ft)+' ft '+l.hi.what+')':'terrain not loaded'}${l.unk?' (terrain partly loaded)':''}`).join('\n')+(burn?'\n\nTime and fuel\n'+r.legs.map((l,k)=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${hmm(fl[k].t)} ${Math.round(fl[k].f)} L${fob?' ('+Math.round(fl[k].rem)+' L left)':''}`).join('\n'):'')+'\n\nNOTAMs along the route\n'+NL.map(([lab,ns])=>lab+'\n'+ns.map(n=>`  ${n.loc||''} ${n.id||''}: ${n.text||''}`).join('\n')).join('\n')+'\n';
@@ -2361,6 +2363,165 @@ $('fpCheck').onclick=()=>{ $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>3
   if(!$('pcDep').value){ const d=new Date(); $('pcDep').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
   if(FP) for(const p of FP.pts) terPrefetch(p.la,p.lo);
   const d=$('pcDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); PC.retry=0; pcRun(); };
+/* ---------- weight and balance (your aircraft: numbers from your POH / weighing report, kept on this device) ----------
+   Profile: {id, name, u:'kg'|'lb' (kg·mm·L or lb·in·USG), maxW, ew, ea, el (empty weight, arm, lateral arm), dens (fuel
+   kg/L or lb/USG), st:[{n, k:'seat'|'bag'|'fuel', a, l, max}] (fuel max = tank capacity in L/USG), env 'arm,weight' per
+   line (the longitudinal CG envelope, corners in order), lenv 'lateral arm,weight' per line (optional)}.
+   Load per profile: one value per station (kg/lb, or L/USG for fuel). Points: take-off, landing (after the plan's burn,
+   from Plan check's GS and burn), zero fuel. As fuel burns the CG moves along a straight line, so the whole line from
+   take-off to zero fuel is checked, not only its ends. */
+const WB_U={kg:{w:'kg',a:'mm',f:'L',dens:0.72,ad:0},lb:{w:'lb',a:'in',f:'USG',dens:6.0,ad:1}};
+let WB=ls.get('wb',null)||{profiles:[],cur:null,load:{}};
+function wbSave(){ ls.set('wb',WB); }
+function wbNew(name){ const id='p'+Date.now().toString(36); return {id,name:name||'My aircraft',u:'kg',maxW:null,ew:null,ea:null,el:null,dens:0.72,
+  st:[{n:'Pilot',k:'seat',a:null,l:null,max:null},{n:'Front passenger',k:'seat',a:null,l:null,max:null},{n:'Rear seats',k:'seat',a:null,l:null,max:null},{n:'Baggage',k:'bag',a:null,l:null,max:null},{n:'Fuel',k:'fuel',a:null,l:null,max:null}],
+  env:'',lenv:''}; }
+// built-in starting profiles. Bell 206: BHT-206A/B-SERIES-MM-2 chapter 8 (Rev. 3, 12 Jul 2004), Fig. 8-4 weight record and
+// Table 8-2: pilot FS 65.0 BL +14.0 (right seat), fwd passenger FS 65.0 BL -11.0, aft passengers (3) FS 104.0 BL 0, engine oil
+// 12.3 lb at FS 179.0 (MIL-PRF-23699), fuel FS 118.0 (91 gal cell, 206B-3 S/N 3567+) or FS 116.0 (76 gal, S/N 4-3566), Jet A
+// 6.8 lb/gal, MGTOW 3200 lb (3350 lb with STC SR09397RC). Weight empty from the aircraft's own weighing record; the gross
+// weight flight CG limits and the baggage station are in the Flight Manual (RFM) limitations / W&B section, not in the MM.
+const WB_TPL={
+  b206b3:{name:'Bell 206B-3 (91 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8',
+    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:null},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (91 gal)',k:'fuel',a:118.0,l:0,max:91}]},
+  b206ab76:{name:'Bell 206A/B (76 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8',
+    st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:null,l:0,max:null},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (76 gal)',k:'fuel',a:116.0,l:0,max:76}]}};
+function wbFromTpl(key){ const T=WB_TPL[key]; if(!T) return wbNew(); const p=wbNew(T.name); Object.assign(p,JSON.parse(JSON.stringify(T)),{id:p.id,ew:null,ea:null,el:null,env:'',lenv:''}); return p; }
+function wbCur(){ return WB.profiles.find(p=>p.id===WB.cur)||WB.profiles[0]||null; }
+function wbPoly(txt){ return String(txt||'').split(/\n|;/).map(l=>l.trim().split(/[\s,]+/).map(Number)).filter(r=>r.length>=2&&isFinite(r[0])&&isFinite(r[1])).map(r=>[r[0],r[1]]); }
+function wbIn(poly,x,y){ if(poly.length<3) return true; let c=false;   // ray casting; on the edge counts as inside (1e-6 slack)
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const [xi,yi]=poly[i],[xj,yj]=poly[j];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c;
+    const dx=xj-xi, dy=yj-yi, L2=dx*dx+dy*dy; if(L2){ const t=Math.max(0,Math.min(1,((x-xi)*dx+(y-yi)*dy)/L2)), ex=xi+t*dx-x, ey=yi+t*dy-y; if(ex*ex+ey*ey<1e-6) return true; } }
+  return c; }
+function wbReady(P){ const miss=[]; if(!P) return ['a profile'];
+  if(!(P.ew>0)) miss.push('empty weight'); if(P.ea==null||!isFinite(P.ea)) miss.push('empty arm'); if(!(P.maxW>0)) miss.push('max take-off weight');
+  if(wbPoly(P.env).length<3) miss.push('CG envelope (3+ corners)'); P.st.forEach(s=>{ if(s.a==null||!isFinite(s.a)) miss.push(`${s.n||'station'} arm`); });
+  return miss; }
+const wbW=(P,s,v)=>s.k==='fuel'? v*(P.dens||WB_U[P.u].dens) : v;   // a station's weight: fuel litres/gallons × density
+function wbSum(P,vals){ let w=P.ew, m=P.ew*P.ea, ml=P.ew*(P.el||0);
+  P.st.forEach((s,k)=>{ const x= s.k==='fixed'? (+s.max||0) : wbW(P,s,+vals[k]||0); w+=x; m+=x*s.a; ml+=x*(s.l||0); });   // fixed: always carried (e.g. engine oil), weight in its max field
+  return {w, a:m/w, l:ml/w}; }
+function wbFuelSet(P,vals,f){ const v=vals.slice(); let r=f;   // f fuel units filled into the tanks in listed order
+  P.st.forEach((s,k)=>{ if(s.k!=='fuel') return; const c=s.max>0? s.max : Infinity, x=Math.max(0,Math.min(c,r)); v[k]=x; r-=x; }); return v; }
+function wbFuelTot(P,vals){ return P.st.reduce((t,s,k)=>t+(s.k==='fuel'?+vals[k]||0:0),0); }
+function wbFuelCap(P){ return P.st.reduce((t,s)=>t+(s.k==='fuel'?(s.max>0?s.max:0):0),0); }
+function wbBurnScale(P,vals,frac){ return vals.map((v,k)=>P.st[k].k==='fuel'? (+v||0)*frac : v); }   // tanks burn down together (proportionally)
+function wbPlanFuel(P){   // the loaded plan: time at Plan check's GS, fuel at its burn (L/h; USG/h for lb profiles)
+  const burnL=+ls.get('pcBurn',0)||0, gs=+ls.get('pcGs',90)||90; if(!FP||FP.pts.length<2||!burnL) return null;
+  let D=0; for(let k=1;k<FP.pts.length;k++) D+=distBrg(FP.pts[k-1].la,FP.pts[k-1].lo,FP.pts[k].la,FP.pts[k].lo)[0];
+  const h=D/gs, burn=P.u==='lb'? burnL/3.785 : burnL; return {D, h, burn, trip:h*burn, need:(h+0.5)*burn}; }
+// check one loading: take-off, landing, zero fuel, and the burn line between them
+function wbCheck(P,vals){ const env=wbPoly(P.env), lenv=wbPoly(P.lenv), pf=wbPlanFuel(P), F=wbFuelTot(P,vals), why=[];
+  const to=wbSum(P,vals), zf=wbSum(P,wbBurnScale(P,vals,0));
+  const ldF= pf&&F>0? Math.max(0,F-pf.trip) : null, ld= ldF!=null? wbSum(P,wbBurnScale(P,vals,ldF/F)) : null;
+  const okP=p=>wbIn(env,p.a,p.w)&&(lenv.length<3||wbIn(lenv,p.l,p.w));
+  if(to.w>P.maxW+1e-6) why.push(`take-off weight ${wbFmtW(P,to.w)} is over the maximum ${wbFmtW(P,P.maxW)}`);
+  for(const [nm,p] of [['take-off',to],['landing',ld],['zero fuel',zf]]){ if(!p) continue;
+    if(!wbIn(env,p.a,p.w)) why.push(`${nm} CG ${wbFmtA(P,p.a)} at ${wbFmtW(P,p.w)} is outside the envelope`);
+    else if(lenv.length>=3&&!wbIn(lenv,p.l,p.w)) why.push(`${nm} lateral CG ${wbFmtA(P,p.l)} is outside the lateral limits`); }
+  if(F>0&&!why.length) for(let i=1;i<20;i++){ const p=wbSum(P,wbBurnScale(P,vals,i/20)); if(!okP(p)){ why.push(`the CG leaves the envelope as fuel burns (at ${Math.round(F*i/20)} ${WB_U[P.u].f} left)`); break; } }
+  P.st.forEach((s,k)=>{ if(s.k==='fixed') return; const v=+vals[k]||0; if(s.max>0&&v>s.max+1e-6) why.push(`${s.n}: ${v} is over its ${s.k==='fuel'?'capacity':'limit'} ${s.max} ${s.k==='fuel'?WB_U[P.u].f:WB_U[P.u].w}`); });
+  return {ok:!why.length, why, to, ld, zf, ldF, F, pf}; }
+const wbFmtW=(P,w)=>Math.round(w).toLocaleString('en-AU')+' '+WB_U[P.u].w;
+const wbFmtA=(P,a)=>(WB_U[P.u].ad?a.toFixed(1):Math.round(a).toLocaleString('en-AU'))+' '+WB_U[P.u].a;
+// the most fuel you can carry with these people and bags: every point and the burn line inside the limits
+function wbMaxFuel(P,vals){ const cap=wbFuelCap(P), step=P.u==='lb'?0.5:1; if(!cap) return null;
+  for(let f=cap;f>=0;f-=step){ const v=wbFuelSet(P,vals,f), r=wbCheck(P,v); if(r.ok) return f; } return -1; }
+// smallest changes that make the loading fit: less fuel, move / leave out bags, swap passengers, add weight on the other side;
+// if one change isn't enough, the same with only the plan's fuel (+30 min); last, how much to offload
+function wbFixes(P,vals){ const out=[], U=WB_U[P.u], F=wbFuelTot(P,vals), pf=wbPlanFuel(P), stepW=P.u==='lb'?2:1;
+  const mf=wbMaxFuel(P,vals);
+  if(mf!=null&&mf>=0&&F>mf){ const less=F-mf; out.push({cost:less*(P.dens||U.dens), planOk:!pf||mf>=pf.need, txt:`Carry ${Math.ceil(less)} ${U.f} less fuel (at most ${Math.floor(mf)} ${U.f})`+(pf? (mf>=pf.need? `: still enough for the plan plus 30 min (${Math.ceil(pf.need)} ${U.f})` : ` <span class="w">: not enough for the plan plus 30 min (${Math.ceil(pf.need)} ${U.f})</span>`) : '')}); }
+  const ix=P.st.map((s,k)=>({s,k})), bags=ix.filter(x=>x.s.k==='bag'), seats=ix.filter(x=>x.s.k==='seat'), pax=seats.filter(x=>!/pilot|^p1\b/i.test(x.s.n));
+  const single=(v,pre)=>{ const r=[];
+    for(const A of bags){ const have=+v[A.k]||0; if(!have) continue;
+      for(const B of bags){ if(A===B) continue; const room=B.s.max>0? B.s.max-(+v[B.k]||0) : Infinity;
+        for(let m=stepW;m<=Math.min(have,room);m+=stepW){ const w=v.slice(); w[A.k]=have-m; w[B.k]=(+w[B.k]||0)+m; if(wbCheck(P,w).ok){ r.push({cost:m*0.5, txt:pre+`move ${m} ${U.w} of bags from ${esc(A.s.n)} to ${esc(B.s.n)}`}); break; } } }
+      for(let m=stepW;m<=have;m+=stepW){ const w=v.slice(); w[A.k]=have-m; if(wbCheck(P,w).ok){ r.push({cost:m, txt:pre+`leave ${m} ${U.w} of bags out of ${esc(A.s.n)}`}); break; } } }
+    for(let i=0;i<pax.length;i++) for(let j=i+1;j<pax.length;j++){ const a=pax[i], b=pax[j], va=+v[a.k]||0, vb=+v[b.k]||0; if(va===vb) continue;   // passengers only: the pilot stays in the pilot's seat
+      if(a.s.max>0&&vb>a.s.max||b.s.max>0&&va>b.s.max) continue; const w=v.slice(); w[a.k]=vb; w[b.k]=va; if(wbCheck(P,w).ok) r.push({cost:0.1, txt:pre+`swap ${esc(a.s.n)} (${va} ${U.w}) and ${esc(b.s.n)} (${vb} ${U.w})`}); }
+    for(const A of [...pax,...bags]){ const room=A.s.max>0? A.s.max-(+v[A.k]||0) : 100; if(room<=0) continue;   // weight on the other side (a passenger, bags, or ballast as the POH allows)
+      for(let m=stepW;m<=room;m+=stepW){ const w=v.slice(); w[A.k]=(+w[A.k]||0)+m; if(wbCheck(P,w).ok){ r.push({cost:m*1.5, txt:pre+`add ${m} ${U.w} in ${esc(A.s.n)} (passenger, bags or ballast as the POH allows)`}); break; } } }
+    return r; };
+  const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+  out.push(...single(vals,'').map(f=>({...f,planOk:true,txt:cap(f.txt)})));
+  if(!out.some(f=>f.planOk)&&pf&&F>pf.need){ const v=wbFuelSet(P,vals,pf.need);   // only the fuel the plan needs, then one more change
+    if(wbCheck(P,v).ok) out.push({cost:0,txt:`Carry only the plan fuel plus 30 min, ${Math.ceil(pf.need)} ${U.f}`});
+    else out.push(...single(v,`Carry ${Math.ceil(pf.need)} ${U.f} (plan + 30 min) and `).map(f=>({...f,planOk:true,cost:f.cost+1000}))); }
+  if(!out.some(f=>f.planOk)){ const v= pf&&F>pf.need? wbFuelSet(P,vals,pf.need) : vals, r=wbSum(P,v), over=r.w-P.maxW;
+    out.push({cost:9e9, txt: over>0? `<span class="w">Too heavy by ${Math.ceil(over)} ${U.w}${v!==vals?` even with only the plan fuel (${Math.ceil(pf.need)} ${U.f})`:''}: offload people or bags</span>` : `<span class="w">The CG is outside the envelope with this load: rearrange or offload people or bags</span>`}); }
+  return out.sort((x,y)=>(y.planOk?1:0)-(x.planOk?1:0)||x.cost-y.cost).slice(0,4); }
+function wbDraw(cv,P,r,lat){ const g=cv.getContext('2d'), dpr=devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const env=wbPoly(lat?P.lenv:P.env), pts=[r.to,r.ld,r.zf].filter(Boolean), X=p=>lat?p.l:p.a; if(env.length<3) return;
+  let x0=Math.min(...env.map(e=>e[0]),...pts.map(X)), x1=Math.max(...env.map(e=>e[0]),...pts.map(X)), y0=Math.min(...env.map(e=>e[1]),...pts.map(p=>p.w)), y1=Math.max(...env.map(e=>e[1]),...pts.map(p=>p.w),P.maxW||0);
+  const px=(x1-x0)*0.08||1, py=(y1-y0)*0.08||1; x0-=px; x1+=px; y0-=py; y1+=py;
+  const L=46,R=10,T=18,B=26, x=v=>L+(v-x0)/(x1-x0)*(W-L-R), y=v=>H-B-(v-y0)/(y1-y0)*(H-T-B), C={ink:cssv('--ink'),dim:cssv('--dim'),ok:cssv('--ok'),w:cssv('--warn'),wp:cssv('--wp'),rule:cssv('--rule')};
+  g.font='10px '+cssv('--f-mono'); g.fillStyle=C.dim; g.strokeStyle=C.rule; g.lineWidth=1;
+  const nice=r=>{ const e=10**Math.floor(Math.log10(r/4)), f=r/4/e; return (f<1.5?1:f<3.5?2:f<7.5?5:10)*e; }, sy=nice(y1-y0), sx=nice(x1-x0);   // round tick steps
+  for(let vy=Math.ceil(y0/sy)*sy;vy<=y1;vy+=sy){ g.beginPath(); g.moveTo(L,y(vy)); g.lineTo(W-R,y(vy)); g.stroke(); g.textAlign='right'; g.fillText(Math.round(vy),L-4,y(vy)+3); }
+  for(let vx=Math.ceil(x0/sx)*sx;vx<=x1;vx+=sx){ g.textAlign='center'; g.fillText(sx<1?vx.toFixed(1):Math.round(vx),x(vx),H-B+13); }
+  g.textAlign='left'; g.fillText((lat?'lateral arm ':'arm ')+WB_U[P.u].a,L,H-2); g.fillText(WB_U[P.u].w,4,11);
+  g.beginPath(); env.forEach((e,k)=>k?g.lineTo(x(e[0]),y(e[1])):g.moveTo(x(e[0]),y(e[1]))); g.closePath(); g.fillStyle=C.ok+'22'; g.fill(); g.strokeStyle=C.ok; g.lineWidth=2; g.stroke();
+  if(!lat&&P.maxW){ g.setLineDash([4,3]); g.strokeStyle=C.w; g.lineWidth=1; g.beginPath(); g.moveTo(L,y(P.maxW)); g.lineTo(W-R,y(P.maxW)); g.stroke(); g.setLineDash([]); }
+  g.strokeStyle=C.ink; g.lineWidth=1.5; g.beginPath(); g.moveTo(x(X(r.to)),y(r.to.w)); g.lineTo(x(X(r.zf)),y(r.zf.w)); g.stroke();
+  const used=[]; for(const [p,lb] of [[r.to,'TO'],[r.ld,'LDG'],[r.zf,'ZF']]){ if(!p) continue; const ok=wbIn(env,X(p),p.w)&&(lat||p.w<=P.maxW+1e-6), px_=x(X(p)), py_=y(p.w); g.fillStyle=ok?C.wp:C.w; g.beginPath(); g.arc(px_,py_,5,0,7); g.fill();
+    g.fillStyle=C.ink; g.font='600 10px '+cssv('--f-label'); let lx=px_+8, ly=py_+4; const wTxt=g.measureText(lb).width; if(lx+wTxt>W-R) lx=px_-8-wTxt;
+    while(used.some(u=>Math.abs(u[0]-lx)<wTxt+4&&Math.abs(u[1]-ly)<11)) ly+=11; used.push([lx,ly]); g.textAlign='left'; g.fillText(lb,lx,ly); } }
+function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=WB.profiles.map(p=>`<option value="${p.id}"${p===P?' selected':''}>${esc(p.name)}</option>`).join('');
+  $('wbDel').disabled=!P; $('wbCopy').disabled=!P;
+  if(!P){ $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; box.innerHTML='<div class="vnote">Add your aircraft: New profile.</div>'; return; }
+  const U=WB_U[P.u], vals=(WB.load[P.id]||[]).slice(0,P.st.length);
+  // profile editor
+  const num=(f,v,ph,st='any')=>`<input data-f="${f}" type="number" inputmode="decimal" step="${st}" value="${v==null?'':v}" placeholder="${ph||''}">`;
+  if(!$('wbEd').contains(document.activeElement)) $('wbEd').innerHTML=`<div class="pc-in"><label>Name <input data-f="name" value="${esc(P.name)}" style="width:160px"></label><label>Units <select data-f="u"><option value="kg"${P.u==='kg'?' selected':''}>kg · mm · L</option><option value="lb"${P.u==='lb'?' selected':''}>lb · in · USG</option></select></label><label>Fuel ${U.w}/${U.f} ${num('dens',P.dens,U.dens)}</label></div>
+   ${P.src?`<div class="vnote">Started from ${esc(P.src)}: check every value against your aircraft's weighing record and Flight Manual.</div>`:''}<div class="pc-in"><label>Empty weight ${U.w} ${num('ew',P.ew,'weighing report')}</label><label>Empty arm ${U.a} ${num('ea',P.ea,'')}</label><label>Empty lateral ${U.a} ${num('el',P.el,'0')}</label><label>Max take-off ${U.w} ${num('maxW',P.maxW,'POH')}</label></div>
+   <div class="wb-stw"><table class="pc-t wb-st"><tbody><tr><td class="k">Station</td><td class="k">Kind</td><td class="k">Arm ${U.a}</td><td class="k">Lateral</td><td class="k">Max ${U.w} · tank ${U.f} · fixed ${U.w}</td><td></td></tr>${P.st.map((s,k)=>`<tr data-k="${k}"><td><input data-s="n" value="${esc(s.n)}"></td><td><select data-s="k"><option value="seat"${s.k==='seat'?' selected':''}>seat</option><option value="bag"${s.k==='bag'?' selected':''}>baggage</option><option value="fuel"${s.k==='fuel'?' selected':''}>fuel tank</option><option value="fixed"${s.k==='fixed'?' selected':''}>fixed (always on)</option></select></td><td><input data-s="a" type="number" inputmode="decimal" step="any" value="${s.a==null?'':s.a}"></td><td><input data-s="l" type="number" inputmode="decimal" step="any" value="${s.l==null?'':s.l}" placeholder="0"></td><td><input data-s="max" type="number" inputmode="decimal" step="any" value="${s.max==null?'':s.max}"></td><td><button class="btn" data-s="del" aria-label="Remove ${esc(s.n)}">✕</button></td></tr>`).join('')}</tbody></table></div>
+   <div class="ctl"><button class="btn" id="wbAddSt">Add station</button></div>
+   <label class="wb-ta">CG envelope: one corner per line, "arm, weight", in order around the shape (POH)<textarea data-f="env" rows="5" spellcheck="false" placeholder="e.g.\n2340, 680\n2340, 1000\n2480, 1135\n2550, 1135\n2550, 680">${esc(P.env||'')}</textarea></label>
+   <label class="wb-ta">Lateral CG limits (optional): "lateral arm, weight" per line<textarea data-f="lenv" rows="3" spellcheck="false" placeholder="e.g.\n-76, 680\n-76, 1135\n76, 1135\n76, 680">${esc(P.lenv||'')}</textarea></label>`;
+  // load sheet
+  const miss=wbReady(P);
+  if(!$('wbLoad').contains(document.activeElement)) $('wbLoad').innerHTML= miss.length? '' : `<div class="pc-in">${P.st.map((s,k)=>s.k==='fixed'?'':`<label>${esc(s.n)} ${s.k==='fuel'?U.f:U.w}<input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null?'':vals[k]}" placeholder="${s.k==='fuel'&&s.max?'max '+s.max:'0'}"></label>`).join('')}</div>`;
+  if(miss.length){ box.innerHTML=`<div class="vnote">To work out weight and balance, fill in: <b>${miss.map(esc).join(', ')}</b> (Aircraft profile, above). Use the numbers from your POH and the aircraft's current weighing report.</div>`; $('wbProf').open=true; return; }
+  const r=wbCheck(P,vals), lenv=wbPoly(P.lenv).length>=3, mf=wbMaxFuel(P,vals), pf=r.pf;
+  let h=`<div class="wb-res ${r.ok?'ok':'bad'}"><b>${r.ok?'Within limits':'Out of limits'}</b>${r.ok?'':' · '+r.why.map(esc).join(' · ')}</div>`;
+  h+=`<table class="pc-t"><tbody><tr><td class="k"></td><td class="k">Weight</td><td class="k">CG</td>${lenv?'<td class="k">Lateral</td>':''}<td class="k">Fuel</td></tr>`+
+    [['Take-off',r.to,r.F],['Landing',r.ld,r.ldF],['Zero fuel',r.zf,0]].filter(x=>x[1]).map(([n,p,f])=>`<tr><td class="k">${n}</td><td class="m">${wbFmtW(P,p.w)}</td><td class="m">${wbFmtA(P,p.a)}</td>${lenv?`<td class="m">${wbFmtA(P,p.l)}</td>`:''}<td class="m">${f==null?'—':Math.round(f)+' '+U.f}</td></tr>`).join('')+'</tbody></table>';
+  h+='<canvas class="wb-cv" id="wbCv"></canvas>'+(lenv?'<canvas class="wb-cv lat" id="wbCvL"></canvas>':'');
+  h+='<div class="pc-sec">Suggestions</div><ul class="wb-sug">';
+  const cap=wbFuelCap(P);
+  if(mf!=null) h+= mf<0? `<li class="w">No fuel load fits with these people and bags: see the fixes below.</li>` : `<li>Most fuel you can carry: <b>${Math.floor(mf)} ${U.f}</b>${cap&&mf>=cap?' (full tanks)':''} (${wbFmtW(P,mf*(P.dens||U.dens))})${pf&&pf.burn?`, about <b>${hmm(Math.max(0,mf/pf.burn)*3600e3)}</b> at ${Math.round(pf.burn*10)/10} ${U.f}/h`:''}.</li>`;
+  else h+='<li>Add a fuel tank station with its capacity to see the most fuel you can carry.</li>';
+  if(pf){ const enough=r.F>=pf.need-1e-6; h+=`<li>Flight plan: ${pf.D<10?pf.D.toFixed(1):Math.round(pf.D)} NM, ${hmm(pf.h*3600e3)} at ${ls.get('pcGs',90)} kt: trip <b>${Math.ceil(pf.trip)} ${U.f}</b>, with 30 min reserve <b>${Math.ceil(pf.need)} ${U.f}</b>. ${enough?`On board ${Math.round(r.F)} ${U.f}: enough.`:`<span class="w">On board ${Math.round(r.F)} ${U.f}: ${Math.ceil(pf.need-r.F)} ${U.f} short</span>${mf!=null&&mf>=pf.need?` (up to ${Math.floor(mf)} ${U.f} fits)`:mf!=null&&mf>=0?' <span class="w">and the plan fuel doesn\'t fit with this load</span>':''}.`}</li>`; }
+  else h+=`<li>${FP&&FP.pts.length>1?'Set the burn rate in Plan check':'Load a flight plan and set the burn rate in Plan check'} to see the fuel for the flight and the landing CG.</li>`;
+  if(!r.ok){ const fx=wbFixes(P,vals); h+= fx.length? fx.map(f=>`<li class="fix">${f.txt}</li>`).join('') : '<li class="w">No single change found: reduce the load or check the profile.</li>'; }
+  h+='</ul><div class="vnote">From the profile you entered: check it against the POH and the current weighing report. Fuel burns from all tanks together; the CG is checked all the way from take-off to zero fuel.</div>';
+  box.innerHTML=h; requestAnimationFrame(()=>{ const c=$('wbCv'); if(c) wbDraw(c,P,r,false); const cl=$('wbCvL'); if(cl) wbDraw(cl,P,r,true); }); }
+function wbSummary(){ const P=wbCur(); if(!P||wbReady(P).length) return null; const r=wbCheck(P,WB.load[P.id]||[]); return {P,r}; }
+// events
+$('fpWb').onclick=()=>{ if(!WB.profiles.length){ const p=wbFromTpl('b206b3'); WB.profiles.push(p); WB.cur=p.id; wbSave(); }
+  wbRender(); const d=$('wbDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); };
+$('wbClose').onclick=()=>$('wbDlg').close();
+$('wbProfSel').onchange=()=>{ WB.cur=$('wbProfSel').value; wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); };
+$('wbNewP').onclick=()=>{ const t=$('wbTpl').value, p= t? wbFromTpl(t) : wbNew('Aircraft '+(WB.profiles.length+1)); WB.profiles.push(p); WB.cur=p.id; wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; $('wbProf').open=true; wbRender(); };
+$('wbCopy').onclick=()=>{ const P=wbCur(); if(!P) return; const p=JSON.parse(JSON.stringify(P)); p.id='p'+Date.now().toString(36); p.name=P.name+' (copy)'; WB.profiles.push(p); WB.cur=p.id; WB.load[p.id]=(WB.load[P.id]||[]).slice(); wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); };
+$('wbDel').onclick=()=>{ const P=wbCur(); if(!P||!confirmDel(P)) return; WB.profiles=WB.profiles.filter(p=>p!==P); delete WB.load[P.id]; WB.cur=WB.profiles[0]?WB.profiles[0].id:null; wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); };
+function confirmDel(P){ const b=$('wbDel'); if(b.dataset.arm===P.id){ delete b.dataset.arm; b.textContent='Delete'; return true; } b.dataset.arm=P.id; b.textContent='Tap again to delete'; setTimeout(()=>{ if(b.dataset.arm){ delete b.dataset.arm; b.textContent='Delete'; } },4000); return false; }   // no browser confirm(): a second tap
+$('wbEd').addEventListener('input',e=>{ const P=wbCur(); if(!P) return; const t=e.target, f=t.dataset.f, sk=t.dataset.s, tr=t.closest('tr[data-k]');
+  const nv=v=>v===''?null:+v;
+  if(f){ if(f==='name'||f==='env'||f==='lenv') P[f]=t.value; else if(f==='u'){ P.u=t.value; P.dens=WB_U[P.u].dens; $('wbEd').innerHTML=''; } else P[f]=nv(t.value); }
+  else if(sk&&tr&&sk!=='del'){ const s=P.st[+tr.dataset.k]; if(sk==='n'||sk==='k') s[sk]=t.value; else s[sk]=nv(t.value); if(sk==='k') $('wbLoad').innerHTML=''; }
+  wbSave(); if(f==='name'){ const o=$('wbProfSel').selectedOptions[0]; if(o) o.textContent=P.name; } wbRenderSoon(); });
+$('wbEd').addEventListener('change',e=>{ if(e.target.tagName==='SELECT'){ $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); } });
+$('wbEd').addEventListener('click',e=>{ const P=wbCur(); if(!P) return;
+  if(e.target.id==='wbAddSt'){ P.st.push({n:'Station '+(P.st.length+1),k:'bag',a:null,l:null,max:null}); }
+  else { const b=e.target.closest('[data-s="del"]'); if(!b) return; const k=+b.closest('tr').dataset.k; P.st.splice(k,1); if(WB.load[P.id]) WB.load[P.id].splice(k,1); }
+  wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); });
+$('wbLoad').addEventListener('input',e=>{ const P=wbCur(), k=e.target.dataset.v; if(!P||k==null) return; const L=WB.load[P.id]=WB.load[P.id]||[]; L[+k]=e.target.value===''?null:+e.target.value; wbSave(); wbRenderSoon(); });
+let wbT=null; function wbRenderSoon(){ clearTimeout(wbT); wbT=setTimeout(wbRender,150); }
+addEventListener('resize',()=>{ if($('wbDlg').open) wbRenderSoon(); });
+
 $('pcRun').onclick=()=>{ PC.retry=0; pcRun(); }; $('pcClose').onclick=()=>$('pcDlg').close();
 $('pcCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(PC.text); $('pcStat').textContent='Copied.'; }catch(e){ dlFile('plan-check.txt',PC.text,'text/plain'); } };
 $('pcPrint').onclick=()=>{ const w=window.open('','_blank'); if(!w){ dlFile('plan-check.txt',PC.text,'text/plain'); return; }

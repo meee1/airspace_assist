@@ -270,6 +270,13 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .st.nxcls.ahead.amber b{color:var(--accent)} .st.nxcls.ahead.warn b{color:var(--warn)} .st.nxcls.ahead small{color:var(--dim)}
 .pcdlg{max-width:760px} .pc-in{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:end;margin:4px 0 8px} .pc-in label{display:flex;flex-direction:column;font-size:12px;color:var(--dim);gap:3px} .pc-in input{width:96px;font:600 15px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)}
 .pc-t{width:100%;border-collapse:collapse;font-size:12.5px} .pc-t td{padding:5px 4px;border-bottom:1px solid var(--rule);vertical-align:top} .pc-t td.m{font:600 12px var(--f-mono);white-space:nowrap;color:var(--dim)} .pc-t td.k{font:700 11px var(--f-label);letter-spacing:.04em;white-space:nowrap} .pc-t b.f{font:700 14px var(--f-mono);color:var(--freq)} .pc-t tr.wp td{background:color-mix(in srgb,var(--wp) 8%,transparent)} .pc-t tr.w td.k{color:var(--warn)} .pc-t tr.a td.k{color:var(--accent)}
+.wb-prof{margin:6px 0;border:1px solid var(--rule);border-radius:8px;padding:6px 8px} .wb-prof summary{font:700 12px var(--f-label);cursor:pointer;padding:4px 0}
+.wb-st input,.wb-st select{width:100%;min-width:56px;box-sizing:border-box;font:600 13px var(--f-mono);padding:5px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink)} .wb-st td:first-child input{min-width:120px} .wb-st select{min-width:96px} .wb-stw{overflow-x:auto;margin:0 -2px} .wb-st{min-width:560px} .pc-in select{font:600 14px var(--f-label);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)} .wb-st .btn{min-height:32px;padding:2px 8px}
+.wb-ta{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--dim);margin:6px 0} .wb-ta textarea{font:500 13px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--bg);color:var(--ink)}
+#wbProfSel{font:600 14px var(--f-label);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink);max-width:220px}
+.wb-res{padding:8px 10px;border-radius:8px;margin:8px 0;font-size:13px} .wb-res.ok{background:color-mix(in srgb,var(--ok) 16%,transparent)} .wb-res.bad{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--ink)} .wb-res.bad b{color:var(--warn)}
+.wb-cv{display:block;width:100%;height:240px;margin:8px 0} .wb-cv.lat{height:150px}
+.wb-sug{margin:0;padding-left:18px;font-size:13px;line-height:1.45} .wb-sug li{margin:3px 0} .wb-sug li.fix::marker{content:'→ '} .wb-sug .w,.wb-sug li.w{color:var(--warn)}
 .pc-sec{font:700 11px var(--f-label);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px} .opts-tiles label{padding:6px 4px} .opts-tiles label>span:not(.tpv){flex:1 1 auto;min-width:0}
 .tpv{flex:none;width:250px;zoom:.56;pointer-events:none;margin-left:auto} .tpv .status{display:block;position:static;padding:0;margin:0;background:none} .tpv .st{margin:0} .tpv .st[hidden]{display:flex}
 .tpv .st.t{display:inline-flex;flex-direction:column;width:110px} .tpv .st.gps{display:inline-flex;width:44px;height:64px} .tpv .st>small:first-child{line-height:1.3;overflow:visible} .tpv .st.t small{line-height:1.3}
@@ -628,7 +635,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
       <details class="notams" id="fpNotam" hidden></details>
-      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpCheck" title="Frequencies, airspace, areas, NOTAMs, obstacles and LSALT along the whole plan, in order">Plan check</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
+      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpCheck" title="Frequencies, airspace, areas, NOTAMs, obstacles and LSALT along the whole plan, in order">Plan check</button><button class="btn" id="fpWb" title="Weight and balance for your aircraft: take-off, landing and zero-fuel CG, most fuel you can carry, fixes">Weight &amp; balance</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
       <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Save GPX downloads the plan as it is now, edits included. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
@@ -737,6 +744,13 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="ctl"><button class="btn" id="pcCopy">Copy text</button><button class="btn" id="pcPrint">Print / PDF</button></div>
   </dialog>
 
+  <dialog class="opts pcdlg" id="wbDlg" aria-labelledby="wbTitle">
+    <div class="opts-head"><b id="wbTitle">Weight &amp; balance</b><button class="btn" id="wbClose" aria-label="Close">✕</button></div>
+    <div class="pc-in"><label>Aircraft <select id="wbProfSel"></select></label><label>New from <select id="wbTpl"><option value="b206b3">Bell 206B-3 (91 gal)</option><option value="b206ab76">Bell 206A/B (76 gal)</option><option value="">Blank</option></select></label><button class="btn" id="wbNewP">New profile</button><button class="btn" id="wbCopy">Copy</button><button class="btn" id="wbDel">Delete</button></div>
+    <details class="wb-prof" id="wbProf"><summary>Aircraft profile (from the POH and weighing report)</summary><div id="wbEd"></div></details>
+    <div class="pc-sec">Load</div><div id="wbLoad"></div>
+    <div id="wbOut"></div>
+  </dialog>
   <details class="calls ntset" id="ntSet">
     <summary><span class="lbl">NOTAMs (NAIPS) and traffic</span><span class="calls-at" id="ntSum">no briefing</span></summary>
     <label><span class="lbl">Traffic proxy</span><input id="ntUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="empty = off (default https://test.mission.workers.dev)"></label>
@@ -794,7 +808,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=ff9fc2fdf1';
+    const s=document.createElement('script'); s.src='app.js?v=bc9cdab6d7';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
