@@ -352,7 +352,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .fp .ctl .btn{padding:7px 9px;font-size:11px}
 .fp-legs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:210px;overflow:auto;font-size:13px}
 .fp-legs li{display:grid;grid-template-columns:22px 1fr auto auto 44px;gap:8px;align-items:baseline;padding:4px 6px;border-radius:5px;cursor:pointer}
-.fp-legs .alt{color:var(--wp);font-weight:600} .fp-legs .alt.k-conflict,.fp-legs .alt.k-nolevel,.fp-legs .alt.k-split{color:var(--warn)} .fp-legs .alt.k-low{color:var(--accent)}
+.fp-legs .alt{color:var(--wp);font-weight:600} .fp-legs .alt.k-conflict,.fp-legs .alt.k-nolevel,.fp-legs .alt.k-split{color:var(--warn)} .fp-legs .alt.k-low{color:var(--accent)} .fp-legs .alt.k-set{text-decoration:underline dotted} .fp-legs .alt{white-space:nowrap} .fp-legs .altin{width:62px;min-height:36px;box-sizing:border-box;padding:4px 6px;font:600 13px var(--f-mono);text-align:right;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--wp)} .fp-legs .altin.set{border-color:var(--wp)}
 .fp-next .fp-alt b{display:inline;font:inherit;font-weight:700;margin:0;color:var(--wp);white-space:normal;overflow:visible} .fp-alt .w{color:var(--warn)} .fp-alt .w b{color:var(--warn)}
 .fp-legs li.done{color:var(--dim)} .fp-legs li.on{background:color-mix(in srgb,var(--wp) 18%,transparent)}
 .fp-legs .n{font:600 11px var(--f-mono);color:var(--dim)} .fp-legs .w b{font-family:var(--f-mono)} .fp-legs .w span{color:var(--dim);font-size:12px}
@@ -987,7 +987,8 @@ function parseGPX(xml){
   if(!nodes.length) throw new Error('No route, waypoints or track found in that GPX file.');
   let pts=nodes.map((n,k)=>{ const la=parseFloat(n.getAttribute('lat')), lo=parseFloat(n.getAttribute('lon'));
     const nm=(n.getElementsByTagName('name')[0]?.textContent||'').trim(), ds=(n.getElementsByTagName('desc')[0]?.textContent||'').trim();
-    return {n:nm||('WP'+(k+1)), la, lo, gd:ds}; }).filter(p=>isFinite(p.la)&&isFinite(p.lo));
+    const cm=(n.getElementsByTagName('cmt')[0]?.textContent||'').trim(), al=/^ALT (\d{1,5})$/.exec(cm);   // leg altitude saved by this app
+    return {n:nm||('WP'+(k+1)), la, lo, gd:ds, ...(al&&k?{alt:+al[1]}:{})}; }).filter(p=>isFinite(p.la)&&isFinite(p.lo));
   if(!pts.length) throw new Error('No usable coordinates in that GPX file.');
   if(kind==='track' && pts.length>60){ const step=Math.ceil(pts.length/60); pts=pts.filter((p,k)=>k%step===0||k===pts.length-1); }
   // label from the AIP where the name or position matches
@@ -1426,7 +1427,7 @@ function profZoom(dir){ const cur=PROF_TOP||(PROF&&PROF.auto)||5000;
   const nx = dir<0 ? [...PROF_STEPS].reverse().find(v=>v<cur) : PROF_STEPS.find(v=>v>cur);
   PROF_TOP = nx || (dir<0?PROF_STEPS[0]:PROF_STEPS[PROF_STEPS.length-1]); ls.set('profTop',PROF_TOP); drawProf(); }
 const PROF_TERR='#9c7a4a';
-function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),TER.ok,TER.tiles.size,REV.map(r=>{ const t=twrStatus(r.a); return t?+t.on:'?'; }).join(''),CTA_BUF,$('cCat').value].join('|'); }   // tower open/closed states, not the clock: a rebuild costs ~0.5 s on the phone
+function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),P_.map(p=>p.alt==null?'':p.alt).join('/'),TER.ok,TER.tiles.size,REV.map(r=>{ const t=twrStatus(r.a); return t?+t.on:'?'; }).join(''),CTA_BUF,$('cCat').value].join('|'); }   // tower open/closed states, not the clock: a rebuild costs ~0.5 s on the phone
 function profEnsure(){ if(!FP||FP.pts.length<2) return null; const key=profKey(); if(!PROF||PROF.key!==key){ PROF=profBuild(); PROF.key=key; } return PROF; }
 function profBuild(){
   const P_=FP.pts, cum=[0];
@@ -1452,7 +1453,7 @@ function profBuild(){
     if(q.t!=null && base!=null && base>0 && base-q.t<1000 && (!tight||base-q.t<tight.base-tight.t)) tight=q; }
   const zones=new Map(); for(const q of S) for(const a of q.b) if(a.L<=0 && !zones.has(a.n)) zones.set(a.n,{...a,x:q.x});
   const pr={S,cum,total,missing,hi,lo,tight,zones:[...zones.values()]};
-  pr.legs=P_.map((_,k)=>k?legPlan(pr,k):null);
+  pr.legs=P_.map((_,k)=>k?legSet(legPlan(pr,k),P_[k],k):null);
   return pr;
 }
 let CTA_BUF=ls.get('ctaBuf',500);
@@ -1492,17 +1493,28 @@ function legPlan(pr,k){
   else if(minA!=null && maxA!=null){ kind= hard? 'conflict' : 'split'; }
   else { kind='none'; }
   const entry=ends.filter(e=>e.keys&&(e.keys.entry||e.keys.hel)&&[...zones].some(n=>n.startsWith(callName(e.n).split(' ')[0].toUpperCase()+' '))).map(e=>({i:e.i,entry:e.keys.entry,hel:e.keys.hel}));
-  return {k,trk,east,need,needQ,minA,base,baseQ,maxA,alt,kind,zones:[...zones],entry,unknown,exempt:exempt.map(e=>e.i),hard, legStart:pr.cum[k-1], inE:eBase!=null&&alt!=null&&alt>=eBase?eBase:null,
+  return {k,trk,east,need,needQ,minA,base,baseQ,maxA,eBase,alt,kind,zones:[...zones],entry,unknown,exempt:exempt.map(e=>e.i),hard, legStart:pr.cum[k-1], inE:eBase!=null&&alt!=null&&alt>=eBase?eBase:null,
     belowE: eBase!=null&&alt!=null&&alt>=eBase&&minA!=null&&minA<3000&&Math.min(eBase-CTA_BUF,2900)>=minA ? Math.floor(Math.min(eBase-CTA_BUF,2900)/100)*100 : null};
 }
-function legAltTxt(lp){ if(!lp) return ''; return lp.alt!=null? lp.alt.toLocaleString('en-AU') : lp.kind==='conflict'||lp.kind==='nolevel'? '!' : lp.kind==='split'? 'split' : '—'; }
+// your own altitude for a leg (Edit plan): kept on the leg's end point as p.alt (ft AMSL); checked against the suggestion's limits
+function legSet(lp,p,k){ if(!p||p.alt==null) return lp; const alt=p.alt;
+  if(!lp) return {k,alt,kind:'set',set:true,warn:[]};
+  const f=v=>Math.round(v).toLocaleString('en-AU')+' ft', warn=[];
+  if(lp.minA!=null&&alt<lp.minA) warn.push(`below the minimum height ${f(lp.minA)}`);
+  if(lp.maxA!=null&&alt>lp.maxA) warn.push(`above ${f(lp.maxA)}: into the ${limTxt(lp.base)} class C/D/A base (clearance needed)`);
+  const table=lp.east?[1500,3500,5500,7500,9500]:[2500,4500,6500,8500];
+  if(alt>=3000&&!table.includes(alt)) warn.push(`not a VFR table level for ${lp.east?'east':'west'}bound (${table.filter(v=>v>=3000).slice(0,3).map(v=>v.toLocaleString('en-AU')).join(' / ')}…)`);
+  return {...lp, sug:lp.alt, sugKind:lp.kind, alt, kind:'set', set:true, warn, inE:lp.eBase!=null&&alt>=lp.eBase?lp.eBase:null, belowE:lp.eBase!=null&&alt>=lp.eBase?lp.belowE:null}; }
+function legAltTxt(lp){ if(!lp) return ''; if(lp.set) return lp.alt.toLocaleString('en-AU')+(lp.warn.length?' !':''); return lp.alt!=null? lp.alt.toLocaleString('en-AU') : lp.kind==='conflict'||lp.kind==='nolevel'? '!' : lp.kind==='split'? 'split' : '—'; }
 function legAltNote(lp){
   if(!lp) return ''; const f=v=>Math.round(v).toLocaleString('en-AU')+' ft';
   const hemi=`track ${fmt3(lp.trk)}°M, ${lp.east?'east: 1,500 / 3,500 / 5,500…':'west: 2,500 / 4,500 / 6,500…'}`;
   const why=lp.needQ? `min ${f(lp.minA)} (terrain ${f(lp.needQ.tr)} + ${lp.needQ.u?'1,000 over '+esc(titleCase(lp.needQ.u)):'500'})` : 'min height unknown (no terrain)';
   const cap=(lp.base!=null&&lp.base>=18000? `no class C/D below ${limTxt(lp.base)}` : lp.base!=null? `below the ${limTxt(lp.base)} C/D/A base with ${CTA_BUF} ft buffer (max ${f(lp.maxA)})` : 'no C/D/A airspace above')+(lp.inE!=null?` · in class E above ${limTxt(lp.inE)} (no clearance needed; transponder on)${lp.belowE!=null?`, or ${f(lp.belowE)} to stay below the E (not a table level; allowed below 3,000 ft)`:''}`:'');
   let head;
-  if(lp.kind==='level') head=`Suggested <b>${f(lp.alt)}</b>`;
+  if(lp.set&&lp.minA===undefined) return `Your altitude <b>${f(lp.alt)}</b> (set in the plan)`;
+  if(lp.set) head=`Your altitude <b>${f(lp.alt)}</b> (set in the plan${lp.sug!=null?`; suggested ${f(lp.sug)}`:''})${lp.warn.length?' <span class="w">'+lp.warn.join(' · ')+'</span>':''}`;
+  else if(lp.kind==='level') head=`Suggested <b>${f(lp.alt)}</b>`;
   else if(lp.kind==='low') head=`Suggested <b>${f(lp.alt)}</b> <span class="w">(no table level fits below the airspace; below 3,000 ft the table applies only when practicable)</span>`;
   else if(lp.kind==='nolevel') head=`<span class="w"><b>No VFR level fits</b> between ${f(lp.minA)} and ${f(lp.maxA)}: get a clearance or change the route</span>`;
   else if(lp.kind==='conflict') head=`<span class="w"><b>At ${(lp.hard.q.x-lp.legStart).toFixed(1)} NM along the leg${lp.hard.q.u?' ('+esc(titleCase(lp.hard.q.u))+')':''} the minimum height ${f(lp.hard.q.need)} is above ${lp.hard.cap<=0?'the class C/D/A airspace from the surface there':`${f(lp.hard.cap-CTA_BUF)} (${limTxt(lp.hard.cap)} base less buffer)`}</b>: get a clearance or change the route</span>`;
@@ -1698,7 +1710,7 @@ function renderFP(h,varE){
   if(lpA && $('fpNext').innerHTML) $('fpNext').insertAdjacentHTML('beforeend',`<p class="fp-line fp-alt">${legAltNote(lpA)}</p>`);
   drawProf();
   $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
-    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed"><button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button><button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
+    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b> <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed">${k?`<input class="altin${p.alt!=null?' set':''}" data-k="${k}" type="text" inputmode="numeric" autocomplete="off" maxlength="6" value="${p.alt!=null?p.alt:''}" placeholder="${lp&&lp.set?(lp.sug!=null?lp.sug:''):(lp&&lp.alt!=null?lp.alt:'alt')}" title="Altitude for the leg to ${esc(p.c||p.n)} (ft AMSL, or A045 / FL095). Empty = the suggestion" aria-label="Altitude for the leg to ${esc(p.c||p.n)}">`:''}<button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button><button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
   if(FP_REPL!=null&&!P_[FP_REPL]) FP_REPL=null;
   { const r=FP_REPL!=null&&FP_EDIT? P_[FP_REPL] : null; $('fpAddLbl').textContent=r?'Replace':'Add'; $('fpAddAt').hidden=!!r;
     $('fpAddIn').placeholder=r? `Replace ${r.c||r.n} with: name or code` : 'Name or code: CARR, Lilydale, AV';
@@ -3039,12 +3051,12 @@ setInterval(()=>{ try{ aheadUI(); }catch(e){} },3000);
 // CTAF / tower (tower hours at ETA, split side), area / ATC changes, class changes, R/D/P areas (status at ETA), NOTAM
 // zones, obstacles within 1 NM, LSALT per leg (±2 NM, +1000 ft), last light; NOTAMs along the route listed after
 const PC={rows:[],text:''};
-function planCheck(alt,gs,dep){ const P_=FP.pts, ev=[], seenA=new Set(), seenZ=new Set(), legs=[]; let D0=0, prevC=null, prevA=null, unk=0;
+function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new Set(), seenZ=new Set(), legs=[]; let D0=0, prevC=null, prevA=null, unk=0;
   const eta=D=>dep+D/gs*3600e3, add=(D,k,html,txt,cl='')=>ev.push({D,k,html,txt,cl,t:eta(D)});
   const ads=DATA.ap.filter(a=>(st.all||a.s==='E')&&(a.t!=='H'||st.heli));
   for(let k=0;k<P_.length;k++){ const p=P_[k];
-    if(k>0){ const q=P_[k-1], [L]=distBrg(q.la,q.lo,p.la,p.lo), n=Math.max(1,Math.ceil(L/0.5));
-      const ch=corridorHigh([[q.la,q.lo],[p.la,p.lo]],2); unk+=ch.unk; legs.push({k,from:q,to:p,L,hi:ch.best,D:D0,unk:ch.unk>ch.n*0.02});
+    if(k>0){ const q=P_[k-1], [L]=distBrg(q.la,q.lo,p.la,p.lo), n=Math.max(1,Math.ceil(L/0.5)); alt= p.alt!=null? p.alt : alt0;   // the leg's own altitude, when set in the plan
+      const ch=corridorHigh([[q.la,q.lo],[p.la,p.lo]],2); unk+=ch.unk; legs.push({k,from:q,to:p,L,hi:ch.best,D:D0,unk:ch.unk>ch.n*0.02,alt,set:p.alt!=null});
       for(let j=1;j<=n;j++) sample(q.la+(p.la-q.la)*j/n, q.lo+(p.lo-q.lo)*j/n, D0+L*j/n);
       D0+=L; } else sample(p.la,p.lo,0);
     add(D0,'WP',`<b>${esc(p.c||p.n||'WP'+(k+1))}</b>${p.n&&p.c&&p.n!==p.c?' '+esc(titleCase(p.n)):''}`,(p.c||p.n||'WP'+(k+1)),'wp'); }
@@ -3075,7 +3087,7 @@ function planCheck(alt,gs,dep){ const P_=FP.pts, ev=[], seenA=new Set(), seenZ=n
       add(D,'NOTAM',`<b>${esc(z.id)}</b> ${esc((z.text||'').slice(0,90))}`,`NOTAM ${z.id} ${(z.text||'').slice(0,90)}`,'w'); } }
   // obstacles within 1 NM of the route
   for(const o of ntObstacles()){ let D1=0; for(let k=1;k<P_.length;k++){ const a=P_[k-1], b=P_[k], L=distBrg(a.la,a.lo,b.la,b.lo)[0], [d,al]=segDist(a.la,a.lo,b.la,b.lo,o.la,o.lo);
-      if(d<=1){ add(D1+al,'OBST',`<b>${o.ft!=null?o.ft+' ft':'?'}</b> ${esc(o.what)}${o.hAgl!=null?' '+o.hAgl+' AGL':''}${o.lit?' lit':''} · ${d.toFixed(1)} NM off track · NOTAM ${esc(o.n.id)}`,`OBST ${o.ft} ft ${o.what} ${d.toFixed(1)} NM off track NOTAM ${o.n.id}`, o.ft!=null&&o.ft>=alt-300?'w':'a'); break; } D1+=L; } }
+      if(d<=1){ add(D1+al,'OBST',`<b>${o.ft!=null?o.ft+' ft':'?'}</b> ${esc(o.what)}${o.hAgl!=null?' '+o.hAgl+' AGL':''}${o.lit?' lit':''} · ${d.toFixed(1)} NM off track · NOTAM ${esc(o.n.id)}`,`OBST ${o.ft} ft ${o.what} ${d.toFixed(1)} NM off track NOTAM ${o.n.id}`, o.ft!=null&&o.ft>=(b.alt!=null?b.alt:alt0)-300?'w':'a'); break; } D1+=L; } }
   // last light along the route
   const end=P_[P_.length-1], ll=lastLight(end.la,end.lo,dep);
   if(ll&&!ll.night&&ll.ll<eta(D0)){ const Dl=Math.max(0,(ll.ll-dep)/3600e3*gs); add(Math.min(Dl,D0),'LAST LT',`<b>last light ${hhmmZ(ll.ll)}</b> — the plan ends after last light`,`LAST LIGHT ${hhmmZ(ll.ll)} plan ends after last light`,'w'); }
@@ -3097,8 +3109,8 @@ function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vn
   h+='<table class="pc-t"><tbody>'+r.ev.map(e=>`<tr class="${e.cl}"><td class="m">${fmtD(e.D)}</td><td class="m">${lt(e.t)}</td><td class="k">${e.k}</td><td>${e.html}</td></tr>`).join('')+'</tbody></table>';
   let rem=fob, tot=0; const fl=r.legs.map(l=>{ const t=l.L/gs*3600e3, f=burn? t/3600e3*burn : 0; tot+=f; rem-=f; return {t,f,rem}; }), resv=burn*0.5;
   if(burn) h+=`<div class="pc-sec">Time and fuel by leg (${burn} L/h${fob?', '+fob+' L on board, reserve 30 min = '+Math.round(resv)+' L':''})</div><table class="pc-t"><tbody>`+r.legs.map((l,k)=>`<tr class="${fob&&fl[k].rem<resv?'low':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="f">${fmtD(l.L)} NM</td><td class="f">${hmm(fl[k].t)}</td><td class="f">${Math.round(fl[k].f)} L</td><td class="f">${fob?Math.round(fl[k].rem)+' L left':''}</td></tr>`).join('')+`<tr><td class="k">Total</td><td class="f">${fmtD(r.D)} NM</td><td class="f">${hmm(r.D/gs*3600e3)}</td><td class="f">${Math.round(tot)} L</td><td class="f">${fob?Math.round(fob-tot)+' L left':''}</td></tr></tbody></table>`;
-  h+='<div class="pc-sec">LSALT by leg (highest terrain or NOTAM obstacle within 2 NM, +1000 ft)</div><table class="pc-t"><tbody>'+r.legs.map(l=>{ const b=l.hi, w=b&&b.ft>=alt-500;
-    return `<tr class="${b&&b.ft>=alt-50?'w':w?'a':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="m">${fmtD(l.L)} NM</td><td>${b?`<b>LSALT ${lsaltOf(b.ft).toLocaleString('en-AU')}</b> · highest ${Math.round(b.ft).toLocaleString('en-AU')} ft ${esc(b.what)} ${fmtD(b.D-l.D>=0?b.D-l.D:b.D)} NM into the leg`:'terrain not loaded'}${l.unk?' <i>(terrain partly loaded)</i>':''}</td></tr>`; }).join('')+'</tbody></table>';
+  h+='<div class="pc-sec">LSALT by leg (highest terrain or NOTAM obstacle within 2 NM, +1000 ft)</div><table class="pc-t"><tbody>'+r.legs.map(l=>{ const b=l.hi, la_=l.alt!=null?l.alt:alt, w=b&&b.ft>=la_-500;
+    return `<tr class="${b&&b.ft>=la_-50?'w':w?'a':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="m">${fmtD(l.L)} NM${l.set?'<br>'+la_.toLocaleString('en-AU')+' ft':''}</td><td>${b?`<b>LSALT ${lsaltOf(b.ft).toLocaleString('en-AU')}</b> · highest ${Math.round(b.ft).toLocaleString('en-AU')} ft ${esc(b.what)} ${fmtD(b.D-l.D>=0?b.D-l.D:b.D)} NM into the leg`:'terrain not loaded'}${l.unk?' <i>(terrain partly loaded)</i>':''}</td></tr>`; }).join('')+'</tbody></table>';
   const N=ntRoute(), NL=ntByLeg(N); h+=`<div class="pc-sec">NOTAMs along the route (${N.length}), by leg</div>`+(N.length? '<table class="pc-t"><tbody>'+NL.map(([lab,ns])=>`<tr class="wp"><td class="k" colspan="2">${esc(lab)}</td></tr>`+ns.map(n=>`<tr><td class="k">${esc(n.loc||'')} ${esc(n.id||'')}</td><td>${esc((n.text||'').slice(0,240))}</td></tr>`).join('')).join('')+'</tbody></table>' : `<div class="vnote">${ntHave()?'None in the loaded briefing.':'No NAIPS briefing loaded: load one for NOTAMs, area status and obstacles.'}</div>`);
   $('pcOut').innerHTML=h;
   $('pcStat').textContent= r.legs.some(l=>l.unk)? 'Some terrain along the route isn\'t loaded yet: checking again…' : 'Planned altitude, GS and departure are kept on this device. Tower hours and area status are at your ETA; check the ATIS, NOTAMs and ERSA before flight.';
@@ -3637,7 +3649,7 @@ $('fpSkip').onclick=()=>{ if(FP&&FP.i<FP.pts.length-1) fpPick(FP.i+1); };
 function dlFile(name,text,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); }
 function fpGpx(){ // the plan as a GPX 1.1 route: name = the AIP code where matched, else the point's own name
   const x=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const pts=FP.pts.map(p=>`  <rtept lat="${p.la.toFixed(6)}" lon="${p.lo.toFixed(6)}"><name>${x(p.c||p.n)}</name>${p.desc||p.gd?`<desc>${x(p.gd||p.desc)}</desc>`:''}</rtept>`).join('\n');
+  const pts=FP.pts.map(p=>`  <rtept lat="${p.la.toFixed(6)}" lon="${p.lo.toFixed(6)}"><name>${x(p.c||p.n)}</name>${p.alt!=null?`<cmt>ALT ${p.alt}</cmt>`:''}${p.desc||p.gd?`<desc>${x(p.gd||p.desc)}</desc>`:''}</rtept>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${x(FP.name)}</name><time>${new Date().toISOString()}</time></metadata>\n<rte><name>${x(FP.name)}</name>\n${pts}\n</rte>\n</gpx>\n`; }
 $('fpSave').onclick=()=>{ if(!FP||!FP.pts.length) return; const P_=FP.pts, nm=q=>String(q.c||q.n).replace(/[^A-Za-z0-9]+/g,'').slice(0,12)||'WP';
   dlFile(`${nm(P_[0])}-${nm(P_[P_.length-1])}-${new Date().toISOString().slice(0,10)}.gpx`,fpGpx(),'application/gpx+xml');
@@ -3646,7 +3658,13 @@ $('fpLog').onclick=()=>{ const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx()],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
 $('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
 $('fpClear').onclick=()=>{ FP_EDIT=false; fpSet(null); setGo(null); };
-$('fpLegs').addEventListener('click',e=>{ const li=e.target.closest('li'); if(!li||!FP) return; const k=+li.dataset.k, a=e.target.closest('[data-a]');
+$('fpLegs').addEventListener('change',e=>{ const t=e.target.closest('.altin'); if(!t||!FP) return; const k=+t.dataset.k, v=t.value.trim().toUpperCase();
+  let ft=null; const m=/^(A|FL)?\s*(\d{1,5})$/.exec(v);
+  if(v&&!m){ t.value=FP.pts[k]&&FP.pts[k].alt!=null?FP.pts[k].alt:''; return; }
+  if(m) ft= m[1]==='FL'||m[1]==='A'||+m[2]<200? +m[2]*100 : +m[2];   // A045 / FL095 / 45 -> hundreds of feet
+  if(ft!=null) ft=Math.max(0,Math.min(25000,Math.round(ft/50)*50));
+  const at=$('fpLegs').scrollTop; fpEdit(P_=>{ if(P_[k]){ if(ft==null) delete P_[k].alt; else P_[k].alt=ft; } }); $('fpLegs').scrollTop=at; });
+$('fpLegs').addEventListener('click',e=>{ if(e.target.closest('.altin')) return; const li=e.target.closest('li'); if(!li||!FP) return; const k=+li.dataset.k, a=e.target.closest('[data-a]');
   if(!FP_EDIT){ fpPick(k); return; } if(!a) return;
   const at=$('fpLegs').scrollTop;
   if(a.dataset.a==='rep'){ FP_REPL=FP_REPL===k?null:k; render(); if(FP_REPL!=null){ $('fpAddIn').value=''; $('fpAddIn').focus(); } return; }
@@ -3838,15 +3856,18 @@ function isHDS(state,now){ if(!['NSW','VIC','ACT','TAS','SA'].includes(state)) r
    direction of your next flight plan waypoint. side=null when it can't be told (on the field, no plan). */
 function twrPick(a,pick){
   const twrs=(a.x||[]).filter(x=>x[0]==='TWR'); if(!twrs.length) return null;
-  const fpT=FP&&FP.pts[FP.i], onAd=pick.d<0.5;
-  const sideBrg = !onAd ? norm(pick.b+180) : fpT ? distBrg(a.la,a.lo,fpT.la,fpT.lo)[1] : null;
+  const onAd=pick.d<0.5, dep=twrDep(a); let fpT=FP&&FP.pts[FP.i];
+  // departing (the plan's active leg leaves this aerodrome, or on the field with a Go to): the side of the next point
+  // after the aerodrome, as ERSA's "DEP to the E call 118.1"; your own position only once you're on the way back in
+  if(dep) fpT=dep.pt;
+  const sideBrg = dep ? dep.brg : !onAd ? norm(pick.b+180) : fpT ? distBrg(a.la,a.lo,fpT.la,fpT.lo)[1] : null;
   let side = sideBrg==null ? null : sideBrg<180 ? 'East' : 'West', tw=twrs.find(t=>t[4]===side)||twrs[0], via=null;
   // ERSA can tie an arrival reporting point to one frequency regardless of bearing, e.g. Moorabbin:
   // "When RWY 17 or 35 in use, ARR VFR ACFT from the S should track via and report at CARR on 123.0" (CARR is
   // just east of south, but it's the West frequency). Applies when the active waypoint is that point, you're within
   // 3 NM of it, or you're in that sector of the aerodrome; not when the runway picked in Radio calls is another one.
   const sel=$('cRwy'), rwySel=sel&&sel.dataset.ad===a.i? sel.value : '';
-  for(const r of twrRules(a)){
+  for(const r of (dep?[]:twrRules(a))){   // arrival reporting points (CARR) are for arrivals only
     if(rwySel && r.rwys.length && !r.rwys.some(x=>rwySel.startsWith(x))) continue;
     const P=VWby.get(r.rp), dP=P&&st.pos? distBrg(st.pos[0],st.pos[1],P.la,P.lo)[0] : 99;
     const sec={N:0,E:90,S:180,W:270}[r.from], inSec= !onAd && sec!=null && Math.abs(((norm(pick.b+180)-sec)+540)%360-180)<=45;
@@ -3856,11 +3877,18 @@ function twrPick(a,pick){
   const M=(st.twrMem||{})[a.i], now=Date.now(), split=twrs.some(t=>t[4]);
   if(split && !side){ if(M&&now-M.t<180e3){ side=M.side; tw=twrs.find(t=>t[2]===M.f)||tw; via=M.via; }
     else if(st.trk!=null&&st.gs>30){ side=st.trk<180?'East':'West'; tw=twrs.find(t=>t[4]===side)||tw; } }
-  else if(split && side && !onAd) (st.twrMem=st.twrMem||{})[a.i]={side,f:tw[2],via,t:now};
+  else if(split && side && !onAd && !dep) (st.twrMem=st.twrMem||{})[a.i]={side,f:tw[2],via,t:now};
   // on the ground (slow and within 200 ft of the aerodrome): ground control, if ERSA lists one
   const agl=st.alt!=null&&a.e!=null? st.alt-a.e : 0, gx=(a.x||[]).find(x=>x[0]==='GND'||x[0]==='SMC');
   const ground= onAd && gx && (st.gs||0)<30 && agl<200 ? gx : null;
-  return {twrs, side, tw, split, onAd, fpT, via, ground}; }
+  return {twrs, side, tw, split, onAd, fpT, via, ground, dep}; }
+function twrDep(a){   // -> {pt, brg} when you're departing this aerodrome: the first plan point after it (0.5 NM+ away), or on the field, the Go to
+  const at=p=>(p.c||'').toUpperCase()===a.i||distBrg(p.la,p.lo,a.la,a.lo)[0]<0.5;
+  if(FP&&FP.pts.length>1){ const P=FP.pts, i=FP.i;
+    for(const k of [i,i-1]) if(k>=0&&k<P.length-1&&at(P[k])){ const nx=P.slice(k+1).find(p=>!at(p)); if(nx) return {pt:nx, brg:distBrg(a.la,a.lo,nx.la,nx.lo)[1]}; }
+    return null; }
+  const g=GO&&st.pos&&distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]<0.5? GO : null;
+  return g&&!at(g)? {pt:{la:g.la,lo:g.lo,c:g.c,n:g.n}, brg:distBrg(a.la,a.lo,g.la,g.lo)[1]} : null; }
 function twrRules(a){   // "[When RWY 17 or 35 in use,] ARR ... from the S ... report at CARR on 123.0" in the TWR evidence text
   if(a._twrRules) return a._twrRules; const out=[];
   for(const x of (a.x||[]).filter(x=>x[0]==='TWR'&&x[5])) for(const m of x[5].matchAll(/(?:When RWY ([0-9LRC]+(?:\s*(?:,|or|and)\s*[0-9LRC]+)*) in use,?\s*)?ARR[^/]*?from the ([NSEW])\b[^/]*?report at ([A-Z]{3,5}) on (\d{3}\.\d{1,3})/g))
@@ -3960,7 +3988,7 @@ function renderCalls(a,pick,varE){
     const tf=twSide[2];
     const twAll=twrs.map(t=>`${titleCase(t[1])}${t[4]?' '+t[4]:''} ${t[2]}`).join(' · ');
     const sideNote = twrs.some(t=>t[4]) && !sideNow ? ` You are on the aerodrome: ERSA ties ${twrs.map(t=>`${t[4]||'?'} ${t[2]}`).join(' and ')} to departures and arrivals on that side. The ATIS says which frequency is in use.`
-      : twrs.some(t=>t[4]) ? ` ${onAd&&fpT?`Your next waypoint (${esc(fpT.c||fpT.n)}) is to the ${sideNow.toLowerCase()}`:onAd?`Over the aerodrome: you came from, or are heading, ${sideNow.toLowerCase()}`:`You are ${sideNow.toLowerCase()} of the aerodrome`}, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
+      : twrs.some(t=>t[4]) ? ` ${TP.dep?`Departing towards ${esc(fpT.c||fpT.n||'your next point')} to the ${sideNow.toLowerCase()}`:onAd&&fpT?`Your next waypoint (${esc(fpT.c||fpT.n)}) is to the ${sideNow.toLowerCase()}`:onAd?`Over the aerodrome: you came from, or are heading, ${sideNow.toLowerCase()}`:`You are ${sideNow.toLowerCase()} of the aerodrome`}, so the suggestion is ${tw} ${twSide[4]||''} ${tf} (ERSA: departures/arrivals to the ${twSide[4]?twSide[4].toLowerCase():'…'}${twSide[4]==='West'?', and arrivals from the south via CARR':''}). The ATIS says which frequency is in use.` : (twrs.length>1?' ERSA lists more than one tower frequency; the ATIS says which to use.':'');
     const atisL = a.a? (atisWord(a.i)||`<i>[ATIS letter]</i>`) : '';
     const rptPts=(K.rpts||'').split(/,\s*|\s+or\s+/).map(x=>x.trim()).filter(Boolean).map(c=>VWby.get(c)||{c,n:c,missing:1});
     const nearR=rptPts.filter(p=>!p.missing).map(p=>({p,d:distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0]})).sort((x,y)=>x.d-y.d)[0];

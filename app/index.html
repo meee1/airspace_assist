@@ -352,7 +352,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .fp .ctl .btn{padding:7px 9px;font-size:11px}
 .fp-legs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:210px;overflow:auto;font-size:13px}
 .fp-legs li{display:grid;grid-template-columns:22px 1fr auto auto 44px;gap:8px;align-items:baseline;padding:4px 6px;border-radius:5px;cursor:pointer}
-.fp-legs .alt{color:var(--wp);font-weight:600} .fp-legs .alt.k-conflict,.fp-legs .alt.k-nolevel,.fp-legs .alt.k-split{color:var(--warn)} .fp-legs .alt.k-low{color:var(--accent)}
+.fp-legs .alt{color:var(--wp);font-weight:600} .fp-legs .alt.k-conflict,.fp-legs .alt.k-nolevel,.fp-legs .alt.k-split{color:var(--warn)} .fp-legs .alt.k-low{color:var(--accent)} .fp-legs .alt.k-set{text-decoration:underline dotted} .fp-legs .alt{white-space:nowrap} .fp-legs .altin{width:62px;min-height:36px;box-sizing:border-box;padding:4px 6px;font:600 13px var(--f-mono);text-align:right;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--wp)} .fp-legs .altin.set{border-color:var(--wp)}
 .fp-next .fp-alt b{display:inline;font:inherit;font-weight:700;margin:0;color:var(--wp);white-space:normal;overflow:visible} .fp-alt .w{color:var(--warn)} .fp-alt .w b{color:var(--warn)}
 .fp-legs li.done{color:var(--dim)} .fp-legs li.on{background:color-mix(in srgb,var(--wp) 18%,transparent)}
 .fp-legs .n{font:600 11px var(--f-mono);color:var(--dim)} .fp-legs .w b{font-family:var(--f-mono)} .fp-legs .w span{color:var(--dim);font-size:12px}
@@ -794,7 +794,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=f247c82552';
+    const s=document.createElement('script'); s.src='app.js?v=ff9fc2fdf1';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
