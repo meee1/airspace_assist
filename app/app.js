@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793702733741;
+const APP_BUILT=1793704882278;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -587,27 +587,34 @@ function trAlert(T){
   const last=TR.said.get(ta.a.hex)||0;
   if(trVoiceOn()&&'speechSynthesis' in window&&Date.now()-last>60e3){ TR.said.set(ta.a.hex,Date.now());
     try{ const n=Math.max(1,Math.round(ta.d)), u=new SpeechSynthesisUtterance(`Traffic, ${ta.clock?ta.clock+' o\'clock, ':''}${n} mile${n>1?'s':''}, ${ta.dA==null?'':Math.abs(ta.dA)<100?'same level':Math.round(Math.abs(ta.dA)/100)*100+' feet '+(ta.dA>0?'above':'below')}`); u.rate=1.05; speechSynthesis.speak(u); }catch(e){} } }
+const TR_RED='#e3161b';   // warning traffic (level 3: within 2.5 NM and 600 ft)
 function drawTraffic(g,P,C,W,Hh,sc){
   const T=trTargets(), stale=TR.t? (Date.now()-TR.t)/1000 : null;
   g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='center';
-  MAP.trHits=[]; let selT=null, selXY=null;
-  for(const t of [...T].reverse()){ const [x,y]=P(t.la,t.lo); if(x<-12||y<-12||x>W+12||y>Hh+12) continue;
-    const col= t.lvl===3? '#f0a000' : t.lvl===2? '#00b8d9' : C.dim; g.globalAlpha= stale>30? .45 : 1;
-    MAP.trHits.push({x,y,hex:t.a.hex});
-    if(TR.sel&&t.a.hex===TR.sel){ selT=t; selXY=[x,y]; }
+  MAP.trHits=[]; let selT=null, selXY=null; const warn=[];
+  const one=(t,x,y)=>{
+    const col= t.lvl===3? TR_RED : t.lvl===2? '#00b8d9' : C.dim, big=t.lvl===3; g.globalAlpha= stale>30? .45 : 1;
     if(t.a.trk!=null&&!t.a.gnd){ const an=t.a.trk*R, [xa,ya]=P(t.la+0.05*Math.cos(an),t.lo+0.05*Math.sin(an)/Math.cos(t.la*R)), L=Math.hypot(xa-x,ya-y)||1;   // direction: a fixed 15 px stick along the track
-      t.ux=(xa-x)/L; t.uy=(ya-y)/L; g.strokeStyle=col; g.lineWidth=2; g.beginPath(); g.moveTo(x+t.ux*6,y+t.uy*6); g.lineTo(x+t.ux*15,y+t.uy*15); g.stroke(); }
-    if(t.lvl>=2&&t.a.gs>30&&t.a.trk!=null){ const an=t.a.trk*R, s=t.a.gs/60/60, [x2,y2]=P(t.la+s*Math.cos(an),t.lo+s*Math.sin(an)/Math.cos(t.la*R)); g.strokeStyle=col; g.lineWidth=1.5; g.beginPath(); g.moveTo(x,y); g.lineTo(x2,y2); g.stroke(); }   // 1 min ahead
+      t.ux=(xa-x)/L; t.uy=(ya-y)/L; g.strokeStyle=col; g.lineWidth=big?3.5:2; g.beginPath(); g.moveTo(x+t.ux*(big?10:6),y+t.uy*(big?10:6)); g.lineTo(x+t.ux*(big?26:15),y+t.uy*(big?26:15)); g.stroke(); }
+    if(t.lvl>=2&&t.a.gs>30&&t.a.trk!=null){ const an=t.a.trk*R, s=t.a.gs/60/60, [x2,y2]=P(t.la+s*Math.cos(an),t.lo+s*Math.sin(an)/Math.cos(t.la*R)); g.strokeStyle=col; g.lineWidth=big?2.5:1.5; g.beginPath(); g.moveTo(x,y); g.lineTo(x2,y2); g.stroke(); }   // 1 min ahead
     g.lineWidth=2; g.strokeStyle=col; g.fillStyle=col;
-    if(t.lvl===3){ g.beginPath(); g.arc(x,y,6,0,2*Math.PI); g.fill(); }
+    if(big){ g.beginPath(); g.arc(x,y,10,0,2*Math.PI); g.fill(); g.lineWidth=2.5; g.strokeStyle='#fff'; g.stroke();   // red disc, white edge, red ring: stands out on any chart
+      g.beginPath(); g.arc(x,y,15,0,2*Math.PI); g.lineWidth=2.5; g.strokeStyle=col; g.stroke(); g.lineWidth=2; }
     else { g.beginPath(); g.moveTo(x,y-7); g.lineTo(x+6,y); g.lineTo(x,y+7); g.lineTo(x-6,y); g.closePath(); if(t.lvl===2) g.fill(); else { g.fillStyle=C.bg; g.fill(); g.stroke(); } }
     if(t.dA!=null){ const v=Math.round(t.dA/100), txt=(v>0?'+':v<0?'−':'')+String(Math.abs(v)).padStart(2,'0')+(t.a.vs>500?'↑':t.a.vs<-500?'↓':''), ty= t.dA>0? y-10 : y+18;
-      g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(txt,x,ty); g.fillStyle=col; g.fillText(txt,x,ty); }
-    else if(t.a.gnd){ g.fillStyle=C.dim; g.fillText('GND',x,y+18); } }
+      const ty2= big? (t.dA>0? y-19 : y+29) : ty; if(big) g.font='700 14px "IBM Plex Mono", monospace';
+      g.lineWidth=big?4:3; g.strokeStyle=C.bg; g.strokeText(txt,x,ty2); g.fillStyle=col; g.fillText(txt,x,ty2); if(big) g.font='700 10px "IBM Plex Mono", monospace'; }
+    else if(t.a.gnd){ g.fillStyle=C.dim; g.fillText('GND',x,y+18); } };
+  for(const t of [...T].reverse()){ const [x,y]=P(t.la,t.lo); if(x<-12||y<-12||x>W+12||y>Hh+12) continue;
+    MAP.trHits.push({x,y,hex:t.a.hex});
+    if(TR.sel&&t.a.hex===TR.sel){ selT=t; selXY=[x,y]; }
+    one(t,x,y); if(t.lvl===3) warn.push([t,x,y]); }
   g.globalAlpha=1;
+  // warning traffic again after the lead line, ownship and labels, so nothing covers it
+  MAP.trWarn= warn.length? ()=>{ g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='center'; for(const [t,x,y] of warn) one(t,x,y); g.globalAlpha=1; g.textAlign='left'; } : null;
   MAP.trBox=null;
-  if(selT){ const [x,y]=selXY, t=selT, a=t.a, col= t.lvl===3? '#f0a000' : t.lvl===2? '#00b8d9' : C.ink;   // tapped target: ring now, details box last (over the lead line and ownship)
-    g.strokeStyle=col; g.lineWidth=2; g.setLineDash([3,2]); g.beginPath(); g.arc(x,y,12,0,2*Math.PI); g.stroke(); g.setLineDash([]);
+  if(selT){ const [x,y]=selXY, t=selT, a=t.a, col= t.lvl===3? TR_RED : t.lvl===2? '#00b8d9' : C.ink;   // tapped target: ring now, details box last (over the lead line and ownship)
+    g.strokeStyle=col; g.lineWidth=2; g.setLineDash([3,2]); g.beginPath(); g.arc(x,y,t.lvl===3?20:12,0,2*Math.PI); g.stroke(); g.setLineDash([]);
     MAP.trBox=()=>{
     const vr= st.pos? variation(st.pos[0],st.pos[1]) : 0, alt= a.gnd? 'GND' : t.alt!=null? `${Math.round(t.alt/100)*100} ft` : '— ft',
       rel= t.dA!=null&&!a.gnd? ` (${t.dA>=0?'+':'−'}${Math.round(Math.abs(t.dA)/100)*100})` : '', vs= a.vs>300? ` ↑${Math.round(a.vs/100)*100}` : a.vs<-300? ` ↓${Math.round(-a.vs/100)*100}` : '';
@@ -1240,6 +1247,7 @@ function drawAdMap(a,pick,h){
 const MAP={hide:new Set(ls.get('mapHide',[])), range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
+let CTAF_OD=1;   // CTAF layer offscreen density cap (px per CSS px): 1 is ~5x faster than the screen's 2.6 on a phone, edges a little softer
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
 function ctafAssign(freqs){  // stable hash slot, bumped to a free slot so frequencies in view never share a colour
   const next=new Map(), used=new Set();
@@ -2030,15 +2038,19 @@ function drawMap(la,lo,h,pick,AS,altFt){
       for(const [sh,poly] of cut){ delete sh.c; sh.p=poly; } }   // after all the cuts: they need the other centres
     for(const x of ASP) if(x.k==='BA' && x.f && bbHit(x.bb)) add(x.f,{p:x.p.map(q=>P(q[0],q[1]))});
     ctafAssign([...groups.keys()]);
+    // offscreen work is the cost here (two passes per frequency): done at most 1.5 px per CSS px (translucent areas don't need
+    // the screen's full density) and only inside each frequency's bounding box
+    const od=Math.min(dpr,CTAF_OD), ow=Math.ceil(W*od), oh=Math.ceil(Hh*od);
     if(!ctafOff) ctafOff=document.createElement('canvas');
-    if(ctafOff.width!==cv.width||ctafOff.height!==cv.height){ ctafOff.width=cv.width; ctafOff.height=cv.height; } const o=ctafOff.getContext('2d'); o.setTransform(1,0,0,1,0,0); o.clearRect(0,0,ctafOff.width,ctafOff.height);
+    if(ctafOff.width!==ow||ctafOff.height!==oh){ ctafOff.width=ow; ctafOff.height=oh; } const o=ctafOff.getContext('2d');
     if(!ctafOff2) ctafOff2=document.createElement('canvas');
-    if(ctafOff2.width!==cv.width||ctafOff2.height!==cv.height){ ctafOff2.width=cv.width; ctafOff2.height=cv.height; } const o2=ctafOff2.getContext('2d');
+    if(ctafOff2.width!==ow||ctafOff2.height!==oh){ ctafOff2.width=ow; ctafOff2.height=oh; } const o2=ctafOff2.getContext('2d');
+    let BB=[0,0,W,Hh];   // the current frequency's box, CSS px
     const R_=CTAF_NM*sc, shapePath=(sh,c=o)=>{ c.beginPath(); if(sh.c) c.arc(sh.c[0],sh.c[1],R_,0,2*Math.PI); else { sh.p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])); c.closePath(); } };
     // draw one frequency's shapes into o: fill (union) or outline (union edge); other frequencies' tower zones cut it,
     // all of them for circles and broadcast areas, only the smaller (nested) ones for a zone
     const layer=(f,shapes,col,fill)=>{
-      const put=(c,list,cut)=>{ c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,Hh); c.globalCompositeOperation='source-over';
+      const put=(c,list,cut)=>{ c.setTransform(od,0,0,od,0,0); c.clearRect(BB[0],BB[1],BB[2]-BB[0],BB[3]-BB[1]); c.globalCompositeOperation='source-over';
         c.fillStyle=col; c.strokeStyle=col; c.lineWidth=2;
         for(const sh of list){ shapePath(sh,c); fill? c.fill() : c.stroke(); }
         c.globalCompositeOperation='destination-out';
@@ -2047,14 +2059,18 @@ function drawMap(la,lo,h,pick,AS,altFt){
         c.globalCompositeOperation='source-over'; };
       const foreign=zones.filter(z=>z.f!==f), own=shapes.filter(q=>q.ctr&&foreign.length);
       put(o,shapes.filter(q=>!own.includes(q)),foreign);
-      for(const sh of own){ put(o2,[sh],foreign.filter(z=>z.area<sh.area)); o.setTransform(1,0,0,1,0,0); o.drawImage(ctafOff2,0,0); }
+      for(const sh of own){ put(o2,[sh],foreign.filter(z=>z.area<sh.area)); const [x0,y0,x1,y1]=BB.map(v=>v*od); o.setTransform(1,0,0,1,0,0); o.drawImage(ctafOff2,x0,y0,x1-x0,y1-y0,x0,y0,x1-x0,y1-y0); }
     };
     const leg=[];
     for(const [f,shapes] of groups){
       const col=ctafColour(f); leg.push([f,col,shapes.length,shapes.some(q=>q.twr)&&!shapes.some(q=>!q.twr)]);
+      { let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const sh of shapes){ if(sh.c){ x0=Math.min(x0,sh.c[0]-R_); x1=Math.max(x1,sh.c[0]+R_); y0=Math.min(y0,sh.c[1]-R_); y1=Math.max(y1,sh.c[1]+R_); } else for(const q of sh.p){ x0=Math.min(x0,q[0]); x1=Math.max(x1,q[0]); y0=Math.min(y0,q[1]); y1=Math.max(y1,q[1]); } }
+        BB=[Math.max(0,Math.floor(x0-3)),Math.max(0,Math.floor(y0-3)),Math.min(W,Math.ceil(x1+3)),Math.min(Hh,Math.ceil(y1+3))]; }
+      if(BB[2]<=BB[0]||BB[3]<=BB[1]) continue;   // all of it off screen
+      const bx=BB[0], by=BB[1], bw=BB[2]-BB[0], bh=BB[3]-BB[1];
       // union fill (drawn opaque, composited once with alpha so overlaps don't darken), then the union outline
-      layer(f,shapes,col,true); g.globalAlpha= f==='126.7'?.10:.22; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
-      layer(f,shapes,col,false); g.globalAlpha=.85; g.drawImage(ctafOff,0,0,W,Hh); g.globalAlpha=1;
+      layer(f,shapes,col,true); g.globalAlpha= f==='126.7'?.10:.22; g.drawImage(ctafOff,bx*od,by*od,bw*od,bh*od,bx,by,bw,bh); g.globalAlpha=1;
+      layer(f,shapes,col,false); g.globalAlpha=.85; g.drawImage(ctafOff,bx*od,by*od,bw*od,bh*od,bx,by,bw,bh); g.globalAlpha=1;
     }
     leg.sort((a,b)=>(a[0]==='126.7')-(b[0]==='126.7')||b[2]-a[2]);
     $('ctafLeg').innerHTML=leg.length? leg.map(([f,c,n,t])=>`<span><i class="dotc" style="background:${c}"></i>${t?'TWR ':''}${f}</span>`).join('') : '<span>No CTAF aerodromes in view</span>';
@@ -2192,7 +2208,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
       const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
   if(MAP.log) drawTrail(g,P,C,W,Hh);
-  { MAP.trHits=[]; MAP.trBox=null; const T= MAP.traffic&&ntUrl()? drawTraffic(g,P,C,W,Hh,sc) : []; trAlert(T); }
+  { MAP.trHits=[]; MAP.trBox=null; MAP.trWarn=null; const T= MAP.traffic&&ntUrl()? drawTraffic(g,P,C,W,Hh,sc) : []; trAlert(T); }
   // NOTAM areas (Q-line circles of airspace / warning NOTAMs: R area activations, PJE, UA ops, ...): dashed
   if(ntHave()&&MAP.range<=80){ const now=Date.now(); g.font='700 9.5px "IBM Plex Mono", monospace'; g.textAlign='center';
     for(const n of ntAllItems()){ if(n.r==null||n.la==null||n.r>60||n.r<0.3||/^Q(M|F|L|C|N|I|P|S|A)/.test(n.q||'')||!ntActive(n,now)) continue;
@@ -2275,6 +2291,7 @@ function drawMap(la,lo,h,pick,AS,altFt){
     g.strokeStyle=C.acc; g.lineWidth=1.2; g.stroke(); g.fillStyle=C.acc; g.fillText(lab,-dir*6,0.5);
     const ax=dir*(tw/2-8); g.beginPath(); g.moveTo(ax+dir*4.5,0); g.lineTo(ax-dir*3.5,-4.5); g.lineTo(ax-dir*3.5,4.5); g.closePath(); g.fill();
     g.restore(); g.textAlign='left'; g.textBaseline='alphabetic'; }
+  if(MAP.traffic&&MAP.trWarn) MAP.trWarn();
   if(MAP.traffic&&MAP.trBox) MAP.trBox();   // selected traffic details, on top
   // north pointer
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';

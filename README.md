@@ -326,6 +326,8 @@ The **Traffic** button above the map (next to Track up) shows ADS-B traffic from
 - **Freshness:** positions are moved on along their track to now (up to 30 s). The corner of the map shows "ADS-B 3 · 2 s"; after 30 s without an update it says "stale", the symbols fade and there are no alerts.
 - **Limits:** internet ADS-B only shows aircraft transmitting ADS-B that a ground receiver hears, 5–10 s late, and coverage is patchy at low level. It is **not TCAS** and doesn't replace looking out or the radio.
 
+- **Warning traffic** (within 2.5 NM and 600 ft of your level) is a large red dot with a white edge and a red ring, drawn on top of everything else on the map, with its level difference in bigger type; the TRAFFIC row at the top is red too. Other traffic is unchanged: cyan for nearby (6 NM, 1,200 ft), grey outline for the rest.
+
 ## Install on your phone
 The app is built for and tested on a **Google Pixel 9 Pro** (Chrome on Android); iPhones work too.
 
