@@ -41,6 +41,10 @@ folder keeps its old name.)
   - **Caching:** a tile is fetched from Esri once, then kept in Cloudflare's edge cache for 90 days. The key isn't part of the cache key, and repeat requests answer with `X-Cache: HIT`. Responses carry `Cache-Control: public, max-age=7776000, immutable` and CORS headers, so the app's service worker stores every tile you view (up to 6,000) and shows them again offline.
   - **Errors:** without `ESRI_KEY` the answer is 503. If Esri refuses, its status and message come back as JSON.
   - **Check:** `https://<your worker>/tile/wi/10/631/924` opened in a browser gets 403 (no Origin). That's expected: the route is working and only answers the app.
+- `POST /naips` `{u, p, areas, met, validity}`: **your NAIPS area briefing, downloaded with your own login.** The app keeps your NAIPS username and password encrypted on the phone (Settings → NOTAMs (NAIPS) → Download with your NAIPS login) and sends them here only when downloading. The Worker logs into the NAIPS website, posts the same area briefing form as the app's "Brief in NAIPS" button (NOTAMs, plus TAF/METAR when `met`), logs off and returns `{text}`; nothing is stored or logged. Only the app's origins (`ALLOW_ORIGIN`) may call it, so it isn't an open relay.
+  - Errors: wrong login → 401 with NAIPS's message; bot protection or a changed site → 502 with `stage` and `detail` (page title and form field names, never values) to diagnose.
+  - Unofficial: it uses the NAIPS website the way a browser does. Airservices' supported machine access is their Dynamic Data service. If NAIPS's F5 bot protection refuses Cloudflare's servers, this won't work from a Worker.
+  - Tests (no network): `node test_naips.mjs` against a fake NAIPS (`fake_naips.mjs`); `node mockserver.mjs` serves it too (login pilot1 / secret99) for `play/nbdl.js`.
 - It's internet ADS-B: only aircraft transmitting ADS-B that a ground receiver hears, 5–10 s late, patchy at low
   level. Not TCAS.
 

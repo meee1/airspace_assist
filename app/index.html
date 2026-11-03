@@ -92,7 +92,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.traffic b{font:700 15px/1 var(--f-label);color:#b07800;margin:0;display:inline;flex:none} .st.traffic span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .mapctl #mapTraffic{font-size:12px}
-.ntset a.btn{text-decoration:none;display:inline-flex;align-items:center} .nbget{border-top:1px solid var(--rule);margin-top:8px;padding-top:4px} .ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+.ntset a.btn{text-decoration:none;display:inline-flex;align-items:center} .nbget{border-top:1px solid var(--rule);margin-top:8px;padding-top:4px} .nbacct{border-top:1px dashed var(--rule);margin-top:8px;padding-top:6px} .nbacct select{font:600 13px var(--f-label);padding:4px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink)} .ntset label{display:flex;flex-direction:column;gap:3px;margin:6px 0} .ntset input{font:500 13px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
 .st.insua{display:flex;flex-direction:column;align-items:stretch;gap:3px} .st.insua>div{display:flex;align-items:baseline;gap:8px;min-width:0} .st.insua>div>b,.st.insua small{flex:none} .st.insua span{white-space:normal}   /* a warning wraps rather than losing its end */
 .st.insua .off{color:var(--dim)} .st.insua .off>b{color:var(--dim)} .st.insua b.stt{font:inherit;font-weight:700} .st.insua.quiet{border-color:var(--rule);background:var(--panel)}
 .opts-sat{display:flex;flex-direction:column;gap:8px;font-size:13px} .opts-sat label{display:flex;flex-direction:column;gap:3px} .opts-sat input[type=password],.opts-sat select{font:500 14px/1.2 var(--f-mono);padding:8px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .opts-sat .ctl{display:flex;gap:10px;align-items:center} .opts-sat small{color:var(--dim);line-height:1.35}
@@ -758,7 +758,14 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="vnote" id="ntStat"></div>
     <div class="nbget"><label><span class="lbl">NAIPS areas</span><input id="nbAreas" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 9300 (up to 5, comma separated)"></label>
       <div class="ctl"><button class="btn" id="nbOpen">Brief in NAIPS ↗</button><a class="btn" id="nbLink" href="https://www.airservicesaustralia.com/naips/Briefing/Area" target="_blank" rel="noopener">NAIPS area page ↗</a></div>
-      <div class="vnote">Opens NAIPS in your browser, signed in as you (NOTAMs only, 12 h). Then Share the result to this app, copy and paste it, or save it as a PDF and open it here.</div></div>
+      <div class="vnote">Opens NAIPS in your browser, signed in as you (NOTAMs only, 12 h). Then Share the result to this app, copy and paste it, or save it as a PDF and open it here.</div>
+      <div class="nbacct"><span class="lbl">Download with your NAIPS login</span>
+        <div class="pc-in"><label>Username <input id="nbUser" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Password <input id="nbPass" type="password" autocomplete="new-password"></label></div>
+        <div class="ctl"><button class="btn" id="nbSave">Save login</button><button class="btn" id="nbForget">Forget login</button><button class="btn" id="nbDl">Download briefing</button></div>
+        <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="nbMet" checked> Include weather (TAF / METAR)</label>
+        <label style="flex-direction:row;align-items:center;gap:8px">Download automatically <select id="nbAuto"><option value="0">off</option><option value="3">when the briefing is over 3 h old</option><option value="6">when over 6 h old</option><option value="12">when over 12 h old</option></select></label>
+        <div class="vnote" id="nbAcct"></div>
+        <div class="vnote">Your login is kept on this device only, encrypted with a key the browser holds and can't export. When downloading it goes over HTTPS to your traffic proxy, which logs into the NAIPS website as you, fetches the area briefing for the areas above and logs off; the proxy keeps nothing. Unofficial: if NAIPS changes its site or refuses the proxy, use the button above.</div></div></div>
     <label><span class="lbl">NAIPS briefing</span><textarea id="nbText" rows="4" spellcheck="false" placeholder="Paste a NAIPS location or area briefing here (or share it to the app)" style="font:500 12px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"></textarea></label>
     <div class="ctl"><button class="btn" id="nbPaste">Paste from clipboard</button><button class="btn" id="nbLoad">Load briefing</button><button class="btn" id="nbPdf">Open PDF / file</button><input type="file" id="nbFile" accept="application/pdf,.pdf,text/plain,.txt" hidden><button class="btn" id="nbClear">Clear briefing</button></div>
     <div class="vnote" id="nbStat"></div>
@@ -809,7 +816,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=9ba7ae57b8';
+    const s=document.createElement('script'); s.src='app.js?v=916de30a26';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

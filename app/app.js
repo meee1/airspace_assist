@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793692707984;
+const APP_BUILT=1793697941660;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -3058,6 +3058,50 @@ $('nbOpen').onclick=()=>{ const A=nbAreasList(); if(!A.length){ window.open(NAIP
   add('Met','false'); add('Notam','true'); add('Notam','false'); add('HeadOfficeNotam','false'); add('Charts','false'); add('MidSigwxGpwt','false');
   add('GPWTRegionalCharts','false'); add('ChartVariant','HI'); add('GPWTNationalCharts','false'); add('Validity','12');
   document.body.appendChild(f); f.submit(); f.remove(); };
+// ---------- NAIPS download with the pilot's own login (via the traffic proxy's POST /naips) ----------
+// The login is encrypted with AES-GCM; the key is a non-extractable CryptoKey kept in IndexedDB (the browser can use it, nobody
+// can read it out), the ciphertext in localStorage 'rc_naipsCred' {iv, ct, hint}. Forget deletes both.
+const NBD={busy:false, lastTry:0};
+function nbIdb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('radio-au-sec',1); r.onupgradeneeded=()=>r.result.createObjectStore('k'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function nbKey(create){ const db=await nbIdb(), st=m=>db.transaction('k',m).objectStore('k');
+  let key=await new Promise((res,rej)=>{ const q=st('readonly').get('naips'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+  if(!key&&create){ key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    await new Promise((res,rej)=>{ const q=st('readwrite').put(key,'naips'); q.onsuccess=res; q.onerror=()=>rej(q.error); }); }
+  return key||null; }
+const nbB64=u=>btoa(String.fromCharCode(...new Uint8Array(u))), nbUnB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function nbCredSave(u,p){ const key=await nbKey(true), iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify({u,p})));
+  ls.set('naipsCred',{iv:nbB64(iv),ct:nbB64(ct),hint:u.slice(0,2)+'…',t:Date.now()}); }
+async function nbCredGet(){ const c=ls.get('naipsCred',null); if(!c) return null; try{ const key=await nbKey(false); if(!key) return null;
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:nbUnB64(c.iv)},key,nbUnB64(c.ct)); return JSON.parse(new TextDecoder().decode(pt)); }catch(e){ return null; } }
+async function nbCredForget(){ ls.set('naipsCred',null); try{ const db=await nbIdb(); await new Promise(res=>{ const q=db.transaction('k','readwrite').objectStore('k').delete('naips'); q.onsuccess=res; q.onerror=res; }); }catch(e){} }
+function nbAcctUI(msg){ const c=ls.get('naipsCred',null); $('nbDl').disabled=!c; $('nbForget').disabled=!c;
+  $('nbAcct').innerHTML=(msg?msg+'<br>':'')+(c? `Login saved for <b>${esc(c.hint)}</b> (encrypted on this device).` : 'No NAIPS login saved.'); }
+async function nbDownload(auto){ if(NBD.busy) return; NBD.busy=true; try{ await nbDownload1(auto); } finally{ NBD.busy=false; } }   // one at a time, from the first moment
+async function nbDownload1(auto){ const P=ntUrl(), A=nbAreasList();
+  if(!P){ nbAcctUI('<span class="w">Set the traffic proxy above first: it does the download.</span>'); return; }
+  if(!A.length){ nbAcctUI('<span class="w">Enter your NAIPS area numbers above.</span>'); return; }
+  const c=await nbCredGet(); if(!c){ nbAcctUI('<span class="w">Save your NAIPS login first.</span>'); return; }
+  NBD.lastTry=Date.now(); nbAcctUI(`Downloading the area briefing for ${A.join(', ')}…`);
+  try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),60000);
+    const r=await fetch(P+'/naips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({u:c.u,p:c.p,areas:A,met:$('nbMet').checked,validity:12}),signal:ac.signal}).finally(()=>clearTimeout(tm));
+    const j=await r.json().catch(()=>({error:'HTTP '+r.status}));
+    if(!r.ok||!j.text){ NBD.fail=Date.now(); const d=j.detail; nbAcctUI(`<span class="w">${esc(j.error||('HTTP '+r.status))}</span>${d?`<br><small>${esc(['page: '+(d.title||'?'),'status '+d.status,d.forms?'forms: '+d.forms:''].filter(Boolean).join(' · '))}</small>`:''}`); return; }
+    NBD.fail=0; if(nbLoad(j.text)) nbAcctUI(`${auto?'Downloaded automatically':'Downloaded'} ${new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false})} (areas ${A.join(', ')}).`);
+    else nbAcctUI('<span class="w">The proxy returned text the app couldn\'t read as a briefing.</span>');
+  }catch(e){ NBD.fail=Date.now(); nbAcctUI(`<span class="w">Download failed: ${esc(e.name==='AbortError'?'timed out':e.message)}</span>`); } }
+$('nbSave').onclick=async()=>{ const u=$('nbUser').value.trim(), p=$('nbPass').value;
+  if(!/^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,19}$/.test(u)||p.length<4){ nbAcctUI('<span class="w">Enter your NAIPS username and password.</span>'); return; }
+  try{ await nbCredSave(u,p); $('nbPass').value=''; $('nbUser').value=''; nbAcctUI('Saved.'); }catch(e){ nbAcctUI('<span class="w">This browser can\'t store it encrypted: '+esc(e.message)+'</span>'); } };
+$('nbForget').onclick=async()=>{ await nbCredForget(); nbAcctUI('Login forgotten.'); };
+$('nbDl').onclick=()=>nbDownload(false);
+$('nbMet').checked=ls.get('nbMet',true)!==false; $('nbMet').addEventListener('change',()=>ls.set('nbMet',$('nbMet').checked));
+$('nbAuto').value=String(ls.get('nbAuto',0)); $('nbAuto').addEventListener('change',()=>{ ls.set('nbAuto',+$('nbAuto').value); nbAutoCheck(); });
+// automatic: online, a login saved, and the loaded briefing older than the setting (or none); not more than every 15 min, 60 min after a failure
+function nbAutoCheck(){ const h=+ls.get('nbAuto',0); if(!h||NBD.busy||!ls.get('naipsCred',null)||!navigator.onLine) return;
+  const age= NTN&&NTN.issued? Date.now()-NTN.issued : Infinity, since=Date.now()-NBD.lastTry;
+  if(age>h*3600e3&&since>(NBD.fail?60:15)*60e3) nbDownload(true); }
+nbAcctUI(); setTimeout(nbAutoCheck,5000); setInterval(nbAutoCheck,5*60e3); addEventListener('online',()=>setTimeout(nbAutoCheck,3000));
 // NAIPS briefing saved as PDF (Chrome "Save as PDF" / print): rebuild the fixed-width text lines from pdf.js positions
 async function pdfText(blob){
   if(!window.pdfjsLib){ await loadScript('lib/pdfjs/pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdfjs/pdf.worker.min.js'; }

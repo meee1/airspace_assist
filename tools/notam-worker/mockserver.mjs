@@ -8,7 +8,10 @@ const ADSB=()=>{ const own=globalThis.OWN||[-38.2581,144.4275];
     {hex:'7c2222',flight:'HEL2',r:'VH-HLX',t:'B06',lat:b[0],lon:b[1],alt_baro:2400,alt_geom:2520,gs:110,track:300,baro_rate:0,category:'A7',seen_pos:0.5},
     {hex:'7c3333',flight:'QFA401',r:'VH-XZA',t:'A333',lat:c[0],lon:c[1],alt_baro:8000,alt_geom:8150,gs:250,track:45,baro_rate:1500,category:'A5',seen_pos:0.8},
     {hex:'7c0ea0',flight:'',r:'VH-ABC',t:'B06',lat:own[0],lon:own[1],alt_baro:1500,alt_geom:1600,gs:100,track:45,category:'A7',seen_pos:0.3}]}; };
+import {fakeNaips} from './fake_naips.mjs'; import fs from 'node:fs';
+const NAIPS_BRIEF=fs.readFileSync(['../play/fixtures/naips_met.txt','../../play/fixtures/naips_met.txt'].map(f=>new URL(f,import.meta.url)).find(f=>fs.existsSync(f)),'utf8');   // repo: tools/notam-worker, build: notam-worker
 globalThis.fetch=async(u,o={})=>{ u=String(u);
+  if(u.includes('airservicesaustralia.com/naips')) return fakeNaips(u,o,NAIPS_BRIEF);   // fake NAIPS (pilot1 / secret99)
   if(u.includes('adsb.lol')||u.includes('adsb.fi')){ const m=/point\/(-?[\d.]+)\/(-?[\d.]+)/.exec(u); if(!globalThis.OWN) globalThis.OWN=[+m[1],+m[2]]; return new Response(JSON.stringify(ADSB())); }
   // fake Esri imagery (when ESRI_KEY is set below): a 256/512 px PNG per tile, green checker with the tile id baked in by colour
   const t=/tile\/(\d+)\/(\d+)\/(\d+)\?token=/.exec(u);
@@ -23,6 +26,7 @@ function fakePng(S,odd){ const crcT=[]; for(let n=0;n<256;n++){ let c=n; for(let
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),ch('IHDR',ih),ch('IDAT',zlib.deflateSync(raw)),ch('IEND',Buffer.alloc(0))]); }
 const store=new Map(); globalThis.caches={default:{match:async k=>store.get(k.url)?.clone(), put:async(k,r)=>{ store.set(k.url,r); }}};
 const W=(await import('./worker.js')).default, env={ALLOW_ORIGIN:'http://localhost:8811', ESRI_KEY:'mock-key'};
-http.createServer(async(req,res)=>{ const r=await W.fetch(new Request('http://localhost:8812'+req.url,{method:req.method,headers:req.headers}),env,{waitUntil:()=>{}});
+http.createServer(async(req,res)=>{ const chunks=[]; for await(const c of req) chunks.push(c); const body=chunks.length&&!/^(GET|HEAD)$/.test(req.method)? Buffer.concat(chunks) : undefined;
+  const r=await W.fetch(new Request('http://localhost:8812'+req.url,{method:req.method,headers:req.headers,body}),env,{waitUntil:()=>{}});
   res.writeHead(r.status,Object.fromEntries(r.headers)); res.end(Buffer.from(await r.arrayBuffer())); if(/\/tile\//.test(req.url)) globalThis.PROXY_TILES=(globalThis.PROXY_TILES||0)+1; }).listen(8812,()=>console.log('mock traffic proxy on :8812'));
 setInterval(()=>{ if(globalThis.PROXY_TILES) process.stdout.write(`tiles served ${globalThis.PROXY_TILES}, fetched from "Esri" ${globalThis.ESRI_HITS||0}\n`); },2000).unref();

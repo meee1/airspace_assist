@@ -19,9 +19,17 @@
      src wi: World Imagery raster tiles (256 px, z 3-19); st: static basemap tiles arcgis/imagery/labels (512 px, z 2-20).
      Only for the app (Origin or Referer in ALLOW_ORIGIN) and only tiles touching Australia (lat -46..-8, lon 108..160),
      so the proxy can't be used to spend the Esri allowance elsewhere. Cached at Cloudflare's edge for 90 days (the key
-     isn't part of the cache key), and sent with Cache-Control so the app's service worker keeps it for offline use. */
+     isn't part of the cache key), and sent with Cache-Control so the app's service worker keeps it for offline use.
+
+   POST /naips  {u, p, areas:['9300',...], met:true, validity:12}   (JSON; only from ALLOW_ORIGIN)
+     The pilot's own NAIPS area briefing: logs into the NAIPS website with the username and password the app sends
+     (kept encrypted on the pilot's device; nothing is stored or logged here), posts the area briefing form the app's
+     "Brief in NAIPS" button uses (BriefingArea1-5, Notam, Met, Validity), logs off, and returns {text, t} with the
+     briefing as plain text. On failure {error, stage, detail} with the page title / form field names found (never
+     values) so a change to the NAIPS site can be diagnosed. Unofficial: NAIPS's own machine access is Airservices'
+     Dynamic Data service; the website can change, and its bot protection may refuse requests from here. */
 const cors=(req,env)=>{ const o=req.headers.get('Origin')||'', ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean);
-  return {'Access-Control-Allow-Origin': ok.includes(o)? o : ok[0]||'*', 'Access-Control-Allow-Methods':'GET, OPTIONS', 'Vary':'Origin'}; };
+  return {'Access-Control-Allow-Origin': ok.includes(o)? o : ok[0]||'*', 'Access-Control-Allow-Methods':'GET, POST, OPTIONS', 'Access-Control-Allow-Headers':'Content-Type', 'Vary':'Origin'}; };
 const json=(o,status,h)=>new Response(JSON.stringify(o),{status,headers:{'Content-Type':'application/json',...h}});
 
 export default {
@@ -31,7 +39,8 @@ export default {
     const u=new URL(req.url);
     if(u.pathname==='/traffic') return traffic(u,env,ctx,H);
     if(u.pathname.startsWith('/tile/')) return tile(req,u,env,ctx,H);
-    return json({error:'use /traffic?lat=&lon=&nm= or /tile/{wi|st}/{z}/{y}/{x}'},404,H);
+    if(u.pathname==='/naips') return naips(req,env,ctx,H);
+    return json({error:'use /traffic?lat=&lon=&nm=, /tile/{wi|st}/{z}/{y}/{x} or POST /naips'},404,H);
   }
 };
 async function traffic(u,env,ctx,H){
@@ -94,4 +103,63 @@ async function tile(req,u,env,ctx,H){
   const res=new Response(r.body,{status:200,headers:{'Content-Type':ct,'Cache-Control':'public, max-age=7776000, immutable'}});
   ctx.waitUntil(cache.put(key,res.clone()));
   return out(res,'MISS');
+}
+
+// ---------- NAIPS area briefing with the pilot's own login ----------
+const NB='https://www.airservicesaustralia.com/naips';
+const NB_UA='Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36';
+const decodeHtml=t=>t.replace(/&nbsp;/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;|&#x27;/g,"'").replace(/&#(\d+);/g,(m,n)=>String.fromCharCode(+n)).replace(/&amp;/g,'&');
+const pageTitle=h=>decodeHtml(((/<title[^>]*>([\s\S]*?)<\/title>/i.exec(h)||[])[1]||'').trim());
+// the forms on a page: action and inputs (hidden values kept; others by name only)
+function pageForms(h){ const out=[];
+  for(const m of h.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)){ const at=m[1], body=m[2], attr=(a,n)=>((new RegExp('\\b'+n+'\\s*=\\s*["\']([^"\']*)["\']','i')).exec(a)||[])[1];
+    const inputs=[...body.matchAll(/<(input|select|textarea)\b([^>]*)>/gi)].map(x=>({tag:x[1].toLowerCase(),type:(attr(x[2],'type')||'').toLowerCase(),name:attr(x[2],'name')||'',value:decodeHtml(attr(x[2],'value')||'')})).filter(i=>i.name);
+    out.push({id:attr(at,'id')||'',action:decodeHtml(attr(at,'action')||''),inputs}); }
+  return out; }
+const formShape=h=>pageForms(h).map(f=>`${f.id||'form'}→${f.action}: ${f.inputs.map(i=>i.name+(i.type?':'+i.type:'')).join(', ')}`).join(' | ').slice(0,600);
+// the briefing text: the biggest <pre>, else the page text with line breaks kept
+function briefText(h){ const pres=[...h.matchAll(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi)].map(m=>m[1]).sort((a,b)=>b.length-a.length);
+  const raw= pres.length? pres[0] : (/<body\b[^>]*>([\s\S]*)<\/body>/i.exec(h)||[,h])[1].replace(/<(script|style)\b[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|tr|li|h\d)>/gi,'\n');
+  return decodeHtml(raw.replace(/<[^>]+>/g,'')).replace(/\r/g,'').replace(/[ \t]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim(); }
+async function naips(req,env,ctx,H){
+  const ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean), org=req.headers.get('Origin')||'';
+  if(req.method!=='POST') return json({error:'POST {u, p, areas}'},405,H);
+  if(ok.length&&!ok.includes(org)) return json({error:'not allowed'},403,H);   // only the app: this isn't a public NAIPS relay
+  let b; try{ b=await req.json(); }catch(e){ return json({error:'bad JSON'},400,H); }
+  const user=String(b.u||''), pass=String(b.p||''), areas=(Array.isArray(b.areas)?b.areas:[]).map(String).filter(a=>/^\d{3,4}$/.test(a)).slice(0,5);
+  if(!/^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,19}$/.test(user)||pass.length<4||pass.length>64) return json({error:'NAIPS username or password missing or not valid'},400,H);
+  if(!areas.length) return json({error:'give 1-5 NAIPS area numbers, e.g. 9300'},400,H);
+  const jar=new Map(), cookie=()=>[...jar].map(([k,v])=>k+'='+v).join('; ');
+  const take=r=>{ const sc= r.headers.getSetCookie? r.headers.getSetCookie() : (r.headers.get('set-cookie')||'').split(/,(?=\s*[A-Za-z0-9_.-]+=)/);
+    for(const c of sc){ const m=/^\s*([^=;\s]+)=([^;]*)/.exec(c||''); if(m) jar.set(m[1],m[2]); } };
+  const go=async(url,opt={},hops=0)=>{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),15000);
+    let r; try{ r=await fetch(url,{...opt,redirect:'manual',signal:ac.signal,headers:{'User-Agent':NB_UA,'Accept':'text/html,application/xhtml+xml','Accept-Language':'en-AU,en;q=0.9',...(jar.size?{Cookie:cookie()}:{}),...(opt.headers||{})}}); }
+    finally{ clearTimeout(tm); }
+    take(r);
+    if(r.status>=300&&r.status<400&&r.headers.get('location')&&hops<6) return go(new URL(r.headers.get('location'),url).toString(),{headers:{Referer:url}},hops+1);
+    return {status:r.status, url, html:await r.text()}; };
+  const blocked=h=>/Request Rejected|support ID is|TSPD|bobcmn|window\["bobcmn"\]/i.test(h);
+  const fail=(stage,p,msg)=>json({error:msg||`NAIPS ${stage} didn't work`, stage, detail:p? {status:p.status, title:pageTitle(p.html), forms:formShape(p.html)} : null},502,H);
+  const form=(f,extra)=>{ const q=new URLSearchParams(); for(const i of f? f.inputs:[]) if(i.type==='hidden') q.append(i.name,i.value); for(const [k,v] of extra) q.append(k,v); return q; };
+  try{
+    // 1. login page (cookies, any anti-forgery token), 2. log in
+    const lp=await go(NB+'/Account/LogOn'); if(blocked(lp.html)) return fail('login page',lp,"NAIPS's bot protection refused the request from the Worker");
+    const lf=pageForms(lp.html).find(f=>/LogOn/i.test(f.action)||f.id==='frmLogon');
+    if(!lf) return fail('login page',lp,'NAIPS login form not found');
+    const li=await go(new URL(lf.action||'/naips/Account/LogOn',NB+'/').toString(),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Origin:'https://www.airservicesaustralia.com',Referer:NB+'/Account/LogOn'},body:form(lf,[['UserName',user],['Password',pass]]).toString()});
+    if(blocked(li.html)) return fail('login',li,"NAIPS's bot protection refused the login from the Worker");
+    if(/id=["']frmLogon["']/i.test(li.html)){ const m=/validation-summary-errors[\s\S]*?<li>([\s\S]*?)<\/li>/i.exec(li.html)||/field-validation-error[^>]*>([\s\S]*?)</i.exec(li.html);
+      return json({error:'NAIPS login failed'+(m?': '+decodeHtml(m[1].replace(/<[^>]+>/g,'')).trim():' (check the username and password)'), stage:'login'},401,H); }
+    // 3. the area briefing form (for any hidden fields), 4. request the briefing as the app's button does
+    const ap=await go(NB+'/Briefing/Area'); const af=pageForms(ap.html).find(f=>/Briefing\/Area/i.test(f.action)||f.inputs.some(i=>/^BriefingArea1$/i.test(i.name)));
+    const met=b.met!==false, val=[6,12,18,24].includes(+b.validity)? String(+b.validity) : '12';
+    const fields=[]; for(let k=1;k<=5;k++) fields.push(['BriefingArea'+k,areas[k-1]||'']);
+    fields.push(['Met',met?'true':'false']); if(met) fields.push(['Met','false']); fields.push(['Notam','true'],['Notam','false'],['HeadOfficeNotam','false'],['Charts','false'],['MidSigwxGpwt','false'],['GPWTRegionalCharts','false'],['ChartVariant','HI'],['GPWTNationalCharts','false'],['Validity',val]);
+    const br=await go(new URL(af&&af.action||'/naips/Briefing/Area',NB+'/').toString(),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Origin:'https://www.airservicesaustralia.com',Referer:NB+'/Briefing/Area'},body:form(af,fields).toString()});
+    ctx.waitUntil(go(NB+'/Account/LogOff').catch(()=>{}));   // best effort, after the answer
+    if(blocked(br.html)) return fail('briefing',br,"NAIPS's bot protection refused the briefing request");
+    const text=briefText(br.html);
+    if(!/\d{4} UTC \d{2}\/\d{2}\/\d{2}/.test(text)) return fail('briefing',br,"NAIPS didn't return a briefing (the page may have changed)");
+    return json({text, t:new Date().toISOString(), areas},200,{...H,'Cache-Control':'no-store'});
+  }catch(e){ return json({error:'NAIPS '+(e.name==='AbortError'?'timed out':'unreachable: '+e.message)},502,H); }
 }
