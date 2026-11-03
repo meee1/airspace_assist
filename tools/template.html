@@ -263,7 +263,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list .legs .lg{display:block} .opts-list .legs .lg .btn{padding:2px 7px;font-size:11px;margin-left:4px} .opts-list .legs .lg.del{opacity:.5;text-decoration:line-through}
 .lgedit{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:end;padding:6px 0 8px;font-size:12px} .lgedit label{display:flex;flex-direction:column;gap:2px} .lgedit input{font:600 14px var(--f-mono);width:90px;padding:5px 7px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink)}
 .pc-t td.f{font:600 12px var(--f-mono);white-space:nowrap} .pc-t tr.low td{color:var(--warn)}
-#hud .st.nxcls.inbound span{display:block;-webkit-line-clamp:unset;overflow:visible} .st.nxcls.inbound{flex-wrap:wrap;cursor:pointer} .st.nxcls.inbound span{white-space:normal;flex-basis:100%;font-weight:600} .st.nxcls.inbound .x{margin-left:auto;font:700 12px var(--f-label);color:var(--dim)}
+#hud .st.nxcls.inbound span{display:block;-webkit-line-clamp:unset;overflow:visible} .st.nxcls.inbound{flex-wrap:wrap;cursor:pointer} .st.nxcls.inbound span{white-space:normal;flex-basis:100%;font-weight:600} .st.nxcls.inbound .x{margin-left:auto;font:700 12px var(--f-label);color:var(--dim)} .st.nxcls.inbound small.sq{color:var(--fg,inherit);font-weight:800;border:1.5px solid currentColor;border-radius:4px;padding:0 5px}
 @keyframes fqflash{0%,100%{box-shadow:0 0 0 0 transparent}45%,55%{background:color-mix(in srgb,var(--accent) 38%,var(--panel));box-shadow:0 0 0 3px var(--accent)}}
 .st.fqflash{animation:fqflash .7s ease-in-out var(--flashN,5)}
 @media (prefers-reduced-motion:reduce){.st.fqflash{animation-duration:1.2s}}
@@ -2275,6 +2275,13 @@ $('optFlash').value=String(FQF.n); $('optFlash').addEventListener('change',()=>{
 // otherwise, for a non-towered aerodrome, the transit call (CAAP 166: within 10 NM). Row #sInbound with the frequency and the inbound call filled in; the Go to tile flashes.
 // Tap the row to dismiss; it goes by itself inside 4 NM or after 4 min.
 const INB={armed:{}, on:null, t:0, lastD:{}, kind:'inb'};
+// transponder code for a towered aerodrome's airspace: a code ATC gave you (clearance panel), else the aerodrome's own ERSA
+// instruction ("shall SQUAWK code 0100", Essendon), else AIP ENR 1.6 7.1.4 a: civil flights in class A, C and D airspace 3000
+// (Moorabbin's class D zone). After leaving it, VFR in class E or G: 1200 (7.1.4 c).
+function sqkOf(a){ if(!a||!(a.x||[]).some(x=>x[0]==='TWR')) return null;
+  if(CLR.sq&&CLR.sq.length===4) return {code:CLR.sq, src:'assigned by ATC, from your clearance notes'};
+  const m=/SQUAWK\s+code\s+(\d{4})/i.exec(JSON.stringify([a.cnotes||'',a.proc||''])); if(m) return {code:m[1], src:'ERSA '+a.i};
+  return {code:'3000', src:'AIP ENR 1.6 7.1.4: class C/D, unless ATC assigns one'}; }
 // are you landing at this aerodrome? the plan's last point, or a plan point marked Land; with no plan, the Go to aerodrome
 function fpLand(k){ const p=FP&&FP.pts[k]; return !!p&&(p.land!=null? p.land : k===FP.pts.length-1); }
 function adStop(a){ if(!a) return false;
@@ -2290,7 +2297,7 @@ function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('c
   const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
   const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(eta)):null, open=tw.length&&(ts?ts.on:true);
   if(open){ let w=tw[0]; const tp=twrPick(ad,{a:ad,d,b}); if(tp&&tp.tw) w=tp.tw; else if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,st.pos[0],st.pos[1])[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }   // the tile's rules: side, and ERSA reporting-point rules (CARR -> 123.0)
-    return {f:w[2], txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
+    return {f:w[2], sq:sqkOf(ad), txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
   const f=ctafInfo(ad).f||'126.7';
   return {f, txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
 function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB.on=null; return; }
@@ -2312,7 +2319,7 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
   const [d,b]=distBrg(la,lo,ad.la,ad.lo);
   if(d<4&&INB.kind==='inb'||d>10.5&&INB.kind==='trn'||Date.now()-INB.t>240e3){ INB.on=null; box.hidden=true; return; }   // inbound: till 4 NM; transit: while inside 10 NM; 4 min at most
   const c= INB.kind==='inb'? inboundCall(ad,d,b) : transitCall(ad,d,b); box.hidden=false;
-  box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b><small class="x">✕</small><span>${esc(c.txt)}</span>`; }
+  box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b>${c.sq?`<small class="sq">SQUAWK ${c.sq.code}</small>`:''}<small class="x">✕</small><span>${esc(c.txt)}</span>`; }
 $('sInbound').addEventListener('click',()=>{ INB.on=null; $('sInbound').hidden=true; });
 
 // ---------- wind from GPS: the ground-velocity vectors you fly at one airspeed lie on a circle whose centre is the wind (the
@@ -3119,7 +3126,7 @@ setInterval(()=>{ try{ aheadUI(); }catch(e){} },3000);
 // CTAF / tower (tower hours at ETA, split side), area / ATC changes, class changes, R/D/P areas (status at ETA), NOTAM
 // zones, obstacles within 1 NM, LSALT per leg (±2 NM, +1000 ft), last light; NOTAMs along the route listed after
 const PC={rows:[],text:''};
-function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new Set(), seenZ=new Set(), legs=[]; let D0=0, prevC=null, prevA=null, unk=0;
+function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new Set(), seenZ=new Set(), sqSeen=new Set(), legs=[]; let D0=0, prevC=null, prevA=null, unk=0;
   const eta=D=>dep+D/gs*3600e3, add=(D,k,html,txt,cl='')=>ev.push({D,k,html,txt,cl,t:eta(D)});
   const ads=DATA.ap.filter(a=>(st.all||a.s==='E')&&(a.t!=='H'||st.heli));
   for(let k=0;k<P_.length;k++){ const p=P_[k];
@@ -3137,7 +3144,9 @@ function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new
         c={key:'T'+w[2]+ad.i, lab:'TWR'+(w[4]?' '+w[4][0]:''), f:w[2], who:cn+' Tower', ad}; }
       else { const CI=ctafInfo(ad); c={key:'C'+(CI.f||'')+ad.i, lab:'CTAF', f:CI.f||'—', who:cn+' traffic'+(CI.src!=='ERSA'?' ('+CI.src+')':''), ad}; } }
     else { const ba=baAt(la,lo); c= ba&&ba.f? {key:'B'+ba.f, lab:'CTAF', f:ba.f, who:titleCase(ba.n)+' broadcast area'} : {key:'-',quiet:true}; }   // no aerodrome within 10 NM: no row
-    if(c.quiet) prevC=c; else if(!prevC||prevC.key!==c.key){ add(D,c.lab,`<b class="f">${c.f}</b> ${esc(c.who)}${c.ad?` <small>${c.ad.i}</small>`:''}`,`${c.lab} ${c.f} ${c.who}${c.ad?' '+c.ad.i:''}`); prevC=c; }
+    // squawk for a towered aerodrome you land at (ENR 1.6 / ERSA): on its first tower row, once
+    if(c.quiet) prevC=c; else if(!prevC||prevC.key!==c.key){ const sq= c.lab.startsWith('TWR')&&adStop(c.ad)&&!sqSeen.has(c.ad.i)? sqkOf(c.ad) : null; if(sq) sqSeen.add(c.ad.i);
+      add(D,c.lab,`<b class="f">${c.f}</b> ${esc(c.who)}${c.ad?` <small>${c.ad.i}</small>`:''}${sq?` · <b>squawk ${sq.code}</b>`:''}`,`${c.lab} ${c.f} ${c.who}${c.ad?' '+c.ad.i:''}${sq?' squawk '+sq.code:''}`); prevC=c; }
     // area / ATC band at the planned altitude
     const tr=terrainFt(la,lo), AS=airStack(la,lo,tr!=null?tr:0), b=AS.bands.find(q=>alt>=q.L-50&&alt<q.H);
     if(b){ const kk=b.k==='CTR'?b.ctrCls:b.k, g=kk==='G'||kk==='E'; let f=b.f||'—', who=b.unit?unitShort(b.unit):'';
@@ -3145,7 +3154,9 @@ function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new
       const key=kk+'|'+f+'|'+who;
       if(!prevA||prevA.key!==key){ const lim=`${b.L<=0?'SFC':limTxt(b.L)}–${limTxt(b.H)}`;
         const zad= b.k==='CTR'? ctrApp(b).ad : null, at= zad&&zad.a? ` · ATIS ${zad.a[0]}` : '';
-        add(D,g?'AREA':'ATC '+kk,`<b class="f">${f}</b> ${esc(who)} · class ${kk} ${lim}${at}${g?'':' · <b>clearance required</b>'}`,`${g?'AREA':'ATC'} ${f} ${who} class ${kk} ${lim}${at}${g?'':' clearance required'}`, g?'':'w'); prevA={key}; } }
+        const sq= zad&&adStop(zad)&&!sqSeen.has(zad.i)? sqkOf(zad) : null, sqH= sq? ` · <b>squawk ${sq.code}</b>` : '', sqT= sq? ` squawk ${sq.code}` : '';
+        if(sq) sqSeen.add(zad.i);
+        add(D,g?'AREA':'ATC '+kk,`<b class="f">${f}</b> ${esc(who)} · class ${kk} ${lim}${at}${g?'':' · <b>clearance required</b>'}${sqH}`,`${g?'AREA':'ATC'} ${f} ${who} class ${kk} ${lim}${at}${g?'':' clearance required'}${sqT}`, g?'':'w'); prevA={key}; } }
     // restricted / prohibited / danger areas at the planned altitude
     for(const q of AS.prd){ if(!(alt>=q.L-50&&alt<q.H)) continue; const id=q.n.split(' ')[0]; if(seenA.has(id)) continue; seenA.add(id);
       const S=(DATA.sua&&DATA.sua.areas||{})[id], ss=suaStatus(id,t), R_=q.k==='R'||q.k==='P';
@@ -4393,10 +4404,11 @@ function renderCalls(a,pick,varE){
     if(gn) calls.push(['Taxi · '+gn+' '+gnd[2],`${T(gn)}, ${type} ${cs}, <i>[position on aerodrome]</i>, received ${atisL||'<i>[ATIS]</i>'}, request taxi ${heli?'<i>[for aiming point / HLS]</i> ':''}for <i>[circuits / VFR departure to the …]</i>.`]);
     const twOf=side=>{ const t=twrs.find(t=>t[4]===side)||twSide; return [titleCase(t[1]), t[2], t[4]||'']; };
     calls.push(['Ready · '+(twrs.some(t=>t[4])? twrs.map(t=>(t[4]||'')+' '+t[2]).join(' / ')+' by departure direction' : tw+' '+tf),`${T(tw)}, ${cs}, ready ${heli?'<i>[aiming point / HLS]</i>':rwy}, <i>[circuits / departing to the … at … feet]</i>.`]);
+    { const q=sqkOf(a); if(q) calls.push(['Transponder · before entering the CTR',`Squawk <b>${q.code}</b> (${esc(q.src)}).`]); }
     calls.push(['Inbound · '+tw+(twSide[4]?' '+twSide[4]:'')+' '+tf+' · before entering the CTR',`${T(tw)}, ${type} ${cs}, ${rp}, ${inAlt}, received ${atisL||'<i>[ATIS]</i>'}, inbound${heli?' for <i>[HLS / aiming point]</i>':' for landing'}.`]);
     if(/report turning downwind/i.test(JSON.stringify(a.proc||{}))) calls.push(['Turning downwind (ERSA requires)',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
     else calls.push(['Circuit',`${cs}, downwind <i>[full stop / touch and go]</i>.`]);
-    calls.push(['Leaving the CTR',`Follow ATC instructions. ${a.fia?`For class G, ERSA lists ${T(titleCase(a.fia[0][0]))} ${a.fia[0][1]}.`:''}`]);
+    calls.push(['Leaving the CTR',`Follow ATC instructions; VFR in class G or E: squawk 1200 unless ATC says otherwise. ${a.fia?`For class G, ERSA lists ${T(titleCase(a.fia[0][0]))} ${a.fia[0][1]}.`:''}`]);
     const viaNote = TP.via ? ` Arriving via ${TP.via.rp}: ERSA says “${esc(TP.via.text)}”, so ${twSide[4]||''} ${twSide[2]}${TP.via.rwys.length?` when RWY ${TP.via.rwys.join(' or ')} is in use (pick the runway above if it's another one)`:''}.` : '';
     note='Controlled aerodrome calls (AIP ENR 1.1). Read back clearances, runway and QNH. Words in brackets are yours to fill.'+(TP.via?viaNote:sideNote);
   } else {

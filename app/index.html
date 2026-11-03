@@ -263,7 +263,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .opts-list .legs .lg{display:block} .opts-list .legs .lg .btn{padding:2px 7px;font-size:11px;margin-left:4px} .opts-list .legs .lg.del{opacity:.5;text-decoration:line-through}
 .lgedit{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:end;padding:6px 0 8px;font-size:12px} .lgedit label{display:flex;flex-direction:column;gap:2px} .lgedit input{font:600 14px var(--f-mono);width:90px;padding:5px 7px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink)}
 .pc-t td.f{font:600 12px var(--f-mono);white-space:nowrap} .pc-t tr.low td{color:var(--warn)}
-#hud .st.nxcls.inbound span{display:block;-webkit-line-clamp:unset;overflow:visible} .st.nxcls.inbound{flex-wrap:wrap;cursor:pointer} .st.nxcls.inbound span{white-space:normal;flex-basis:100%;font-weight:600} .st.nxcls.inbound .x{margin-left:auto;font:700 12px var(--f-label);color:var(--dim)}
+#hud .st.nxcls.inbound span{display:block;-webkit-line-clamp:unset;overflow:visible} .st.nxcls.inbound{flex-wrap:wrap;cursor:pointer} .st.nxcls.inbound span{white-space:normal;flex-basis:100%;font-weight:600} .st.nxcls.inbound .x{margin-left:auto;font:700 12px var(--f-label);color:var(--dim)} .st.nxcls.inbound small.sq{color:var(--fg,inherit);font-weight:800;border:1.5px solid currentColor;border-radius:4px;padding:0 5px}
 @keyframes fqflash{0%,100%{box-shadow:0 0 0 0 transparent}45%,55%{background:color-mix(in srgb,var(--accent) 38%,var(--panel));box-shadow:0 0 0 3px var(--accent)}}
 .st.fqflash{animation:fqflash .7s ease-in-out var(--flashN,5)}
 @media (prefers-reduced-motion:reduce){.st.fqflash{animation-duration:1.2s}}
@@ -836,7 +836,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=c621df7657';
+    const s=document.createElement('script'); s.src='app.js?v=ce414e7980';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
