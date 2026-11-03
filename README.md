@@ -253,6 +253,9 @@ The tiles are built on your own computer (Python 3, standard library only, norma
 Format, if you need it: each tile is zlib-compressed little-endian int16, 121×121 posts at 30 arc-seconds, row 0 at the north edge, each post the highest SRTM elevation (metres) around it.
 
 ## Radio call guide
+
+**Emergency (SOS):** the red **SOS** button on the map opens a MAYDAY / PAN PAN call filled in with your position (from the nearest aerodrome or VFR waypoint), level, heading and people on board, who to call and on what frequency for where you are, squawk 7700 and 121.5, your lat/long, and the nearest aerodromes and helipads (tap one to Go to it).
+
 Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and choose aeroplane or helicopter; all are saved on the device. Type the callsign as the registration (`ABC` or `VH-ABC`) and it's spelled in the phonetic alphabet ("ALPHA BRAVO CHARLIE"): a preview shows under the box while you type, and it expands in the box when you press Enter or leave it. VH- is dropped. Digits are spoken (9 = NINER). Anything with spaces (`POLAIR 31`), or one word of 5+ letters (`RESCUE`), is left as typed.
 - **Non-towered aerodromes:** you get the standard CTAF calls from AIP ENR 1.1: inbound, overflying, joining, straight-in, taxiing, lining up and departing. Distance, compass point and level are filled in from your position.
 - **Tower aerodromes:** the app reads the tower hours (TWR HR) from ERSA and works out whether the tower is open now, allowing for daylight saving.

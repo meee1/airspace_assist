@@ -278,6 +278,12 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 .wb-cv{display:block;width:100%;height:240px;margin:8px 0} .wb-cv.lat{height:150px}
 .wb-eu{margin:0 0 4px} .wb-gauge{font:600 14px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink);max-width:104px;font-size:13px;padding:6px 4px} .wb-eu select{font:600 14px var(--f-label);padding:5px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)} .wb-ls td{vertical-align:middle} .wb-ls small{color:var(--dim);font-size:10.5px} .wb-in{display:inline-flex;align-items:center;gap:4px} .wb-in input{width:74px;font:600 15px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)} .wb-ls tr.wb-e td{color:var(--dim)} .wb-ls tr.wb-tot td{border-top:2px solid var(--rule)}
 .wb-sug{margin:0;padding-left:18px;font-size:13px;line-height:1.45} .wb-sug li{margin:3px 0} .wb-sug li.fix::marker{content:'→ '} .wb-sug .w,.wb-sug li.w{color:var(--warn)}
+.sosb{color:#fff!important;background:#c62828!important;border-color:#c62828!important;font-weight:800;letter-spacing:.06em}
+.sosdlg{max-width:620px} .sos-kind{display:flex;gap:8px;margin:2px 0 8px} .sos-kind .btn{flex:1;font-weight:800;letter-spacing:.08em} .sos-kind .btn[aria-pressed="true"]{background:#c62828;color:#fff;border-color:#c62828}
+.sos-pob{display:inline-flex;align-items:center;gap:8px} .sos-pob b{font:700 18px var(--f-mono);min-width:22px;text-align:center;color:var(--ink)}
+.sos-freq{margin:8px 0 4px;font-size:13px} .sos-freq b.f{font:800 22px var(--f-mono);color:var(--freq)}
+.sos-call{font:600 17px/1.45 var(--f-label);padding:10px 12px;border:2px solid #c62828;border-radius:10px;background:color-mix(in srgb,#c62828 7%,var(--panel));color:var(--ink)}
+.sos-sq{margin:8px 0;font-size:13px} .sos-pos{font:600 13px/1.5 var(--f-mono)} #sosNear tr{cursor:pointer}
 .pc-sec{font:700 11px var(--f-label);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px} .opts-tiles label{padding:6px 4px} .opts-tiles label>span:not(.tpv){flex:1 1 auto;min-width:0}
 .tpv{flex:none;width:250px;zoom:.56;pointer-events:none;margin-left:auto} .tpv .status{display:block;position:static;padding:0;margin:0;background:none} .tpv .st{margin:0} .tpv .st[hidden]{display:flex}
 .tpv .st.t{display:inline-flex;flex-direction:column;width:110px} .tpv .st.gps{display:inline-flex;width:44px;height:64px} .tpv .st>small:first-child{line-height:1.3;overflow:visible} .tpv .st.t small{line-height:1.3}
@@ -544,6 +550,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <button class="btn" id="mapTraffic" style="margin-left:auto" aria-pressed="false" title="ADS-B traffic from the internet through your proxy (about 5–10 s old): grey = other traffic, cyan = within 6 NM and ±1,200 ft, amber = within 2.5 NM and ±600 ft">Traffic</button>
         <button class="btn" id="mapUp">Track up</button>
         <button class="btn" id="fsBtn" title="Full-screen map: the map fills the screen, key tiles float over it (phone) or sit in a column (tablet), everything else is in the sheet at the bottom">⤢</button><button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
+        <button class="btn sosb" id="sosBtn" title="Emergency: MAYDAY / PAN PAN call with your position, the frequency, squawk 7700, and the nearest places to land">SOS</button>
         <span class="brk"></span>
         <button class="btn" id="mapCtaf" aria-pressed="false" title="Show CTAF frequencies: 10 NM around each aerodrome (a tower aerodrome: its whole control zone, which cuts the CTAF areas round it; a tower aerodrome with no CTAF shows its zone on the tower frequency), merged by frequency">CTAF</button>
         <button class="btn" id="mapTer" aria-pressed="true" title="SRTM terrain: red at or above your altitude, amber within 500 ft below, grey relief otherwise">Terrain</button>
@@ -745,6 +752,19 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="ctl"><button class="btn" id="pcCopy">Copy text</button><button class="btn" id="pcPrint">Print / PDF</button></div>
   </dialog>
 
+  <dialog class="opts sosdlg" id="sosDlg" aria-labelledby="sosTitle">
+    <div class="opts-head"><b id="sosTitle">Emergency</b><button class="btn" id="sosClose" aria-label="Close">✕</button></div>
+    <div class="sos-kind" role="group"><button class="btn" data-k="MAYDAY" aria-pressed="true">MAYDAY</button><button class="btn" data-k="PAN PAN" aria-pressed="false">PAN PAN</button></div>
+    <div class="pc-in"><label>Emergency <select id="sosNat"><option>engine failure</option><option>engine fire</option><option>smoke in the cabin</option><option>control problem</option><option>low fuel</option><option>medical emergency on board</option><option>uncertain of position</option><option>weather</option><option value="">[nature of emergency]</option></select></label>
+      <label>Intentions <select id="sosInt"><option>forced landing</option><option>landing immediately</option><option value="divert">diverting to the nearest aerodrome</option><option>returning</option><option value="">[intentions]</option></select></label>
+      <label>People on board <span class="sos-pob"><button class="btn" id="sosPobM" aria-label="One fewer">−</button><b id="sosPob">1</b><button class="btn" id="sosPobP" aria-label="One more">+</button></span></label></div>
+    <div class="sos-freq" id="sosFreq"></div>
+    <div class="sos-call" id="sosCall"></div>
+    <div class="sos-sq"><b>Squawk 7700</b> · ELT / PLB on if you're landing away from help · if no answer: <b>121.5</b>, or relay through another aircraft</div>
+    <div class="pc-sec">Your position</div><div class="sos-pos" id="sosPos"></div>
+    <div class="pc-sec">Nearest places to land</div><table class="pc-t" id="sosNear"><tbody></tbody></table>
+    <div class="vnote">From GPS and the app's data: check before you rely on it. Tap a place to set it as Go to.</div>
+  </dialog>
   <dialog class="opts pcdlg" id="wbDlg" aria-labelledby="wbTitle">
     <div class="opts-head"><b id="wbTitle">Weight &amp; balance</b><button class="btn" id="wbClose" aria-label="Close">✕</button></div>
     <div class="pc-in"><label>Aircraft <select id="wbProfSel"></select></label><label>New from <select id="wbTpl"><option value="b206bw">Bell 206B (weighed)</option><option value="b206b3">Bell 206B-3 (91 gal)</option><option value="b206ab76">Bell 206A/B (76 gal)</option><option value="">Blank</option></select></label><button class="btn" id="wbNewP">New profile</button><button class="btn" id="wbCopy">Copy</button><button class="btn" id="wbDel">Delete</button></div>
@@ -816,7 +836,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=916de30a26';
+    const s=document.createElement('script'); s.src='app.js?v=c621df7657';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

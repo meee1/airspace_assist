@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793697941660;
+const APP_BUILT=1793698895303;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2620,6 +2620,51 @@ for(const [id,key] of [['wbEuW','w'],['wbEuF','f']]) $(id).addEventListener('cha
 let wbT=null; function wbRenderSoon(){ clearTimeout(wbT); wbT=setTimeout(wbRender,150); }
 addEventListener('resize',()=>{ if($('wbDlg').open) wbRenderSoon(); });
 
+// ---------- emergency page (SOS on the map): MAYDAY / PAN PAN call with the live position, who to call, the nearest places to land ----------
+// Call order as in the AIP / VFRG: MAYDAY x3 (PAN PAN x3), station, callsign and type, nature, intentions, position, level, heading, POB.
+const SOS={kind:'MAYDAY', t:null};
+function sosPlace(la,lo){ // "5 miles north-east of Geelong" from the nearest aerodrome (with a CTAF/ATC) or VFR waypoint within 25 NM
+  let best=null; const cand=[];
+  for(const a of DATA.ap){ if(Math.abs(a.la-la)>0.45||Math.abs(a.lo-lo)>0.55) continue; if(a.s!=='E'&&a.t!=='H') continue; cand.push({n:callName(a.n,a.i),la:a.la,lo:a.lo}); }
+  const nv=nearestVFR(la,lo,25); if(nv) cand.push({n:titleCase(nv.p.n),la:nv.p.la,lo:nv.p.lo});
+  for(const c of cand){ const [d,b]=distBrg(c.la,c.lo,la,lo); if(!best||d<best.d) best={...c,d,b}; }
+  if(!best) return null; const nm=Math.round(best.d);
+  const nm_=sosTidy(best.n); return nm<1? `overhead ${nm_}` : `${nm} mile${nm===1?'':'s'} ${PTS[Math.round(norm(best.b)/45)%8]} of ${nm_}`; }
+// the unit as spoken: an aerodrome's ATC entry with that frequency within 60 NM (ERSA name, e.g. 133.55 AVALON APPROACH), else the
+// airspace unit without the app's short forms ("Melbourne Centre", not "Melb Ctr" / "Avalon (E frequency)")
+function sosUnit(f,unit,la,lo){ if(f) for(const a of DATA.ap){ if(Math.abs(a.la-la)>1||Math.abs(a.lo-lo)>1.25) continue;
+    const x=(a.x||[]).find(x=>/^(APP|DEP|TWR|CTR)$/.test(x[0])&&x[2]===f&&x[1]); if(x) return titleCase(x[1]); }
+  return String(unit||'').replace(/\s*\([^)]*\)\s*/g,' ').trim(); }
+const sosTidy=t=>t.replace(/\bCbd\b/g,'CBD').replace(/\bRaaf\b/g,'RAAF');
+function sosDMS(v,ns){ const a=Math.abs(v), d=Math.floor(a), m=(a-d)*60; return `${d}°${m.toFixed(2).padStart(5,'0')}′${v<0?ns[1]:ns[0]}`; }
+function sosNearest(la,lo){ const out=[];
+  for(const a of DATA.ap){ if(Math.abs(a.la-la)>0.6||Math.abs(a.lo-lo)>0.75) continue; if(a.t==='H'?false:a.s!=='E') continue;
+    const [d,b]=distBrg(la,lo,a.la,a.lo); out.push({a,d,b}); }
+  return out.sort((x,y)=>x.d-y.d).slice(0,8); }
+function sosRender(){ if(!$('sosDlg').open) return; const la=st.pos&&st.pos[0], lo=st.pos&&st.pos[1], have=!!st.pos;
+  const cs=sayCallsign($('cSign').value)||'[callsign]', ty=$('cType').value.trim()||'[type]', pob=+ls.get('sosPob',1)||1; $('sosPob').textContent=pob;
+  const b=st.curBand, ctl=b&&/^(A|C|D|CTR)$/.test(b.k)&&!(b.k==='CTR'&&/^(G|E)$/.test(b.ctrCls||''));
+  let unit=b&&(b.unit||b.f)? sosUnit(b.f,b.unit,la,lo) : '', f=b&&b.f||'';
+  if(b&&b.k==='CTR'){ const ca=ctrApp(b); if(ca.ad){ const tw=(ca.ad.x||[]).find(x=>x[0]==='TWR'); if(tw){ unit=callName(ca.ad.n,ca.ad.i)+' Tower'; f=tw[2]; } } }
+  if(!unit&&st.hereCtaf){ unit='all stations'; f=st.hereCtaf; }
+  $('sosFreq').innerHTML= f? `Call <b>${esc(unit||'ATC')}</b> on <b class="f">${esc(f)}</b>${ctl?' (you\'re in controlled airspace)':''} · or 121.5` : 'Call on the frequency you\'re using, or <b class="f">121.5</b>';
+  const nat=$('sosNat').value||'<i>[nature of emergency]</i>';
+  let int=$('sosInt').value; if(int==='divert'){ const med=/medical/.test($('sosNat').value), n=have&&sosNearest(la,lo).find(x=>med||x.a.t!=='H');   // a hospital helipad only for a medical emergency
+    int= n? `diverting to ${sosTidy(callName(n.a.n,n.a.i))}` : 'diverting'; } if(!int) int='<i>[intentions]</i>';
+  const pos= have? (sosPlace(la,lo)||`${sosDMS(la,'NS')} ${sosDMS(lo,'EW')}`) : '<i>[position]</i>';
+  const hdg= st.trk!=null&&st.gs>15? `heading ${fmt3(st.trk-variation(la,lo))}` : '';
+  const k=SOS.kind, K=k==='MAYDAY'?'MAYDAY MAYDAY MAYDAY':'PAN PAN, PAN PAN, PAN PAN';
+  $('sosCall').innerHTML=`${K}, ${esc(unit&&unit!=='all stations'?unit:'all stations')}, ${esc(ty)} ${esc(cs)}, ${nat}, ${int}, ${pos}, ${sayLevel(st.alt)}${hdg?', '+hdg:''}, ${pob} POB.`;
+  $('sosPos').innerHTML= have? `${sosDMS(la,'NS')} ${sosDMS(lo,'EW')}<br>${st.alt!=null?Math.round(st.alt).toLocaleString('en-AU')+' ft GPS':''}${st.trk!=null?' · track '+fmt3(st.trk-variation(la,lo))+'°M':''}${st.gs!=null?' · '+Math.round(st.gs)+' kt':''} · ${hhmmZ(Date.now())}` : 'No GPS position yet: tap Start GPS.';
+  $('sosNear').querySelector('tbody').innerHTML= have? sosNearest(la,lo).map(({a,d,b})=>{ const ci=ctafInfo(a), tw=(a.x||[]).find(x=>x[0]==='TWR');
+    return `<tr data-i="${a.i}"><td class="k">${esc(a.i)}</td><td>${esc(titleCase(a.n||''))}${a.t==='H'?' <small>(helipad)</small>':''}</td><td class="m">${fmt3(b-variation(la,lo))}°M ${d<10?d.toFixed(1):Math.round(d)} NM</td><td class="m">${tw?'TWR '+tw[2]:ci&&ci.f?'CTAF '+ci.f:''}</td></tr>`; }).join('') : '';
+}
+$('sosBtn').onclick=()=>{ const d=$('sosDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); sosRender(); clearInterval(SOS.t); SOS.t=setInterval(sosRender,2000); };
+$('sosClose').onclick=()=>$('sosDlg').close(); $('sosDlg').addEventListener('close',()=>{ clearInterval(SOS.t); SOS.t=null; });
+$('sosDlg').querySelector('.sos-kind').addEventListener('click',e=>{ const bt=e.target.closest('[data-k]'); if(!bt) return; SOS.kind=bt.dataset.k; for(const x of $('sosDlg').querySelectorAll('.sos-kind .btn')) x.setAttribute('aria-pressed',x===bt); sosRender(); });
+for(const id of ['sosNat','sosInt']) $(id).addEventListener('change',sosRender);
+$('sosPobM').onclick=()=>{ ls.set('sosPob',Math.max(1,(+ls.get('sosPob',1)||1)-1)); sosRender(); }; $('sosPobP').onclick=()=>{ ls.set('sosPob',Math.min(9,(+ls.get('sosPob',1)||1)+1)); sosRender(); };
+$('sosNear').addEventListener('click',e=>{ const tr=e.target.closest('tr[data-i]'); if(!tr) return; const a=DATA.ap.find(x=>x.i===tr.dataset.i); if(!a) return; setGo({k:'AD',c:a.i,n:a.n,la:a.la,lo:a.lo}); $('sosDlg').close(); render(); });
 $('pcRun').onclick=()=>{ PC.retry=0; pcRun(); }; $('pcClose').onclick=()=>$('pcDlg').close();
 $('pcCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(PC.text); $('pcStat').textContent='Copied.'; }catch(e){ dlFile('plan-check.txt',PC.text,'text/plain'); } };
 $('pcPrint').onclick=()=>{ const w=window.open('','_blank'); if(!w){ dlFile('plan-check.txt',PC.text,'text/plain'); return; }
@@ -2704,7 +2749,7 @@ function score(c,h){
 /* ---------- rendering ---------- */
 const arrowSvg=deg=>`<svg viewBox="0 0 24 24" style="transform:rotate(${deg}deg)"><path d="M12 2 20 21 12 16.5 4 21Z"/></svg>`;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function titleCase(s){return s.toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase())}
+function titleCase(s){return s.toLowerCase().replace(/(^|[^a-z0-9'’])([a-z])/g,(m,p,c)=>p+c.toUpperCase())}   // not after an apostrophe (Children's)
 
 function freqRow(k,v,who,cls=''){
   return `<div class="fr ${cls}"><div class="k">${k}</div><div class="who">${who||''}</div><div class="v ${v?'':'none'}">${v||'—'}</div></div>`;
