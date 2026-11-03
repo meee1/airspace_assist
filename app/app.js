@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793704882278;
+const APP_BUILT=1793721743837;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2266,7 +2266,25 @@ function drawMap(la,lo,h,pick,AS,altFt){
   if(MAP.press && !$('mapMenu').hidden){ const [x,y]=P(MAP.press[0],MAP.press[1]); g.strokeStyle=cssv('--wp'); g.lineWidth=2;
     g.beginPath(); g.arc(x,y,7,0,2*Math.PI); g.moveTo(x-12,y); g.lineTo(x-4,y); g.moveTo(x+4,y); g.lineTo(x+12,y); g.moveTo(x,y-12); g.lineTo(x,y-4); g.moveTo(x,y+4); g.lineTo(x,y+12); g.stroke(); }
   // go-to line
-  if(GO){ const [gx,gy]=P(GO.la,GO.lo); g.strokeStyle=cssv('--wp'); g.lineWidth=2; g.setLineDash([2,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(gx,gy); g.stroke(); g.setLineDash([]); }
+  if(GO){ const [gx,gy]=P(GO.la,GO.lo), wp=cssv('--wp'); g.strokeStyle=wp; g.lineWidth=2; g.setLineDash([2,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(gx,gy); g.stroke(); g.setLineDash([]);
+    // the Go to point: a target (two rings, crosshair ticks, centre dot) with a light halo so it shows on any chart; off the
+    // map, a pointer at the edge along the line with the name and distance
+    const ring=(x,y,r)=>{ g.beginPath(); g.arc(x,y,r,0,2*Math.PI); };
+    const target=(x,y,k)=>{ for(const [lw,col] of [[5.5,C.bg],[2.5,wp]]){ g.strokeStyle=col; g.lineWidth=lw;
+        ring(x,y,14*k); g.stroke(); ring(x,y,7*k); g.stroke();
+        g.beginPath(); for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ g.moveTo(x+dx*11*k,y+dy*11*k); g.lineTo(x+dx*21*k,y+dy*21*k); } g.stroke(); }
+      g.fillStyle=wp; ring(x,y,2.5*k); g.fill(); };
+    if(gx>-4&&gy>-4&&gx<W+4&&gy<Hh+4){ target(gx,gy,1); const lab=GO.c||GO.n||''; if(lab){ g.font='700 11px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='top'; g.lineJoin='round';
+        g.lineWidth=3.5; g.strokeStyle=C.bg; g.strokeText(lab,gx,gy+24); g.fillStyle=wp; g.fillText(lab,gx,gy+24); g.textAlign='left'; g.textBaseline='alphabetic'; } }
+    else { const m=22, dx=gx-ox, dy=gy-oy; let t=1;   // where the line leaves the map (inset)
+      if(dx) t=Math.min(t, dx>0? (W-m-ox)/dx : (m-ox)/dx); if(dy) t=Math.min(t, dy>0? (Hh-m-oy)/dy : (m-oy)/dy);
+      if(t>0){ const ex=ox+dx*t, ey=oy+dy*t, an=Math.atan2(dy,dx);
+        target(ex,ey,0.6);
+        g.save(); g.translate(ex,ey); g.rotate(an); g.fillStyle=wp; g.strokeStyle=C.bg; g.lineWidth=2; g.beginPath(); g.moveTo(22,0); g.lineTo(13,-6); g.lineTo(13,6); g.closePath(); g.stroke(); g.fill(); g.restore();
+        if(st.pos){ const d=distBrg(st.pos[0],st.pos[1],GO.la,GO.lo)[0], lab=`${GO.c||GO.n||'GO'} ${d<10?d.toFixed(1):Math.round(d)} NM`;
+          g.font='700 11px "IBM Plex Mono", monospace'; g.textBaseline='middle'; const tw=g.measureText(lab).width;
+          const lx=Math.max(4,Math.min(W-tw-4, ex+(Math.cos(an)>0? -tw-16 : 16))), ly=Math.max(10,Math.min(Hh-10, ey+(Math.sin(an)>0? -18 : 18)));
+          g.textAlign='left'; g.lineJoin='round'; g.lineWidth=3.5; g.strokeStyle=C.bg; g.strokeText(lab,lx,ly); g.fillStyle=wp; g.fillText(lab,lx,ly); g.textBaseline='alphabetic'; } } } }
   // line to selected aerodrome
   const [sx,sy]=P(pick.a.la,pick.a.lo);
   g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,4]); g.beginPath(); g.moveTo(ox,oy); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]);

@@ -8,6 +8,7 @@ Phone and tablet web app for VFR pilots (built with helicopters in mind):
 - an airspace map at the top of the screen (pan, pinch zoom, track or north up) with a 10 NM lead line ahead of you, terrain (grey relief or rainbow topographic), a CTAF layer (tower aerodromes by their control zone), VTC/VNC chart underlay, waypoints, towns and suburbs
 - GPX flight plans (or plans built and edited on the phone, saved back as GPX) with auto-advancing waypoints, direct-to and resume, an elevation profile and suggested VFR altitudes
 - the frequencies where you're going as well as where you are: CTAF/tower and area/ATC at the Go to point, tower hours at your ETA
+- **Go to on the map:** the Go to point is marked with a purple target and its name, at the end of the dotted line. When it's off the map, a smaller target with an arrow sits at the map edge where the line leaves it, labelled with the name and distance, e.g. **CATANI 29 NM**.
 - NOTAMs from a NAIPS briefing (pasted, shared or opened as a PDF), on the aerodrome card, the map and along the route; restricted and danger areas shown active or off from it, and NOTAM temporary zones drawn
 - ADS-B traffic through a small proxy, with TCAS-style symbols and spoken alerts (not TCAS)
 - a flight log you can show on the map or download as GPX
