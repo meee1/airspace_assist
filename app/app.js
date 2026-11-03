@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793702060606;
+const APP_BUILT=1793702733741;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1496,9 +1496,11 @@ function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('c
   const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
   const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(eta)):null, open=tw.length&&(ts?ts.on:true);
   if(open){ let w=tw[0]; const tp=twrPick(ad,{a:ad,d,b}); if(tp&&tp.tw) w=tp.tw; else if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,st.pos[0],st.pos[1])[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }   // the tile's rules: side, and ERSA reporting-point rules (CARR -> 123.0)
-    return {f:w[2], sq:sqkOf(ad), txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound${tw.some(x=>x[4])?'':''}.`}; }
+    return {f:w[2], sq:sqkOf(ad), html:mycRow(ad,'twr',{station:cn+' Tower',type:ty,callsign:cs,position:pos,level:lvl,atis:atisWord(ad.i)||'[ATIS '+ad.i+']',runway:'runway [XX]',place:cn}), txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound.`}; }
   const f=ctafInfo(ad).f||'126.7';
-  return {f, txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
+  return {f, html:mycRow(ad,'ctaf',{station:cn+' traffic',type:ty,callsign:cs,position:pos,level:lvl,atis:'[ATIS]',runway:'runway [XX]',place:cn}), txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
+// the 10 NM inbound row in your own wording, when you've set one for the Inbound call (values are plain text here)
+function mycRow(ad,mode,v){ const m=mycGet(ad.i,mode,'Inbound'); if(!m) return null; const e={}; for(const k in v) e[k]=esc(v[k]); return mycRender(m.t,e); }
 function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB.on=null; return; }
   // candidates: your Go to / plan aerodrome, and any non-towered aerodrome (tower closed counts) you come within 10 NM of
   const g=goTarget(), tgt=g&&g.ad, la=st.pos[0], lo=st.pos[1];
@@ -1518,7 +1520,7 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
   const [d,b]=distBrg(la,lo,ad.la,ad.lo);
   if(d<4&&INB.kind==='inb'||d>10.5&&INB.kind==='trn'||Date.now()-INB.t>240e3){ INB.on=null; box.hidden=true; return; }   // inbound: till 4 NM; transit: while inside 10 NM; 4 min at most
   const c= INB.kind==='inb'? inboundCall(ad,d,b) : transitCall(ad,d,b); box.hidden=false;
-  box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b>${c.sq?`<small class="sq">SQUAWK ${c.sq.code}</small>`:''}<small class="x">✕</small><span>${esc(c.txt)}</span>`; }
+  box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b>${c.sq?`<small class="sq">SQUAWK ${c.sq.code}</small>`:''}<small class="x">✕</small><span>${c.html||esc(c.txt)}</span>`; }
 $('sInbound').addEventListener('click',()=>{ INB.on=null; $('sInbound').hidden=true; });
 
 // ---------- wind from GPS: the ground-velocity vectors you fly at one airspeed lie on a circle whose centre is the wind (the
@@ -1787,6 +1789,44 @@ function chartUI(){
   $('chartAll').hidden=!n; $('chartAllSum').textContent=`${n} chart${n===1?'':'s'} · ${mb} MB${n>4?' · tap to list':''}`; if(n<=4) $('chartAll').open=true;
   $('chartList').innerHTML=CH.idx.map(s=>`<li><span><b>${esc(s.name)}</b> ${esc(s.ed||'')} · ${(s.bytes/1048576).toFixed(1)} MB · ${s.src==='site'?'from the app':'imported on this device'}${s.edT&&s.edT>Date.now()?' · <span class="w">effective '+esc(s.ed)+'</span>':''}</span>${s.src==='site'?'':`<button class="btn" data-del="${s.sheet}">Remove</button>`}</li>`).join('');
   $('mapChart').setAttribute('aria-pressed',CH.on&&n>0); $('chartOp').value=CH.op; }
+// ---------- ERSA FAC sheets: tools/facsplit.py splits the ERSA into one PDF per aerodrome, ersa/<cycle>/<ICAO>.pdf, with
+// ersa/<cycle>/index.json {ICAO:[first,last ERSA page]}. The cycle is the loaded data set's ERSA date (03 SEP 2026 -> 03SEP2026),
+// so the sheets always match the frequencies on screen. The service worker keeps each PDF once fetched (radio-au-ersa);
+// the plan's and Go to aerodromes are fetched in the background while online, so they open offline in flight.
+const FAC={cyc:(META.ersa||'').replace(/\s+/g,''), idx:null, zoom:false, pre:''};
+const facUrl=i=>`ersa/${FAC.cyc}/${i}.pdf`;
+function facLoad(){ if(!FAC.cyc||FAC.idx) return;
+  fetch(`ersa/${FAC.cyc}/index.json`).then(r=>r.ok?r.json():{}).then(j=>{ FAC.idx=j||{}; facBtn(); facPrefetch(); }).catch(()=>{ FAC.idx={}; });
+  if(window.caches) caches.open('radio-au-ersa').then(c=>c.keys().then(ks=>{ const keep=(window.__SETS||[]).map(x=>String(x[2]||'').replace(/\s+/g,'')).concat(FAC.cyc);
+    for(const k of ks){ const m=/\/ersa\/([^/]+)\//.exec(new URL(k.url).pathname); if(m&&!keep.includes(m[1])) c.delete(k); } })).catch(()=>{}); }   // sheets from an expired cycle
+function facBtn(){ const a=st.adShown, b=$('adFac'), r=a&&FAC.idx&&FAC.idx[a.i]; b.hidden=!r; if(!r) return;
+  const n=r[1]-r[0]+1; b.textContent=`ERSA FAC ${a.i} · ${n} page${n>1?'s':''}`; b.dataset.i=a.i; }
+function facPrefetch(){ if(!FAC.idx||!navigator.onLine) return;
+  const want=new Set(); if(FP) for(const p of FP.pts){ const a=fpAd(p); if(a) want.add(a.i); } const g=goTarget(); if(g&&g.ad) want.add(g.ad.i);
+  const L=[...want].filter(i=>FAC.idx[i]).sort(), key=L.join(); if(key===FAC.pre) return; FAC.pre=key;
+  for(const i of L) fetch(facUrl(i)).catch(()=>{}); }   // the service worker stores them
+async function facOpen(i){ const d=$('facDlg'), r=FAC.idx&&FAC.idx[i], a=DATA.ap.find(x=>x.i===i); if(!r) return;
+  FAC.open=i; $('facTitle').textContent=`ERSA FAC ${i}${a?' · '+titleCase(a.n):''}`; $('facExt').href=facUrl(i); $('facBody').innerHTML='';
+  $('facStat').textContent=`ERSA ${META.ersa} · FAC pages ${r[0]}–${r[1]} of the ERSA. Loading…`; if(!d.open) d.showModal();
+  try{ if(!window.pdfjsLib){ await loadScript('lib/pdfjs/pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdfjs/pdf.worker.min.js'; }
+    const res=await fetch(facUrl(i)); if(!res.ok) throw new Error('HTTP '+res.status);
+    FAC.pdf=await pdfjsLib.getDocument({data:await res.arrayBuffer()}).promise; if(FAC.open!==i) return;
+    $('facStat').textContent=`ERSA ${META.ersa} · ERSA pages ${r[0]}–${r[1]}. A page shared with the entry before or after is shown whole.`;
+    await facDraw(i, true);
+  }catch(e){ $('facStat').textContent=navigator.onLine? `Couldn't load the FAC sheet (${e.message}).` : `Not saved on this device yet: it's stored the first time you open it with signal (your plan and Go to aerodromes are stored automatically).`; } }
+async function facDraw(i,toHead){ const B=$('facBody'), pdf=FAC.pdf; if(!pdf) return; B.innerHTML='';
+  const w=Math.max(280,B.clientWidth-4)*(FAC.zoom?2:1), dpr=Math.min(3,window.devicePixelRatio||1);
+  for(let n=1;n<=pdf.numPages;n++){ if(FAC.open!==i) return; const page=await pdf.getPage(n), v1=page.getViewport({scale:1}), vp=page.getViewport({scale:w/v1.width*dpr});
+    const c=document.createElement('canvas'); c.width=Math.round(vp.width); c.height=Math.round(vp.height); c.style.width=w+'px'; B.appendChild(c);
+    await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    if(n===1&&toHead){   // the entry often starts part way down its first page: scroll to its name line (3 lines above the ICAO)
+      try{ const tc=await page.getTextContent(), it=tc.items.find(t=>t.str.trim()===i); if(it){ const y=vp.convertToViewportPoint(it.transform[4],it.transform[5])[1]/dpr, lh=(it.height||8)*w/v1.width;
+        toHead=Math.max(1,y-lh*4.2); } }catch(e){} } }
+  if(typeof toHead==='number'&&FAC.open===i) B.scrollTop=toHead; }   // after every page is in: scrollTop is clamped to the content so far
+$('adFac').onclick=()=>facOpen($('adFac').dataset.i);
+$('facClose').onclick=()=>{ FAC.open=null; $('facDlg').close(); };
+$('facDlg').addEventListener('close',()=>{ FAC.open=null; FAC.pdf=null; $('facBody').innerHTML=''; });
+$('facZoom').onclick=()=>{ FAC.zoom=!FAC.zoom; $('facZoom').setAttribute('aria-pressed',FAC.zoom); if(FAC.open) facDraw(FAC.open); };
 function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>no(new Error('could not load '+src)); document.head.appendChild(s); }); }
 async function chartImport(files){
   if(CH.busy) return; CH.busy=true; const prog=$('chartProg'); prog.hidden=false;
@@ -2811,6 +2851,7 @@ function render(){
   const a=pick.a;
   $('adId').textContent=a.i;
   $('adName').textContent=titleCase(a.n)+(a.t==='H'?' · heliport':'');
+  st.adShown=a; facBtn();
   $('adDist').textContent=(pick.d<10?pick.d.toFixed(1):Math.round(pick.d))+' NM';
   $('adBrg').textContent=fmt3(pick.b-varE)+'°M';
   $('adElev').textContent=a.e!=null?('ELEV '+a.e):'';
@@ -2854,6 +2895,7 @@ function render(){
   renderRunways(a,pick,h);
   renderFP(h,varE);
   renderGo(h,varE);
+  facPrefetch();
   if(a.a) html+=freqRow('ATIS',a.a[0],`Aerodrome terminal information${a.a.length>1?' · also '+a.a.slice(1).join(', '):''}${a.an?' · VOR '+a.an.join(', '):''} ${chip(SRC[a.aS])}`);
   if(a.w && !(a.a||[]).includes(a.w)) html+=freqRow('AWIS',a.w,`Automatic weather ${chip(SRC[a.wS])}`);
   if(a.x){ const seen=new Set();
@@ -3558,6 +3600,40 @@ function ersaProcHtml(a,heli){
   }
   return out.join('');
 }
+// ---------- your own wording: any Radio calls entry can be rewritten (✎) for one aerodrome or every aerodrome, per procedure
+// (tower / CTAF). Stored as a template, ls myCalls {"YMMB|twr|Inbound": "{station}, {type} {callsign}, {position}, {level},
+// received {atis}, inbound for the southern approach."}; key = aerodrome or *, mode, the label before the first " · ".
+// {tokens} take the values of the moment. A token with several values (position: the reporting point in the tower inbound
+// call, the distance elsewhere) uses the one the standard call has. The 10 NM inbound row uses the Inbound template too.
+const MYC={t:ls.get('myCalls',{}), cur:null, n:null};
+const MYC_TOK=['station','type','callsign','position','level','atis','runway','place'];
+const mycKey=(ad,mode,label)=>`${ad}|${mode}|${String(label).replace(/<[^>]+>/g,'').split(' · ')[0].trim()}`;
+function mycGet(ad,mode,label){ const k=mycKey(ad,mode,label), g=mycKey('*',mode,label);
+  return MYC.t[k]!=null? {k,t:MYC.t[k]} : MYC.t[g]!=null? {k:g,t:MYC.t[g],all:true} : null; }
+function mycPick(V,html){ const o={}; for(const [t,vs] of Object.entries(V)){ const L=vs.filter(Boolean); o[t]=L.find(v=>html.includes(v))||L[0]||''; } return o; }
+function mycRender(tpl,vals){ return esc(tpl).replace(/\[[^\]<>]*\]/g,'<i>$&</i>').replace(/\{(\w+)\}/g,(m,t)=>vals[t]!=null&&vals[t]!==''? vals[t] : m); }
+function mycFromHtml(html,vals){ let s=html.split('<small>')[0];
+  for(const [t,v] of Object.entries(vals).filter(([t,v])=>v&&v.replace(/<[^>]+>/g,'').length>1).sort((x,y)=>y[1].length-x[1].length)) s=s.split(v).join('\u0001'+t+'\u0002');
+  const d=document.createElement('textarea'); d.innerHTML=s.replace(/<[^>]+>/g,''); return d.value.replace(/\u0001(\w+)\u0002/g,'{$1}').replace(/\s+/g,' ').trim(); }
+function mycOpen(n){ const C=MYC.cur; if(!C||!C.calls[n]) return; const c=C.calls[n], a=C.a, m=mycGet(a.i,C.mode,c[0]), vals=mycPick(C.V,c[1]);
+  MYC.n=n; MYC.vals=vals; MYC.label=c[0];
+  $('mycWhat').innerHTML=`<b>${c[0]}</b> · ${C.mode==='twr'?'tower':'CTAF'} procedure`;
+  $('mycTa').value= m? m.t : mycFromHtml(c[1],vals);
+  $('mycTok').innerHTML=MYC_TOK.map(t=>`<button class="btn" type="button" data-t="${t}" title="${esc(String(vals[t]||'').replace(/<[^>]+>/g,''))}">{${t}}</button>`).join('');
+  $('mycScAd').textContent=`This aerodrome (${a.i})`; $('mycScAll').textContent=`Every aerodrome, ${C.mode==='twr'?'tower':'CTAF'} procedure`;
+  document.querySelector(`input[name=mycSc][value=${m&&m.all?'all':'ad'}]`).checked=true;
+  $('mycReset').hidden=!m; mycPrev(); $('mycDlg').showModal(); }
+function mycPrev(){ $('mycPv').innerHTML=mycRender($('mycTa').value,MYC.vals||{}); }
+$('callsList').addEventListener('click',e=>{ const b=e.target.closest('button.ed'); if(b) mycOpen(+b.dataset.n); });
+$('mycTa').addEventListener('input',mycPrev);
+$('mycTok').addEventListener('click',e=>{ const b=e.target.closest('button[data-t]'); if(!b) return; const ta=$('mycTa'), i=ta.selectionStart??ta.value.length, j=ta.selectionEnd??i, ins='{'+b.dataset.t+'}';
+  ta.value=ta.value.slice(0,i)+ins+ta.value.slice(j); ta.focus(); ta.setSelectionRange(i+ins.length,i+ins.length); mycPrev(); });
+$('mycSave').onclick=()=>{ const C=MYC.cur, t=$('mycTa').value.replace(/\s+/g,' ').trim(); if(!C) return;
+  const all=document.querySelector('input[name=mycSc]:checked').value==='all', k=mycKey(all?'*':C.a.i,C.mode,MYC.label);
+  if(all) delete MYC.t[mycKey(C.a.i,C.mode,MYC.label)];   // saved for every aerodrome: this aerodrome's own one would hide it
+  if(t) MYC.t[k]=t; else delete MYC.t[k]; ls.set('myCalls',MYC.t); $('mycDlg').close(); render(); };
+$('mycReset').onclick=()=>{ const C=MYC.cur; if(!C) return; const m=mycGet(C.a.i,C.mode,MYC.label); if(m){ delete MYC.t[m.k]; ls.set('myCalls',MYC.t); } $('mycDlg').close(); render(); };
+$('mycClose').onclick=()=>$('mycDlg').close();
 function renderCalls(a,pick,varE){
   st.cardAd=a; { const l=a&&atisOf(a.i), n=[l&&a.a?'ATIS '+a.i+' '+l:'',CLR.sq?'squawk '+CLR.sq:'',CLR.lvl||''].filter(Boolean).join(' · '); $('cAtisNow').textContent=n; }
   const loc=callName(a.n,a.i), T=v=>esc(v), heli=$('cCat').value==='H';
@@ -3579,7 +3655,7 @@ function renderCalls(a,pick,varE){
   let mode=$('cMode').value; if(mode==='auto') mode = towered && (ts? ts.on : true) ? 'twr' : 'ctaf';   // hours unknown: assume active
   if(!towered && mode==='twr') mode='ctaf';
   const CI=ctafInfo(a);
-  let calls=[], modeTxt='', note='';
+  let calls=[], modeTxt='', note='', station=`${T(loc)} traffic`, posV='', altV='', atisV='';   // values for your own wording (MYC)
   if(mode==='twr'){
     const gn=gnd?titleCase(gnd[1]):null;
     // East/West tower split (from ERSA text): suggest the side you are on
@@ -3596,6 +3672,7 @@ function renderCalls(a,pick,varE){
     const rp = nearR && nearR.d<3 ? `over ${T(titleCase(nearR.p.n))}` : K.rpts? `over <i>[${T(rptPts.map(p=>titleCase(p.n)).join(' / '))}]</i>` : dist;
     const ft=x=>x.replace(/\s*FT.*$/i,'')+' feet';
     const inAlt = heli&&K.hel ? ft(K.hel) : K.entry ? ft(K.entry) : lvl;
+    station=T(tw); posV=rp; altV=inAlt; atisV=atisL||'<i>[ATIS]</i>';
     $('callsAt').textContent=tw+' · '+tf;
     modeTxt=`<b>Tower procedures (Class D)</b> · ${twAll}${gn?` · ${gn} ${gnd[2]}`:''}${a.a?` · ATIS ${a.a[0]}`:''}<br>`+
       (ts? `ERSA tower hours today ${ts.today||'none'} local${ts.hds?' (daylight saving)':''}: <b>${ts.on?'tower likely active':'tower likely closed'}</b>. Public holidays and NOTAMs not included; confirm on the ATIS.` : 'Tower hours not found in ERSA: <b>tower assumed active</b>; confirm on the ATIS or switch to CTAF below.');
@@ -3649,7 +3726,11 @@ function renderCalls(a,pick,varE){
   }
   const keys=[mode==='twr'&&K.entry&&`CTR entry ${K.entry}`, K.cct&&`Circuit ${K.cct}`, heli&&K.hel&&`Helicopters ${K.hel}`, mode==='twr'&&K.rpts&&`Report at ${K.rpts}`].filter(Boolean);
   $('callsMode').innerHTML=modeTxt+rptHtml+(keys.length?`<div class="keys" style="padding:8px 0 0">${keys.map(k=>`<span>${T(k)}</span>`).join('')} ${chip('ERSA')}</div>`:'');
-  $('callsList').innerHTML=calls.map(c=>`<div class="call"><div class="when">${c[0]}</div><div class="say">${c[1]}</div></div>`).join('');
+  const V={station:[station], type:[type], callsign:[cs], position:[posV,dist,ovr], level:[altV,lvl], atis:[atisV], runway:[rwy], place:[T(loc)]};
+  MYC.cur={a,mode,calls,V};
+  $('callsList').innerHTML=calls.map((c,n)=>{ const m=mycGet(a.i,mode,c[0]), sm=c[1].indexOf('<small>');
+    const say= m? mycRender(m.t,mycPick(V,c[1]))+(sm>=0?' '+c[1].slice(sm):'') : c[1];
+    return `<div class="call${m?' my':''}"><div class="when"><span>${c[0]}</span>${m?`<span class="mytag">YOURS${m.all?' · ALL':''}</span>`:''}<button class="btn ed" type="button" data-n="${n}" aria-label="Change the wording of this call" title="Your own wording for this call">✎</button></div><div class="say">${say}</div></div>`; }).join('');
   $('callsNote').textContent=note+(rhTxt?` Runway ${rv}: right-hand circuit per ERSA (${a.cct[rv][1]}).`:'')+(a.proc?' Aerodrome-specific requirements are in ERSA local procedures below.':'');
   const pb=$('ersaProc'); pb.hidden=!(a.proc||a.cnotes);
   if(!pb.hidden && pb.dataset.k!==a.i+heli){ $('ersaProcBody').innerHTML=ersaProcHtml(a,heli); pb.dataset.k=a.i+heli; }
@@ -3741,7 +3822,7 @@ function setSim(on){
     simApply(); simFold(ls.get('simOpen',true)); }
   else { setFly(false); st.pos=null; st.trk=null; st.gs=null; st.alt=null; $('mapSec').hidden=true; fsApply();
     $('sAcc').textContent='—'; $('gpsDot').className='dot'; $('sGs').textContent='—'; $('sAlt').textContent='—';
-    $('adId').textContent='----'; $('adName').textContent='Waiting for position'; $('stack').innerHTML=''; $('list').innerHTML='';
+    $('adId').textContent='----'; $('adName').textContent='Waiting for position'; st.adShown=null; facBtn(); $('stack').innerHTML=''; $('list').innerHTML='';
     if(!watching) $('startBox').hidden=false; }
 }
 function simFold(open){ $('simBody').hidden=!open; $('simToggle').setAttribute('aria-expanded',open); $('simBox').classList.toggle('collapsed',!open); ls.set('simOpen',open); simSummary(); }
@@ -3771,7 +3852,7 @@ function appUpdated(){ if(!APP_BUILT) return ''; const d=new Date(APP_BUILT), m=
   const ago= m<1?'just now' : m<60?Math.round(m)+' min ago' : m<48*60?Math.round(m/60)+' h ago' : Math.round(m/1440)+' days ago';
   return d.toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})+' ('+ago+')'; }
 function setFoot(){ $('foot').innerHTML=`${APP_BUILT?`<div class="upd">App updated <b>${appUpdated()}</b></div>`:''}<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). ${GEO&&GPS_ELLIPSOID?'GPS altitude: the phone gives height above the WGS84 ellipsoid, converted to height above mean sea level with the EGM96 geoid (0.25° grid, Australia), the datum of the SRTM terrain and the AIP. ':''} Data built ${DATA.built}.${META.next?` Next AIRAC (ERSA ${META.next[2]}) is stored and takes over at ${new Date(META.next[0]).toISOString().slice(0,16).replace('T',' ')} UTC.`:''}${URB.length?' Populous areas: ABS Urban Centres and Localities 2021 (CC BY 4.0).':''}<span id="offl"></span>`; offlineStatus(); }
-setFoot();
+setFoot(); facLoad();
 (function(){ // effective-date check: the loader picked the dataset in force (META.eff = 1600 UTC the day before the AIRAC date)
   const eff=META.ersa||META.dah; if(!eff) return;
   const d=META.eff? new Date(META.eff) : new Date(eff+' 00:00 UTC'); if(isNaN(d)) return;

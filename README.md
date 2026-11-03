@@ -136,6 +136,8 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 
 ## Runways and aerodrome diagram
 The aerodrome card's head (code, name, distance and arrow) stays at the top of the screen while you scroll down through the runways and frequencies; on a landscape tablet it sits under the top bar. In the runway diagram every runway number stays inside the box, whatever way track up turns it.
+- **ERSA FAC sheet:** under the aerodrome name, **ERSA FAC YMMB · 7 pages** opens that aerodrome's pages from the ERSA in the app (pdf.js), scrolled to its entry. **Zoom** doubles the width; **Open PDF** hands the file to the phone's own viewer. The sheet is from the same ERSA cycle as the frequencies on screen. An entry that starts or ends part way down a page shares that page with its neighbour, so it is shown whole. Each sheet is stored on the phone the first time it's opened; the sheets for your flight plan and Go to aerodromes are fetched in the background while you have signal, so they open offline in flight. Aerodromes without an ERSA entry have no button.
+
 The aerodrome card shows a small runway diagram and a runway list.
 - **Diagram:** runways are drawn to scale and labelled with their designators. You appear as an arrow, or on the edge of the diagram with your distance when you're further out, so you can see which side you're joining from. It follows the main map's track-up or north-up setting.
 - **List:** designator, length, surface and right-hand circuits, e.g. "17L/35R 1,341 m sealed 35R RH". Tap an RH tag for ERSA's conditions (Moorabbin's day and night circuit directions, for example). Other circuits are left-hand unless ERSA says otherwise.
@@ -268,6 +270,7 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - **Clearance request (trial):** when the NEXT CLASS alert finds class A, C or D airspace (or a control zone) within 10 NM ahead at your level, the first call in the list is a clearance request. A transit of a control zone goes to the approach unit ERSA lists for its aerodrome (by sector where there are several): "Avalon Approach, Bell 206 ALPHA BRAVO CHARLIE, 2 miles east of Torquay, 1,500 feet, received [ATIS YMAV], request clearance to transit [direction / via …] at 1,500 feet." When the zone's aerodrome is your Go to or in your flight plan (you're landing there), or ERSA lists no approach unit for it (Moorabbin), the call goes to the tower instead (the side of a split tower you are on), asking to track direct to the Go to point. The ATIS letter and route are yours to fill. It is a trial: check the wording against AIP ENR 1.1 and local procedures (some zones, such as Moorabbin, are entered with an inbound report at a reporting point rather than a clearance request).
 - **Key values** from ERSA are shown as chips: CTR entry altitude, circuit altitude, helicopter altitude, reporting points.
 - **ERSA local procedures:** the full text from ERSA (communications notes, local traffic regulations, flight procedures). With Helicopter selected, helicopter items are highlighted.
+- **Your own wording:** tap ✎ on any call to change how it's worded, e.g. at Moorabbin "…, inbound for the southern approach." The call is shown as a template: {station}, {type}, {callsign}, {position}, {level}, {atis}, {runway} and {place} take the values of the moment, so the position and level stay current; tap a token to insert it, and words in [brackets] show as yours to fill. A preview shows the call as it would be said now. Save it for **this aerodrome** or **every aerodrome** (per procedure: tower or CTAF; an aerodrome's own wording wins over the every-aerodrome one). Your wording is marked YOURS (YOURS · ALL) and also used for the 10 NM inbound reminder row. **Back to the standard call** removes it. Kept on this device.
 
 ## AIRAC data sets
 `app/data.json` is the AIRAC in force when the app was built. `app/data-next.json`, if present, is the next one. The loader picks whichever is in force on the phone's clock: AIRAC data takes effect at 1600 UTC the day before the nominated date (AIP GEN 3.1 4.3). Both are stored for offline use. If the change happens while the app is open, a banner offers a reload. Build each one with `build_data.py` (current → `tools/data.json`, next → `tools/data-next.json`), then run `assemble.py`.
@@ -281,7 +284,8 @@ Under CTAF, open **Radio calls**. Enter your aircraft type and callsign, and cho
 - `sw.js`: the service worker that stores everything for offline use
 - `terrain/`: the SRTM tiles
 - `charts/`: the VTC/VNC tiles and their index
-- `lib/pdfjs/`: pdf.js, used only when importing a chart PDF on the phone
+- `ersa/<cycle>/`: the ERSA FAC sheets, one PDF per aerodrome, and `index.json` (ICAO → first and last ERSA page)
+- `lib/pdfjs/`: pdf.js, used when importing a chart PDF and to show the ERSA FAC sheets
 - `manifest.webmanifest`: install details, including the share target (POST `./share`, handled by the service worker) that takes a NAIPS briefing shared from another app as text or PDF
 
 `tools/` holds the build scripts (see Refresh data each AIRAC), `geoid.py` and `egm96_au.json` (the EGM96 geoid grid used to turn GPS altitude into height above mean sea level), `playthrough.js` and `fr24replay.js` (replay a plan or a recorded track through the app), and `notam-worker/`, the Cloudflare Worker traffic proxy for NOTAMs and traffic with its own README.
@@ -370,7 +374,10 @@ d['var']=dict(la0=-46,lo0=108,st=2,epoch=t,g=[[round(g.calculate(glat=la,glon=lo
 json.dump(d,open('data.json','w'),separators=(',',':'))
 P
 python3 assemble.py && cp dist/* ../app/
+python3 facsplit.py ../data/aip/<ersa>.pdf ../app/ersa/<DDMMMYYYY>   # FAC sheets, e.g. ../app/ersa/26NOV2026
 ```
+`facsplit.py` writes one PDF per aerodrome (about 750, 37 MB) and an `index.json` of its ERSA pages; the folder name is the ERSA date without spaces, for each of `data.json` and `data-next.json`. It can be run again (it skips sheets already up to date). `assemble.py` removes the folder of a cycle that has dropped out (from `dist/ersa/`; delete the old `app/ersa/<cycle>` yourself) and says when a data set has no sheets.
+
 The app warns you when the AIP data isn't effective yet, or is more than two cycles old.
 
 ## Update or add VTC / VNC charts
