@@ -276,7 +276,7 @@ dialog.opts::backdrop{background:rgba(0,0,0,.35)}
 #wbProfSel{font:600 14px var(--f-label);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink);max-width:220px}
 .wb-res{padding:8px 10px;border-radius:8px;margin:8px 0;font-size:13px} .wb-res.ok{background:color-mix(in srgb,var(--ok) 16%,transparent)} .wb-res.bad{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--ink)} .wb-res.bad b{color:var(--warn)}
 .wb-cv{display:block;width:100%;height:240px;margin:8px 0} .wb-cv.lat{height:150px}
-.wb-eu{margin:0 0 4px} .wb-eu select{font:600 14px var(--f-label);padding:5px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)} .wb-ls td{vertical-align:middle} .wb-ls small{color:var(--dim);font-size:10.5px} .wb-in{display:inline-flex;align-items:center;gap:4px} .wb-in input{width:74px;font:600 15px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)} .wb-ls tr.wb-e td{color:var(--dim)} .wb-ls tr.wb-tot td{border-top:2px solid var(--rule)}
+.wb-eu{margin:0 0 4px} .wb-gauge{font:600 14px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink);max-width:104px;font-size:13px;padding:6px 4px} .wb-eu select{font:600 14px var(--f-label);padding:5px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)} .wb-ls td{vertical-align:middle} .wb-ls small{color:var(--dim);font-size:10.5px} .wb-in{display:inline-flex;align-items:center;gap:4px} .wb-in input{width:74px;font:600 15px var(--f-mono);padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel);color:var(--ink)} .wb-ls tr.wb-e td{color:var(--dim)} .wb-ls tr.wb-tot td{border-top:2px solid var(--rule)}
 .wb-sug{margin:0;padding-left:18px;font-size:13px;line-height:1.45} .wb-sug li{margin:3px 0} .wb-sug li.fix::marker{content:'→ '} .wb-sug .w,.wb-sug li.w{color:var(--warn)}
 .pc-sec{font:700 11px var(--f-label);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px} .opts-tiles label{padding:6px 4px} .opts-tiles label>span:not(.tpv){flex:1 1 auto;min-width:0}
 .tpv{flex:none;width:250px;zoom:.56;pointer-events:none;margin-left:auto} .tpv .status{display:block;position:static;padding:0;margin:0;background:none} .tpv .st{margin:0} .tpv .st[hidden]{display:flex}
@@ -666,7 +666,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
       <div class="ctl"><button class="btn" id="cAtis" type="button" title="Note the ATIS letter, squawk, level and route">ATIS / clearance</button><span class="mono" id="cAtisNow"></span></div>
       <div class="calls-set">
         <label for="cType"><span class="lbl">Aircraft type</span><input id="cType" autocomplete="off" placeholder="Helicopter"></label>
-        <label for="cSign"><span class="lbl">Callsign</span><input id="cSign" autocomplete="off" autocapitalize="characters" placeholder="EAN or VH-EAN"><small class="cs-say" id="cSay"></small></label>
+        <label for="cSign"><span class="lbl">Callsign</span><input id="cSign" autocomplete="off" autocapitalize="characters" placeholder="ABC or VH-ABC"><small class="cs-say" id="cSay"></small></label>
       </div>
       <div class="calls-set">
         <label for="cCat"><span class="lbl">Category</span><select id="cCat"><option value="A">Aeroplane</option><option value="H">Helicopter</option></select></label>
@@ -747,9 +747,9 @@ body.fsm.fsm-tab #fsSheet{left:300px}
 
   <dialog class="opts pcdlg" id="wbDlg" aria-labelledby="wbTitle">
     <div class="opts-head"><b id="wbTitle">Weight &amp; balance</b><button class="btn" id="wbClose" aria-label="Close">✕</button></div>
-    <div class="pc-in"><label>Aircraft <select id="wbProfSel"></select></label><label>New from <select id="wbTpl"><option value="b206b3">Bell 206B-3 (91 gal)</option><option value="b206ab76">Bell 206A/B (76 gal)</option><option value="">Blank</option></select></label><button class="btn" id="wbNewP">New profile</button><button class="btn" id="wbCopy">Copy</button><button class="btn" id="wbDel">Delete</button></div>
+    <div class="pc-in"><label>Aircraft <select id="wbProfSel"></select></label><label>New from <select id="wbTpl"><option value="b206bw">Bell 206B (weighed)</option><option value="b206b3">Bell 206B-3 (91 gal)</option><option value="b206ab76">Bell 206A/B (76 gal)</option><option value="">Blank</option></select></label><button class="btn" id="wbNewP">New profile</button><button class="btn" id="wbCopy">Copy</button><button class="btn" id="wbDel">Delete</button></div>
     <details class="wb-prof" id="wbProf"><summary>Aircraft profile (from the POH and weighing report)</summary><div id="wbEd"></div></details>
-    <div class="pc-sec">Load</div><div class="pc-in wb-eu"><label>Weights in <select id="wbEuW"><option value="lb">lb</option><option value="kg">kg</option></select></label><label>Fuel in <select id="wbEuF"><option value="USG">US gal</option><option value="L">litres</option></select></label></div><div id="wbLoad"></div>
+    <div class="pc-sec">Load</div><div class="pc-in wb-eu"><label>Weights in <select id="wbEuW"><option value="lb">lb</option><option value="kg">kg</option></select></label><label>Fuel in <select id="wbEuF"><option value="USG">US gal</option><option value="L">litres</option><option value="gauge">gauge reading</option></select></label></div><div id="wbLoad"></div>
     <div id="wbOut"></div>
   </dialog>
   <details class="calls ntset" id="ntSet">
@@ -809,7 +809,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=d7ebc38545';
+    const s=document.createElement('script'); s.src='app.js?v=9ba7ae57b8';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

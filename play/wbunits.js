@@ -2,7 +2,7 @@
 const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
 (async()=>{ const b=await chromium.launch(); const p=await (await b.newContext({...PX9})).newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
  await p.goto('http://localhost:8811/index.html?sim=YBRS&alt=50&trk=000&gs=0'); await p.waitForFunction(()=>typeof wbCheck==='function'); await p.waitForTimeout(400);
- await p.evaluate(()=>{ localStorage.removeItem('rc_wb'); WB={profiles:[],cur:null,load:{}}; FP=null; $('fpWb').click(); const P=wbCur(); P.ew=1760.5; P.ea=116.1; P.el=0.2; WB.load[P.id]=[]; wbSave(); $('wbLoad').innerHTML=''; wbRender(); });
+ await p.evaluate(()=>{ localStorage.removeItem('rc_wb'); WB={profiles:[],cur:null,load:{}}; FP=null; $('fpWb').click(); { const q=wbFromTpl('b206b3'); WB.profiles=[q]; WB.cur=q.id; WB.load={}; WB.added={b206bw:1}; WB.eu={}; wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); } const P=wbCur(); P.ew=1760.5; P.ea=116.1; P.el=0.2; WB.load[P.id]=[]; wbSave(); $('wbLoad').innerHTML=''; wbRender(); });
  await p.selectOption('#wbEuW','kg'); await p.selectOption('#wbEuF','L'); await p.waitForTimeout(200);
  for(const [k,v] of [[0,'82'],[1,'68'],[2,'145'],[3,'27'],[5,'265']]){ await p.fill(`#wbLoad input[data-v="${k}"]`,v); await p.waitForTimeout(200); }
  await p.evaluate(()=>document.activeElement.blur()); await p.waitForTimeout(300);

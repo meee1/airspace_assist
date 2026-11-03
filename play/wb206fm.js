@@ -2,7 +2,7 @@
 const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
 (async()=>{ const b=await chromium.launch(); const p=await (await b.newContext({...PX9})).newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
  await p.goto('http://localhost:8811/index.html?sim=YBRS&alt=50&trk=000&gs=0'); await p.waitForFunction(()=>typeof wbCheck==='function'); await p.waitForTimeout(400);
- await p.evaluate(()=>{ localStorage.removeItem('rc_wb'); WB={profiles:[],cur:null,load:{}}; ls.set('pcBurn',100); ls.set('pcGs',100); FP=null; $('fpWb').click(); });
+ await p.evaluate(()=>{ localStorage.removeItem('rc_wb'); WB={profiles:[],cur:null,load:{}}; ls.set('pcBurn',100); ls.set('pcGs',100); FP=null; $('fpWb').click(); { const q=wbFromTpl('b206b3'); WB.profiles=[q]; WB.cur=q.id; WB.load={}; WB.added={b206bw:1}; WB.eu={}; wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); } });
  console.log('needs:', await p.evaluate(()=>$('wbOut').innerText.slice(0,120)));
  await p.evaluate(()=>{ const P=wbCur(); P.ew=1760.5; P.ea=116.1; P.el=0.2; wbSave(); wbRender(); });   // MM sample weight empty, for the test only
  // [pilot, fwd pax, aft pax(3), baggage(no arm), oil(fixed), fuel USG]

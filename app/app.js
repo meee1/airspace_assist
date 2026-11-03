@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793617640799;
+const APP_BUILT=1793692707984;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2403,13 +2403,14 @@ function wbSave(){ ls.set('wb',WB); }
 // profile's units, which the limits and the stored load use. WB.eu = {w, f}; empty = the profile's own units.
 const WB_KGLB=2.20462262, WB_LUSG=3.78541178;
 function wbEU(P){ const U=WB_U[P.u], e=WB.eu||{}; return {w:e.w||U.w, f:e.f||U.f}; }
-function wbToE(P,s,v){ if(v==null||v==='') return v; const E=wbEU(P), U=WB_U[P.u];   // profile units -> entry units
+function wbToE(P,s,v){ if(v==null||v==='') return v; const E=wbEU(P), U=WB_U[P.u]; if(E.f==='gauge') E.f='L';   // profile units -> entry units (a gauge reading shows as litres)
   if(s.k==='fuel') return E.f===U.f? v : E.f==='L'? v*WB_LUSG : v/WB_LUSG;
   return E.w===U.w? v : E.w==='kg'? v/WB_KGLB : v*WB_KGLB; }
-function wbFromE(P,s,v){ if(v==null) return v; const E=wbEU(P), U=WB_U[P.u];        // entry units -> profile units
+function wbFromE(P,s,v){ if(v==null) return v; const E=wbEU(P), U=WB_U[P.u]; if(E.f==='gauge') E.f='L';        // entry units -> profile units
   if(s.k==='fuel') return E.f===U.f? v : E.f==='L'? v/WB_LUSG : v*WB_LUSG;
   return E.w===U.w? v : E.w==='kg'? v*WB_KGLB : v/WB_KGLB; }
 const wbR1=v=>v==null||v===''? '' : String(Math.round(v*10)/10);
+function wbCal(P){ return String(P.fcal||'').split(/\n|;/).map(l=>l.trim().split(/\s*[,\t]\s*|\s+/)).filter(r=>r.length>=2&&r[0]&&isFinite(+r[1])).map(r=>({ind:r[0].toUpperCase(),L:+r[1]})); }
 function wbNew(name){ const id='p'+Date.now().toString(36); return {id,name:name||'My aircraft',u:'kg',maxW:null,ew:null,ea:null,el:null,dens:0.72,
   st:[{n:'Pilot',k:'seat',a:null,l:null,max:null},{n:'Front passenger',k:'seat',a:null,l:null,max:null},{n:'Rear seats',k:'seat',a:null,l:null,max:null},{n:'Baggage',k:'bag',a:null,l:null,max:null},{n:'Fuel',k:'fuel',a:null,l:null,max:null}],
   env:'',lenv:''}; }
@@ -2421,6 +2422,16 @@ function wbNew(name){ const id='p'+Date.now().toString(36); return {id,name:name
 // the chart starts at 2000 lb, the text gives 106.0-114.2 at any weight, so the envelope runs down to 1500 lb); lateral 3.0 in left,
 // 4.0 in right; front seat minimum 150 lb; baggage 250 lb (structural). Baggage compartment FS 131.0, 250 lb (Michael, 2 Nov 2026).
 const WB_TPL={
+  // A weighed Bell 206B JetRanger II (the owner's aircraft): its weighing summary / load data sheet (June 2026):
+  // empty 834.3 kg, arm 2945.1 mm, lateral +5.8 mm, datum 1401 mm fwd of the front jack pads (= Bell's 55.16 in),
+  // MTOW 1451.0 kg; empty-weight configuration "unusable fuel, full oils, 5 seats, nil ballast" (so no engine-oil item).
+  // Fuel: its fuel gauge calibration placard, full 360 L; arm 118.0 in (2997.2 mm, the 91 gal cell's), Bell Jet A 0.815 kg/L.
+  // Stations and limits from the Bell MM/FM converted to mm/kg (x25.4, /2.20462); FM chart mm values 2692.4 / 2829.6 / 2900.7.
+  b206bw:{name:'Bell 206B (weighed)',u:'kg',maxW:1451.0,dens:0.815,ew:834.3,ea:2945.1,el:5.8,minFront:68.0,
+    src:"the aircraft's weighing record (June 2026) and fuel gauge placard, BHT-206B-FM-1 and BHT-206A/B-SERIES-MM-2",
+    st:[{n:'Pilot (right)',k:'seat',a:1651.0,l:355.6,max:null},{n:'Fwd passenger (left)',k:'seat',a:1651.0,l:-279.4,max:null},{n:'Aft passengers (3)',k:'seat',a:2641.6,l:0,max:null},{n:'Baggage',k:'bag',a:3327.4,l:0,max:113.4},{n:'Fuel',k:'fuel',a:2997.2,l:0,max:360}],
+    env:'2692.4,680.4\n2692.4,1451.0\n2829.6,1451.0\n2900.7,1065.9\n2900.7,680.4', lenv:'-76.2,680.4\n-76.2,1451.0\n101.6,1451.0\n101.6,680.4',
+    fcal:'E,0\n5,26\n10,50\n15,74\n20,96\n25,110\n30,120\n35,136\n40,157\n45,170\n50,200\n55,213\n60,225\n65,244\n70,260\n75,279\nFULL,360'},
   b206b3:{name:'Bell 206B-3 (91 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8 and BHT-206B-FM-1 sections 1 and 4',env:'106.0,1500\n106.0,3200\n111.4,3200\n114.2,2350\n114.2,1500', lenv:'-3.0,1500\n-3.0,3200\n4.0,3200\n4.0,1500', minFront:150,
     st:[{n:'Pilot (right)',k:'seat',a:65.0,l:14.0,max:null},{n:'Fwd passenger (left)',k:'seat',a:65.0,l:-11.0,max:null},{n:'Aft passengers (3)',k:'seat',a:104.0,l:0,max:null},{n:'Baggage',k:'bag',a:131.0,l:0,max:250},{n:'Engine oil',k:'fixed',a:179.0,l:0,max:12.3},{n:'Fuel (91 gal)',k:'fuel',a:118.0,l:0,max:91}]},
   b206ab76:{name:'Bell 206A/B (76 gal)',u:'lb',maxW:3200,dens:6.8,src:'BHT-206A/B-SERIES-MM-2 ch 8 and BHT-206B-FM-1 sections 1 and 4',env:'106.0,1500\n106.0,3200\n111.4,3200\n114.2,2350\n114.2,1500', lenv:'-3.0,1500\n-3.0,3200\n4.0,3200\n4.0,1500', minFront:150,
@@ -2431,7 +2442,8 @@ for(const P of WB.profiles) if(/^BHT-206A\/B-SERIES-MM-2 ch 8$/.test(P.src||''))
   for(const s of P.st) if(s.k==='bag'&&/baggage/i.test(s.n)&&s.max==null) s.max=250; wbSave(); }
 // ... and before the baggage arm was known: FS 131.0 when still empty
 for(const P of WB.profiles) if(/^BHT-206/.test(P.src||'')) for(const s of P.st) if(s.k==='bag'&&/baggage/i.test(s.n)&&(s.a==null||!isFinite(s.a))){ s.a=131.0; wbSave(); }
-function wbFromTpl(key){ const T=WB_TPL[key]; if(!T) return wbNew(); const p=wbNew(T.name); Object.assign(p,JSON.parse(JSON.stringify(T)),{id:p.id,ew:null,ea:null,el:null}); return p; }
+if(WB.profiles.length&&!(WB.added||{}).b206bw){ const p=wbFromTpl('b206bw'); WB.profiles.unshift(p); WB.cur=p.id; WB.added={...(WB.added||{}),b206bw:1}; wbSave(); }   // once (2 Nov 2026)
+function wbFromTpl(key){ const T=WB_TPL[key]; if(!T) return wbNew(); const p=wbNew(T.name); Object.assign(p,JSON.parse(JSON.stringify(T)),{id:p.id}); if(T.ew==null) Object.assign(p,{ew:null,ea:null,el:null}); return p; }
 function wbCur(){ return WB.profiles.find(p=>p.id===WB.cur)||WB.profiles[0]||null; }
 function wbPoly(txt){ return String(txt||'').split(/\n|;/).map(l=>l.trim().split(/[\s,]+/).map(Number)).filter(r=>r.length>=2&&isFinite(r[0])&&isFinite(r[1])).map(r=>[r[0],r[1]]); }
 function wbIn(poly,x,y){ if(poly.length<3) return true; let c=false;   // ray casting; on the edge counts as inside (1e-6 slack)
@@ -2550,22 +2562,24 @@ function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=W
    <div class="wb-stw"><table class="pc-t wb-st"><tbody><tr><td class="k">Station</td><td class="k">Kind</td><td class="k">Arm ${U.a}</td><td class="k">Lateral</td><td class="k">Max ${U.w} · tank ${U.f} · fixed ${U.w}</td><td></td></tr>${P.st.map((s,k)=>`<tr data-k="${k}"><td><input data-s="n" value="${esc(s.n)}"></td><td><select data-s="k"><option value="seat"${s.k==='seat'?' selected':''}>seat</option><option value="bag"${s.k==='bag'?' selected':''}>baggage</option><option value="fuel"${s.k==='fuel'?' selected':''}>fuel tank</option><option value="fixed"${s.k==='fixed'?' selected':''}>fixed (always on)</option></select></td><td><input data-s="a" type="number" inputmode="decimal" step="any" value="${s.a==null?'':s.a}"></td><td><input data-s="l" type="number" inputmode="decimal" step="any" value="${s.l==null?'':s.l}" placeholder="0"></td><td><input data-s="max" type="number" inputmode="decimal" step="any" value="${s.max==null?'':s.max}"></td><td><button class="btn" data-s="del" aria-label="Remove ${esc(s.n)}">✕</button></td></tr>`).join('')}</tbody></table></div>
    <div class="ctl"><button class="btn" id="wbAddSt">Add station</button></div>
    <label class="wb-ta">CG envelope: one corner per line, "arm, weight", in order around the shape (POH)<textarea data-f="env" rows="5" spellcheck="false" placeholder="e.g.\n2340, 680\n2340, 1000\n2480, 1135\n2550, 1135\n2550, 680">${esc(P.env||'')}</textarea></label>
+   <label class="wb-ta">Fuel gauge calibration (optional): "indicated, litres" per line, from the placard<textarea data-f="fcal" rows="3" spellcheck="false" placeholder="e.g.\nE, 0\n10, 50\nFULL, 360">${esc(P.fcal||'')}</textarea></label>
    <label class="wb-ta">Lateral CG limits (optional): "lateral arm, weight" per line<textarea data-f="lenv" rows="3" spellcheck="false" placeholder="e.g.\n-76, 680\n-76, 1135\n76, 1135\n76, 680">${esc(P.lenv||'')}</textarea></label>`;
   // load sheet
   const miss=wbReady(P);
   // load sheet: one row per station (weight box, arm, moment, how much more fits); the boxes are built once, the numbers update in place
-  const EU=wbEU(P); $('wbEuW').value=EU.w; $('wbEuF').value=EU.f;
+  const EU=wbEU(P), cal=wbCal(P); $('wbEuW').value=EU.w; $('wbEuF').value=EU.f; $('wbEuF').querySelector('[value=gauge]').hidden=!cal.length; if(EU.f==='gauge'&&!cal.length) $('wbEuF').value='L';
   if(!$('wbLoad').contains(document.activeElement)) $('wbLoad').innerHTML= miss.length? '' : `<table class="pc-t wb-ls"><tbody><tr><td class="k">Station</td><td class="k">Load</td><td class="k">Arm</td><td class="k">Moment</td><td class="k">Can add</td></tr>
     <tr class="wb-e"><td>Empty weight</td><td class="m">${wbFmtW(P,P.ew)}</td><td class="m">${wbFmtA(P,P.ea)}</td><td class="m" data-c="em"></td><td></td></tr>
     ${P.st.map((s,k)=>s.k==='fixed'?`<tr class="wb-e"><td>${esc(s.n)}</td><td class="m">${wbFmtW(P,+s.max||0)}</td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m">fixed</td></tr>`
-      :`<tr><td>${esc(s.n)}${s.max>0?`<br><small>max ${Math.round(wbToE(P,s,s.max))} ${s.k==='fuel'?EU.f:EU.w}</small>`:''}</td><td><span class="wb-in"><input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null||s.a==null?'':wbR1(wbToE(P,s,vals[k]))}" placeholder="${s.a==null?'set its arm':'0'}"${s.a==null?' disabled title="Set this station\'s arm in the Aircraft profile first"':''}><small>${s.k==='fuel'?EU.f:EU.w}</small></span></td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m" data-c="r${k}"></td></tr>`).join('')}
+      :`<tr><td>${esc(s.n)}${s.max>0?`<br><small>max ${Math.round(wbToE(P,s,s.max))} ${s.k==='fuel'?(EU.f==='gauge'?'L':EU.f):EU.w}</small>`:''}</td><td><span class="wb-in">${s.k==='fuel'&&EU.f==='gauge'&&cal.length? (()=>{ const cur=vals[k]==null?null:wbToE(P,s,vals[k]); let best=null; for(const c of cal) if(cur!=null&&(best==null||Math.abs(c.L-cur)<Math.abs(best.L-cur))) best=c;
+        return `<select data-v="${k}" class="wb-gauge"><option value="">—</option>${cal.map(c=>`<option value="${c.L}"${best===c?' selected':''}>${esc(c.ind)} · ${c.L} L</option>`).join('')}</select>`; })() : `<input data-v="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]==null||s.a==null?'':wbR1(wbToE(P,s,vals[k]))}" placeholder="${s.a==null?'set its arm':'0'}"${s.a==null?' disabled title="Set this station\'s arm in the Aircraft profile first"':''}>`}<small>${s.k==='fuel'?(EU.f==='gauge'&&cal.length?'':EU.f==='gauge'?'L':EU.f):EU.w}</small></span></td><td class="m">${s.a==null?'—':wbFmtA(P,s.a)}</td><td class="m" data-c="m${k}"></td><td class="m" data-c="r${k}"></td></tr>`).join('')}
     <tr class="wb-tot"><td><b>Take-off</b></td><td class="m" data-c="tw"></td><td class="m" data-c="ta"></td><td class="m" data-c="tm"></td><td></td></tr></tbody></table>`;
   if(miss.length){ box.innerHTML=`<div class="vnote">To work out weight and balance, fill in: <b>${miss.map(esc).join(', ')}</b> (Aircraft profile, above). Use the numbers from your POH and the aircraft's current weighing report.</div>`; $('wbProf').open=true; return; }
   const r=wbCheck(P,vals), lenv=wbPoly(P.lenv).length>=3, mf=wbMaxFuel(P,vals), pf=r.pf;
   { const mom=v=>Math.round(v).toLocaleString('en-AU'), set=(c,t)=>{ const e=$('wbLoad').querySelector(`[data-c="${c}"]`); if(e) e.innerHTML=t; };
     set('em',mom(P.ew*P.ea));
     P.st.forEach((s,k)=>{ if(s.a==null) return; const w= s.k==='fixed'? (+s.max||0) : wbW(P,s,+vals[k]||0); set('m'+k, w?mom(w*s.a):'—');
-      if(s.k!=='fixed'){ const rm=wbRoom(P,vals,k); set('r'+k, rm==null? '<span class="w">—</span>' : rm<=0? '<span class="w">0</span>' : (s.k==='fuel'? Math.floor(wbToE(P,s,rm))+' '+EU.f : Math.floor(wbToE(P,s,rm))+' '+EU.w)); } });
+      if(s.k!=='fixed'){ const rm=wbRoom(P,vals,k); set('r'+k, rm==null? '<span class="w">—</span>' : rm<=0? '<span class="w">0</span>' : (s.k==='fuel'? Math.floor(wbToE(P,s,rm))+' '+(EU.f==='gauge'?'L':EU.f) : Math.floor(wbToE(P,s,rm))+' '+EU.w)); } });
     set('tw',wbFmtW(P,r.to.w)+(EU.w!==U.w?`<br><small>${Math.round(wbToE(P,{k:'seat'},r.to.w)).toLocaleString('en-AU')} ${EU.w}</small>`:'')); set('ta',wbFmtA(P,r.to.a)); set('tm',mom(r.to.w*r.to.a)); }
   r.path=wbPath(P,vals);
   let h=`<div class="wb-res ${r.ok?'ok':'bad'}"><b>${r.ok?'Within limits':'Out of limits'}</b>${r.ok?'':' · '+r.why.map(esc).join(' · ')}</div>`;
@@ -2583,7 +2597,7 @@ function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=W
   box.innerHTML=h; requestAnimationFrame(()=>{ const c=$('wbCv'); if(c) wbDraw(c,P,r,false); const cl=$('wbCvL'); if(cl) wbDraw(cl,P,r,true); }); }
 function wbSummary(){ const P=wbCur(); if(!P||wbReady(P).length) return null; const r=wbCheck(P,WB.load[P.id]||[]); return {P,r}; }
 // events
-$('fpWb').onclick=()=>{ if(!WB.profiles.length){ const p=wbFromTpl('b206b3'); WB.profiles.push(p); WB.cur=p.id; wbSave(); }
+$('fpWb').onclick=()=>{ if(!WB.profiles.length){ const p=wbFromTpl('b206bw'); WB.profiles.push(p); WB.cur=p.id; wbSave(); }
   wbRender(); const d=$('wbDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); };
 $('wbClose').onclick=()=>$('wbDlg').close();
 $('wbProfSel').onchange=()=>{ WB.cur=$('wbProfSel').value; wbSave(); $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); };
@@ -2593,7 +2607,7 @@ $('wbDel').onclick=()=>{ const P=wbCur(); if(!P||!confirmDel(P)) return; WB.prof
 function confirmDel(P){ const b=$('wbDel'); if(b.dataset.arm===P.id){ delete b.dataset.arm; b.textContent='Delete'; return true; } b.dataset.arm=P.id; b.textContent='Tap again to delete'; setTimeout(()=>{ if(b.dataset.arm){ delete b.dataset.arm; b.textContent='Delete'; } },4000); return false; }   // no browser confirm(): a second tap
 $('wbEd').addEventListener('input',e=>{ const P=wbCur(); if(!P) return; const t=e.target, f=t.dataset.f, sk=t.dataset.s, tr=t.closest('tr[data-k]');
   const nv=v=>v===''?null:+v;
-  if(f){ if(f==='name'||f==='env'||f==='lenv') P[f]=t.value; else if(f==='u'){ P.u=t.value; P.dens=WB_U[P.u].dens; $('wbEd').innerHTML=''; } else P[f]=nv(t.value); }
+  if(f){ if(f==='name'||f==='env'||f==='lenv'||f==='fcal') P[f]=t.value; else if(f==='u'){ P.u=t.value; P.dens=WB_U[P.u].dens; $('wbEd').innerHTML=''; } else P[f]=nv(t.value); }
   else if(sk&&tr&&sk!=='del'){ const s=P.st[+tr.dataset.k]; if(sk==='n'||sk==='k') s[sk]=t.value; else s[sk]=nv(t.value); if(sk==='k') $('wbLoad').innerHTML=''; }
   wbSave(); if(f==='name'){ const o=$('wbProfSel').selectedOptions[0]; if(o) o.textContent=P.name; } wbRenderSoon(); });
 $('wbEd').addEventListener('change',e=>{ if(e.target.tagName==='SELECT'){ $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); } });
@@ -3540,7 +3554,7 @@ function renderCalls(a,pick,varE){
   if(!pb.hidden && pb.dataset.k!==a.i+heli){ $('ersaProcBody').innerHTML=ersaProcHtml(a,heli); pb.dataset.k=a.i+heli; }
 }
 $('cType').value=ls.get('cType',''); $('cSign').value=ls.get('cSign','');
-/* callsign: type the registration (EAN, VH-EAN) or flight number and it is spelled with the ICAO phonetic alphabet.
+/* callsign: type the registration (ABC, VH-ABC) or flight number and it is spelled with the ICAO phonetic alphabet.
    VH- is dropped, as in Australian practice for VH-registered aircraft. Anything with spaces, or a single word longer than
    4 letters with no digits (e.g. RESCUE), is left as typed. */
 const PHON={A:'ALPHA',B:'BRAVO',C:'CHARLIE',D:'DELTA',E:'ECHO',F:'FOXTROT',G:'GOLF',H:'HOTEL',I:'INDIA',J:'JULIETT',K:'KILO',L:'LIMA',M:'MIKE',
@@ -3549,8 +3563,8 @@ const PHON={A:'ALPHA',B:'BRAVO',C:'CHARLIE',D:'DELTA',E:'ECHO',F:'FOXTROT',G:'GO
 function sayCallsign(raw){
   const t=(raw||'').trim().toUpperCase().replace(/\s+/g,' '); if(!t) return '';
   let c=t.replace(/[-.]/g,'');
-  if(/^VH ?[A-Z]{3}$/.test(c)) c=c.replace(/^VH ?/,'');               // VH-EAN -> EAN
-  else if(/\s/.test(t)) return t;                                      // already words: ECHO ALPHA NOVEMBER, POLAIR 31
+  if(/^VH ?[A-Z]{3}$/.test(c)) c=c.replace(/^VH ?/,'');               // VH-ABC -> ABC
+  else if(/\s/.test(t)) return t;                                      // already words: ALPHA BRAVO CHARLIE, POLAIR 31
   if(!/^[A-Z0-9]{1,8}$/.test(c) || (/^[A-Z]{5,}$/.test(c))) return t;   // RESCUE, LIFESAVER: say as typed
   return [...c].map(ch=>PHON[ch]).join(' ');
 }

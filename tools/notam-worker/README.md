@@ -47,5 +47,5 @@ folder keeps its old name.)
 ## Test locally (no network)
 - `node test.mjs`: the Worker against fake feeds (parsing, adsb.lol → adsb.fi fallback, errors, cache, CORS; tiles: key, origin and Australia checks, edge cache MISS → HIT, Esri errors).
 - `node mockserver.mjs`: the Worker on http://localhost:8812 with four fake aircraft around the first position asked
-  for (one converging, one proximate, one far, and VH-EAN itself); set the app's Traffic proxy to
+  for (one converging, one proximate, one far, and VH-ABC itself); set the app's Traffic proxy to
   `http://localhost:8812` (app served on :8811). It also serves fake Esri tiles on `/tile/…` (green checks) and prints how many came from the edge cache; the app test `play/satproxy.js` uses it to check the Sat layer, service-worker storage and offline display.

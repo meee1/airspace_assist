@@ -17,7 +17,7 @@ const LANDS=(process.argv[5]||'').split(',').filter(Boolean), BASE=process.argv[
  await p.goto(BASE+'?sim=-30,135&alt=0&trk=&gs=0'); await p.waitForFunction(()=>typeof render==='function' && typeof FP!=='undefined'); await p.waitForTimeout(300);   // app.js starts after data.json loads
  await p.setInputFiles('#fpFile',GPX); await p.waitForTimeout(300);
  await p.evaluate(async()=>{ document.getElementById('calls').open=true;
-   for(const [id,v] of [['cSign','ECHO ALPHA NOVEMBER'],['cType','Helicopter']]){ document.getElementById(id).value=v; document.getElementById(id).dispatchEvent(new Event('input')); }
+   for(const [id,v] of [['cSign','ALPHA BRAVO CHARLIE'],['cType','Helicopter']]){ document.getElementById(id).value=v; document.getElementById(id).dispatchEvent(new Event('input')); }
    const c=document.getElementById('cCat'); c.value='H'; c.dispatchEvent(new Event('change'));
    });
  const fp=await p.evaluate(()=>FP.pts.map(q=>({c:(q.c||q.n).toUpperCase(),la:q.la,lo:q.lo})));
