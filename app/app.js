@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793721743837;
+const APP_BUILT=1793769200630;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -317,12 +317,15 @@ const TLOG={pts:ls.get('tlog',[]), last:0};
    limited to a few MB); that copy is moved into IndexedDB once and removed. If IndexedDB isn't available the old
    localStorage way is used. */
 const LOGDB={db:null, n:0, ok:typeof indexedDB!=='undefined'}, LOG_KEEP=90*86400e3;
-function logDbOpen(){ return new Promise((ok,no)=>{ const r=indexedDB.open('radio-au',1);
-  r.onupgradeneeded=()=>{ const st_=r.result.createObjectStore('log',{autoIncrement:true}); st_.createIndex('t','t'); };
+// v2 adds store "tr": ADS-B traffic seen while flying with Traffic on, {t, r:[t, hex, reg, flt, type, lat, lon, alt ft MSL,
+// gs, trk, vs, gnd, level 0-3, NM from you]} (see trLogAdd)
+function logDbOpen(){ return new Promise((ok,no)=>{ const r=indexedDB.open('radio-au',2);
+  r.onupgradeneeded=()=>{ const db=r.result; for(const n of ['log','tr']) if(!db.objectStoreNames.contains(n)) db.createObjectStore(n,{autoIncrement:true}).createIndex('t','t'); };
   r.onsuccess=()=>ok(r.result); r.onerror=()=>no(r.error); }); }
 function logDbAdd(rows){ if(!LOGDB.db){ if(!LOGDB.ok) ls.set('tlog',TLOG.pts); return; }
   try{ const tx=LOGDB.db.transaction('log','readwrite'), os=tx.objectStore('log'); for(const r of rows) os.add({t:r[0],r});
-    if((LOGDB.n+=rows.length)>=60){ LOGDB.n=0; const cut=Date.now()-LOG_KEEP; os.index('t').openCursor(IDBKeyRange.upperBound(cut,true)).onsuccess=e=>{ const c=e.target.result; if(c){ c.delete(); c.continue(); } }; }
+    if((LOGDB.n+=rows.length)>=60){ LOGDB.n=0; const cut=Date.now()-LOG_KEEP; os.index('t').openCursor(IDBKeyRange.upperBound(cut,true)).onsuccess=e=>{ const c=e.target.result; if(c){ c.delete(); c.continue(); } };
+      try{ const tx2=LOGDB.db.transaction('tr','readwrite'); tx2.objectStore('tr').index('t').openCursor(IDBKeyRange.upperBound(cut,true)).onsuccess=e=>{ const c=e.target.result; if(c){ c.delete(); c.continue(); } }; }catch(e){} }
   }catch(e){ ls.set('tlog',TLOG.pts); } }
 async function logDbInit(){
   if(!LOGDB.ok) return;
@@ -544,10 +547,20 @@ async function trPoll(){
   try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),12000);   // the proxy may try two feeds (5 s each)
     const r=await fetch(`${u}/traffic?lat=${st.pos[0].toFixed(3)}&lon=${st.pos[1].toFixed(3)}&nm=25`,{signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(tm));
     const j=await r.json().catch(()=>({})); if(!r.ok||!Array.isArray(j.ac)) throw new Error((j.error||('HTTP '+r.status))+(Array.isArray(j.errors)&&j.errors.length? ' ('+j.errors.join('; ')+')' : ''));
-    TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.skip=Array.isArray(j.skipped)?j.skipped:[]; TR.err=null;
+    TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.skip=Array.isArray(j.skipped)?j.skipped:[]; TR.err=null; trLogAdd();
   }catch(e){ TR.err=String(e&&e.message||e).slice(0,220); }
   TR.busy=false; render(); }
 setInterval(trPoll,10000);   // ADS-B refresh: every 10 s
+// traffic into the flight log: every poll (10 s) while you're flying (20 kt+ in the last 5 min, so a hover mid-flight counts),
+// not in the simulator, without yourself. Last 6 h in memory (TRLOG) for the Flight log button; all in IndexedDB "tr" (90 days)
+const TRLOG=[]; let trFlyT=0;
+function trLogAdd(){ if(st.sim||!st.pos||!TR.t) return; const now=Date.now(); if(st.gs>=20) trFlyT=now; if(now-trFlyT>5*60e3) return;
+  const rows=[]; for(const t of trTargets()){ const a=t.a; if(a.la==null||a.lo==null) continue;
+    rows.push([Math.round(TR.t-(a.seen||0)*1000), a.hex||'', a.reg||'', a.flt||'', a.type||'', +(+a.la).toFixed(5), +(+a.lo).toFixed(5), t.alt!=null?Math.round(t.alt):null, a.gs!=null?Math.round(a.gs):null, a.trk!=null?Math.round(a.trk):null, a.vs!=null?Math.round(a.vs):null, a.gnd?1:0, t.lvl, +t.d.toFixed(2)]); }
+  if(!rows.length) return; TRLOG.push(...rows); const cut=now-6*3600e3; while(TRLOG.length&&TRLOG[0][0]<cut) TRLOG.shift();
+  if(LOGDB.db) try{ const tx=LOGDB.db.transaction('tr','readwrite'), os=tx.objectStore('tr'); for(const r of rows) os.add({t:r[0],r}); }catch(e){} }
+function trLogRead(from,to){ return new Promise(ok=>{ if(!LOGDB.db) return ok(TRLOG.filter(r=>r[0]>=from&&r[0]<=to)); const out=[];
+  try{ const q=LOGDB.db.transaction('tr').objectStore('tr').index('t').openCursor(IDBKeyRange.bound(from,to)); q.onsuccess=e=>{ const c=e.target.result; if(c){ out.push(c.value.r); c.continue(); } else ok(out); }; q.onerror=()=>ok(out); }catch(e){ ok(out); } }); }
 // targets relative to you: extrapolated along track (up to 30 s); height above MSL from GNSS altitude (ellipsoid - geoid), else pressure altitude
 // Own-aircraft filter (never alert on yourself): (1) the registration / flight id matches your callsign; (2) the hex
 // learnt for this callsign (rc_trOwnHex); (3) a target that moves with you: within 0.6 NM (feed lag at 100+ kt), track
@@ -645,11 +658,16 @@ function fpLogFix(){ if(!st.pos) return; const t=Date.now();
   TLOG.pts.push([t,+st.pos[0].toFixed(6),+st.pos[1].toFixed(6),st.alt!=null?Math.round(st.alt):null,st.gs!=null?Math.round(st.gs):null,st.trk!=null?Math.round(st.trk):null,st.acc!=null?Math.round(st.acc):null,FP?FP.i:null]);
   const cut=t-6*3600e3; while(TLOG.pts.length&&TLOG.pts[0][0]<cut) TLOG.pts.shift(); logDbAdd([TLOG.pts[TLOG.pts.length-1]]); }
 function fpLogEv(kind,a,b,d){ if(st.sim) return; const r=[Date.now(),'ev',kind,a,b,+d.toFixed(2)]; TLOG.pts.push(r); logDbAdd([r]); }
-function fpLogGpx(rows=TLOG.pts,title){ const fx=rows.filter(p=>p[1]!=='ev'), ev=rows.filter(p=>p[1]==='ev');
+function fpLogGpx(rows=TLOG.pts,title,tr=[]){ const fx=rows.filter(p=>p[1]!=='ev'), ev=rows.filter(p=>p[1]==='ev');
   const x=s=>String(s).replace(/[<&]/g,'');
   const pts=fx.map(p=>`<trkpt lat="${p[1]}" lon="${p[2]}">${p[3]!=null?`<ele>${(p[3]/3.28084).toFixed(1)}</ele>`:''}<time>${new Date(p[0]).toISOString()}</time><desc>gs ${p[4]} trk ${p[5]} acc ${p[6]} wp ${p[7]}</desc></trkpt>`).join('\n');
   const wpts=ev.map(e=>{ const f=fx.reduce((m,p)=>Math.abs(p[0]-e[0])<Math.abs(m[0]-e[0])?p:m,fx[0]||[e[0],0,0]); return `<wpt lat="${f[1]}" lon="${f[2]}"><time>${new Date(e[0]).toISOString()}</time><name>${x(e[2])} ${e[3]}->${e[4]}</name><desc>${e[5]} NM from waypoint</desc></wpt>`; }).join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n<trk><name>Radio Calls AU log${title?' · '+x(title):FP?' · '+x(FP.name):''}</name><trkseg>\n${pts}\n</trkseg></trk></gpx>`; }
+  // traffic (if logged): one track per aircraft, named by registration / flight and type, with its level and distance from you
+  const by=new Map(); for(const r of tr){ const k=r[1]||r[2]||r[3]; if(!k) continue; if(!by.has(k)) by.set(k,[]); by.get(k).push(r); }
+  const lvlTxt=['','far','near','WARNING'], trks=[...by.values()].map(L=>{ L.sort((a,b)=>a[0]-b[0]); const f=L.find(r=>r[2]||r[3])||L[0], top=Math.max(...L.map(r=>r[12]||0)), near=Math.min(...L.map(r=>r[13]));
+    return `<trk><name>${x(f[2]||f[3]||f[1])}${f[4]?' '+x(f[4]):''}</name><desc>ADS-B traffic${f[1]?' hex '+x(f[1]):''}${f[3]&&f[2]?' flight '+x(f[3]):''} · closest ${near.toFixed(1)} NM${top===3?' · traffic warning':''}</desc><type>traffic</type><trkseg>\n`+
+      L.map(r=>`<trkpt lat="${r[5]}" lon="${r[6]}">${r[7]!=null?`<ele>${(r[7]/3.28084).toFixed(1)}</ele>`:''}<time>${new Date(r[0]).toISOString()}</time><desc>gs ${r[8]} trk ${r[9]} vs ${r[10]}${r[11]?' gnd':''} · ${r[13]} NM from you${r[12]>=2?' · '+lvlTxt[r[12]]:''}</desc></trkpt>`).join('\n')+`\n</trkseg></trk>`; }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n<trk><name>Radio Calls AU log${title?' · '+x(title):FP?' · '+x(FP.name):''}</name><trkseg>\n${pts}\n</trkseg></trk>${trks?'\n'+trks:''}</gpx>`; }
 // Flight plan aerodromes take priority over "closest" so the right calls are on screen in time:
 //  1. the next aerodrome in the plan, once within 10 NM (the CTAF inbound/overflying call point)
 //  2. when the active waypoint is one of that aerodrome's ERSA VFR reporting points (e.g. ACE for Moorabbin), within 15 NM,
@@ -1370,8 +1388,9 @@ async function logsRender(){ const el=$('optsLogs');
     const rp=e.target.closest('[data-rp]'); if(rp){ const f=L[+rp.dataset.rp]; rpLoad(f.rows.filter(r=>r[1]!=='ev').map(r=>({t:r[0],la:r[1],lo:r[2],alt:r[3],gs:r[4],trk:r[5]})),fmt(f.t0)); $('optsDlg').close(); fsShow($('simBox')); return; }
     const ed=e.target.closest('[data-ed]'); if(ed){ const [fi,li]=ed.dataset.ed.split(':').map(Number); logEdit(L[fi],li,ed.closest('.lg')); return; }
     const b=e.target.closest('[data-log]'); if(!b) return; const f=L[+b.dataset.log];
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0))],{type:'application/gpx+xml'}));
-    a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }; }
+    trLogRead(f.t0-60e3,f.t1+60e3).then(tr=>{
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0),tr)],{type:'application/gpx+xml'}));
+    a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }); }; }
 function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=f.raw.findIndex(r=>String(r.off)===k), next=f.raw[idxRaw+1];
   row.insertAdjacentHTML('afterend',`<div class="lgedit"><label>From <input data-k="from" value="${esc(l.from)}"></label><label>To <input data-k="to" value="${esc(l.to)}"></label><label>Landings <input data-k="ldg" type="number" min="0" value="${l.ldg}" style="width:60px"></label>
     <span class="ctl">${next?'<button class="btn meta" data-a="merge">Merge with next leg</button>':''}${l.merged?'<button class="btn meta" data-a="unmerge">Split again</button>':''}<button class="btn meta" data-a="del">${l.del?'Restore':'Not a flight'}</button><button class="btn meta" data-a="save">Save</button></span></div>`);
@@ -2454,24 +2473,24 @@ function ntByLeg(N){ const P_=FP.pts, groups=new Map(), lab=k=>`Leg ${k}: ${P_[k
   return [...groups.entries()].sort((a,b)=>(parseInt(a[0].slice(4))||99)-(parseInt(b[0].slice(4))||99)); }
 function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vnote">Load or build a flight plan first.</div>'; return; }
   const alt=+$('pcAlt').value||1500, gs=Math.max(20,+$('pcGs').value||90), tv=$('pcDep').value||'';
-  const burn=+$('pcBurn').value||0, fob=+$('pcFuel').value||0; ls.set('pcAlt',alt); ls.set('pcGs',gs); ls.set('pcBurn',burn||null); ls.set('pcFuel',fob||null);
-  let dep=Date.now(); if(/^\d\d:\d\d$/.test(tv)){ const d=new Date(); d.setHours(+tv.slice(0,2),+tv.slice(3),0,0); if(d.getTime()<Date.now()-3600e3) d.setDate(d.getDate()+1); dep=d.getTime(); }
+  const burn=+$('pcBurn').value||0, fob=+$('pcFuel').value||0, resIn=$('pcRes').value.trim(); ls.set('pcRes', resIn!==''&&+resIn>=0? +resIn : null); ls.set('pcAlt',alt); ls.set('pcGs',gs); ls.set('pcBurn',burn||null); ls.set('pcFuel',fob||null);
+  ls.set('pcDep',tv?{v:tv,t:Date.now()}:null); const dep=pcDepMs(tv);
   const r=planCheck(alt,gs,dep), lt=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false});
   const fmtD=D=>D<10?D.toFixed(1):Math.round(D);
   let h=`<div class="pc-sec">${esc(FP.name||'Flight plan')} · ${fmtD(r.D)} NM · ${hmm(r.D/gs*3600e3)} at ${gs} kt · ${alt.toLocaleString('en-AU')} ft · dep ${lt(dep)} (${hhmmZ(dep)})</div>`;
   h+='<table class="pc-t"><tbody>'+r.ev.map(e=>`<tr class="${e.cl}"><td class="m">${fmtD(e.D)}</td><td class="m">${lt(e.t)}</td><td class="k">${e.k}</td><td>${e.html}</td></tr>`).join('')+'</tbody></table>';
-  let rem=fob, tot=0; const fl=r.legs.map(l=>{ const t=l.L/gs*3600e3, f=burn? t/3600e3*burn : 0; tot+=f; rem-=f; return {t,f,rem}; }), resv=burn*0.5;
-  if(burn) h+=`<div class="pc-sec">Time and fuel by leg (${burn} L/h${fob?', '+fob+' L on board, reserve 30 min = '+Math.round(resv)+' L':''})</div><table class="pc-t"><tbody>`+r.legs.map((l,k)=>`<tr class="${fob&&fl[k].rem<resv?'low':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="f">${fmtD(l.L)} NM</td><td class="f">${hmm(fl[k].t)}</td><td class="f">${Math.round(fl[k].f)} L</td><td class="f">${fob?Math.round(fl[k].rem)+' L left':''}</td></tr>`).join('')+`<tr><td class="k">Total</td><td class="f">${fmtD(r.D)} NM</td><td class="f">${hmm(r.D/gs*3600e3)}</td><td class="f">${Math.round(tot)} L</td><td class="f">${fob?Math.round(fob-tot)+' L left':''}</td></tr></tbody></table>`;
+  let rem=fob, tot=0; const fl=r.legs.map(l=>{ const t=l.L/gs*3600e3, f=burn? t/3600e3*burn : 0; tot+=f; rem-=f; return {t,f,rem}; }), RS=reserveFuel(FP.pts[0],FP.pts[FP.pts.length-1],dep,dep+r.D/gs*3600e3), resv=burn*RS.min/60;
+  if(burn) h+=`<div class="pc-sec">Time and fuel by leg (${burn} L/h${fob?', '+fob+' L on board, reserve '+RS.txt+' = '+Math.round(resv)+' L':', reserve '+RS.txt})</div><table class="pc-t"><tbody>`+r.legs.map((l,k)=>`<tr class="${fob&&fl[k].rem<resv?'low':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="f">${fmtD(l.L)} NM</td><td class="f">${hmm(fl[k].t)}</td><td class="f">${Math.round(fl[k].f)} L</td><td class="f">${fob?Math.round(fl[k].rem)+' L left':''}</td></tr>`).join('')+`<tr><td class="k">Total</td><td class="f">${fmtD(r.D)} NM</td><td class="f">${hmm(r.D/gs*3600e3)}</td><td class="f">${Math.round(tot)} L</td><td class="f">${fob?Math.round(fob-tot)+' L left':''}</td></tr></tbody></table>`;
   h+='<div class="pc-sec">LSALT by leg (highest terrain or NOTAM obstacle within 2 NM, +1000 ft)</div><table class="pc-t"><tbody>'+r.legs.map(l=>{ const b=l.hi, la_=l.alt!=null?l.alt:alt, w=b&&b.ft>=la_-500;
     return `<tr class="${b&&b.ft>=la_-50?'w':w?'a':''}"><td class="k">${esc(l.from.c||l.from.n||'')} → ${esc(l.to.c||l.to.n||'')}</td><td class="m">${fmtD(l.L)} NM${l.set?'<br>'+la_.toLocaleString('en-AU')+' ft':''}</td><td>${b?`<b>LSALT ${lsaltOf(b.ft).toLocaleString('en-AU')}</b> · highest ${Math.round(b.ft).toLocaleString('en-AU')} ft ${esc(b.what)} ${fmtD(b.D-l.D>=0?b.D-l.D:b.D)} NM into the leg`:'terrain not loaded'}${l.unk?' <i>(terrain partly loaded)</i>':''}</td></tr>`; }).join('')+'</tbody></table>';
   const N=ntRoute(), NL=ntByLeg(N); h+=`<div class="pc-sec">NOTAMs along the route (${N.length}), by leg</div>`+(N.length? '<table class="pc-t"><tbody>'+NL.map(([lab,ns])=>`<tr class="wp"><td class="k" colspan="2">${esc(lab)}</td></tr>`+ns.map(n=>`<tr><td class="k">${esc(n.loc||'')} ${esc(n.id||'')}</td><td>${esc((n.text||'').slice(0,240))}</td></tr>`).join('')).join('')+'</tbody></table>' : `<div class="vnote">${ntHave()?'None in the loaded briefing.':'No NAIPS briefing loaded: load one for NOTAMs, area status and obstacles.'}</div>`);
   { const S=wbSummary(); if(S){ const {P,r}=S, f=p=>`${wbFmtW(P,p.w)} CG ${wbFmtA(P,p.a)}`;   // weight and balance from your profile and load
-    h+=`<div class="pc-sec">Weight and balance (${esc(P.name)})</div><table class="pc-t"><tbody><tr class="${r.ok?'':'w'}"><td class="k">${r.ok?'OK':'OUT'}</td><td>Take-off ${f(r.to)}${r.ld?' · landing '+f(r.ld):''} · zero fuel ${f(r.zf)}${r.ok?'':' · <span class="w">'+r.why.map(esc).join(' · ')+'</span>'}${r.pf?` · fuel ${Math.round(r.F)} ${WB_U[P.u].f} on board, ${Math.ceil(r.pf.need)} needed with 30 min reserve${r.F<r.pf.need?' <span class="w">(short)</span>':''}`:''}</td></tr></tbody></table>`; } }
+    h+=`<div class="pc-sec">Weight and balance (${esc(P.name)})</div><table class="pc-t"><tbody><tr class="${r.ok?'':'w'}"><td class="k">${r.ok?'OK':'OUT'}</td><td>Take-off ${f(r.to)}${r.ld?' · landing '+f(r.ld):''} · zero fuel ${f(r.zf)}${r.ok?'':' · <span class="w">'+r.why.map(esc).join(' · ')+'</span>'}${r.pf?` · fuel ${Math.round(r.F)} ${WB_U[P.u].f} on board, ${Math.ceil(r.pf.need)} needed with ${r.pf.res} min reserve${r.F<r.pf.need?' <span class="w">(short)</span>':''}`:''}</td></tr></tbody></table>`; } }
   $('pcOut').innerHTML=h;
   $('pcStat').textContent= r.legs.some(l=>l.unk)? 'Some terrain along the route isn\'t loaded yet: checking again…' : 'Planned altitude, GS and departure are kept on this device. Tower hours and area status are at your ETA; check the ATIS, NOTAMs and ERSA before flight.';
   PC.text=`PLAN CHECK ${FP.name||''} ${fmtD(r.D)} NM ${alt} ft ${gs} kt dep ${lt(dep)}\n`+r.ev.map(e=>`${String(fmtD(e.D)).padStart(5)} NM ${lt(e.t)}  ${e.k.padEnd(8)} ${e.txt}`).join('\n')+'\n\nLSALT by leg\n'+r.legs.map(l=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${l.hi?'LSALT '+lsaltOf(l.hi.ft)+' (highest '+Math.round(l.hi.ft)+' ft '+l.hi.what+')':'terrain not loaded'}${l.unk?' (terrain partly loaded)':''}`).join('\n')+(burn?'\n\nTime and fuel\n'+r.legs.map((l,k)=>`${l.from.c||l.from.n} -> ${l.to.c||l.to.n}: ${hmm(fl[k].t)} ${Math.round(fl[k].f)} L${fob?' ('+Math.round(fl[k].rem)+' L left)':''}`).join('\n'):'')+'\n\nNOTAMs along the route\n'+NL.map(([lab,ns])=>lab+'\n'+ns.map(n=>`  ${n.loc||''} ${n.id||''}: ${n.text||''}`).join('\n')).join('\n')+'\n';
   if(r.legs.some(l=>l.unk)&&TER.ok&&(PC.retry=(PC.retry||0)+1)<=12&&$('pcDlg').open) setTimeout(pcRun,2000); else { PC.retry=0; if(r.legs.some(l=>l.unk)) $('pcStat').textContent='Terrain isn\'t available for part of the route (not downloaded, or offline): those legs\' LSALT may be low.'; } }
-$('fpCheck').onclick=()=>{ $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>30?Math.round(st.alt/100)*100:1500); $('pcGs').value=ls.get('pcGs',90); $('pcBurn').value=ls.get('pcBurn','')||''; $('pcFuel').value=ls.get('pcFuel','')||'';
+$('fpCheck').onclick=()=>{ { const v=ls.get('pcRes',null); $('pcRes').value= v==null? '' : v; } $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>30?Math.round(st.alt/100)*100:1500); $('pcGs').value=ls.get('pcGs',90); $('pcBurn').value=ls.get('pcBurn','')||''; $('pcFuel').value=ls.get('pcFuel','')||'';
   if(!$('pcDep').value){ const d=new Date(); $('pcDep').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
   if(FP) for(const p of FP.pts) terPrefetch(p.la,p.lo);
   const d=$('pcDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); PC.retry=0; pcRun(); };
@@ -2550,10 +2569,23 @@ function wbFuelSet(P,vals,f){ const v=vals.slice(); let r=f;   // f fuel units f
 function wbFuelTot(P,vals){ return P.st.reduce((t,s,k)=>t+(s.k==='fuel'?+vals[k]||0:0),0); }
 function wbFuelCap(P){ return P.st.reduce((t,s)=>t+(s.k==='fuel'?(s.max>0?s.max:0):0),0); }
 function wbBurnScale(P,vals,frac){ return vals.map((v,k)=>P.st[k].k==='fuel'? (+v||0)*frac : v); }   // tanks burn down together (proportionally)
+// final reserve fuel, CASA Part 91 MOS 19.02 (Table 19.02(2)), private / aerial work VFR: helicopter 20 min by day, 30 by
+// night; aeroplane 30 min by day, 45 by night (piston and turboprop). Night = the departure or arrival is outside first to
+// last light at that end. Category from Radio calls (Aeroplane / Helicopter). {min, heli, night, txt}
+// Plan check's Reserve min (ls pcRes) overrides it when set
+function reserveFuel(dep,arr,t0,t1){ const heli=$('cCat').value==='H', own=ls.get('pcRes',null);
+  const dark=(p,t)=>{ try{ return !!(p&&lastLight(p.la,p.lo,t).night); }catch(e){ return false; } }, night=dark(dep,t0)||dark(arr,t1);
+  const casa= heli? (night?30:20) : (night?45:30), what=`${heli?'helicopter':'aeroplane'}, VFR ${night?'night':'day'}`;
+  if(own!=null&&own>=0) return {min:+own, heli, night, own:true, casa, txt:`${+own} min (your setting${+own<casa?`; below the CASA ${casa} min for ${what}`:''})`};
+  return {min:casa, heli, night, casa, txt:`${casa} min (${what}, CASA Part 91 MOS 19.02)`}; }
+// Plan check's departure time (local HH:MM, today or tomorrow if more than an hour past), else now. Without an argument:
+// the one last used in Plan check, if within 12 h
+function pcDepMs(tv){ if(tv===undefined){ const o=ls.get('pcDep',null); tv= o&&o.v&&Date.now()-o.t<12*3600e3? o.v : ''; } if(!/^\d\d:\d\d$/.test(tv||'')) return Date.now(); const d=new Date(); d.setHours(+tv.slice(0,2),+tv.slice(3),0,0); if(d.getTime()<Date.now()-3600e3) d.setDate(d.getDate()+1); return d.getTime(); }
 function wbPlanFuel(P){   // the loaded plan: time at Plan check's GS, fuel at its burn (L/h; USG/h for lb profiles)
   const burnL=+ls.get('pcBurn',0)||0, gs=+ls.get('pcGs',90)||90; if(!FP||FP.pts.length<2||!burnL) return null;
   let D=0; for(let k=1;k<FP.pts.length;k++) D+=distBrg(FP.pts[k-1].la,FP.pts[k-1].lo,FP.pts[k].la,FP.pts[k].lo)[0];
-  const h=D/gs, burn=P.u==='lb'? burnL/3.785 : burnL; return {D, h, burn, trip:h*burn, need:(h+0.5)*burn}; }
+  const h=D/gs, burn=P.u==='lb'? burnL/3.785 : burnL, t0=pcDepMs(), rs=reserveFuel(FP.pts[0],FP.pts[FP.pts.length-1],t0,t0+h*3600e3);
+  return {D, h, burn, res:rs.min, resTxt:rs.txt, trip:h*burn, need:(h+rs.min/60)*burn}; }
 // check one loading: take-off, landing, zero fuel, and the burn line between them
 function wbCheck(P,vals,o={}){ const env=wbPoly(P.env), lenv=wbPoly(P.lenv), pf=wbPlanFuel(P), F=wbFuelTot(P,vals), why=[];
   const to=wbSum(P,vals), zf=wbSum(P,wbBurnScale(P,vals,0));
@@ -2574,13 +2606,13 @@ const wbFmtA=(P,a)=>(WB_U[P.u].ad?a.toFixed(1):Math.round(a).toLocaleString('en-
 function wbMaxFuel(P,vals){ const cap=wbFuelCap(P), step=P.u==='lb'?0.5:1; if(!cap) return null;
   for(let f=cap;f>=0;f-=step){ const v=wbFuelSet(P,vals,f), r=wbCheck(P,v,{noFront:1}); if(r.ok) return f; } return -1; }
 // smallest changes that make the loading fit: less fuel, move / leave out bags, swap passengers, add weight on the other side;
-// if one change isn't enough, the same with only the plan's fuel (+30 min); last, how much to offload
+// if one change isn't enough, the same with only the plan's fuel (+ final reserve, reserveFuel); last, how much to offload
 function wbFixes(P,vals){ const out=[], U=WB_U[P.u], F=wbFuelTot(P,vals), pf=wbPlanFuel(P), stepW=P.u==='lb'?2:1;
   { const sts=P.st.map((s,k)=>({s,k})).filter(x=>x.s.k==='seat'), a0=sts.length?Math.min(...sts.map(x=>x.s.a)):null, fr=sts.filter(x=>x.s.a===a0).reduce((t,x)=>t+(+vals[x.k]||0),0);
     if(P.minFront>0&&sts.length&&fr<P.minFront) out.push({cost:-1, planOk:true, txt:`Front seats need ${Math.ceil(P.minFront-fr)} ${U.w} more (minimum ${P.minFront} ${U.w}): a front passenger, or ballast as the Flight Manual allows`});
     if(wbCheck(P,vals,{noFront:1}).ok) return out; }   // only the front-seat minimum is short
   const mf=wbMaxFuel(P,vals);
-  if(mf!=null&&mf>=0&&F>mf){ const less=F-mf; out.push({cost:less*(P.dens||U.dens), planOk:!pf||mf>=pf.need, txt:`Carry ${Math.ceil(less)} ${U.f} less fuel (at most ${Math.floor(mf)} ${U.f})`+(pf? (mf>=pf.need? `: still enough for the plan plus 30 min (${Math.ceil(pf.need)} ${U.f})` : ` <span class="w">: not enough for the plan plus 30 min (${Math.ceil(pf.need)} ${U.f})</span>`) : '')}); }
+  if(mf!=null&&mf>=0&&F>mf){ const less=F-mf; out.push({cost:less*(P.dens||U.dens), planOk:!pf||mf>=pf.need, txt:`Carry ${Math.ceil(less)} ${U.f} less fuel (at most ${Math.floor(mf)} ${U.f})`+(pf? (mf>=pf.need? `: still enough for the plan plus ${pf.res} min reserve (${Math.ceil(pf.need)} ${U.f})` : ` <span class="w">: not enough for the plan plus ${pf.res} min reserve (${Math.ceil(pf.need)} ${U.f})</span>`) : '')}); }
   const ix=P.st.map((s,k)=>({s,k})), bags=ix.filter(x=>x.s.k==='bag'), seats=ix.filter(x=>x.s.k==='seat'), pax=seats.filter(x=>!/pilot|^p1\b/i.test(x.s.n));
   const single=(v,pre)=>{ const r=[];
     for(const A of bags){ const have=+v[A.k]||0; if(!have) continue;
@@ -2595,8 +2627,8 @@ function wbFixes(P,vals){ const out=[], U=WB_U[P.u], F=wbFuelTot(P,vals), pf=wbP
   const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
   out.push(...single(vals,'').map(f=>({...f,planOk:true,txt:cap(f.txt)})));
   if(!out.some(f=>f.planOk)&&pf&&F>pf.need){ const v=wbFuelSet(P,vals,pf.need);   // only the fuel the plan needs, then one more change
-    if(wbCheck(P,v,{noFront:1}).ok) out.push({cost:0,txt:`Carry only the plan fuel plus 30 min, ${Math.ceil(pf.need)} ${U.f}`});
-    else out.push(...single(v,`Carry ${Math.ceil(pf.need)} ${U.f} (plan + 30 min) and `).map(f=>({...f,planOk:true,cost:f.cost+1000}))); }
+    if(wbCheck(P,v,{noFront:1}).ok) out.push({cost:0,txt:`Carry only the plan fuel plus ${pf.res} min reserve, ${Math.ceil(pf.need)} ${U.f}`});
+    else out.push(...single(v,`Carry ${Math.ceil(pf.need)} ${U.f} (plan + ${pf.res} min) and `).map(f=>({...f,planOk:true,cost:f.cost+1000}))); }
   if(!out.some(f=>f.planOk)){ const v= pf&&F>pf.need? wbFuelSet(P,vals,pf.need) : vals, r=wbSum(P,v), over=r.w-P.maxW;
     out.push({cost:9e9, txt: over>0? `<span class="w">Too heavy by ${Math.ceil(over)} ${U.w}${v!==vals?` even with only the plan fuel (${Math.ceil(pf.need)} ${U.f})`:''}: offload people or bags</span>` : `<span class="w">The CG is outside the envelope with this load: rearrange or offload people or bags</span>`}); }
   return out.sort((x,y)=>(y.planOk?1:0)-(x.planOk?1:0)||x.cost-y.cost).slice(0,4); }
@@ -2676,7 +2708,7 @@ function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=W
   const cap=wbFuelCap(P);
   if(mf!=null) h+= mf<0? `<li class="w">No fuel load fits with these people and bags: see the fixes below.</li>` : `<li>Most fuel you can carry: <b>${Math.floor(mf)} ${U.f}</b>${cap&&mf>=cap?' (full tanks)':''} (${wbFmtW(P,mf*(P.dens||U.dens))})${pf&&pf.burn?`, about <b>${hmm(Math.max(0,mf/pf.burn)*3600e3)}</b> at ${Math.round(pf.burn*10)/10} ${U.f}/h`:''}.</li>`;
   else h+='<li>Add a fuel tank station with its capacity to see the most fuel you can carry.</li>';
-  if(pf){ const enough=r.F>=pf.need-1e-6; h+=`<li>Flight plan: ${pf.D<10?pf.D.toFixed(1):Math.round(pf.D)} NM, ${hmm(pf.h*3600e3)} at ${ls.get('pcGs',90)} kt: trip <b>${Math.ceil(pf.trip)} ${U.f}</b>, with 30 min reserve <b>${Math.ceil(pf.need)} ${U.f}</b>. ${enough?`On board ${Math.round(r.F)} ${U.f}: enough.`:`<span class="w">On board ${Math.round(r.F)} ${U.f}: ${Math.ceil(pf.need-r.F)} ${U.f} short</span>${mf!=null&&mf>=pf.need?` (up to ${Math.floor(mf)} ${U.f} fits)`:mf!=null&&mf>=0?' <span class="w">and the plan fuel doesn\'t fit with this load</span>':''}.`}</li>`; }
+  if(pf){ const enough=r.F>=pf.need-1e-6; h+=`<li>Flight plan: ${pf.D<10?pf.D.toFixed(1):Math.round(pf.D)} NM, ${hmm(pf.h*3600e3)} at ${ls.get('pcGs',90)} kt: trip <b>${Math.ceil(pf.trip)} ${U.f}</b>, with ${esc(pf.resTxt)} reserve <b>${Math.ceil(pf.need)} ${U.f}</b>. ${enough?`On board ${Math.round(r.F)} ${U.f}: enough.`:`<span class="w">On board ${Math.round(r.F)} ${U.f}: ${Math.ceil(pf.need-r.F)} ${U.f} short</span>${mf!=null&&mf>=pf.need?` (up to ${Math.floor(mf)} ${U.f} fits)`:mf!=null&&mf>=0?' <span class="w">and the plan fuel doesn\'t fit with this load</span>':''}.`}</li>`; }
   else h+=`<li>${FP&&FP.pts.length>1?'Set the burn rate in Plan check':'Load a flight plan and set the burn rate in Plan check'} to see the fuel for the flight and the landing CG.</li>`;
   if(!r.ok){ const fx=wbFixes(P,vals); h+= fx.length? fx.map(f=>`<li class="fix">${f.txt}</li>`).join('') : '<li class="w">No single change found: reduce the load or check the profile.</li>'; }
   h+='</ul><div class="vnote">From the profile you entered: check it against the POH and the current weighing report. Fuel burns from all tanks together; the CG is checked all the way from take-off to zero fuel.</div>';
@@ -3332,7 +3364,8 @@ $('fpSave').onclick=()=>{ if(!FP||!FP.pts.length) return; const P_=FP.pts, nm=q=
   dlFile(`${nm(P_[0])}-${nm(P_[P_.length-1])}-${new Date().toISOString().slice(0,10)}.gpx`,fpGpx(),'application/gpx+xml');
   const b=$('fpSave'); b.textContent='Saved'; setTimeout(()=>b.textContent='Save GPX',2000); };
 $('fpLog').onclick=()=>{ const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx()],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
+  const fx=TLOG.pts.filter(p=>p[1]!=='ev'), tr=TRLOG.filter(r=>r[0]>=fx[0][0]-60e3&&r[0]<=fx[fx.length-1][0]+60e3);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(TLOG.pts,undefined,tr)],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
 $('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
 $('fpClear').onclick=()=>{ FP_EDIT=false; fpSet(null); setGo(null); };
 $('fpLegs').addEventListener('change',e=>{ const t=e.target.closest('.altin'); if(!t||!FP) return; const k=+t.dataset.k, v=t.value.trim().toUpperCase();
