@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793795693932;
+const APP_BUILT=1793820781119;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -4230,6 +4230,9 @@ function appUpdated(){ if(!APP_BUILT) return ''; const d=new Date(APP_BUILT), m=
   return d.toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})+' ('+ago+')'; }
 function setFoot(){ $('foot').innerHTML=`${APP_BUILT?`<div class="upd">App updated <b>${appUpdated()}</b></div>`:''}<b>Not an authoritative source.</b> Always confirm against the current ERSA, charts and NOTAMs. Source order: <b>AIP first</b>. ERSA ${META.ersa||'—'} for aerodromes, CTAF, ATIS, AWIS, tower, approach and the area frequency listed for each aerodrome. DAH ${META.dah||'—'} for airspace classes, steps, area (FIA), class E and broadcast-area frequency boundaries (curved boundaries and features approximated). Aerodromes not in ERSA use the AIP default CTAF 126.7 unless inside a broadcast area. Anything not in the AIP is tagged with its source: VATPAC (controlling unit where ERSA has none), XC Australia, OurAirports. Terrain: ${TER.ok?'SRTM 30\u2033 grid (highest point per cell), loaded':'SRTM terrain not installed (see README)'}. Bearings magnetic (WMM ${DATA.var.epoch}). ${GEO&&GPS_ELLIPSOID?'GPS altitude: the phone gives height above the WGS84 ellipsoid, converted to height above mean sea level with the EGM96 geoid (0.25° grid, Australia), the datum of the SRTM terrain and the AIP. ':''} Data built ${DATA.built}.${META.next?` Next AIRAC (ERSA ${META.next[2]}) is stored and takes over at ${new Date(META.next[0]).toISOString().slice(0,16).replace('T',' ')} UTC.`:''}${URB.length?' Populous areas: ABS Urban Centres and Localities 2021 (CC BY 4.0).':''}<span id="offl"></span>`; offlineStatus(); }
 setFoot(); facLoad();
+// keep the "(… ago)" part current: it was worked out once when the page loaded, so an app left open kept saying "just now"
+setInterval(()=>{ const e=$('foot').querySelector('.upd b'); if(e) e.textContent=appUpdated(); },60000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ const e=$('foot').querySelector('.upd b'); if(e) e.textContent=appUpdated(); } });
 (function(){ // effective-date check: the loader picked the dataset in force (META.eff = 1600 UTC the day before the AIRAC date)
   const eff=META.ersa||META.dah; if(!eff) return;
   const d=META.eff? new Date(META.eff) : new Date(eff+' 00:00 UTC'); if(isNaN(d)) return;
