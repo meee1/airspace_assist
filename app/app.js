@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793785658126;
+const APP_BUILT=1793786841704;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2008,6 +2008,14 @@ $('perfBox').addEventListener('click',e=>{ const b=e.target.closest('[data-pf]')
   else if(k==='off'){ PF.on=false; ls.set('perfOn',false); $('optPerf').checked=false; pfShow(true); }
   else if(k==='copy'){ const t=pfText(); (navigator.clipboard&&navigator.clipboard.writeText? navigator.clipboard.writeText(t) : Promise.reject()).then(()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1500); }).catch(()=>{ dlFile('render-timing.txt',t,'text/plain'); }); } });
 $('optPerf').checked=PF.on; $('optPerf').addEventListener('change',()=>{ PF.on=$('optPerf').checked; ls.set('perfOn',PF.on); PF.st.clear(); PF.stack=[]; pfShow(true); render(); });
+// a new version took over while the app was open (the page itself is still the old one): offer a reload; and check for an
+// update whenever the app comes back to the front (a tablet left open for days otherwise keeps the old version)
+if('serviceWorker' in navigator){ const had=!!navigator.serviceWorker.controller;
+  const mine=(([...document.scripts].map(x=>x.src).find(x=>/app\.js\?v=/.test(x))||'').match(/v=([0-9a-f]+)/)||[])[1];
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(!had||!mine) return;   // only if this page's code isn't the one now published
+    fetch('index.html',{cache:'no-store'}).then(r=>r.text()).then(t=>{ const v=(t.match(/app\.js\?v=([0-9a-f]+)/)||[])[1]; if(v&&v!==mine) $('updBar').hidden=false; }).catch(()=>{}); });
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{}); }); }
+$('updBar').onclick=()=>location.reload();
 function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>no(new Error('could not load '+src)); document.head.appendChild(s); }); }
 async function chartImport(files){
   if(CH.busy) return; CH.busy=true; const prog=$('chartProg'); prog.hidden=false;

@@ -1,5 +1,5 @@
-const C='radio-au-2a13eebf62', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
-const CORE=['./','./index.html','./app.js','./data.json','./urban.json','./manifest.webmanifest','./icon-192.png','./icon-512.png','./data-next.json'];
+const C='radio-au-e08dd4438f', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
+const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./app.js?v=313d16d6ff','./urban.json?v=b7ee073b12','./data.json?v=f125575d9a','./data-next.json?v=a653815da6'];   // build files with the ?v= the page asks for
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
 const BUILD=/\/(app\.js|data\.json|data-next\.json|urban\.json)$/;
@@ -49,7 +49,10 @@ self.addEventListener('fetch',e=>{
   } else if(/\/terrain\/index\.json$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('terrain/index.json',n.clone()); return n; }).catch(()=>c.match('terrain/index.json'))));
   } else if(BUILD.test(u.pathname)){
-    e.respondWith(caches.open(C).then(c=>c.match(req,{ignoreSearch:true}).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));
+    // the exact version first (app.js?v=...): an older worker still in charge right after an update must not hand the new
+    // page its old app.js (a new page with old code: missing features). Not in this cache: the network, then (offline) any version
+    e.respondWith(caches.open(C).then(c=>c.match(req).then(r=>r||(u.search? timed(req,10000).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }).catch(()=>c.match(req,{ignoreSearch:true}).then(x=>x||Response.error()))
+      : c.match(req,{ignoreSearch:true}).then(x=>x||fetch(req))))));
   } else {   // the page and everything else: network first (3 s), then this build's cache; the page itself is the only fallback for a navigation
     e.respondWith(timed(req,3000).then(r=>{ if(r.ok){ const cp=r.clone(); caches.open(C).then(c=>c.put(req,cp)); return r; } return caches.match(req,{ignoreSearch:true}).then(x=>x||r); })
       .catch(()=>caches.match(req,{ignoreSearch:true}).then(r=>r||(req.mode==='navigate'? caches.match('./index.html') : Response.error()))));

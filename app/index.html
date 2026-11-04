@@ -241,6 +241,7 @@ details.fold:not([open]) .fold-i{width:14px;height:14px}
 .mapmenu{max-height:calc(100% - 16px);overflow:auto}
 dialog.opts{border:1px solid var(--rule);border-radius:12px;background:var(--panel);color:var(--ink);padding:14px;width:min(440px,calc(100vw - 32px));max-height:min(80vh,640px);box-shadow:0 10px 36px rgba(0,0,0,.35)}
 dialog.opts::backdrop{background:rgba(0,0,0,.35)}
+ #updBar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:10000;font:700 14px var(--f-label);letter-spacing:.04em;padding:10px 16px;border-radius:22px;border:0;background:var(--freq);color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.35)}
  #perfBox{position:fixed;left:6px;bottom:6px;z-index:9999;width:min(96vw,430px);max-height:46vh;overflow:auto;background:rgba(10,16,18,.88);color:#e6efe8;font:11px/1.35 var(--f-mono);padding:6px 8px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
 #perfBox table{width:100%;border-collapse:collapse} #perfBox td{padding:0 3px;white-space:nowrap} #perfBox td.n{text-align:right} #perfBox tr.h td{color:#9fe0b8;font-weight:700;padding-top:4px} #perfBox tr.w td.n{color:#ffb4a8}
 #perfBox .pb{display:flex;gap:6px;align-items:center;margin-bottom:4px} #perfBox .pb b{flex:1} #perfBox button{font:600 11px var(--f-mono);padding:3px 7px;border-radius:5px;border:1px solid #6b7b74;background:#1d2a2d;color:#e6efe8}
@@ -870,7 +871,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=fc0b199878';
+    const s=document.createElement('script'); s.src='app.js?v=313d16d6ff';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
@@ -879,5 +880,6 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
 </script>
 
 <div id="perfBox" hidden></div>
+<button type="button" id="updBar" hidden>App updated · tap to reload</button>
 </body>
 </html>

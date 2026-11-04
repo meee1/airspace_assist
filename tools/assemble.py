@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 #  - SRTM terrain tiles: all precached at install into a cache that survives app updates, then cache first
 #  - Google Fonts: cached on first use (system fonts are used until then)
 SW=r"""const C='radio-au-__VER__', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
-const CORE=['./','./index.html','./app.js','./data.json','./urban.json','./manifest.webmanifest','./icon-192.png','./icon-512.png'__NEXT__];
+const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png',__BUILDFILES__];   // build files with the ?v= the page asks for
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
 const BUILD=/\/(app\.js|data\.json|data-next\.json|urban\.json)$/;
@@ -56,7 +56,10 @@ self.addEventListener('fetch',e=>{
   } else if(/\/terrain\/index\.json$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('terrain/index.json',n.clone()); return n; }).catch(()=>c.match('terrain/index.json'))));
   } else if(BUILD.test(u.pathname)){
-    e.respondWith(caches.open(C).then(c=>c.match(req,{ignoreSearch:true}).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));
+    // the exact version first (app.js?v=...): an older worker still in charge right after an update must not hand the new
+    // page its old app.js (a new page with old code: missing features). Not in this cache: the network, then (offline) any version
+    e.respondWith(caches.open(C).then(c=>c.match(req).then(r=>r||(u.search? timed(req,10000).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }).catch(()=>c.match(req,{ignoreSearch:true}).then(x=>x||Response.error()))
+      : c.match(req,{ignoreSearch:true}).then(x=>x||fetch(req))))));
   } else {   // the page and everything else: network first (3 s), then this build's cache; the page itself is the only fallback for a navigation
     e.respondWith(timed(req,3000).then(r=>{ if(r.ok){ const cp=r.clone(); caches.open(C).then(c=>c.put(req,cp)); return r; } return caches.match(req,{ignoreSearch:true}).then(x=>x||r); })
       .catch(()=>caches.match(req,{ignoreSearch:true}).then(r=>r||(req.mode==='navigate'? caches.match('./index.html') : Response.error()))));
@@ -179,7 +182,8 @@ if os.path.isdir(fac_dir):
         if c not in fac_keep:
             try: shutil.rmtree(os.path.join(fac_dir,c)); print('removed expired ERSA FAC sheets',c)
             except OSError as e: print('note: could not remove',c,e)
-open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver).replace('__NEXT__',",'./data-next.json'" if len(sets)>1 else ''))
+_bf=["'./app.js?v=%s'"%av,"'./urban.json?v=%s'"%h(urbt)]+["'./%s'"%s_[1] for s_ in sets]
+open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver).replace('__BUILDFILES__',','.join(_bf)))
 json.dump({"name":"Radio Calls AU","short_name":"Radio AU","start_url":"./","display":"standalone","orientation":"any",
   "background_color":"#0d1417","theme_color":"#0d1417",
   "share_target":{"action":"./share","method":"POST","enctype":"multipart/form-data",   # Android: share a NAIPS briefing (text or PDF) to the installed app
