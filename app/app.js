@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793781215374;
+const APP_BUILT=1793782909958;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1522,7 +1522,7 @@ function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('c
   const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), nv=nearestVFR(st.pos[0],st.pos[1],1.5), pos=(nv?`over ${titleCase(nv.p.n)}, `:'')+`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
   const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
   const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(eta)):null, open=tw.length&&(ts?ts.on:true);
-  if(open){ let w=tw[0]; const tp=twrPick(ad,{a:ad,d,b}); if(tp&&tp.tw) w=tp.tw; else if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,st.pos[0],st.pos[1])[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }   // the tile's rules: side, and ERSA reporting-point rules (CARR -> 123.0)
+  if(open){ let w=tw[0]; const tp=twrPick(ad,{a:ad,d,b}); if(tp&&tp.tw) w=tp.tw; else if(tw.some(x=>x[4])) w=twrSideAt(ad,st.pos[0],st.pos[1])||w;   // the tile's rules: side, and ERSA reporting-point rules (CARR -> 123.0)
     return {f:w[2], sq:sqkOf(ad), html:mycRow(ad,'twr',{station:cn+' Tower',type:ty,callsign:cs,position:pos,level:lvl,atis:atisWord(ad.i)||'[ATIS '+ad.i+']',runway:'runway [XX]',place:cn}), txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound.`}; }
   const f=ctafInfo(ad).f||'126.7';
   return {f, html:mycRow(ad,'ctaf',{station:cn+' traffic',type:ty,callsign:cs,position:pos,level:lvl,atis:'[ATIS]',runway:'runway [XX]',place:cn}), txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, inbound, estimate circuit at time ${mm}, [joining intentions], ${cn}.`}; }
@@ -2564,13 +2564,14 @@ setInterval(()=>{ try{ aheadUI(); }catch(e){} },3000);
 // CTAF / tower (tower hours at ETA, split side), area / ATC changes, class changes, R/D/P areas (status at ETA), NOTAM
 // zones, obstacles within 1 NM, LSALT per leg (±2 NM, +1000 ft), last light; NOTAMs along the route listed after
 const PC={rows:[],text:''};
-function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new Set(), seenZ=new Set(), sqSeen=new Set(), legs=[]; let D0=0, prevC=null, prevA=null, unk=0;
+function planCheck(alt0,gs,dep){ let alt=alt0, smpWp=null; const pcMem={};   // smpWp: the waypoint the sampled leg goes to (CARR -> Moorabbin West)
+  const P_=FP.pts, ev=[], seenA=new Set(), seenZ=new Set(), sqSeen=new Set(), legs=[]; let D0=0, prevC=null, prevA=null, unk=0;
   const eta=D=>dep+D/gs*3600e3, add=(D,k,html,txt,cl='')=>ev.push({D,k,html,txt,cl,t:eta(D)});
   const ads=DATA.ap.filter(a=>(st.all||a.s==='E')&&(a.t!=='H'||st.heli));
   for(let k=0;k<P_.length;k++){ const p=P_[k];
     if(k>0){ const q=P_[k-1], [L]=distBrg(q.la,q.lo,p.la,p.lo), n=Math.max(1,Math.ceil(L/0.5)); alt= p.alt!=null? p.alt : alt0;   // the leg's own altitude, when set in the plan
       const ch=corridorHigh([[q.la,q.lo],[p.la,p.lo]],2); unk+=ch.unk; legs.push({k,from:q,to:p,L,hi:ch.best,D:D0,unk:ch.unk>ch.n*0.02,alt,set:p.alt!=null});
-      for(let j=1;j<=n;j++) sample(q.la+(p.la-q.la)*j/n, q.lo+(p.lo-q.lo)*j/n, D0+L*j/n);
+      smpWp=p.c||p.n||null; for(let j=1;j<=n;j++) sample(q.la+(p.la-q.la)*j/n, q.lo+(p.lo-q.lo)*j/n, D0+L*j/n);
       D0+=L; } else sample(p.la,p.lo,0);
     add(D0,'WP',`<b>${esc(p.c||p.n||'WP'+(k+1))}</b>${p.n&&p.c&&p.n!==p.c?' '+esc(titleCase(p.n)):''}`,(p.c||p.n||'WP'+(k+1)),'wp'); }
   function sample(la,lo,D){ const t=eta(D);
@@ -2578,7 +2579,7 @@ function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new
     let ad=null, dA=0; for(const x of ads){ if(Math.abs(x.la-la)>0.17||Math.abs(x.lo-lo)>0.25) continue; const d=distBrg(la,lo,x.la,x.lo)[0]; if(d<=10&&(!ad||d<dA)){ ad=x; dA=d; } }
     let c=null;
     if(ad){ const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(t)):null, open=tw.length&&(ts?ts.on:true), cn=callName(ad.n,ad.i);
-      if(open){ let w=tw[0]; if(tw.some(x=>x[4])){ const side=distBrg(ad.la,ad.lo,la,lo)[1]<180?'East':'West'; w=tw.find(x=>x[4]===side)||w; }
+      if(open){ let w=tw[0]; if(tw.some(x=>x[4])) w=twrSideAt(ad,la,lo,smpWp,pcMem)||w;
         c={key:'T'+w[2]+ad.i, lab:'TWR'+(w[4]?' '+w[4][0]:''), f:w[2], who:cn+' Tower', ad}; }
       else { const CI=ctafInfo(ad); c={key:'C'+(CI.f||'')+ad.i, lab:'CTAF', f:CI.f||'—', who:cn+' traffic'+(CI.src!=='ERSA'?' ('+CI.src+')':''), ad}; } }
     else { const ba=baAt(la,lo); c= ba&&ba.f? {key:'B'+ba.f, lab:'CTAF', f:ba.f, who:titleCase(ba.n)+' broadcast area'} : {key:'-',quiet:true}; }   // no aerodrome within 10 NM: no row
@@ -2588,7 +2589,7 @@ function planCheck(alt0,gs,dep){ let alt=alt0; const P_=FP.pts, ev=[], seenA=new
     // area / ATC band at the planned altitude
     const tr=terrainFt(la,lo), AS=airStack(la,lo,tr!=null?tr:0), b=AS.bands.find(q=>alt>=q.L-50&&alt<q.H);
     if(b){ const kk=b.k==='CTR'?b.ctrCls:b.k, g=kk==='G'||kk==='E'; let f=b.f||'—', who=b.unit?unitShort(b.unit):'';
-      const sp=!g&&b.f? splitTwr(b.f,la,lo) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
+      const sp=!g&&b.f? splitTwr(b.f,la,lo,la,lo,smpWp,pcMem) : null; if(sp){ f=sp[2]; who=unitShort(sp[1]||b.unit)+' '+sp[4][0]; }
       const key=kk+'|'+f+'|'+who;
       if(!prevA||prevA.key!==key){ const lim=`${b.L<=0?'SFC':limTxt(b.L)}–${limTxt(b.H)}`;
         const zad= b.k==='CTR'? ctrApp(b).ad : null, at= zad&&zad.a? ` · ATIS ${zad.a[0]}` : '';
@@ -2947,10 +2948,10 @@ function nxPath(la,lo){
     D+=L; }
   return out; }
 // class at your altitude at a point: band class (CTR -> its class) plus any restricted/danger area you'd be inside
-function splitTwr(f,la,lo,cla=la,clo=lo){ // la/lo: you (which side); cla/clo: where to look for the aerodrome // a split tower (East/West) whose frequencies include f: the one for your side of it
+function splitTwr(f,la,lo,cla=la,clo=lo,wp,mem){ // la/lo: you (which side); cla/clo: where to look for the aerodrome // a split tower (East/West) whose frequencies include f: the one for your side of it
   const T=st.twrTile; if(T&&T.tp.split&&T.tp.side&&T.tp.twrs.some(t=>t[2]===f)) return T.tp.tw;   // the aerodrome on screen: its own rules (CARR etc.)
   for(const a of DATA.ap){ if(Math.abs(a.la-cla)>0.5||Math.abs(a.lo-clo)>0.6) continue; const tw=(a.x||[]).filter(x=>x[0]==='TWR'); if(!tw.some(t=>t[4])||!tw.some(t=>t[2]===f)) continue;
-    const side=distBrg(a.la,a.lo,la,lo)[1]<180?'East':'West'; return tw.find(t=>t[4]===side)||null; }
+    return twrSideAt(a,la,lo,wp,mem); }
   return null; }
 function clsKey(b,prd){ const k=b?(b.k==='CTR'?b.ctrCls:b.k):'?'; return {k, prd:prd||null, key:k+(prd?'|'+prd.n:'')}; }
 const clsCol=k=>k==='G'?'var(--ink)':`var(--as-${k==='A'?'c':String(k).toLowerCase()})`;
@@ -2977,11 +2978,15 @@ function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
       let la0=90,la1=-90,lo0=360,lo1=-360; for(const [a,o] of path){ la0=Math.min(la0,a); la1=Math.max(la1,a); lo0=Math.min(lo0,o); lo1=Math.max(lo1,o); }
       const pad=10/60, padl=pad/Math.cos(la*R);
       const ads=DATA.ap.filter(a=>(st.all||a.s==='E') && (a.t!=='H'||st.heli) && a.la>la0-pad&&a.la<la1+pad&&a.lo>lo0-padl&&a.lo<lo1+padl);
+      // arrival reporting points (CARR) near the path: once the path has passed within 2 NM of one, a split tower answers by its rule
+      const RPS=[]; for(const a of ads) for(const r of twrRules(a)){ const P=VWby.get(r.rp); if(P&&!RPS.some(q=>q.c===r.rp)) RPS.push({c:r.rp,la:P.la,lo:P.lo}); }
+      let viaRp=null;
       for(const [pa,po,D] of path){
+        for(const q of RPS) if(!viaRp&&Math.abs(q.la-pa)<0.05&&distBrg(pa,po,q.la,q.lo)[0]<2) viaRp=q.c;
         if(!NX.ctaf){ let best=null; for(const a of ads){ if(Math.abs(a.la-pa)>0.17) continue; const d=distBrg(pa,po,a.la,a.lo)[0]; if(d<=10&&(!best||d<best.d)) best={a,d}; }
-          if(best&&best.a!==adNow){ const f=ctafInfo(best.a).f; if(f&&f!==ctafNow) NX.ctaf={f,a:best.a,d:D}; } }
+          if(best&&best.a!==adNow){ let f=ctafInfo(best.a).f; const tw=(best.a.x||[]).filter(x=>x[0]==='TWR'); if(tw.some(t=>t[4])&&tw.some(t=>t[2]===f)){ const t=twrSideAt(best.a,pa,po,viaRp); if(t) f=t[2]; } if(f&&f!==ctafNow) NX.ctaf={f,a:best.a,d:D}; } }
         if(!NX.area||!NX.cls){ const t=terrainFt(pa,po), AS=airStack(pa,po,t!=null?t:0), b=AS.bands.find(b=>altFt>=b.L-50&&altFt<b.H)||AS.bands[AS.bands.length-1];
-          if(!NX.area && b&&b.f&&b.f!==(cur&&cur.f)) NX.area={f:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:b.unit,d:D};
+          if(!NX.area && b&&b.f&&b.f!==(cur&&cur.f)){ const sp=splitTwr(b.f,pa,po,pa,po,viaRp); NX.area={f:sp?sp[2]:b.f,k:b.k==='CTR'?b.ctrCls:b.k,unit:sp?(sp[1]||b.unit)+' '+sp[4]:b.unit,d:D}; }
           const bx=AS.bands.find(q=>altFt>=q.L-50&&altFt<q.H);   // no fallback band here: a gap in the data is not a class change
           const eta=Date.now()+(st.gs>20? D/st.gs*3600e3 : 0);   // an R area counts if it's on when you'd get there
           if(!NX.cls && D<=10 && bx){ const ck=clsKey(bx,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R'&&suaOn(q.n.split(' ')[0],eta))); if(ck.key!==clsNow && (ck.prd||/^(A|C|D)$/.test(ck.k))) NX.cls={...ck,b:bx,d:D}; } }
@@ -3633,7 +3638,7 @@ function pointFreqs(la,lo){   // map menu: every frequency for the pressed point
   let c='';
   if(ad){ const CI=ctafInfo(ad), tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad):null, open=tw.length&&(ts?ts.on:true);
     const dd=dA<0.3?'':` · ${dA<10?dA.toFixed(1):Math.round(dA)} NM`;
-    let side=null; if(open&&tw.some(x=>x[4])) side=distBrg(ad.la,ad.lo,la,lo)[1]<180?'East':'West';
+    let side=null; if(open&&tw.some(x=>x[4])){ const t=twrSideAt(ad,la,lo); side=t&&t[4]||null; }
     const L=[];
     if(CI.f) L.push(fq('CTAF',CI.f,(tw.length?(open?'outside TWR HR':'TWR closed'):'')+(CI.src!=='ERSA'?' '+esc(CI.src):''),open?'var(--dim)':''));
     if(ad.a) L.push(fq('ATIS',ad.a.join(' / ')));
@@ -3753,6 +3758,19 @@ function twrDep(a){   // -> {pt, brg} when you're departing this aerodrome: the 
     return null; }
   const g=GO&&st.pos&&distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]<0.5? GO : null;
   return g&&!at(g)? {pt:{la:g.la,lo:g.lo,c:g.c,n:g.n}, brg:distBrg(a.la,a.lo,g.la,g.lo)[1]} : null; }
+// the split tower's frequency for someone at la/lo (not on the field): ERSA's arrival rule first (Moorabbin: RWY 17/35 in
+// use, from the S via CARR -> 123.0 West, though CARR is just east of south) when within 3 NM of the reporting point, heading
+// for it (wp), or in that sector; then the side of the aerodrome you're on. Arrivals only: not while departing it.
+function twrSideAt(a,la,lo,wp,mem){ const tw=(a.x||[]).filter(x=>x[0]==='TWR'); if(!tw.some(t=>t[4])) return null;
+  const [d,b]=distBrg(a.la,a.lo,la,lo); if(mem&&d<0.5&&mem[a.i]) return mem[a.i];   // over the field: the side you came in on
+  const r_=twrSideAt0(a,la,lo,wp,tw,d,b); if(mem) mem[a.i]=r_; return r_; }
+function twrSideAt0(a,la,lo,wp,tw,d,b){ const sel=$('cRwy'), rwySel=sel&&sel.dataset.ad===a.i? sel.value : '';
+  const departing= st.pos&&Math.abs(st.pos[0]-la)<1e-6&&Math.abs(st.pos[1]-lo)<1e-6&&twrDep(a);
+  if(!departing&&d>=0.5) for(const r of twrRules(a)){
+    if(rwySel&&r.rwys.length&&!r.rwys.some(x=>rwySel.startsWith(x))) continue;
+    const P=VWby.get(r.rp), dP=P? distBrg(la,lo,P.la,P.lo)[0] : 99, sec={N:0,E:90,S:180,W:270}[r.from];
+    if((wp&&String(wp).toUpperCase()===r.rp)||dP<3||(sec!=null&&Math.abs(((b-sec)+540)%360-180)<=45)){ const t=tw.find(t=>t[2]===r.f); if(t) return t; } }
+  return tw.find(t=>t[4]===(b<180?'East':'West'))||tw[0]; }
 function twrRules(a){   // "[When RWY 17 or 35 in use,] ARR ... from the S ... report at CARR on 123.0" in the TWR evidence text
   if(a._twrRules) return a._twrRules; const out=[];
   for(const x of (a.x||[]).filter(x=>x[0]==='TWR'&&x[5])) for(const m of x[5].matchAll(/(?:When RWY ([0-9LRC]+(?:\s*(?:,|or|and)\s*[0-9LRC]+)*) in use,?\s*)?ARR[^/]*?from the ([NSEW])\b[^/]*?report at ([A-Z]{3,5}) on (\d{3}\.\d{1,3})/g))
