@@ -3211,12 +3211,19 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     const lower=CTLK.has(x.k)? vis.filter(o=>o!==x&&CTLK.has(o.k)&&baseOf(o)<baseOf(x)).map(o=>SPX.get(o)) : [];
     const okPt=(px,py)=>inScreenPoly(px,py,cl) && !lower.some(o=>px>=o.bb[0]&&px<=o.bb[2]&&py>=o.bb[1]&&py<=o.bb[3]&&inScreenPoly(px,py,o.sp));
     const S9=[[0,0],[-w/2,-hh/2],[w/2,-hh/2],[-w/2,hh/2],[w/2,hh/2],[0,-hh/2],[0,hh/2],[-w/2,0],[w/2,0]];
-    const fits=(px,py)=>S9.every(([dx,dy])=>okPt(px+dx,py+dy)) && !labels.some(b=>!(px-w/2>b[0]+b[2]+2||px+w/2<b[0]-2||py-hh/2>b[1]+b[3]+2||py+hh/2<b[1]-2));
+    const fits=(px,py)=>!labels.some(b=>!(px-w/2>b[0]+b[2]+2||px+w/2<b[0]-2||py-hh/2>b[1]+b[3]+2||py+hh/2<b[1]-2)) && S9.every(([dx,dy])=>okPt(px+dx,py+dy));   // the cheap overlap test first
     let lx=null, ly=null;
-    if(fits(c[0],c[1])){ lx=c[0]; ly=c[1]; }
+    // the search for a spot was most of this stage (thousands of point-in-polygon tests per label, every frame). Where the middle
+    // doesn't fit, the spot found last time (kept as lat/lon, per zoom) is tried before searching again, and a label with no room
+    // is looked for again at most once a second
+    const LC=MAP.lab||(MAP.lab=new Map()), lc=LC.get(x), now=performance.now();
+    if(fits(c[0],c[1])){ lx=c[0]; ly=c[1]; LC.delete(x); }
+    else if(lc&&lc.r===MAP.range&&lc.ll&&(()=>{ const q=P(lc.ll[0],lc.ll[1]); return fits(q[0],q[1])&&((lx=q[0]),(ly=q[1]),true); })()){}
+    else if(lc&&lc.r===MAP.range&&!lc.ll&&now-lc.t<1000){}
     else { let bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9; for(const q of cl){ bx0=Math.min(bx0,q[0]); by0=Math.min(by0,q[1]); bx1=Math.max(bx1,q[0]); by1=Math.max(by1,q[1]); }
       const cand=[]; for(let py=by0+hh/2;py<=by1-hh/2;py+=14) for(let px=bx0+w/2;px<=bx1-w/2;px+=14) cand.push([px,py,(px-c[0])**2+(py-c[1])**2]);
-      cand.sort((a,b)=>a[2]-b[2]); for(const [px,py] of cand){ if(fits(px,py)){ lx=px; ly=py; break; } } }
+      cand.sort((a,b)=>a[2]-b[2]); for(const [px,py] of cand){ if(fits(px,py)){ lx=px; ly=py; break; } }
+      if(LC.size>400) LC.clear(); LC.set(x,{r:MAP.range, t:now, ll: lx==null? null : invPx(lx,ly)}); }
     if(lx==null) continue;
     const box=[lx-w/2,ly-hh/2,w,hh];
     if(labels.some(b=>!(box[0]>b[0]+b[2]+2||box[0]+box[2]<b[0]-2||box[1]>b[1]+b[3]+2||box[1]+box[3]<b[1]-2))) continue;
