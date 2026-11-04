@@ -79,10 +79,17 @@ function inRing(la,lo,p){ let c=false;
     if((a[0]>la)!==(b[0]>la) && lo<(b[1]-a[1])*(la-a[0])/(b[0]-a[0])+a[1]) c=!c; }
   return c; }
 function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&lo<=bb[3]&&inRing(la,lo,x.p); }
+// airspaces whose box touches the 0.25° cell holding (la,lo), in ASP order; built the first time a cell is asked for.
+// airStack tested all ~1,200 boxes every update; a cell holds a few dozen.
+const ASPG=new Map();
+function aspNear(la,lo){ const i=Math.floor(la*4), j=Math.floor(lo*4), k=i*100000+j; let c=ASPG.get(k);
+  if(!c){ const a=i/4, b=a+.25, l=j/4, r=l+.25; c=ASP.filter(x=>x.bb[0]<=b&&x.bb[1]>=a&&x.bb[2]<=r&&x.bb[3]>=l); if(ASPG.size>2000) ASPG.clear(); ASPG.set(k,c); }
+  return c; }
+function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793790581043;
+const APP_BUILT=1793791516514;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -95,7 +102,7 @@ const GPS_ELLIPSOID=!/iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator
 const META=DATA.meta||{}, ASRC=META.airspace==='DAH'?'DAH':'XC';
 const SRC={E:'ERSA',X:'XC Aus',V:'VATPAC',O:'OurAirports'};
 function chip(src){ if(!src) return ''; const off=['ERSA','DAH','AIP','VTC','VNC','VTC/VNC'].includes(src); return `<span class="src ${off?'off':'unv'}">${src}</span>`; }
-function baAt(la,lo){ return ASP.find(x=>x.k==='BA'&&inAsp(x,la,lo)); }
+function baAt(la,lo){ return aspNear(la,lo).find(x=>x.k==='BA'&&inAsp(x,la,lo)); }
 function ctafInfo(a){
   const other = a.c && a.cS!=='E' ? {f:a.c, src:SRC[a.cS]||a.cS} : null;
   if(a.cS==='E') return {f:a.c, src:'ERSA', note:a.ct?'When tower not active':'Common traffic advisory', afru:a.afru};
@@ -127,7 +134,7 @@ for(const c of ['YMAV']){ const a=DATA.ap.find(x=>x.i===c); if(a&&!REV.some(r=>r
 function revAd(x){ if(x.k!=='CTR'&&x.k!=='D') return null; const r=REV.find(r=>x.n.startsWith(r.w)); if(!r) return null;
   const ts=twrStatus(r.a); return ts&&!ts.on? r : null; }
 function airStack(la,lo,gnd){
-  const hit=ASP.filter(x=>inAsp(x,la,lo)), rev=[];
+  const hit=aspAt(la,lo), rev=[];
   const ctl=hit.filter(x=>'A C D E CTR'.split(' ').includes(x.k)).filter(x=>{ const r=revAd(x); if(r){ rev.push({x,...r}); return false; } return true; });
   const bcta=ctl.length? Math.min(...ctl.map(x=>limFt(x.lo,x.lok,gnd,0))) : 99999;
   const L=x=>limFt(x.lo,x.lok,gnd,bcta), H=x=>limFt(x.hi,x.hik,gnd,bcta);
@@ -1029,7 +1036,7 @@ function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl',
   const L=$(P+'CtafLbl'), F=$(P+'Ctaf'), W=$(P+'CtafAd'); let ap=null;
   // top tile with no aerodrome within 10 NM of you (and not inside the control zone of an open tower): the broadcast area's
   // frequency where there is one, else 126.7, as the map menu does; the closest aerodrome stays on the card and the ATC row
-  if(P==='s'&&pk&&pk.d>10&&st.pos&&!(open&&ASP.some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)))){
+  if(P==='s'&&pk&&pk.d>10&&st.pos&&!(open&&aspNear(st.pos[0],st.pos[1]).some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)))){
     // no broadcast area either: the area frequency for your position and altitude (owner, 1 Nov 2026)
     const ba=baAt(st.pos[0],st.pos[1]); let f, lab='CTAF', who, cn;
     if(ba&&ba.f){ f=ba.f; who='broadcast area'; cn=titleCase(ba.n)+' broadcast area'; }
@@ -1057,7 +1064,7 @@ function adPlanned(a){ if(FP&&FP.pts.some(p=>(p.c||'').toUpperCase()===a.i||dist
 function towerApp(a){
   const apps=(a.x||[]).filter(x=>x[0]==='APP'); if(!apps.length||!st.pos||adPlanned(a)) return null;
   const alt=st.alt!=null?st.alt:0, t=terrainFt(st.pos[0],st.pos[1]);
-  if(distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]<3&&ASP.some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)&&alt<limFt(z.hi,z.hik,t!=null?t:0,0))) return null;   // in its zone within 3 NM of the field (circuit, departing): tower. Elsewhere in the zone you're transiting: approach (owner, 1 Nov 2026)
+  if(distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]<3&&aspNear(st.pos[0],st.pos[1]).some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)&&alt<limFt(z.hi,z.hik,t!=null?t:0,0))) return null;   // in its zone within 3 NM of the field (circuit, departing): tower. Elsewhere in the zone you're transiting: approach (owner, 1 Nov 2026)
   if(apps.length>1){ const fs=sectorsAt(st.pos[0],st.pos[1],alt).map(x=>x.f); const m=apps.find(x=>fs.includes(x[2])); if(m) return m; }
   return apps[0]; }
 // weather box on the aerodrome card (trial): the briefing's METAR/SPECI with wind, QNH, temperature, density altitude
@@ -1568,7 +1575,7 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
   const g=goTarget(), tgt=g&&g.ad, la=st.pos[0], lo=st.pos[1];
   const twrOpen=a=>{ const tw=(a.x||[]).filter(x=>x[0]==='TWR'); if(!tw.length) return false; const ts=twrStatus(a); return ts?ts.on:true; };
   const inCtl= st.curBand&&/^(A|C|D|CTR)$/.test(st.curBand.k)&&!(st.curBand.k==='CTR'&&/^(G|E)$/.test(st.curBand.ctrCls||''));   // in controlled airspace: you're talking to ATC, no CTAF transit calls
-  const openZone=a=>ASP.some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&DATA.ap.some(t=>t!==a&&Math.abs(t.la-a.la)<0.3&&Math.abs(t.lo-a.lo)<0.4&&twrOpen(t)&&inAsp(z,t.la,t.lo)));   // a strip under an open tower's zone (YAVE, YVPC)
+  const openZone=a=>aspNear(a.la,a.lo).some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&DATA.ap.some(t=>t!==a&&Math.abs(t.la-a.la)<0.3&&Math.abs(t.lo-a.lo)<0.4&&twrOpen(t)&&inAsp(z,t.la,t.lo)));   // a strip under an open tower's zone (YAVE, YVPC)
   const C=DATA.ap.filter(a=>Math.abs(a.la-la)<0.25&&Math.abs(a.lo-lo)<0.32&&(a===tgt||(!inCtl&&(st.all||a.s==='E')&&(a.t!=='H'||st.heli)&&!twrOpen(a)&&!openZone(a))));
   let hit=null;
   for(const a of C){ const [d,b]=distBrg(la,lo,a.la,a.lo), prev=INB.lastD[a.i]; INB.lastD[a.i]=d;
@@ -3089,7 +3096,7 @@ function ctafSplitPair(a,b){ // would the map (split on) cut between these two a
   if(!ls.get('ctafSplit',true)) return false;
   const fa=ctafInfo(a).f||'TWR '+a.i, fb=ctafInfo(b).f||'TWR '+b.i; if(fa===fb) return false;
   if(!ls.get('ctafSplit127',false)&&(fa==='126.7'||fb==='126.7')) return false;
-  const inCtr=x=>!(x.x&&x.x.some(y=>y[0]==='TWR'))&&ASP.some(z=>z.k==='CTR'&&inAsp(z,x.la,x.lo));
+  const inCtr=x=>!(x.x&&x.x.some(y=>y[0]==='TWR'))&&aspNear(x.la,x.lo).some(z=>z.k==='CTR'&&inAsp(z,x.la,x.lo));
   return !inCtr(a)&&!inCtr(b)&&distBrg(a.la,a.lo,b.la,b.lo)[0]<20; }
 function score(c,h){
   if(!st.ahead||!h) return c.d;
@@ -3174,8 +3181,8 @@ function render0(){
   // (YAVE in Avalon's). Tower closed: an ordinary CTAF aerodrome. The card and the controlled-aerodrome row still use the closest.
   const twrOpenNow=a=>{ const tw=(a.x||[]).filter(x=>x[0]==='TWR'); if(!tw.length) return false; const ts=twrStatus(a); return ts?ts.on:true; };
   const tHere=terrainFt(la,lo), aHere=st.alt!=null?st.alt:0;
-  const zoneTwr=cands.filter(c=>c.d<40&&twrOpenNow(c.a)&&ASP.some(z=>z.k==='CTR'&&inAsp(z,la,lo)&&inAsp(z,c.a.la,c.a.lo)&&aHere<limFt(z.hi,z.hik,tHere!=null?tHere:0,0)))[0];
-  const inOpenZone=a=>ASP.some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&cands.some(c=>c.d<40&&c.a!==a&&twrOpenNow(c.a)&&inAsp(z,c.a.la,c.a.lo)));   // a strip inside an open tower's zone (YAVE): under the tower, no CTAF area of its own
+  const zoneTwr=cands.filter(c=>c.d<40&&twrOpenNow(c.a)&&aspNear(la,lo).some(z=>z.k==='CTR'&&inAsp(z,la,lo)&&inAsp(z,c.a.la,c.a.lo)&&aHere<limFt(z.hi,z.hik,tHere!=null?tHere:0,0)))[0];
+  const inOpenZone=a=>aspNear(a.la,a.lo).some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&cands.some(c=>c.d<40&&c.a!==a&&twrOpenNow(c.a)&&inAsp(z,c.a.la,c.a.lo)));   // a strip inside an open tower's zone (YAVE): under the tower, no CTAF area of its own
   const tileC=cands.filter(c=>!twrOpenNow(c.a)&&!(c.d<15&&inOpenZone(c.a)));
   const nearPk=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0];
   let herePk= zoneTwr || [...tileC].sort((x,y)=>score(x,h)-score(y,h))[0] || {a:nearPk.a,d:999,b:nearPk.b};
@@ -3694,7 +3701,7 @@ const HRS={H24:'continuous',HJ:'sunrise to sunset',HN:'sunset to sunrise',NOTAM:
 const aspLim=(v,k)=> k==='NOTAM'?'NTM': k==='BCTA'?'BCTA': limTxt(v);
 function suaHere(la,lo){
   const S=(DATA.sua&&DATA.sua.areas)||{}, RA=(DATA.sua&&DATA.sua.ra)||{};
-  const hits=ASP.filter(x=>(x.k==='R'||x.k==='Q'||x.k==='P')&&inAsp(x,la,lo)).sort((a,b)=>(a.lo||0)-(b.lo||0));
+  const hits=aspNear(la,lo).filter(x=>(x.k==='R'||x.k==='Q'||x.k==='P')&&inAsp(x,la,lo)).sort((a,b)=>(a.lo||0)-(b.lo||0));
   const seen=new Set();
   return hits.filter(x=>!seen.has(x.n)&&seen.add(x.n)).map(x=>{
     const id=x.n.split(' ')[0], e=S[id], kind= x.k==='R'?'Restricted area': x.k==='P'?'Prohibited area': /^M/.test(id)?'Military operating area':'Danger area';

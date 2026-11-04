@@ -384,6 +384,8 @@ python3 assemble.py && cp dist/* ../app/
 
 - **Runways card cache** (`RWC` in template.html): `renderRunways` rewrites the runway list only when the aerodrome changes, and `drawAdMap` redraws the diagram only when its key changes (aerodrome, size, theme, track-up turn, your position to the pixel, heading, distance text). Size comes from a ResizeObserver and colours are read once per theme, so no forced layout/style pass per update. Was ~9 ms per update at CPU x4, now ~1 ms. Tests: play/rwperf.js (timing), play/rwcache.js (cached image == fresh draw; aerodrome, theme, resize redraw).
 
+- **Airspace grid index** (`aspNear` / `aspAt` in template.html): airspaces whose bounding box touches each 0.25° cell, built lazily the first time a cell is asked for, in ASP order. `airStack` and the CTR / BA / R-D lookups use it instead of scanning all ~1,200 airspaces. airStack ~2 ms -> ~0.1 ms at CPU x4 (and it runs several times per update). Tests: play/aspgrid.js (identical hits and order to a full scan at 20,000 points), play/asperf.js (timing).
+
 ## Open issues (follow up later)
 
 - **NAIPS area briefing download fails after a good login** (reported 4 Nov 2026 with the deployed worker, his own login, areas 9300). App message: "NAIPS didn't return a briefing (the page may have changed)". Detail: `page: Area Briefing status 200 · forms: frmAreaBriefing→/naips/Briefing/Area: BriefingArea1-5:text, Met:checkbox, Met:hidden, Notam:checkbox, Notam:hidden, HeadOfficeNotam:checkbox/hidden, Charts:checkbox/hidden, MidSigwxGpwt:checkbox/hidden, GPWTRegionalCharts:checkbox/hidden, ChartVariant, GPWTNationalCharts:checkbox/hidden, Validity:text, Reset:button`.
