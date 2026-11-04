@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793769200630;
+const APP_BUILT=1793777755712;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1405,7 +1405,7 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -1443,8 +1443,8 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
-const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapLead','mapLog'];
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapLog'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
 function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
@@ -1765,6 +1765,98 @@ function drawSat(g,W,Hh,P,inv,la,cosl,sc){
   if(SAT.lastErr&&!drew){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--warn'); g.fillText('Satellite: '+SAT.lastErr,8,18); }
   return drew; }
 function satUI(){ $('mapSat').setAttribute('aria-pressed',SAT.on&&!!satVia()); $('satVia').textContent= satVia()==='proxy'? 'Tiles come through your proxy ('+ntUrl().replace(/^https?:\/\//,'')+'), which holds the key: leave the key below empty.' : 'No proxy set: tiles come straight from Esri with the key below.'; $('satKey').value=SAT.key; $('satSrc').value=SAT.src; $('satOp').value=SAT.op; }
+// ---------- power lines: Geoscience Australia transmission lines (66 kV+, overhead), tools/powerlines.py -> powerlines.json
+// {src, got, l:[[kV, sub, underConstruction, [x0,y0,dx,dy,...] 1e-5 deg lon/lat]]}. Loaded once (the service worker keeps it).
+// Drawn with the Wires layer; the warning (Options, default on) works without it.
+const PL={on:ls.get('mapWire',false), warn:ls.get('wireWarn',true), d:null, busy:false, err:'', grid:new Map(), hit:null, said:new Map()}, PL_CELL=0.1, PL_AGL=500, PL_AHEAD=2;
+function plLoad(){ if(PL.d||PL.busy||PL.err==='none') return; PL.busy=true;
+  fetch('powerlines.json').then(r=>r.ok? r.json() : Promise.reject(new Error(r.status===404?'none':'HTTP '+r.status))).then(j=>{
+    const L=[]; for(const [kv,sub,uc,d] of j.l||[]){ const xy=new Float64Array(d.length); let x=0,y=0; const b=[1e9,1e9,-1e9,-1e9];
+      for(let i=0;i<d.length;i+=2){ x+=d[i]; y+=d[i+1]; const lo=x/1e5, la=y/1e5; xy[i]=lo; xy[i+1]=la; if(lo<b[0])b[0]=lo; if(la<b[1])b[1]=la; if(lo>b[2])b[2]=lo; if(la>b[3])b[3]=la; }
+      const k=L.length; L.push({kv,sub,uc,xy,bb:b});
+      for(let i=0;i<xy.length-2;i+=2){ const c0=Math.floor(Math.min(xy[i],xy[i+2])/PL_CELL), c1=Math.floor(Math.max(xy[i],xy[i+2])/PL_CELL), r0=Math.floor(Math.min(xy[i+1],xy[i+3])/PL_CELL), r1=Math.floor(Math.max(xy[i+1],xy[i+3])/PL_CELL);
+        for(let cx=c0;cx<=c1;cx++) for(let cy=r0;cy<=r1;cy++){ const key=cx+','+cy; let a=PL.grid.get(key); if(!a) PL.grid.set(key,a=[]); a.push(k,i); } } }
+    PL.d={src:j.src||'Geoscience Australia',got:j.got||'',L}; PL.busy=false; PL.err=''; render(); })
+  .catch(e=>{ PL.busy=false; PL.err=e.message==='none'?'none':String(e.message||e); }); }
+// first transmission line your track crosses within PL_AHEAD NM, while low (AGL < PL_AGL) and moving: {d NM, kv, k, la, lo, agl}
+function plAhead(){ if(!PL.d||!st.pos||st.trk==null||!(st.gs>=20)||st.alt==null) return null;
+  const t=terrainFt(st.pos[0],st.pos[1]); if(t==null) return null; const agl=st.alt-t; if(agl>=PL_AGL) return null;
+  const la0=st.pos[0], lo0=st.pos[1], cosl=Math.cos(la0*R), ex=Math.sin(st.trk*R)*PL_AHEAD, ey=Math.cos(st.trk*R)*PL_AHEAD;
+  const la1=la0+ey/60, lo1=lo0+ex/(60*cosl), seen=new Set(); let best=null;
+  for(let cx=Math.floor(Math.min(lo0,lo1)/PL_CELL);cx<=Math.floor(Math.max(lo0,lo1)/PL_CELL);cx++) for(let cy=Math.floor(Math.min(la0,la1)/PL_CELL);cy<=Math.floor(Math.max(la0,la1)/PL_CELL);cy++){
+    const a=PL.grid.get(cx+','+cy); if(!a) continue;
+    for(let j=0;j<a.length;j+=2){ const k=a[j], i=a[j+1], key=k+':'+i; if(seen.has(key)) continue; seen.add(key); const xy=PL.d.L[k].xy;
+      const ax=(xy[i]-lo0)*cosl*60, ay=(xy[i+1]-la0)*60, bx=(xy[i+2]-lo0)*cosl*60, by=(xy[i+3]-la0)*60;
+      const den=ex*(by-ay)-ey*(bx-ax); if(Math.abs(den)<1e-12) continue;
+      const u=(ax*(by-ay)-ay*(bx-ax))/den, v=(ax*ey-ay*ex)/den;   // u along your track (0..1), v along the line segment
+      if(u<0||u>1||v<0||v>1) continue; const d=u*PL_AHEAD;
+      if(!best||d<best.d) best={d, kv:PL.d.L[k].kv, k, la:la0+u*ey/60, lo:lo0+u*ex/(60*cosl), agl:Math.round(agl)}; } }
+  return best; }
+function plUI(){ const box=$('sWires'); if(PL.warn||PL.on) plLoad();
+  const h= PL.warn? plAhead() : null; PL.hit=h;
+  if(!h){ box.hidden=true; box.innerHTML=''; return; }
+  box.hidden=false; box.innerHTML=`<b>WIRES</b><span>${h.d<0.1?'now':h.d.toFixed(1)+' NM ahead'} · ${h.kv?h.kv+' kV ':''}power line · you're ${h.agl.toLocaleString('en-AU')} ft above terrain</span>`;
+  const last=PL.said.get(h.k)||0;
+  if(trVoiceOn()&&'speechSynthesis' in window&&Date.now()-last>90e3){ PL.said.set(h.k,Date.now()); try{ const m=Math.round(h.d), n=h.d<0.75?'half a mile':m+' mile'+(m>1?'s':''); const u=new SpeechSynthesisUtterance(`Wires ahead, ${n}`); u.rate=1.05; speechSynthesis.speak(u); }catch(e){} } }
+function drawWires(g,P,C,W,Hh,la,lo,reach,cosl,sc){
+  const hit=PL.warn? PL.hit : null; if(!(PL.on||hit)) return;
+  if(PL.on&&!PL.d){ plLoad(); if(PL.err){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--warn'); g.textAlign='left'; g.fillText(PL.err==='none'? 'Wires: no data yet (run tools/powerlines.py)' : 'Wires: '+PL.err,8,34); } }
+  if(PL.on&&PL.d&&MAP.range<=40){ const vb=[lo-reach/cosl,la-reach,lo+reach/cosl,la+reach], ink=C.ink, bg=C.bg;
+    g.save(); g.lineJoin='round'; g.lineCap='round';
+    const vis=PL.d.L.filter(l=>!(l.bb[2]<vb[0]||l.bb[0]>vb[2]||l.bb[3]<vb[1]||l.bb[1]>vb[3]));
+    for(const pass of [0,1]) for(const l of vis){ const xy=l.xy; g.beginPath();
+      for(let i=0;i<xy.length;i+=2){ const [x,y]=P(xy[i+1],xy[i]); i? g.lineTo(x,y) : g.moveTo(x,y); }
+      g.setLineDash(l.uc&&pass?[6,5]:[]); g.strokeStyle= pass? ink : bg; g.globalAlpha= pass? .85 : .8; g.lineWidth= pass? (l.kv>=220?2.2:1.6) : (l.kv>=220?5:4); g.stroke(); }
+    g.setLineDash([]);
+    // pylon ticks across the line every ~24 px (the chart symbol), and the voltage when close in
+    g.strokeStyle=ink; g.lineWidth=1.4; g.globalAlpha=.85; g.font='600 9.5px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle';
+    for(const l of vis){ const xy=l.xy; let acc=12, best=null;
+      for(let i=0;i<xy.length-2;i+=2){ const [x1,y1]=P(xy[i+1],xy[i]), [x2,y2]=P(xy[i+3],xy[i+2]), dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy); if(!L) continue;
+        const nx=-dy/L*4, ny=dx/L*4; let s=24-acc; g.beginPath(); while(s<L){ const px=x1+dx*s/L, py=y1+dy*s/L; g.moveTo(px-nx,py-ny); g.lineTo(px+nx,py+ny); s+=24; } g.stroke(); acc=(acc+L)%24;
+        if(MAP.range<=10&&l.kv&&(!best||L>best[4])&&x1>20&&x1<W-20&&y1>20&&y1<Hh-20) best=[x1+dx/2,y1+dy/2,dx,dy,L]; }
+      if(best&&best[4]>60){ let an=Math.atan2(best[3],best[2]); if(an>Math.PI/2) an-=Math.PI; if(an<-Math.PI/2) an+=Math.PI;
+        g.save(); g.translate(best[0],best[1]); g.rotate(an); g.lineWidth=3; g.strokeStyle=bg; g.strokeText(l.kv+' kV',0,-8); g.fillStyle=ink; g.fillText(l.kv+' kV',0,-8); g.restore(); } }
+    g.restore(); g.textBaseline='alphabetic'; g.textAlign='left';
+    g.font='500 9px "IBM Plex Sans", sans-serif'; g.textAlign='right'; const tx='Power lines: Geoscience Australia (CC BY 4.0)', yy=Hh-(SAT.on&&satVia()?16:4);
+    g.lineWidth=3; g.strokeStyle='rgba(255,255,255,.85)'; g.strokeText(tx,W-4,yy); g.fillStyle='#222'; g.fillText(tx,W-4,yy); g.textAlign='left'; }
+  if(hit){ const [x,y]=P(hit.la,hit.lo), red='#e3161b';   // where your track meets the line
+    g.save(); g.lineWidth=5; g.strokeStyle=C.bg; g.beginPath(); g.arc(x,y,9,0,2*Math.PI); g.stroke(); g.strokeStyle=red; g.lineWidth=2.5; g.beginPath(); g.arc(x,y,9,0,2*Math.PI); g.moveTo(x-5,y-5); g.lineTo(x+5,y+5); g.moveTo(x+5,y-5); g.lineTo(x-5,y+5); g.stroke(); g.restore(); } }
+$('mapWire').setAttribute('aria-pressed',PL.on);
+$('mapWire').onclick=()=>{ PL.on=!PL.on; ls.set('mapWire',PL.on); $('mapWire').setAttribute('aria-pressed',PL.on); if(PL.on){ if(PL.err&&PL.err!=='none') PL.err=''; plLoad(); } render(); };
+$('optWireWarn').checked=PL.warn; $('optWireWarn').addEventListener('change',()=>{ PL.warn=$('optWireWarn').checked; ls.set('wireWarn',PL.warn); render(); });
+
+// ---------- rain radar: RainViewer public API (personal use; latest of the last 2 h in 10-min steps; zoom 7 at most, about
+// 1 km a pixel; 100 requests a minute per IP). Frame list refreshed every 5 min while the layer is on; tiles drawn like Sat.
+const RAD={on:ls.get('mapRadar',false), host:'', fr:null, t:0, err:'', img:new Map(), busy:false, op:0.6};
+async function radPoll(force){ if(!RAD.on||RAD.busy||!navigator.onLine) return; if(!force&&RAD.fr&&Date.now()-RAD.t<5*60e3) return; RAD.busy=true;
+  try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),10000); const r=await fetch('https://api.rainviewer.com/public/weather-maps.json',{cache:'no-store',signal:ac.signal}).finally(()=>clearTimeout(tm));
+    const j=await r.json(); const p=j&&j.radar&&j.radar.past; if(!r.ok||!p||!p.length) throw new Error('no radar images'); const f=p[p.length-1];
+    if(!RAD.fr||RAD.fr.path!==f.path) RAD.img.clear(); RAD.host=j.host; RAD.fr=f; RAD.t=Date.now(); RAD.err=''; }
+  catch(e){ RAD.err= String(e&&e.message||e).slice(0,80); RAD.t=Date.now(); }
+  RAD.busy=false; if(MAP.last) drawMap(...MAP.last); }
+setInterval(()=>radPoll(),60e3);
+function radTile(z,x,y){ const key=z+'/'+x+'/'+y; let t=RAD.img.get(key);
+  if(!t){ const im=new Image(); t={im,ok:false}; RAD.img.set(key,t); im.crossOrigin='anonymous';
+    im.onload=()=>{ t.ok=true; clearTimeout(RAD.rt); RAD.rt=setTimeout(()=>{ if(MAP.last) drawMap(...MAP.last); },150); };
+    im.onerror=()=>{ setTimeout(()=>RAD.img.delete(key),60e3); };
+    im.src=`${RAD.host}${RAD.fr.path}/256/${z}/${x}/${y}/2/1_0.png`; }   // colour scheme 2 (Universal Blue, the only one left), smoothed, no snow
+  return t; }
+function drawRadar(g,W,Hh,P,inv,cosl,sc){ if(!RAD.on) return;
+  const lab=(tx,warn)=>{ g.font='600 10.5px "IBM Plex Mono", monospace'; g.textAlign='left'; const y=Hh-(MAP.traffic?24:8); g.lineWidth=3; g.strokeStyle=cssv('--bg'); g.strokeText(tx,8,y); g.fillStyle= warn? cssv('--warn') : cssv('--ink'); g.fillText(tx,8,y); };
+  if(!RAD.fr){ if(!RAD.err||Date.now()-RAD.t>60e3) radPoll(); lab(RAD.err? 'Radar: '+RAD.err : navigator.onLine? 'Radar: loading…' : 'Radar: offline',!!RAD.err); return; }
+  radPoll();
+  let z=Math.round(Math.log2(360*60*cosl*sc/256)); z=Math.max(3,Math.min(7,z)); const n=2**z;
+  const c=[inv(0,0),inv(W,0),inv(0,Hh),inv(W,Hh)], xs=c.map(q=>mercX(q[1],n)), ys=c.map(q=>mercY(q[0],n));
+  const x0=Math.floor(Math.min(...xs)), x1=Math.floor(Math.max(...xs)), y0=Math.max(0,Math.floor(Math.min(...ys))), y1=Math.min(n-1,Math.floor(Math.max(...ys)));
+  if((x1-x0+1)*(y1-y0+1)<=40){ const dpr=window.devicePixelRatio||1; g.save(); g.globalAlpha=RAD.op; g.imageSmoothingEnabled=true;
+    for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){ const t=radTile(z,((tx%n)+n)%n,ty); if(!t.ok) continue;
+      const a=P(mercLa(ty,n),mercLo(tx,n)), b=P(mercLa(ty,n),mercLo(tx+1,n)), d=P(mercLa(ty+1,n),mercLo(tx,n));
+      g.setTransform(dpr*(b[0]-a[0])/256, dpr*(b[1]-a[1])/256, dpr*(d[0]-a[0])/256, dpr*(d[1]-a[1])/256, dpr*a[0], dpr*a[1]); g.drawImage(t.im,-0.5,-0.5,257,257); }
+    g.restore(); }
+  const age=Math.round((Date.now()-RAD.fr.time*1000)/60e3), hm=new Date(RAD.fr.time*1000).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false});
+  lab(`Radar ${hm} (${age} min old) · RainViewer`, age>30); }
+$('mapRadar').setAttribute('aria-pressed',RAD.on);
+$('mapRadar').onclick=()=>{ RAD.on=!RAD.on; ls.set('mapRadar',RAD.on); $('mapRadar').setAttribute('aria-pressed',RAD.on); if(RAD.on) radPoll(true); render(); };
 function drawCharts(g0,W,Hh,inv){
   if(!CH.on||!CH.idx.length) return false;
   // drawn opaque into an offscreen canvas, then laid on the map at the chart opacity (the triangles overlap slightly)
@@ -2013,6 +2105,8 @@ function drawMap(la,lo,h,pick,AS,altFt){
       g.stroke(); } }
     g.globalAlpha=1;
   }
+  drawRadar(g,W,Hh,P,invPx,cosl,sc);
+  drawWires(g,P,C,W,Hh,la,lo,reach,cosl,sc);
   // CTAF layer: 10 NM around each aerodrome (and DAH broadcast areas), merged per frequency, one colour each
   const ctafAt=[];
   if(MAP.ctaf && MAP.range>80) $('ctafLeg').innerHTML='<span>CTAF areas show at 80 NM and closer</span>';   // hundreds of aerodromes: too slow to draw further out
@@ -3048,6 +3142,7 @@ function render(){
         return `<div class="vb ${on?'on':''} ${isP?'p':''}"><span class="mono">${limTxt(b.L)}–${b.hik==='NOTAM'?'NTM':limTxt(b.H)}</span><span><b class="cls c-${isP?b.k:cls}">${isP?(b.k==='R'?'R':'D'):cls}</b> ${esc(isP?b.n:(b.unit||b.n))} ${b.us&&b.us!=='ERSA'&&b.us!=='DAH'?chip(b.us):''}</span><span class="mono f">${b.f||''}</span></div>`;
       }).join('')+`<div class="vnote">The area frequency changes with altitude and with each CTA step. GPS altitude is geometric, not pressure altitude, so near a boundary go by your altimeter and the chart.</div></div>`;
   }
+  plUI();   // power line warning (before the map: it marks the crossing)
   drawMap(la,lo,h,pick,AS,altFt);
   $('stack').innerHTML=html;
 

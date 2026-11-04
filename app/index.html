@@ -314,7 +314,7 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 .mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog{font-size:12px;flex:1 1 0;min-width:0;padding:8px 4px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog,.mapctl #mapWire,.mapctl #mapRadar{font-size:12px;flex:1 1 0;min-width:66px;padding:8px 4px}
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -520,6 +520,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
+    <div class="st traffic wires" id="sWires" hidden role="alert"></div>
     <div class="st nxcls warn" id="sLastRow" hidden></div>
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
@@ -567,6 +568,8 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <button class="btn" id="mapSat" aria-pressed="false" title="Esri satellite imagery under the map (online only; needs your Esri API key in Options)">Sat</button>
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
+        <button class="btn" id="mapWire" aria-pressed="false" title="Power lines: Geoscience Australia transmission lines (66 kV and up; local distribution lines are not included)">Wires</button>
+        <button class="btn" id="mapRadar" aria-pressed="false" title="Rain radar from RainViewer, the latest image (10-minute steps, online only)">Radar</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
@@ -742,6 +745,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optFs"><span><b>Full-screen map</b><br><small>The map fills the screen. Phone: CTAF, AREA, ALT, TRK, GS, CLASS and the alerts float over it (tap them for the whole top bar). Tablet in landscape: the top bar is a column on the left. Everything else is in the sheet at the bottom: drag it up or tap a tab. Also the ⤢ button on the map.</small></span></label>
+      <label><input type="checkbox" id="optWireWarn"><span><b>Power line warning</b><br><small>A red WIRES row (and spoken, with Speak traffic alerts on) when your track crosses a transmission line within 2 NM while you're below 500 ft above the terrain, moving at 20 kt or more. Works with the Wires layer off. Only the 66 kV+ network from Geoscience Australia: local distribution lines are not included, so keep looking.</small></span></label>
       <label><input type="checkbox" id="optZoneHi"><span><b>Highlight the area you're in</b><br><small>The control zone you're inside, or the CTAF area of the aerodrome in the CTAF tile (cut where the map splits it), drawn with a bold edge and the distance to its nearest edge.</small></span></label>
       <label><input type="checkbox" id="optCtafSplit"><span><b>Split overlapping CTAF areas</b><br><small>Where two aerodromes with different CTAFs are less than 20 NM apart, their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency.</small></span></label><label><input type="checkbox" id="optCtafSplit127"><span><b>Split 126.7 areas too</b><br><small>Off: the grey 126.7 circles of strips without their own CTAF are drawn whole under the others and don't cut them, so a specific CTAF keeps its full 10 NM circle. On: they take part in the split like any other frequency.</small></span></label><label><input type="checkbox" id="optTerRainbow"><span><b>Rainbow topographic terrain</b><br><small>With <b>Terrain</b> on, colour the ground by height (sea-level teal through green, yellow and orange to purple on the highest ranges) instead of grey relief. Terrain at or above you is still marked: cross-hatched in red, and within 500 ft in orange.</small></span></label></div>
     <div class="lbl" style="margin-top:10px">Satellite imagery (Esri)</div>
@@ -862,7 +866,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=5ae5b1477b';
+    const s=document.createElement('script'); s.src='app.js?v=0760447980';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

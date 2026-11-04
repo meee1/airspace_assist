@@ -120,6 +120,10 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
   - **Credit:** Esri's credit line shows at the bottom right of the map, as their terms require.
   - **Caching:** through the proxy, Cloudflare keeps each tile for 30 days, so Esri is asked once per tile. The phone stores every tile you view (up to 6,000, the oldest dropped first), so areas you've looked at show again **offline**. Esri's free terms allow no revenue from the app and under a million tiles a month; the app only asks for the tiles on screen.
   - **Offline:** with a key and no proxy, tiles are only kept by the browser for a while. Without signal the map falls back to the charts and terrain, and an error line shows if tiles fail.
+- **Power lines (Wires):** the **Wires** button draws the transmission network from Geoscience Australia (66 kV and up, overhead) as dark lines with pylon ticks, dashed where under construction, with the voltage when you're zoomed to 10 NM. It shows at 40 NM and closer. **Local distribution lines (the 11/22 kV poles along roads and across farms) are not in the data**, so keep looking.
+  - **Warning:** with Options → **Power line warning** on (the default, and it works with the layer off), a red **WIRES** row appears when your track crosses one of these lines within 2 NM while you're below 500 ft above the terrain and moving at 20 kt or more, e.g. "WIRES 0.8 NM ahead · 220 kV power line · you're 340 ft above terrain". A red ⊗ marks the crossing on the map. With **Speak traffic alerts** on it also says "Wires ahead, 1 mile" (once per line every 90 s). It needs the terrain data, to know your height above the ground.
+  - **Data:** `app/powerlines.json` (about 480 KB, all of Australia). The app keeps it for offline use. Build or refresh it on a computer with internet: `python tools/powerlines.py` in the radio-au folder (it writes `tools/powerlines.json` and `app/powerlines.json`). Until it's there, the Wires layer says "no data yet".
+- **Rain radar:** the **Radar** button lays the latest RainViewer radar image over the map (Australian radars, 10-minute steps, about 1 km detail), with its time and age at the bottom left, in red once it's over 30 minutes old. Online only; the image list is refreshed every 5 minutes. RainViewer's free API is for personal and educational use.
 - **Legend:** tap an item (C, D / CTR, E, R, Danger, Area freq boundary, VFR waypoint, Terrain) to hide or show it on the map; hidden items are struck through and remembered. Terrain is the same switch as the Terrain button.
 - **Computer / landscape tablet:** the map takes the full window height left after its buttons and legends, so everything shows without scrolling, even with CTAF on.
 - **Press and hold** anywhere on the map (right-click on a computer; the note beside the zoom buttons is a reminder) for that point's details, with a crosshair marking it:
@@ -380,6 +384,7 @@ json.dump(d,open('data.json','w'),separators=(',',':'))
 P
 python3 assemble.py && cp dist/* ../app/
 python3 facsplit.py ../data/aip/<ersa>.pdf ../app/ersa/<DDMMMYYYY>   # FAC sheets, e.g. ../app/ersa/26NOV2026
+python3 powerlines.py                      # power lines from Geoscience Australia (needs internet; now and then, not every AIRAC)
 ```
 `facsplit.py` writes one PDF per aerodrome (about 750, 37 MB) and an `index.json` of its ERSA pages; the folder name is the ERSA date without spaces, for each of `data.json` and `data-next.json`. It can be run again (it skips sheets already up to date). `assemble.py` removes the folder of a cycle that has dropped out (from `dist/ersa/`; delete the old `app/ersa/<cycle>` yourself) and says when a data set has no sheets.
 

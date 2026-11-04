@@ -148,7 +148,7 @@ async function naips(req,env,ctx,H){
     if(!lf) return fail('login page',lp,'NAIPS login form not found');
     const li=await go(new URL(lf.action||'/naips/Account/LogOn',NB+'/').toString(),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Origin:'https://www.airservicesaustralia.com',Referer:NB+'/Account/LogOn'},body:form(lf,[['UserName',user],['Password',pass]]).toString()});
     if(blocked(li.html)) return fail('login',li,"NAIPS's bot protection refused the login from the Worker");
-    if(/id=["']frmLogon["']/i.test(li.html)){ const m=/validation-summary-errors[\s\S]*?<li>([\s\S]*?)<\/li>/i.exec(li.html)||/field-validation-error[^>]*>([\s\S]*?)</i.exec(li.html);
+    if(/id=["']frmLogon["']/i.test(li.html)){ const box=/validation-summary-errors[^>]*>([\s\S]*?)<\/(?:div|ul)>/i.exec(li.html), m=(box&&/<li>([\s\S]*?)<\/li>/i.exec(box[1]))||/field-validation-error[^>]*>([^<]+)</i.exec(li.html);   // only inside the error box (the page footer has list items too)
       return json({error:'NAIPS login failed'+(m?': '+decodeHtml(m[1].replace(/<[^>]+>/g,'')).trim():' (check the username and password)'), stage:'login'},401,H); }
     // 3. the area briefing form (for any hidden fields), 4. request the briefing as the app's button does
     const ap=await go(NB+'/Briefing/Area'); const af=pageForms(ap.html).find(f=>/Briefing\/Area/i.test(f.action)||f.inputs.some(i=>/^BriefingArea1$/i.test(i.name)));

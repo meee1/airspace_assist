@@ -1,4 +1,4 @@
-const C='radio-au-a5a981a76c', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', SAT_MAX=6000;
+const C='radio-au-f46e2b600c', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
 const CORE=['./','./index.html','./app.js','./data.json','./urban.json','./manifest.webmanifest','./icon-192.png','./icon-512.png','./data-next.json'];
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
@@ -14,7 +14,7 @@ async function precacheTerrain(){   // all SRTM tiles, a few at a time; safe to 
   }catch(e){}
 }
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S,SAT,E].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S,SAT,E,PLW].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
 self.addEventListener('message',e=>{ if(e.data==='precache') e.waitUntil(precacheTerrain()); });
 self.addEventListener('fetch',e=>{
   const req=e.request, u=new URL(req.url);
@@ -38,6 +38,8 @@ self.addEventListener('fetch',e=>{
     e.respondWith(caches.open(X).then(c=>c.match(req,{ignoreSearch:true}).then(r=>r||fetch(req).then(n=>{ if(n.ok&&/\/lib\//.test(u.pathname)) c.put(req,n.clone()); return n; }))));
   } else if(/\/ersa\/[^/]+\/[A-Z0-9]+\.pdf$/.test(u.pathname)){   // ERSA FAC sheets: cache first, kept across builds (the page drops expired cycles)
     e.respondWith(caches.open(E).then(c=>c.match(req,{ignoreSearch:true}).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));
+  } else if(/\/powerlines\.json$/.test(u.pathname)){   // power lines (tools/powerlines.py): network first (3 s), kept across builds for offline use
+    e.respondWith(caches.open(PLW).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('powerlines.json',n.clone()); return n; }).catch(()=>c.match('powerlines.json').then(r=>r||Response.error()))));
   } else if(/\/ersa\/[^/]+\/index\.json$/.test(u.pathname)){
     e.respondWith(caches.open(E).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }).catch(()=>c.match(req,{ignoreSearch:true}).then(r=>r||Response.error()))));
   } else if(/\/charts\/index\.json$/.test(u.pathname)){
