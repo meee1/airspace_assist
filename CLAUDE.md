@@ -388,6 +388,13 @@ python3 assemble.py && cp dist/* ../app/
 
 - **Airspace label spot cache** (`MAP.lab` in drawMap0): finding room for a label was most of the map's airspace stage (thousands of point-in-polygon tests per label every frame). Now: the middle of the visible part first (as before); if that doesn't fit, the spot found last time (kept as lat/lon, per zoom) is tried before searching again; a label with no room is searched for at most once a second. The cheap label-overlap test runs before the polygon tests. Labels 5-20 ms -> 1-3 ms per frame at CPU x4 (worst near YSSY). Labels now stay put while you move instead of re-centring. Tests: play/mapasp.js (timing), play/asplab.js (same labels as a fresh search).
 
+- **Map setup / terrain / DOM-write caches** (Nov 2026):
+  - `cssv()` caches theme colours per theme (`themeKey()`); the map's size comes from its ResizeObserver (`MAP.W/H`), not clientWidth. Map setup 6 ms -> 0.1 ms.
+  - Terrain layer cache (`TRC`, `drawTerrain`): 6 px cells worked out in a north-up canvas 1.25x the screen diagonal, drawn rotated/shifted each frame like the chart underlay. Cell heights are kept, so an altitude change (20 ft steps) only repaints; moving past the margin, zoom, new SRTM tiles (`TER.ver`) or theme rebuild it. 5 ms -> ~0.3 ms. The cells now follow the north-up grid (rotated squares in track up).
+  - Chart cache density capped at 2 px per CSS px (`CHC.dc`): 3x was a 3,500 px canvas in full screen.
+  - DOM writes that change nothing are skipped (patched setters near `const $`): same textContent, same `hidden`, same innerHTML string on an element whose children weren't replaced. Style/layout after an update 12 ms -> 4 ms; ~64 DOM changes per update -> 5.
+  - Totals at CPU x4 (classic): screen update 30 -> 16 ms, map 17 -> 5.5 ms. Headless Chromium rasterizes canvases in software, so full-screen figures and long tasks there are inflated; check the device's Render timing panel. Tests: play/timings.js [fs], play/layout.js, play/tercmp.js (needs an old build on :8813).
+
 ## Open issues (follow up later)
 
 - **NAIPS area briefing download fails after a good login** (reported 4 Nov 2026 with the deployed worker, his own login, areas 9300). App message: "NAIPS didn't return a briefing (the page may have changed)". Detail: `page: Area Briefing status 200 · forms: frmAreaBriefing→/naips/Briefing/Area: BriefingArea1-5:text, Met:checkbox, Met:hidden, Notam:checkbox, Notam:hidden, HeadOfficeNotam:checkbox/hidden, Charts:checkbox/hidden, MidSigwxGpwt:checkbox/hidden, GPWTRegionalCharts:checkbox/hidden, ChartVariant, GPWTNationalCharts:checkbox/hidden, Validity:text, Reset:button`.

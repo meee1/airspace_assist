@@ -1,5 +1,18 @@
 const DATA = window.__DATA;   // loaded from data.json / data-next.json by the loader in index.html
 const $ = id => document.getElementById(id);
+// Skip DOM writes that change nothing. render() rewrites ~60 texts, hidden flags and HTML blocks every update; even an identical
+// value makes the browser redo style and layout of the page (12 ms per update at CPU x4). Same text, same hidden flag, or the same
+// HTML string written to an element whose children haven't been replaced since, is now a no-op.
+(()=>{ const N=Object.getOwnPropertyDescriptor(Node.prototype,'textContent'), H=Object.getOwnPropertyDescriptor(HTMLElement.prototype,'hidden'),
+    I=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(N&&N.set) Object.defineProperty(Node.prototype,'textContent',{configurable:true, enumerable:N.enumerable, get:N.get, set(v){
+    const s=v==null?'':String(v), c=this.firstChild;
+    if(this.nodeType===1&&(s===''? !c : c&&c===this.lastChild&&c.nodeType===3&&c.data===s)) return; N.set.call(this,v); }});
+  if(H&&H.set) Object.defineProperty(HTMLElement.prototype,'hidden',{configurable:true, enumerable:H.enumerable, get:H.get, set(v){ if(H.get.call(this)===!!v&&typeof v==='boolean') return; H.set.call(this,v); }});
+  if(I&&I.set) Object.defineProperty(Element.prototype,'innerHTML',{configurable:true, enumerable:I.enumerable, get:I.get, set(v){
+    const s=String(v); if(this.__ih===s&&this.__ihF===this.firstChild&&this.__ihL===this.lastChild&&this.__ihN===this.childNodes.length) return;
+    I.set.call(this,s); this.__ih=s; this.__ihF=this.firstChild; this.__ihL=this.lastChild; this.__ihN=this.childNodes.length; }});
+})();
 const R = Math.PI/180, NM = 3440.065;
 const ls = {get(k,d){try{const v=localStorage.getItem('rc_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
             set(k,v){try{localStorage.setItem('rc_'+k,JSON.stringify(v))}catch(e){}}};
@@ -89,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793794027842;
+const APP_BUILT=1793795693932;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -191,7 +204,7 @@ async function terLoad(n){
   if(TER.busy.has(n)) return; TER.busy.add(n);
   try{ const r=await fetch('terrain/'+n+'.bin.z'); if(!r.ok) throw 0;
     const buf=await new Response(r.body.pipeThrough(new DecompressionStream('deflate'))).arrayBuffer();
-    TER.tiles.set(n,new Int16Array(buf)); render(); }catch(e){ TER.tiles.set(n,null); setTimeout(()=>{ if(TER.tiles.get(n)===null){ TER.tiles.delete(n); TER.busy.delete(n); } },30000); }   // failed (no signal yet?): try again in 30 s
+    TER.tiles.set(n,new Int16Array(buf)); TER.ver=(TER.ver||0)+1; render(); }catch(e){ TER.tiles.set(n,null); setTimeout(()=>{ if(TER.tiles.get(n)===null){ TER.tiles.delete(n); TER.busy.delete(n); } },30000); }   // failed (no signal yet?): try again in 30 s
 }
 function terrainFt(la,lo){ // max of the 4 surrounding 30" posts, feet; null = unknown
   if(!TER.ok) return null;
@@ -1050,10 +1063,11 @@ function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl',
   else if(open){ const t=tp.tw; L.textContent=pre+(tp.split&&t[4]&&tp.side? 'TWR '+t[4][0] : 'TWR'); F.textContent=t[2]; W.textContent=a.i+(tp.via?' · via '+tp.via.rp+(tp.via.rwys.length?' (RWY '+tp.via.rwys.join('/')+')':''):tp.split&&!tp.side?' · see ATIS':''); }
   else { L.textContent=pre+'CTAF'; F.textContent=CI.f||'—'; W.textContent=a.i; }
   { const cn=callName(a.n,a.i), N=$(P+'CtafCn');   // the name you say on the radio, on its own line: "Barwon Heads traffic", "Moorabbin Tower"
-    if(N) N.textContent= ap? titleCase(ap[1]||a.i+' approach').replace(/\bApp\b/,'Approach') : open&&tp.ground&&P==='s'? cn+' Ground' : open? cn+' Tower' : cn+' traffic';
+    let t= ap? titleCase(ap[1]||a.i+' approach').replace(/\bApp\b/,'Approach') : open&&tp.ground&&P==='s'? cn+' Ground' : open? cn+' Tower' : cn+' traffic';
     // where you are from the aerodrome, as you'd say it in a call: "Riddell traffic · 4.2 NM NW" (the bearing reversed: from the field to you)
-    if(N&&P==='s'&&pk&&pk.d!=null&&!(open&&tp.ground)){ const r=((pk.b+180)%360+360)%360; N.textContent+= pk.d<0.5? ' · overhead' : ` · ${pk.d<10?pk.d.toFixed(1):Math.round(pk.d)} NM ${COMP[Math.round(r/45)%8]}`; } }
-  W.textContent+=ntCountTxt(a.i);
+    if(P==='s'&&pk&&pk.d!=null&&!(open&&tp.ground)){ const r=((pk.b+180)%360+360)%360; t+= pk.d<0.5? ' · overhead' : ` · ${pk.d<10?pk.d.toFixed(1):Math.round(pk.d)} NM ${COMP[Math.round(r/45)%8]}`; }
+    if(N) N.textContent=t; }   // written once (a write then += was two layouts)
+  { const n=ntCountTxt(a.i); if(n) W.textContent=W.textContent+n; }
   return {tp,ts,open,CI};
 }
 // A towered aerodrome you're only passing (not in the flight plan, not the Go to point or its aerodrome, and you're not
@@ -1318,13 +1332,17 @@ function ctafAssign(freqs){  // stable hash slot, bumped to a free slot so frequ
   ctafPal=next;
 }
 function ctafColour(f){
-  const dark=getComputedStyle(document.documentElement).colorScheme.includes('dark');
+  cssv('--ink'); let dark=CSSV.m.get(' dark'); if(dark===undefined){ dark=getComputedStyle(document.documentElement).colorScheme.includes('dark'); CSSV.m.set(' dark',dark); }
   if(f==='126.7') return dark?'hsl(210 12% 62%)':'hsl(210 12% 45%)';   // AIP default: neutral so specific CTAFs stand out
   const h=CTAF_HUES[ctafPal.get(f)??0];
   return `hsl(${h} ${dark?80:72}% ${dark?62:42}%)`;
 }
 let ctafOff=null, ctafOff2=null;
-function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+// theme colours, read once per theme: getComputedStyle every draw (about 20 per frame) forced a style pass each time
+const CSSV={k:null,m:new Map(),mq:window.matchMedia?matchMedia('(prefers-color-scheme: dark)'):null};
+function themeKey(){ return (document.documentElement.getAttribute('data-theme')||'')+(CSSV.mq&&CSSV.mq.matches?'d':'l'); }
+function cssv(n){ const k=themeKey(); if(k!==CSSV.k){ CSSV.k=k; CSSV.m.clear(); } let v=CSSV.m.get(n);
+  if(v===undefined){ v=getComputedStyle(document.documentElement).getPropertyValue(n).trim(); CSSV.m.set(n,v); } return v; }
 function clipRect(pts,W,H){ // Sutherland-Hodgman against [0,W]x[0,H]
   const edges=[[p=>p[0]>=0,(a,b)=>{const t=(0-a[0])/(b[0]-a[0]);return[0,a[1]+t*(b[1]-a[1])]}],
                [p=>p[0]<=W,(a,b)=>{const t=(W-a[0])/(b[0]-a[0]);return[W,a[1]+t*(b[1]-a[1])]}],
@@ -1917,7 +1935,7 @@ function drawCharts(g0,W,Hh,inv,P){
   if(ok&&CHC.dirty&&now-CHC.t<=400&&!CHC.later) CHC.later=setTimeout(()=>{ CHC.later=0; if(MAP.last) drawMap(...MAP.last); },420-(now-CHC.t));   // tiles came in just after a repaint
   if(!ok || (CHC.dirty&&now-CHC.t>400)){
     const [la0,lo0]=inv(W/2,Hh/2); Object.assign(CHC,{key,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,t:now,dirty:false}); CHC.n++;
-    CHC.dc=Math.min(dpr,4096/S);
+    CHC.dc=Math.min(dpr,2,4096/S);   // at most 2 px per CSS px: a 3x cache (3,500 px square in full screen) took ~200 ms to draw each frame at CPU x4; 2x is ~2,300 px
     const cv=CHC.cv||(CHC.cv=document.createElement('canvas')), px=Math.round(S*CHC.dc); if(cv.width!==px||cv.height!==px){ cv.width=px; cv.height=px; }
     const g=cv.getContext('2d'); g.setTransform(CHC.dc,0,0,CHC.dc,0,0); g.clearRect(0,0,S,S);
     const N0= MAP.range>=40? 6 : MAP.range>=15? 4 : 2, N=Math.ceil(N0*S/Math.max(W,Hh));   // same grid density per screen as before
@@ -2136,7 +2154,7 @@ setInterval(()=>{ if(st.sim||!st.fixT) return; const age=(Date.now()-st.fixT)/10
   tile.dataset.stale='1'; d.className='dot '+(age<15?'warn':'bad'); const a=age<90?Math.round(age)+'s':Math.round(age/60)+'m';
   $('gpsAge').textContent=a; tile.title=`GPS: no new fix for ${a} (last accuracy ${$('sAcc').textContent})`; tile.setAttribute('aria-label',tile.title); },1000);
 if(window.ResizeObserver){ const sb=document.querySelector('.status'); new ResizeObserver(()=>document.documentElement.style.setProperty('--stickH',sb.offsetHeight+'px')).observe(sb); }   // height of the sticky top bar (landscape)
-if(window.ResizeObserver){ let rz=0; new ResizeObserver(()=>{ if(rz) return; rz=requestAnimationFrame(()=>{ rz=0; if(MAP.last) drawMap(...MAP.last); }); }).observe($('map')); }
+if(window.ResizeObserver){ let rz=0; new ResizeObserver(e=>{ const r=e[0].contentRect; MAP.W=r.width; MAP.H=r.height; if(rz) return; rz=requestAnimationFrame(()=>{ rz=0; if(MAP.last) drawMap(...MAP.last); }); }).observe($('map')); }
 $('chartClose').onclick=()=>{ $('chartBox').open=false; };
 $('map').addEventListener('pointerdown',()=>{ if($('chartBox').open) $('chartBox').open=false; });   // the pop-up sits over the map: touching the map closes it
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('chartBox').open) $('chartBox').open=false; });
@@ -2194,6 +2212,45 @@ function drawTrail(g,P,C,W,Hh){ // flight log on the map: fixes joined where the
     g.beginPath(); g.arc(x,y,4,0,2*Math.PI); g.fillStyle=C.bg; g.fill(); g.strokeStyle=C.ink; g.lineWidth=1.5; g.stroke();
     g.fillStyle=C.ink; g.fillText('→'+(e[4]+1),x+6,y+3); }
 }
+/* terrain layer cache: the 6 px cells are worked out in a north-up canvas 1.25x the screen diagonal, centred where it was built,
+   and drawn rotated/shifted onto the map each frame (like the chart underlay). The heights of the cells are kept, so a change of
+   altitude (20 ft steps) only repaints; moving more than the margin, zooming, new terrain tiles or the theme rebuild it. */
+const TRC={cv:null, gkey:'', key:'', la0:0, lo0:0, cosl0:1, sc0:0, S:0, dc:1, hts:null, nx:0, ny:0, n:0, np:0};
+function drawTerrain(g0,W,Hh,inv,P,sc,altFt,chartsShown,dpr){
+  const step=6, S=Math.ceil(Math.hypot(W,Hh)*1.25), rb=ls.get('terRainbow',true), alt=st.alt!=null? Math.round(altFt/20)*20 : null;
+  const toC=(la,lo)=>[TRC.S/2+(lo-TRC.lo0)*TRC.cosl0*60*TRC.sc0, TRC.S/2-(la-TRC.la0)*60*TRC.sc0];
+  const invC=(u,v)=>[TRC.la0+(TRC.S/2-v)/(60*TRC.sc0), TRC.lo0+(u-TRC.S/2)/(60*TRC.sc0*TRC.cosl0)];
+  const gkey=[sc.toFixed(6),S,TER.ver||0,TER.sea.size].join('|');
+  let ok= TRC.hts && TRC.gkey===gkey;
+  if(ok){ for(const [px,py] of [[0,0],[W,0],[0,Hh],[W,Hh]]){ const [u,v]=toC(...inv(px,py)); if(u<0||v<0||u>TRC.S||v>TRC.S){ ok=false; break; } } }
+  if(!ok){ const [la0,lo0]=inv(W/2,Hh/2); Object.assign(TRC,{gkey,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,key:''}); TRC.n++;
+    const nx=Math.ceil(S/step), ny=nx, hts=new Float32Array(nx*ny);
+    for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){ const [qa,qo]=invC(i*step+step/2,j*step+step/2), t=terrainFt(qa,qo); hts[j*nx+i]= t==null? NaN : t; }
+    Object.assign(TRC,{hts,nx,ny}); }
+  const key=[TRC.gkey,TRC.la0,TRC.lo0,alt,rb,!!chartsShown,themeKey()].join('|');
+  if(TRC.key!==key){ TRC.key=key; TRC.np++;
+    const dc=Math.min(dpr,2,4096/TRC.S), cw=Math.ceil(TRC.S*dc);
+    if(!TRC.cv) TRC.cv=document.createElement('canvas');
+    if(TRC.cv.width!==cw){ TRC.cv.width=cw; TRC.cv.height=cw; } TRC.dc=dc;
+    const g=TRC.cv.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,cw,cw); g.setTransform(dc,0,0,dc,0,0);
+    const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink'), {hts,nx,ny}=TRC;
+    const hz=[], hw=[];   // rainbow mode: cells at/above you (and within 500 ft) get a hatch over the colour
+    for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+      const t=hts[j*nx+i]; if(!(t>0)) continue; const px=i*step, py=j*step;
+      const hi=alt!=null&&t>=alt-100, near=!hi&&alt!=null&&t>=alt-500;
+      if(rb){ if(chartsShown&&!hi&&!near) continue; g.fillStyle=terRainbow(t); g.globalAlpha=chartsShown?.35:.5; g.fillRect(px,py,step,step); if(hi) hz.push(px,py); else if(near) hw.push(px,py); continue; }
+      if(hi){ g.fillStyle=red; g.globalAlpha=.42; }
+      else if(near){ g.fillStyle=amb; g.globalAlpha=.32; }
+      else { if(chartsShown) continue; g.fillStyle=rel; g.globalAlpha=Math.min(.16,t/12000); }
+      g.fillRect(px,py,step,step);
+    }
+    if(rb){ g.lineWidth=1.6; for(const [arr,col,a] of [[hz,red,.9],[hw,amb,.8]]){ if(!arr.length) continue; g.strokeStyle=col; g.globalAlpha=a; g.beginPath();
+      for(let k=0;k<arr.length;k+=2){ const x=arr[k], y=arr[k+1]; g.moveTo(x,y+step); g.lineTo(x+step,y); if(arr===hz){ g.moveTo(x,y); g.lineTo(x+step,y+step); } }   // red: cross-hatch; orange: single hatch
+      g.stroke(); } }
+    g.globalAlpha=1; }
+  const src=[[0,0],[TRC.S,0],[0,TRC.S]], dst=src.map(([u,v])=>P(...invC(u,v))), M=affine3(src,dst);
+  g0.save(); g0.setTransform(dpr*M[0],dpr*M[1],dpr*M[2],dpr*M[3],dpr*M[4],dpr*M[5]); g0.drawImage(TRC.cv,0,0,TRC.cv.width,TRC.cv.height,0,0,TRC.S,TRC.S); g0.restore();
+}
 function drawMap(...a){ if(!PF.on) return drawMap0(...a); pfStart('map'); try{ return drawMap0(...a); } finally{ pfEnd(); } }
 function drawMap0(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
@@ -2201,7 +2258,9 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   // panned: the view is centred on MAP.pan (fixed lat/lon, north up); otherwise on you
   const own=[la,lo]; if(MAP.pan){ la=MAP.pan[0]; lo=MAP.pan[1]; h=null; }
   $('mapHome').hidden=!MAP.pan;
-  const W=cv.clientWidth, Hh=cv.clientHeight, dpr=window.devicePixelRatio||1;
+  // size from the ResizeObserver below (reading clientWidth here forced a layout of the page HTML render() had just written)
+  if(MAP.W==null){ MAP.W=cv.clientWidth; MAP.H=cv.clientHeight; }
+  const W=MAP.W, Hh=MAP.H, dpr=window.devicePixelRatio||1;
   if(!W||!Hh) return;   // map not laid out (hidden tab/pane): nothing to draw
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(Hh*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(Hh*dpr); }
   const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
@@ -2219,24 +2278,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   const satShown=drawSat(g,W,Hh,P,invPx,la,cosl,sc); pfMark('satellite');
   const chartsShown=drawCharts(g,W,Hh,invPx,P)||satShown; pfMark('charts');   // over imagery, terrain draws only its warnings, as over a chart
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
-  if(TER.ok && MAP.ter){
-    const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
-    const red=cssv('--warn'), amb=cssv('--accent'), rel=cssv('--ink'), rb=ls.get('terRainbow',true);
-    const hz=[], hw=[];   // rainbow mode: cells at/above you (and within 500 ft) get a hatch over the colour
-    for(let py=0;py<Hh;py+=step) for(let px=0;px<W;px+=step){
-      const [qa,qo]=inv(px+step/2,py+step/2), t=terrainFt(qa,qo); if(t==null||t<=0) continue;
-      const hi=st.alt!=null&&t>=altFt-100, near=!hi&&st.alt!=null&&t>=altFt-500;
-      if(rb){ if(chartsShown&&!hi&&!near) continue; g.fillStyle=terRainbow(t); g.globalAlpha=chartsShown?.35:.5; g.fillRect(px,py,step,step); if(hi) hz.push(px,py); else if(near) hw.push(px,py); continue; }
-      if(hi){ g.fillStyle=red; g.globalAlpha=.42; }
-      else if(near){ g.fillStyle=amb; g.globalAlpha=.32; }
-      else { if(chartsShown) continue; g.fillStyle=rel; g.globalAlpha=Math.min(.16,t/12000); }
-      g.fillRect(px,py,step,step);
-    }
-    if(rb){ g.lineWidth=1.6; for(const [arr,col,a] of [[hz,red,.9],[hw,amb,.8]]){ if(!arr.length) continue; g.strokeStyle=col; g.globalAlpha=a; g.beginPath();
-      for(let k=0;k<arr.length;k+=2){ const x=arr[k], y=arr[k+1]; g.moveTo(x,y+step); g.lineTo(x+step,y); if(arr===hz){ g.moveTo(x,y); g.lineTo(x+step,y+step); } }   // red: cross-hatch; orange: single hatch
-      g.stroke(); } }
-    g.globalAlpha=1;
-  }
+  if(TER.ok && MAP.ter) drawTerrain(g,W,Hh,invPx,P,sc,altFt,chartsShown,dpr);
   pfMark('terrain');
   drawRadar(g,W,Hh,P,invPx,cosl,sc); pfMark('radar');
   drawWires(g,P,C,W,Hh,la,lo,reach,cosl,sc); pfMark('power lines');
@@ -3238,8 +3280,7 @@ function render0(){
     const k=cur? (cur.k==='CTR'?cur.ctrCls:cur.k) : null;
     const inP=AS.prd.find(p=>altFt>=p.L-50&&altFt<p.H&&!(p.st&&p.st.s==='off'));   // an area a NOTAM (or no NOTAM) has switched off doesn't count
     $('sCls').textContent = k ? k+(inP?'·'+(inP.k==='R'?'R':'D'):'') : '—';
-    $('sCls').style.color = k ? `var(--as-${k==='A'?'c':k.toLowerCase()})` : '';
-    if(k==='G') $('sCls').style.color='var(--ink)';
+    $('sCls').style.color = k==='G'? 'var(--ink)' : k ? `var(--as-${k==='A'?'c':k.toLowerCase()})` : '';
     $('sCap').textContent = cur ? (cur.H>=60000?'UNL':limTxt(cur.H)) : '—';
     $('sLL').textContent = cur ? (cur.L<=0?'SFC':limTxt(cur.L)) : '—';
     $('sClsP').textContent = inP? inP.n.split(' ')[0] : '';
