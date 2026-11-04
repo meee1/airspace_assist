@@ -82,7 +82,7 @@ function inAsp(x,la,lo){ const bb=x.bb; return la>=bb[0]&&la<=bb[1]&&lo>=bb[2]&&
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793786841704;
+const APP_BUILT=1793790581043;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1233,18 +1233,27 @@ function renderRunways(a,pick,h){
   const box=$('rwBox'); if(!a.rw||!a.rw.length){ box.hidden=true; return; } box.hidden=false;
   const cc=a.cct||{};
   const end=d=>{ const c=cc[d]; return c&&c[0]==='R' ? `<span class="rh" title="${esc(c[1])}">${d}&nbsp;RH</span>` : ''; };
+  if(RWC.a!==a||RWC.cct!==a.cct){ RWC.a=a; RWC.cct=a.cct;   // the list only changes with the aerodrome: rewriting it every update cost a layout
   const sch=a.rw.some(r=>r[10]), appx=a.rw.some(r=>r[10]===2);
   $('rwList').innerHTML=a.rw.map(r=>{
     const rh=[end(r[0]),end(r[1])].filter(Boolean).join(' ');
     return `<div class="rw" title="${r[8]?r[8]+' m wide':''}"><b>${r[0]}/${r[1]}</b><span>${r[6]?r[6].toLocaleString('en-AU')+' m':''}${r[7]?' '+SURF[r[7]]:''}</span>${rh}</div>`;
-  }).join('') + `<div class="rwnote">${chip(a.rw.every(r=>r[9]==='DAH')?'DAH':a.rw.some(r=>r[9]==='DAH')?'DAH':'ERSA')} ${a.rw.some(r=>r[9]==='DAH')?'Thresholds from DAH. ':''}${sch?(appx?'Drawn from the ERSA designator heading and length (schematic, position approximate). ':'Drawn from the ERSA bearing and length (schematic). '):''}${a.rw.some(r=>!r[6])?'ERSA gives no length for '+a.rw.filter(r=>!r[6]).map(r=>r[0]+'/'+r[1]).join(', ')+' (drawn 600 m). ':'Lengths and surface from ERSA. '}${Object.keys(cc).length?'RH = right-hand circuit per ERSA (tap for conditions); other circuits left-hand unless ERSA says otherwise.':'Circuits left-hand unless ERSA says otherwise.'}</div>`;
+  }).join('') + `<div class="rwnote">${chip(a.rw.every(r=>r[9]==='DAH')?'DAH':a.rw.some(r=>r[9]==='DAH')?'DAH':'ERSA')} ${a.rw.some(r=>r[9]==='DAH')?'Thresholds from DAH. ':''}${sch?(appx?'Drawn from the ERSA designator heading and length (schematic, position approximate). ':'Drawn from the ERSA bearing and length (schematic). '):''}${a.rw.some(r=>!r[6])?'ERSA gives no length for '+a.rw.filter(r=>!r[6]).map(r=>r[0]+'/'+r[1]).join(', ')+' (drawn 600 m). ':'Lengths and surface from ERSA. '}${Object.keys(cc).length?'RH = right-hand circuit per ERSA (tap for conditions); other circuits left-hand unless ERSA says otherwise.':'Circuits left-hand unless ERSA says otherwise.'}</div>`; }
   drawAdMap(a,pick,h);
 }
+// drawAdMap redraws only when what it shows changes (aerodrome, size, theme, track-up turn, where you are to the pixel, your heading,
+// the distance text). Size comes from a ResizeObserver and colours are read once per theme: clientWidth and getComputedStyle
+// right after the card's HTML was written forced a layout and a style pass every update.
+const RWC={a:null, key:'', th:'', C:null, W:0, H:0, ro:null, last:null};
 function drawAdMap(a,pick,h){
-  const cv=$('adMap'); const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return;
-  const dpr=window.devicePixelRatio||1; if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
-  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
-  const C={ink:cssv('--ink'),dim:cssv('--dim'),acc:cssv('--accent'),fr:cssv('--freq'),bg:cssv('--panel'),rule:cssv('--rule')};
+  const cv=$('adMap'); RWC.last=[a,pick,h];
+  if(!RWC.ro&&window.ResizeObserver){ RWC.W=cv.clientWidth; RWC.H=cv.clientHeight;
+    RWC.ro=new ResizeObserver(e=>{ const r=e[0].contentRect; if(r.width===RWC.W&&r.height===RWC.H) return; RWC.W=r.width; RWC.H=r.height; RWC.key=''; if(r.width&&RWC.last) drawAdMap(...RWC.last); }); RWC.ro.observe(cv); }
+  const W=RWC.ro?RWC.W:cv.clientWidth, H=RWC.ro?RWC.H:cv.clientHeight; if(!W||!H) return;
+  const dpr=window.devicePixelRatio||1;
+  const theme=document.documentElement.getAttribute('data-theme')||'', dark=matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;
+  if(!RWC.C||RWC.th!==theme+dark){ RWC.th=theme+dark; RWC.C={ink:cssv('--ink'),dim:cssv('--dim'),acc:cssv('--accent'),fr:cssv('--freq'),bg:cssv('--panel'),rule:cssv('--rule')}; }
+  const C=RWC.C;
   const la0=a.la, lo0=a.lo, cosl=Math.cos(la0*R);
   const rot = MAP.up==='trk'&&h ? h.deg : 0, cr=Math.cos(rot*R), sr=Math.sin(rot*R);   // track up: rotate the world by +rot so your heading points up
   // metres from ARP
@@ -1253,6 +1262,10 @@ function drawAdMap(a,pick,h){
   let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const [p,q] of ends) for(const v of [p,q]){ x0=Math.min(x0,v[0]);x1=Math.max(x1,v[0]);y0=Math.min(y0,v[1]);y1=Math.max(y1,v[1]); }
   const mx=(x0+x1)/2, my=(y0+y1)/2, ext=Math.max(150,(x1-x0)/2/(W/H>1?W/H:1),(y1-y0)/2);
   const sc=(H/2-34)/ext, cx=W/2, cy=H/2, S=v=>[cx+(v[0]-mx)*sc, cy-(v[1]-my)*sc];
+  { const m0=S(xy(st.pos[0],st.pos[1])), key=[a.i,W,H,dpr,RWC.th,rot.toFixed(1),Math.round(m0[0]),Math.round(m0[1]),h?Math.round(h.deg):'',pick.d<10?pick.d.toFixed(1):Math.round(pick.d)].join('|');
+    if(key===RWC.key&&cv.width===Math.round(W*dpr)) return; RWC.key=key; }
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
   const placed=[];
   // runways (labels drawn after all runways so they sit on top)
   const pend=[];
@@ -1735,6 +1748,7 @@ function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
     .then(b=>b?createImageBitmap(b):null).then(img=>{
     CH.imgs.set(k,img||'none');
     if(CH.imgs.size>180){ for(const [kk,vv] of CH.imgs){ if(CH.imgs.size<=150) break; if(vv&&vv.close) vv.close(); CH.imgs.delete(kk); } }
+    if(img) CHC.dirty=true;   // the chart cache is repainted with it on the next redraw (at most every 400 ms)
     if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
   }).catch(()=>CH.imgs.set(k,'none'));
   return null; }
@@ -1879,16 +1893,39 @@ function drawRadar(g,W,Hh,P,inv,cosl,sc){ if(!RAD.on) return;
   lab(`Radar ${hm} (${age} min old) · RainViewer`, age>30); }
 $('mapRadar').setAttribute('aria-pressed',RAD.on);
 $('mapRadar').onclick=()=>{ RAD.on=!RAD.on; ls.set('mapRadar',RAD.on); $('mapRadar').setAttribute('aria-pressed',RAD.on); if(RAD.on) radPoll(true); render(); };
-function drawCharts(g0,W,Hh,inv){
+// Chart underlay. Painting the warped charts (a triangle grid, each with its own clip and affine, two tile levels) costs
+// tens of ms, and the map redraws every second and every pan frame. So the charts are painted once into a north-up cache
+// canvas around the view (about 1.25× the screen diagonal, so any rotation fits) in the map's own flat projection, and each
+// redraw lays that cache on the map with one affine (shift + rotation). It's repainted when the view leaves it, the scale or
+// size changes, the chart set changes, or new tiles have arrived (at most every 400 ms).
+const CHC={cv:null, key:'', la0:0, lo0:0, cosl0:1, sc0:0, S:0, dc:1, t:0, dirty:false, drew:false, n:0};
+function drawCharts(g0,W,Hh,inv,P){
   if(!CH.on||!CH.idx.length) return false;
-  // drawn opaque into an offscreen canvas, then laid on the map at the chart opacity (the triangles overlap slightly)
-  const dpr=window.devicePixelRatio||1, off=drawCharts.off||(drawCharts.off=document.createElement('canvas'));
-  if(off.width!==Math.round(W*dpr)||off.height!==Math.round(Hh*dpr)){ off.width=Math.round(W*dpr); off.height=Math.round(Hh*dpr); }
-  const g=off.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
-  // The map is a local flat projection and the charts are Lambert conformal: one affine for the whole screen is up to
-  // ~15 px out at the edges when zoomed out to 80 NM. So the screen is cut into a grid of triangles, each with its own
+  const dpr=window.devicePixelRatio||1, sc=MAP.sc, now=Date.now();
+  const S=Math.ceil(Math.hypot(W,Hh)*1.25), key=[sc.toFixed(6),S,CH.idx.map(s=>s.sheet+':'+s.dir).join(','),MAP.range].join('|');
+  const toC=(la,lo)=>[CHC.S/2+(lo-CHC.lo0)*CHC.cosl0*60*CHC.sc0, CHC.S/2-(la-CHC.la0)*60*CHC.sc0];
+  const invC=(u,v)=>[CHC.la0+(CHC.S/2-v)/(60*CHC.sc0), CHC.lo0+(u-CHC.S/2)/(60*CHC.sc0*CHC.cosl0)];
+  let ok= CHC.cv && CHC.key===key;
+  if(ok){ for(const [px,py] of [[0,0],[W,0],[0,Hh],[W,Hh]]){ const [u,v]=toC(...inv(px,py)); if(u<2||v<2||u>CHC.S-2||v>CHC.S-2){ ok=false; break; } } }   // the screen still inside the cache?
+  if(ok&&CHC.dirty&&now-CHC.t<=400&&!CHC.later) CHC.later=setTimeout(()=>{ CHC.later=0; if(MAP.last) drawMap(...MAP.last); },420-(now-CHC.t));   // tiles came in just after a repaint
+  if(!ok || (CHC.dirty&&now-CHC.t>400)){
+    const [la0,lo0]=inv(W/2,Hh/2); Object.assign(CHC,{key,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,t:now,dirty:false}); CHC.n++;
+    CHC.dc=Math.min(dpr,4096/S);
+    const cv=CHC.cv||(CHC.cv=document.createElement('canvas')), px=Math.round(S*CHC.dc); if(cv.width!==px||cv.height!==px){ cv.width=px; cv.height=px; }
+    const g=cv.getContext('2d'); g.setTransform(CHC.dc,0,0,CHC.dc,0,0); g.clearRect(0,0,S,S);
+    const N0= MAP.range>=40? 6 : MAP.range>=15? 4 : 2, N=Math.ceil(N0*S/Math.max(W,Hh));   // same grid density per screen as before
+    CHC.drew=chartsPaint(g,S,S,invC,N,CHC.dc); }
+  if(!CHC.drew) return false;
+  // cache css -> screen css: exact affine from three cache corners (both are local flat projections)
+  const src=[[0,0],[CHC.S,0],[0,CHC.S]], dst=src.map(([u,v])=>P(...invC(u,v))), M=affine3(src,dst);
+  g0.save(); g0.setTransform(dpr*M[0],dpr*M[1],dpr*M[2],dpr*M[3],dpr*M[4],dpr*M[5]); g0.globalAlpha=CH.op; g0.imageSmoothingEnabled=true;
+  g0.drawImage(CHC.cv,0,0,CHC.cv.width,CHC.cv.height,0,0,CHC.S,CHC.S); g0.restore();
+  return true; }
+// paint the charts warped onto a W×H (css px) context g whose view is given by inv (px -> lat/lon); dens = device px per css px
+function chartsPaint(g,W,Hh,inv,N,dens){
+  // The map is a local flat projection and the charts are Lambert conformal: one affine for the whole area is up to
+  // ~15 px out at the edges when zoomed out to 80 NM. So it's cut into a grid of triangles, each with its own
   // exact affine from its three corners (piecewise linear, no seams): under 0.5 px at any zoom.
-  const N= MAP.range>=40? 6 : MAP.range>=15? 4 : 2;
   const GX=[], GY=[]; for(let k=0;k<=N;k++){ GX.push(W*k/N); GY.push(Hh*k/N); }
   const geo=[]; for(let r=0;r<=N;r++){ const row=[]; for(let c=0;c<=N;c++) row.push(inv(GX[c],GY[r])); geo.push(row); }
   const pans=[]; for(const sh of CHART_SHEETS){ const st_=CH.idx.find(s=>s.sheet===sh.sheet); if(st_) for(const p of sh.panels) pans.push([p,sh,st_]); }
@@ -1898,29 +1935,33 @@ function drawCharts(g0,W,Hh,inv){
     const pc=geo.map(row=>row.map(([qa,qo])=>chartPt(pan,qa,qo)));
     let cu0=1e9,cv0=1e9,cu1=-1e9,cv1=-1e9; for(const [u,v] of pan.clip){ cu0=Math.min(cu0,u); cv0=Math.min(cv0,v); cu1=Math.max(cu1,u); cv1=Math.max(cv1,v); }
     { let a0=1e9,b0=1e9,a1=-1e9,b1=-1e9; for(const row of pc) for(const [u,v] of row){ a0=Math.min(a0,u); b0=Math.min(b0,v); a1=Math.max(a1,u); b1=Math.max(b1,v); }
-      if(Math.max(a0,cu0)>=Math.min(a1,cu1)||Math.max(b0,cv0)>=Math.min(b1,cv1)) continue; }   // panel not on screen
+      if(Math.max(a0,cu0)>=Math.min(a1,cu1)||Math.max(b0,cv0)>=Math.min(b1,cv1)) continue; }   // panel not in the area
     const M0=affine3([pc[0][0],pc[0][N],pc[N][0]],[[0,0],[W,0],[0,Hh]]);
-    const need=Math.hypot(M0[0],M0[1])*(window.devicePixelRatio||1);   // device px per chart pt
+    const need=Math.hypot(M0[0],M0[1])*dens;   // device px per chart pt
     const levels=stx.levels.map((lv,L)=>{ if(lv.tiles&&!lv.tset) lv.tset=new Set(lv.tiles.map(t=>t[0]+'_'+t[1])); return {...lv,L}; }), lo_=levels[0], hi_=levels.find(l=>l.s>=need*0.7)||levels[levels.length-1];
     const tris=[]; for(let r=0;r<N;r++) for(let c=0;c<N;c++){ const A=[c,r],B=[c+1,r],C_=[c,r+1],D=[c+1,r+1]; tris.push([A,B,C_],[B,D,C_]); }
     for(const tri of tris){
       const scr=tri.map(([c,r])=>[GX[c],GY[r]]), chp=tri.map(([c,r])=>pc[r][c]);
       let u0=Math.max(cu0,Math.min(...chp.map(q=>q[0]))), u1=Math.min(cu1,Math.max(...chp.map(q=>q[0]))), v0=Math.max(cv0,Math.min(...chp.map(q=>q[1]))), v1=Math.min(cv1,Math.max(...chp.map(q=>q[1])));
       if(u0>=u1||v0>=v1) continue;
-      // clip to the triangle in screen space, grown by ~0.6 px so neighbours overlap instead of leaving hairlines
+      // clip to the triangle, grown by ~0.6 px so neighbours overlap instead of leaving hairlines
       const cx=(scr[0][0]+scr[1][0]+scr[2][0])/3, cy=(scr[0][1]+scr[1][1]+scr[2][1])/3;
       g.save(); g.beginPath(); scr.forEach(([x,y],k)=>{ const dx=x-cx, dy=y-cy, L=Math.hypot(dx,dy)||1, X=x+dx/L*0.9, Y=y+dy/L*0.9; k?g.lineTo(X,Y):g.moveTo(X,Y); }); g.closePath(); g.clip();
       g.transform(...affine3(chp,scr)); g.beginPath(); pan.clip.forEach(([u,v],k)=>k?g.lineTo(u,v):g.moveTo(u,v)); g.closePath(); g.clip();
-      for(const lv of (hi_===lo_?[lo_]:[lo_,hi_])){
-        const ts=CH_TILE/lv.s; // tile size in chart pt
-        for(let j=Math.max(0,Math.floor(v0/ts)); j<=Math.min(lv.rows-1,Math.floor(v1/ts)); j++)
-          for(let i=Math.max(0,Math.floor(u0/ts)); i<=Math.min(lv.cols-1,Math.floor(u1/ts)); i++){
-            if(lv.tset && !lv.tset.has(i+'_'+j)) continue;      // site tiles outside every panel were never made
-            const img=chartTile(stx,lv.L,i,j); if(img){ g.drawImage(img,i*ts,j*ts,img.width/lv.s,img.height/lv.s); drew=true; } }
-      }
+      // the coarse level only where the detailed tile isn't loaded yet (it used to be drawn under every detailed tile)
+      const ts=CH_TILE/hi_.s, tsL=CH_TILE/lo_.s;
+      for(let j=Math.max(0,Math.floor(v0/ts)); j<=Math.min(hi_.rows-1,Math.floor(v1/ts)); j++)
+        for(let i=Math.max(0,Math.floor(u0/ts)); i<=Math.min(hi_.cols-1,Math.floor(u1/ts)); i++){
+          if(hi_.tset && !hi_.tset.has(i+'_'+j)) continue;      // site tiles outside every panel were never made
+          let img=chartTile(stx,hi_.L,i,j);
+          if(img){ g.drawImage(img,i*ts,j*ts,img.width/hi_.s,img.height/hi_.s); drew=true; continue; }
+          if(hi_===lo_) continue;
+          // stand-in: the coarse tile(s) covering this detailed tile's area
+          for(let jj=Math.floor(j*ts/tsL); jj<=Math.min(lo_.rows-1,Math.floor(((j+1)*ts-1e-6)/tsL)); jj++) for(let ii=Math.floor(i*ts/tsL); ii<=Math.min(lo_.cols-1,Math.floor(((i+1)*ts-1e-6)/tsL)); ii++){
+            if(lo_.tset && !lo_.tset.has(ii+'_'+jj)) continue; const im=chartTile(stx,lo_.L,ii,jj);
+            if(im){ g.save(); g.beginPath(); g.rect(i*ts,j*ts,ts,ts); g.clip(); g.drawImage(im,ii*tsL,jj*tsL,im.width/lo_.s,im.height/lo_.s); g.restore(); drew=true; } } }
       g.restore(); }
   }
-  if(drew){ g0.save(); g0.setTransform(1,0,0,1,0,0); g0.globalAlpha=CH.op; g0.drawImage(off,0,0); g0.restore(); }
   return drew; }
 function chartUI(){
   const n=CH.idx.length, dl=CH.need&&CH.have<CH.need? ` · downloading ${CH.have}/${CH.need}` : CH.need? ' · stored' : '';
@@ -2016,6 +2057,18 @@ if('serviceWorker' in navigator){ const had=!!navigator.serviceWorker.controller
     fetch('index.html',{cache:'no-store'}).then(r=>r.text()).then(t=>{ const v=(t.match(/app\.js\?v=([0-9a-f]+)/)||[])[1]; if(v&&v!==mine) $('updBar').hidden=false; }).catch(()=>{}); });
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{}); }); }
 $('updBar').onclick=()=>location.reload();
+// aerodrome header: one line once the card has scrolled well past the top (130 px, more than the 106 px it shrinks by, so the
+// scroll anchoring that follows can't flip it straight back), full size again when the card's top is back (within 10 px)
+{ const head=document.querySelector('.ad-head'), card=$('adCard'); let raf=0;
+  const chk=()=>{ raf=0; if(!head||!card) return; const fs=document.body.classList.contains('fsm')&&$('fsBody')&&$('fsBody').contains(card);
+    const top=card.getBoundingClientRect().top-(fs? $('fsBody').getBoundingClientRect().top : 0), stick=parseFloat(getComputedStyle(head).top)||0;
+    if(!head.classList.contains('cx')&&top<stick-130) head.classList.add('cx'); else if(head.classList.contains('cx')&&top>stick-10) head.classList.remove('cx'); };
+  const on=()=>{ if(!raf) raf=requestAnimationFrame(chk); };
+  window.addEventListener('scroll',on,{passive:true}); document.addEventListener('scroll',on,{passive:true,capture:true}); window.addEventListener('resize',on);
+  head&&head.addEventListener('click',e=>{ if(!head.classList.contains('cx')||e.target.closest('button')) return;
+    const fs=document.body.classList.contains('fsm')&&$('fsBody')&&$('fsBody').contains(card), stick=parseFloat(getComputedStyle(head).top)||0;
+    if(fs){ const b=$('fsBody'); b.scrollTo({top:b.scrollTop+card.getBoundingClientRect().top-b.getBoundingClientRect().top-stick,behavior:'smooth'}); }
+    else window.scrollTo({top:scrollY+card.getBoundingClientRect().top-stick,behavior:'smooth'}); }); }
 function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>no(new Error('could not load '+src)); document.head.appendChild(s); }); }
 async function chartImport(files){
   if(CH.busy) return; CH.busy=true; const prog=$('chartProg'); prog.hidden=false;
@@ -2157,7 +2210,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   MAP.inv=invPx; MAP.P=P;
   pfMark('setup');
   const satShown=drawSat(g,W,Hh,P,invPx,la,cosl,sc); pfMark('satellite');
-  const chartsShown=drawCharts(g,W,Hh,invPx)||satShown; pfMark('charts');   // over imagery, terrain draws only its warnings, as over a chart
+  const chartsShown=drawCharts(g,W,Hh,invPx,P)||satShown; pfMark('charts');   // over imagery, terrain draws only its warnings, as over a chart
   // terrain relative to you (SRTM): red at or above you, amber within 500 ft below, grey relief otherwise (not over a chart)
   if(TER.ok && MAP.ter){
     const step=6, inv=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };

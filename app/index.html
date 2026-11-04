@@ -119,6 +119,16 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .ad{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:clip}   /* clip, not hidden: hidden would stop the sticky head */
 .ad-head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 10px;position:sticky;top:0;z-index:6;background:var(--panel);border-bottom:1px solid var(--rule)}   /* code and name stay in view while you read the runways and frequencies below */
 .ad-id{font:700 40px/1 var(--f-label);letter-spacing:.02em}
+/* scrolled down the card: the stuck header shrinks to one line (code, name, distance, bearing, arrow); tap it to go back up */
+.ad-head.cx{padding:6px 12px;gap:8px;align-items:center;cursor:pointer}
+.ad-head.cx .ad-mode,.ad-head.cx #adFac,.ad-head.cx #adElev{display:none}
+.ad-head.cx>div:first-child{display:flex;align-items:baseline;gap:8px;min-width:0}
+.ad-head.cx .ad-id{font-size:22px;flex:none}
+.ad-head.cx .ad-name{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.ad-head.cx .nav{display:flex;align-items:center;gap:8px}
+.ad-head.cx .navnum{display:flex;gap:6px;align-items:baseline;white-space:nowrap}
+.ad-head.cx .navnum .big{font-size:17px} .ad-head.cx .navnum .sm{font-size:13px}
+.ad-head.cx .arrow{width:30px;height:30px;border-width:1.5px} .ad-head.cx .arrow svg{width:18px;height:18px}
 .ad-name{font-weight:500;color:var(--dim);margin-top:2px;overflow-wrap:anywhere}
 .ad-mode{font:600 11px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;display:flex;gap:8px;align-items:center}
 .nav{display:flex;align-items:center;gap:10px}
@@ -871,7 +881,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=313d16d6ff';
+    const s=document.createElement('script'); s.src='app.js?v=2a3210e51c';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
