@@ -1509,8 +1509,10 @@ function fpLogGpx(rows=TLOG.pts,title,tr=[]){ const fx=rows.filter(p=>p[1]!=='ev
 //     so the tower inbound call is up before you reach the point
 //  3. the aerodrome you just left or overflew, within 5 NM (departure calls)
 const RPTS=new Map(); for(const a of DATA.ap){ const r=a.keys&&a.keys.rpts; if(r) for(const c of r.split(/,\s*|\s+or\s+/)) RPTS.set(c.trim()+'>'+a.i,a); }
-function fpAd(p){ if(!p) return null; const c=(p.c||p.n||'').toUpperCase();
-  return DATA.ap.find(a=>a.i===c) || DATA.ap.find(a=>Math.abs(a.la-p.la)<0.01 && distBrg(a.la,a.lo,p.la,p.lo)[0]<0.5) || null; }
+const FPAD=new Map();   // fpAd memo: "CODE|lat|lon" -> aerodrome or null (DATA doesn't change while the app runs)
+function fpAd(p){ if(!p) return null; const c=(p.c||p.n||'').toUpperCase(), k=c+'|'+p.la+'|'+p.lo; if(FPAD.has(k)) return FPAD.get(k);
+  const a= DATA.ap.find(a=>a.i===c) || DATA.ap.find(a=>Math.abs(a.la-p.la)<0.01 && distBrg(a.la,a.lo,p.la,p.lo)[0]<0.5) || null;
+  if(FPAD.size>2000) FPAD.clear(); FPAD.set(k,a); return a; }
 function fpAerodrome(la,lo){
   if(!FP||!FP.pts.length||FP.dct) return null;
   const P_=FP.pts, i=FP.i, at=(a,why)=>{ const [d,b]=distBrg(la,lo,a.la,a.lo); return {a,d,b,why}; };
@@ -1528,7 +1530,8 @@ function profZoom(dir){ const cur=PROF_TOP||(PROF&&PROF.auto)||5000;
   const nx = dir<0 ? [...PROF_STEPS].reverse().find(v=>v<cur) : PROF_STEPS.find(v=>v>cur);
   PROF_TOP = nx || (dir<0?PROF_STEPS[0]:PROF_STEPS[PROF_STEPS.length-1]); ls.set('profTop',PROF_TOP); drawProf(); }
 const PROF_TERR='#9c7a4a';
-function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),P_.map(p=>p.alt==null?'':p.alt).join('/'),TER.ok,TER.tiles.size,REV.map(r=>{ const t=twrStatus(r.a); return t?+t.on:'?'; }).join(''),CTA_BUF,$('cCat').value].join('|'); }   // tower open/closed states, not the clock: a rebuild costs ~0.5 s on the phone
+function profKey(){ const P_=FP.pts; return [FP.name,P_.length,P_[0].la,P_[0].lo,P_[P_.length-1].la,P_.map(p=>p.lo.toFixed(4)).join(),P_.map(p=>p.alt==null?'':p.alt).join('/'),TER.ok,TER.tiles.size,profRevKey(),CTA_BUF,$('cCat').value].join('|'); }   // tower open/closed states, not the clock: a rebuild costs ~0.5 s on the phone
+function profRevKey(){ const n=Date.now(); if(!profRevKey.t||n-profRevKey.t>30e3){ profRevKey.t=n; profRevKey.v=REV.map(r=>{ const t=twrStatus(r.a); return t?+t.on:'?'; }).join(''); } return profRevKey.v; }
 function profEnsure(){ if(!FP||FP.pts.length<2) return null; const key=profKey(); if(!PROF||PROF.key!==key){ PROF=profBuild(); PROF.key=key; } return PROF; }
 function profBuild(){
   const P_=FP.pts, cum=[0];
@@ -1704,56 +1707,72 @@ function profAlong(){ // your distance along the plan (projected onto the active
   return PROF.cum[i-1]+Math.max(0,Math.min(L, bh?0:along));
 }
 function legName(k){ const P_=FP.pts; return `${P_[k-1].c||P_[k-1].n}→${P_[k].c||P_[k].n}`; }
+const PROF_BG={key:'',tx:''};   // drawProf's cached fixed layer (canvas), its key, colours and the last info text
 function drawProf(){
   const cv=$('fpProf'); if(!FP||$('fpBody').hidden||FP.pts.length<2) return;
-  const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return;
+  // size from a ResizeObserver: reading clientWidth here, right after renderFP has written HTML, forced a layout every update
+  if(!PROF_BG.ro&&window.ResizeObserver){ PROF_BG.ro=new ResizeObserver(e=>{ const r=e[0].contentRect; const ch=r.width!==PROF_BG.W||r.height!==PROF_BG.H; PROF_BG.W=r.width; PROF_BG.H=r.height; if(ch&&r.width) drawProf(); }); PROF_BG.ro.observe(cv); }
+  const W=PROF_BG.W||cv.clientWidth, H=PROF_BG.H||cv.clientHeight; if(!W||!H) return;
   profEnsure();
   const pr=PROF, S=pr.S, dpr=window.devicePixelRatio||1;
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
-  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
-  const C={ink:cssv('--ink'),dim:cssv('--dim'),rule:cssv('--rule'),acc:cssv('--accent'),warn:cssv('--warn'),wp:cssv('--wp'),
-    C:cssv('--as-c'),A:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),R:cssv('--as-r'),Q:cssv('--as-q')};
-  const maxT=Math.max(0,...S.map(q=>q.t||0)), alt=st.alt;
+  const g0=cv.getContext('2d');
+  const theme=document.documentElement.getAttribute('data-theme')||'', dark=matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;
+  if(!PROF_BG.C||PROF_BG.th!==theme+dark){ PROF_BG.th=theme+dark; PROF_BG.C={ink:cssv('--ink'),dim:cssv('--dim'),rule:cssv('--rule'),acc:cssv('--accent'),warn:cssv('--warn'),wp:cssv('--wp'),
+    C:cssv('--as-c'),A:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),R:cssv('--as-r'),Q:cssv('--as-q'),mono:cssv('--f-mono')}; PROF_BG.key=''; }
+  const C=PROF_BG.C;
+  if(pr.maxT==null) pr.maxT=Math.max(0,...S.map(q=>q.t||0));
+  const maxT=pr.maxT, alt=st.alt;
   let top=Math.max(maxT+1500, alt!=null?alt+1000:0, 3000);
   if(pr.lo && pr.lo.base<12000) top=Math.max(top,pr.lo.base+1500);
   top=Math.min(Math.ceil(top/1000)*1000, 15000);
   PROF.auto=top; if(PROF_TOP) top=PROF_TOP;      // altitude zoom: fixed top chosen with +/−
   $('profTop').textContent=(PROF_TOP?'':'auto ')+(top>=1000?(top/1000)+'k':top)+' ft'; $('profAuto').hidden=!PROF_TOP;
   const l=34, r=8, t=16, b=16, x=d=>l+(pr.total?d/pr.total:0)*(W-l-r), y=f=>t+(1-Math.min(f,top)/top)*(H-t-b);
+  const bgKey=[pr.key,pr.missing?1:0,W,H,dpr,top,FP.i,PROF_BG.th,PROF_TERR].join('|');
+  if(PROF_BG.key!==bgKey||PROF_BG.pr!==pr){ PROF_BG.key=bgKey; PROF_BG.pr=pr; PROF_BG.n=(PROF_BG.n||0)+1;
+  const bc=PROF_BG.cv||(PROF_BG.cv=document.createElement('canvas')); bc.width=cv.width; bc.height=cv.height;
+  const g=bc.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
   // altitude grid
-  const gs=top>12000?5000:top>8000?2000:top>3000?1000:500; g.font='10px '+cssv('--f-mono'); g.textBaseline='middle'; g.textAlign='right';
+  const gs=top>12000?5000:top>8000?2000:top>3000?1000:500; g.font='10px '+C.mono; g.textBaseline='middle'; g.textAlign='right';
   for(let f=0;f<=top;f+=gs){ g.strokeStyle=C.rule; g.lineWidth=1; g.beginPath(); g.moveTo(l,y(f)); g.lineTo(W-r,y(f)); g.stroke();
     g.fillStyle=C.dim; g.fillText(f?(f>=1000?(f/1000)+'k':f):'0',l-4,y(f)); }
   // anything above the top of the chart: mark it so a zoomed-in view doesn't hide terrain or your altitude
-  if(maxT>top){ g.fillStyle=C.warn; g.font='600 10px '+cssv('--f-mono'); g.textAlign='left'; g.fillText('terrain above '+(top/1000)+'k ▲',l+4,t+10); g.textAlign='right'; }
+  if(maxT>top){ g.fillStyle=C.warn; g.font='600 10px '+C.mono; g.textAlign='left'; g.fillText('terrain above '+(top/1000)+'k ▲',l+4,t+10); g.textAlign='right'; }
   // controlled airspace and restricted/danger areas: one column per sample, base edge drawn solid
-  for(let i=0;i<S.length;i++){ const q=S[i], x0=x(i?(S[i-1].x+q.x)/2:q.x), x1=x(i<S.length-1?(q.x+S[i+1].x)/2:q.x), w=Math.max(1,x1-x0);
-    for(const a of q.b.concat(q.p)){ if(a.L>=top) continue; const c=C[a.k]||C.C;
-      g.globalAlpha=a.k==='R'||a.k==='Q'?.16:.13; g.fillStyle=c; g.fillRect(x0,y(a.H),w,y(a.L)-y(a.H));
-      g.globalAlpha=.9; g.fillRect(x0,y(a.L)-1,w,2); }
-    g.globalAlpha=1; }
+  // (runs of samples with the same band are drawn as one rectangle: one per band rather than one per sample)
+  const xA=i=>x(i?(S[i-1].x+S[i].x)/2:S[i].x), xB=i=>x(i<S.length-1?(S[i].x+S[i+1].x)/2:S[i].x), runs=[], open=new Map();
+  for(let i=0;i<S.length;i++){ const seen=new Set();
+    for(const a of S[i].b.concat(S[i].p)){ if(a.L>=top) continue; const k=a.k+'|'+a.L+'|'+a.H; seen.add(k); const o=open.get(k); if(o) o.i1=i; else open.set(k,{a,i0:i,i1:i}); }
+    for(const [k,o] of open) if(!seen.has(k)){ runs.push(o); open.delete(k); } }
+  runs.push(...open.values());
+  for(const {a,i0,i1} of runs){ const x0=xA(i0), w=Math.max(1,xB(i1)-x0), c=C[a.k]||C.C;
+    g.globalAlpha=a.k==='R'||a.k==='Q'?.16:.13; g.fillStyle=c; g.fillRect(x0,y(a.H),w,y(a.L)-y(a.H));
+    g.globalAlpha=.9; g.fillRect(x0,y(a.L)-1,w,2); }
+  g.globalAlpha=1;
   // terrain
   g.fillStyle=PROF_TERR; g.globalAlpha=.75; g.beginPath(); g.moveTo(x(0),y(0));
   for(const q of S) g.lineTo(x(q.x),y(q.t||0)); g.lineTo(x(pr.total),y(0)); g.closePath(); g.fill(); g.globalAlpha=1;
   // terrain within 1,000 ft of the airspace base: red under the base line
   g.fillStyle=C.warn;
   for(let i=0;i<S.length;i++){ const q=S[i]; if(q.t==null||q.base==null||q.base<=0||q.base-q.t>=1000) continue;
-    const x0=x(i?(S[i-1].x+q.x)/2:q.x), x1=x(i<S.length-1?(q.x+S[i+1].x)/2:q.x); g.fillRect(x0,y(q.base)-1.5,Math.max(1,x1-x0),3); }
+    let j=i; while(j+1<S.length&&S[j+1].base===q.base&&S[j+1].t!=null&&q.base-S[j+1].t<1000) j++;   // a run at the same base: one bar
+    const x0=xA(i); g.fillRect(x0,y(q.base)-1.5,Math.max(1,xB(j)-x0),3); i=j; }
   // waypoints
   const P_=FP.pts; g.textAlign='center'; g.textBaseline='alphabetic';
   P_.forEach((p,k)=>{ const X=x(pr.cum[k]), on=k===FP.i; g.strokeStyle=on?C.wp:C.dim; g.globalAlpha=on?.9:.45; g.setLineDash([2,3]);
     g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke(); g.setLineDash([]); g.globalAlpha=1; });
   // labels: active waypoint first, then start and end, then the rest left to right, skipping any that would overlap
   const order=[FP.i,0,P_.length-1,...P_.map((_,k)=>k)].filter((k,j,a)=>a.indexOf(k)===j), placed=[];
-  for(const k of order){ const p=P_[k], on=k===FP.i; g.font=(on?'600 ':'')+'10px '+cssv('--f-mono');
+  for(const k of order){ const p=P_[k], on=k===FP.i; g.font=(on?'600 ':'')+'10px '+C.mono;
     const lab=(p.c||p.n||'').slice(0,5), wdt=g.measureText(lab).width, LX=Math.min(W-r-wdt/2,Math.max(l+wdt/2,x(pr.cum[k])));
     if(placed.some(q=>LX+wdt/2+4>q[0]&&LX-wdt/2-4<q[1])) continue; placed.push([LX-wdt/2,LX+wdt/2]);
     g.fillStyle=on?C.wp:C.ink; g.fillText(lab,LX,t-4); }
-  g.font='10px '+cssv('--f-mono'); g.fillStyle=C.dim; g.textAlign='right'; g.fillText(Math.round(pr.total)+' NM',W-r,H-4);
+  g.font='10px '+C.mono; g.fillStyle=C.dim; g.textAlign='right'; g.fillText(Math.round(pr.total)+' NM',W-r,H-4);
   g.textAlign='left'; g.fillText('ft AMSL',l+2,H-4);
   // populous areas along the route: strip along the bottom
   g.fillStyle=C.ink; g.globalAlpha=.35;
-  for(let i=0;i<S.length;i++){ const q=S[i]; if(!q.u) continue; const x0=x(i?(S[i-1].x+q.x)/2:q.x), x1=x(i<S.length-1?(q.x+S[i+1].x)/2:q.x); g.fillRect(x0,y(0)-4,Math.max(1,x1-x0),4); }
+  for(let i=0;i<S.length;i++){ if(!S[i].u) continue; let j=i; while(j+1<S.length&&S[j+1].u) j++; const x0=xA(i); g.fillRect(x0,y(0)-4,Math.max(1,xB(j)-x0),4); i=j; }
   g.globalAlpha=1;
   // minimum height (thin dashed) and suggested VFR level per leg (solid)
   g.strokeStyle=C.warn; g.lineWidth=1; g.setLineDash([3,3]); g.beginPath(); let on=false;
@@ -1761,7 +1780,9 @@ function drawProf(){
   g.stroke(); g.setLineDash([]);
   for(const lp of (pr.legs||[])){ if(!lp||lp.alt==null) continue; const X0=x(pr.cum[lp.k-1]), X1=x(pr.cum[lp.k]), Y=y(lp.alt);
     g.strokeStyle=C.wp; g.lineWidth=2.5; g.beginPath(); g.moveTo(X0,Y); g.lineTo(X1,Y); g.stroke();
-    if(X1-X0>34 && lp.alt<=top){ g.fillStyle=C.wp; g.font='600 9.5px '+cssv('--f-mono'); g.textAlign='center'; g.fillText(String(lp.alt),(X0+X1)/2,Y-4); } }
+    if(X1-X0>34 && lp.alt<=top){ g.fillStyle=C.wp; g.font='600 9.5px '+C.mono; g.textAlign='center'; g.fillText(String(lp.alt),(X0+X1)/2,Y-4); } }
+  }   // end of the cached part
+  const g=g0; g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,cv.width,cv.height); g.drawImage(PROF_BG.cv,0,0); g.setTransform(dpr,0,0,dpr,0,0);
   // you: position along the plan and GPS altitude
   const al=profAlong();
   if(al!=null){ const X=x(al); g.strokeStyle=C.acc; g.lineWidth=2; g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke();
@@ -1783,7 +1804,7 @@ function drawProf(){
   for(const z of pr.zones) tx+=`Crosses <b>${esc(titleCase(z.n))}</b>${/\(/.test(z.n)?"":" ("+z.k+")"} SFC–${limTxt(z.H)} at ${nm(z.x)} NM. `;
   tx+=`Purple: suggested VFR level per leg (ENR 1.7 Table B by magnetic track, ${CTA_BUF} ft below class C/D; class E needs no clearance). Red dashed: minimum height from terrain (CASR 91.265/91.267: 1,000 ft over populous areas${URB.length?' (ABS urban areas, grey strip)':' — urban areas not loaded, so 500 ft used everywhere'}, else 500 ft; radius for ${$('cCat').value==='H'?'helicopters':'aeroplanes'} as set in Radio calls). Obstacles such as masts and buildings are not included: check the VTC/VNC. `;
   tx+='Colours as on the airspace map; red line: terrain within 1,000 ft of the base above it. Terrain is the highest SRTM point per 30″ cell; airspace is from the DAH along the straight legs. Tap for details.';
-  $('fpPInfo').innerHTML=tx;
+  if(PROF_BG.tx!==tx){ PROF_BG.tx=tx; $('fpPInfo').innerHTML=tx; }
 }
 $('ctaBuf').value=String(CTA_BUF); $('ctaBuf').onchange=()=>{ CTA_BUF=+$('ctaBuf').value; ls.set('ctaBuf',CTA_BUF); PROF=null; render(); };
 $('cCat').addEventListener('change',()=>{ PROF=null; });
@@ -1811,8 +1832,9 @@ function renderFP(h,varE){
   if(lpA && $('fpNext').innerHTML) $('fpNext').insertAdjacentHTML('beforeend',`<p class="fp-line fp-alt">${legAltNote(lpA)}</p>`);
   drawProf();
   // not while you're typing in it: the keyboard opening resizes the page, which re-renders
-  if(!($('fpLegs').contains(document.activeElement)&&document.activeElement.tagName==='INPUT')) $('fpLegs').innerHTML=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
+  if(!($('fpLegs').contains(document.activeElement)&&document.activeElement.tagName==='INPUT')){ const html=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
     return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b>${fpAd(p)&&fpLand(k)?' <i class="landt">LAND</i>':''} <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed">${k?`<input class="altin${p.alt!=null?' set':''}" data-k="${k}" type="text" inputmode="numeric" autocomplete="off" maxlength="6" value="${p.alt!=null?p.alt:''}" placeholder="${lp&&lp.set?(lp.sug!=null?lp.sug:''):(lp&&lp.alt!=null?lp.alt:'alt')}" title="Altitude for the leg to ${esc(p.c||p.n)} (ft AMSL, or A045 / FL095). Empty = the suggestion" aria-label="Altitude for the leg to ${esc(p.c||p.n)}">`:''}<button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button>${fpAd(p)?`<button class="btn landb${fpLand(k)?' on':''}" data-a="land" aria-pressed="${fpLand(k)}" title="Landing here: the 10 NM reminder is an inbound call (otherwise a transit call)">Land</button>`:''}<button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
+    if(renderFP.legs!==html||!$('fpLegs').firstChild){ renderFP.legs=html; $('fpLegs').innerHTML=html; } }   // unchanged: leave the DOM alone
   if(FP_REPL!=null&&!P_[FP_REPL]) FP_REPL=null;
   { const r=FP_REPL!=null&&FP_EDIT? P_[FP_REPL] : null; $('fpAddLbl').textContent=r?'Replace':'Add'; $('fpAddAt').hidden=!!r;
     $('fpAddIn').placeholder=r? `Replace ${r.c||r.n} with: name or code` : 'Name or code: CARR, Lilydale, AV';

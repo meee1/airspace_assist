@@ -1,0 +1,17 @@
+const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
+(async()=>{ const b=await chromium.launch(); const ctx=await b.newContext({...PX9}); const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+ await p.addInitScript(()=>{ try{ localStorage.setItem('rc_fsMap','false'); }catch(e){} });
+ await p.goto('http://localhost:8811/index.html?sim=YBRS&alt=1500&trk=060&gs=90'); await p.waitForFunction(()=>typeof render==='function'); await p.waitForTimeout(1200);
+ await p.evaluate(()=>{ const ap=i=>{ const x=DATA.ap.find(y=>y.i===i); return {n:i,c:i,la:x.la,lo:x.lo}; }; fpSet({name:'T',pts:['YBRS','YMMB','YLIL'].map(ap),i:1}); $('fpToggle').setAttribute('aria-expanded','true'); render(); });
+ await p.waitForTimeout(800);
+ const snap=()=>p.evaluate(()=>{ const c=$('fpProf'); return [c.toDataURL().length, PROF_BG.n, $('fpPInfo').innerText.slice(0,60).replace(/\n/g,' ')]; });
+ const a0=await snap();
+ const el=await p.$('#fpProf'); await el.scrollIntoViewIfNeeded(); await p.waitForTimeout(200); const bb=await el.boundingBox(); const X=bb.x+34+(bb.width-42)*0.4, Y=bb.y+bb.height/2;
+ console.log('element at the tap point:', await p.evaluate(([x,y])=>{ const e=document.elementFromPoint(x,y); return e? (e.id||e.className||e.tagName) : 'none'; },[X,Y]));
+ await p.mouse.click(X,Y); await p.waitForTimeout(200);
+ const a1=await snap(); console.log('tap: image changed', a0[0]!==a1[0], '· rebuilds', a1[1]-a0[1], '· info:', a1[2], '· profSel', await p.evaluate(()=>profSel));
+ await p.evaluate(()=>profZoom(-1)); await p.waitForTimeout(150); const a2=await snap(); console.log('zoom: rebuilt', a2[1]-a1[1], '· top', await p.evaluate(()=>$('profTop').textContent));
+ await p.evaluate(()=>{ fpEdit(P=>{ P[1].alt=3500; }); render(); }); await p.waitForTimeout(300); const a3=await snap(); console.log('alt edit: rebuilt', a3[1]-a2[1]);
+ await p.evaluate(()=>{ const n=PROF_BG.n; for(let i=0;i<5;i++) render(); window.__n=PROF_BG.n-n; }); console.log('5 more renders, no change: rebuilds', await p.evaluate(()=>window.__n));
+ await p.evaluate(()=>{ $('simPos').value='-37.9,145.0'; simApply(); render(); }); const a4=await snap(); console.log('moved: image changed', a4[0]!==a3[0], '· rebuilds', a4[1]-a3[1]);
+ console.log(errs); await b.close(); })();
