@@ -7,6 +7,8 @@ every map panel (legends, margins) are skipped. Output, per sheet:
   app/charts/index.json                                [{sheet,name,ed,edT,dir,bytes,levels:[{s,cols,rows,tiles:[[i,j],..]}],def?}]
   def: the sheet has "default": true in charts.json, so a new install downloads it without being asked (Options)
 Usage: python chartiles.py OUT_DIR CHART.pdf [CHART.pdf ...]      (needs pymupdf, pillow)
+       python chartiles.py --add OUT_DIR CHART.pdf ...    add or replace just these sheets, keep the others in index.json
+WAC sheets (raster scans, 1 px per pt) carry an edition number rather than a date ("WAC_3470_Melbourne_Ed._17.pdf" -> "Ed 17").
 Note: Airservices charts are copyright; publishing these tiles is the site owner's decision.
 """
 import io, json, os, re, sys, datetime, shutil
@@ -18,10 +20,14 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 def edition(name, title):
     m = re.search(r'(\d{2})\s?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s?(\d{4})', (name + ' ' + title).upper())
-    return f'{m.group(1)} {m.group(2)} {m.group(3)}' if m else ''
+    if m: return f'{m.group(1)} {m.group(2)} {m.group(3)}'
+    m = re.search(r'(?:^|[^A-Z])ED\.?[ _]*(\d+)', (name + ' ' + title).upper())   # WAC: edition number, no date
+    return f'Ed {m.group(1)}' if m else ''
 
 def main():
-    out = sys.argv[1]; pdfs = sys.argv[2:]
+    args = sys.argv[1:]; add = args[:1] == ['--add']
+    if add: args = args[1:]
+    out = args[0]; pdfs = args[1:]
     sheets = json.load(open(os.path.join(here, 'charts.json')))
     os.makedirs(out, exist_ok=True); idx = []
     for path in pdfs:
@@ -31,7 +37,7 @@ def main():
                    and s['kind'].lower() in key and re.search(s['re'], key, re.I)), None)
         if not sh: print('no calibration for', path); continue
         ed = edition(os.path.basename(path), (doc.metadata or {}).get('title', ''))
-        d = f"{sh['sheet']}-{ed.replace(' ', '')}" if ed else sh['sheet']
+        d = f"{sh['sheet']}-{ed.replace(' ', '').upper()}" if ed else sh['sheet']
         shutil.rmtree(os.path.join(out, d), ignore_errors=True)
         boxes = []
         for p in sh['panels']:
@@ -52,12 +58,18 @@ def main():
             levels.append(dict(s=s, cols=cols, rows=rows, tiles=tiles))
             print(sh['name'], 'level', L, 'scale', s, len(tiles), 'tiles')
         edT = 0
-        if ed:
+        if re.match(r'\d{2} ', ed):
             edT = int((datetime.datetime.strptime(ed, '%d %b %Y').replace(tzinfo=datetime.timezone.utc) - datetime.timedelta(hours=8)).timestamp() * 1000)
         idx.append(dict(sheet=sh['sheet'], name=sh['name'], ed=ed, edT=edT, dir=d, bytes=total, levels=levels, src='site', **({'def': True} if sh.get('default') else {})))
         print(sh['name'], ed, round(total / 1048576, 1), 'MB')
+    if add:   # keep the sheets not given here (and their folders); a given sheet replaces its old edition
+        old = json.load(open(os.path.join(out, 'index.json'))) if os.path.exists(os.path.join(out, 'index.json')) else []
+        mine = {e['sheet'] for e in idx}
+        for e in old:
+            if e['sheet'] in mine and e['dir'] not in {x['dir'] for x in idx}: shutil.rmtree(os.path.join(out, e['dir']), ignore_errors=True)
+        idx = [e for e in old if e['sheet'] not in mine] + idx
     keep = {e['dir'] for e in idx}
-    for n in os.listdir(out):
+    for n in ([] if add else os.listdir(out)):
         if os.path.isdir(os.path.join(out, n)) and n not in keep: shutil.rmtree(os.path.join(out, n))
     json.dump(idx, open(os.path.join(out, 'index.json'), 'w'), separators=(',', ':'))
 
