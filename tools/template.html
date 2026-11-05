@@ -513,6 +513,15 @@ body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbo
 body.fsm.fsm-tab .wrap>.status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .wrap>.status>.st.nxcls span{white-space:normal;flex-basis:100%}
 body.fsm.fsm-tab #mapSec{left:300px}
 body.fsm.fsm-tab #fsSheet{left:300px}
+.v3win{position:fixed;z-index:9998;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--rule);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
+.v3win[hidden]{display:none} .v3h{display:flex;gap:5px;align-items:center;padding:4px 6px 4px 9px;cursor:move;touch-action:none;font:600 12px var(--f-mono);border-bottom:1px solid var(--rule);user-select:none}
+.v3h b{flex:1;white-space:nowrap} .v3h small{font:600 9px var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--warn);border:1px solid currentColor;border-radius:3px;padding:1px 3px}
+.v3h select,.v3h button{font:600 11px var(--f-mono);padding:3px 5px;border-radius:5px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
+.v3l{display:flex;gap:4px;flex-wrap:wrap;padding:4px 6px;border-bottom:1px solid var(--rule)} .v3l button{font:600 10.5px var(--f-mono);padding:3px 7px;border-radius:5px;border:1px solid var(--rule);background:var(--panel);color:var(--dim)}
+.v3l button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.v3b{position:relative;flex:1;min-height:0} .v3b canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none} #v3dLab{pointer-events:none}
+#v3dMsg{position:absolute;left:6px;top:4px;font:600 11px var(--f-mono);color:var(--warn);pointer-events:none}
+.v3rz{position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 55%,var(--dim) 55%,var(--dim) 62%,transparent 62%,transparent 74%,var(--dim) 74%,var(--dim) 81%,transparent 81%)}
 </style>
 </head>
 <body>
@@ -760,6 +769,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optFs"><span><b>Full-screen map</b><br><small>The map fills the screen. Phone: CTAF, AREA, ALT, TRK, GS, CLASS and the alerts float over it (tap them for the whole top bar). Tablet in landscape: the top bar is a column on the left. Everything else is in the sheet at the bottom: drag it up or tap a tab. Also the ⤢ button on the map.</small></span></label>
       <label><input type="checkbox" id="optWireWarn"><span><b>Power line warning</b><br><small>A red WIRES row (and spoken, with Speak traffic alerts on) when your track crosses a transmission line within 2 NM while you're below 500 ft above the terrain, moving at 20 kt or more. Works with the Wires layer off. Only the 66 kV+ network from Geoscience Australia: local distribution lines are not included, so keep looking.</small></span></label>
+      <label><input type="checkbox" id="optV3d"><span><b>3D view (development)</b><br><small>A floating window with terrain in 3D (chart, relief or satellite draped on it), airspace walls between their limits, terrain clearance, the flight plan at its leg altitudes, traffic and obstacles; cockpit, chase or orbit camera. Drag the title bar to move it and the corner to resize; drag in the view to look around, double-tap to reset. Work in progress.</small></span></label>
       <label><input type="checkbox" id="optPerf"><span><b>Render timing (diagnostics)</b><br><small>A panel with the milliseconds each part of an update takes: the screen update (render) and the map drawing, average, last and worst of the last minute, updates per second and long tasks. <b>Copy</b> puts the table on the clipboard to send. Small overhead while on.</small></span></label>
       <label><input type="checkbox" id="optZoneHi"><span><b>Highlight the area you're in</b><br><small>The control zone you're inside, or the CTAF area of the aerodrome in the CTAF tile (cut where the map splits it), drawn with a bold edge and the distance to its nearest edge.</small></span></label>
       <label><input type="checkbox" id="optCtafSplit"><span><b>Split overlapping CTAF areas</b><br><small>Where two aerodromes with different CTAFs are less than 20 NM apart, their 10 NM circles are cut halfway between them, so each spot shows only the nearer aerodrome's frequency.</small></span></label><label><input type="checkbox" id="optCtafSplit127"><span><b>Split 126.7 areas too</b><br><small>Off: the grey 126.7 circles of strips without their own CTAF are drawn whole under the others and don't cut them, so a specific CTAF keeps its full 10 NM circle. On: they take part in the split like any other frequency.</small></span></label><label><input type="checkbox" id="optTerRainbow"><span><b>Rainbow topographic terrain</b><br><small>With <b>Terrain</b> on, colour the ground by height (sea-level teal through green, yellow and orange to purple on the highest ranges) instead of grey relief. Terrain at or above you is still marked: cross-hatched in red, and within 500 ft in orange.</small></span></label></div>
@@ -5079,6 +5089,222 @@ for(const id of ['simAlt','simTrk','simGs']) $(id).addEventListener('input',()=>
     if(id==='simTrk' && FP && flyTimer) st.simManual=true;
     simApply(); },350); });
 
+/* ---------- 3D view (development): a floating window (Options → 3D view), plain WebGL, no library ----------
+   Terrain: SRTM heights on a grid covering the 2D map's range (capped at 40 NM), centred where it was built and rebuilt when you
+   move a quarter of the way to its edge. Surface: chart (VNC/VTC/WAC picture painted with chartsPaint), shaded relief, or
+   satellite (drawSat), each draped on the terrain; relief shows where the chart/imagery has nothing. Layers (each optional):
+   airspace walls between their limits (map colours), terrain clearance tint (red at or above you, amber within 500 ft, as on
+   the map), flight plan at its leg altitudes, ADS-B traffic, briefing obstacles and power lines. Camera: cockpit (your position
+   and altitude, looking along your heading; drag to look around, double-tap to reset), chase or orbit.
+   Local frame: x east, y up, z south (metres), origin = the grid centre. */
+const V3={on:false, gl:null, prog:{}, buf:{}, grid:null, tex:null, texKey:'', texN:-1, texT:0, view:{yaw:0,pitch:-4,dist:4000,drag:null}, key:'', raf:0,
+  opt:Object.assign({air:true, clr:true, plan:true, traf:true, obst:true, surf:'chart', cam:'cockpit'}, ls.get('v3dOpt',{})), box:ls.get('v3dBox',null)};
+const V3_FT=0.3048, V3_NM=1852, V3_G=160, V3_TEX=2048;
+function v3dShow(on){ V3.on=on; ls.set('v3dOn',on); $('v3dWin').hidden=!on; $('optV3d').checked=on;
+  if(on){ v3dPlace(); if(!V3.gl) v3dInit(); V3.key=''; if(!V3.raf) V3.raf=requestAnimationFrame(v3dLoop); } }
+function v3dPlace(){ const w=$('v3dWin'), b=V3.box||{w:Math.min(innerWidth-16,460), h:Math.min(innerHeight*0.45,340)};
+  b.w=Math.max(220,Math.min(innerWidth-8,b.w)); b.h=Math.max(160,Math.min(innerHeight-8,b.h));
+  if(b.x==null){ b.x=Math.max(4,innerWidth-b.w-8); b.y=Math.max(4,innerHeight-b.h-90); }
+  b.x=Math.max(0,Math.min(innerWidth-60,b.x)); b.y=Math.max(0,Math.min(innerHeight-40,b.y));
+  Object.assign(w.style,{left:b.x+'px',top:b.y+'px',width:b.w+'px',height:b.h+'px'}); V3.box=b; }
+function v3dSave(){ ls.set('v3dBox',V3.box); ls.set('v3dOpt',V3.opt); }
+function v3dCss(n){ const c=document.createElement('canvas').getContext('2d'); c.fillStyle=cssv(n)||'#888'; const s=c.fillStyle;   // -> [r,g,b] 0..1
+  if(s[0]==='#'){ const v=parseInt(s.slice(1),16); return [(v>>16&255)/255,(v>>8&255)/255,(v&255)/255]; }
+  const m=s.match(/[\d.]+/g)||[136,136,136]; return [m[0]/255,m[1]/255,m[2]/255]; }
+function v3dInit(){
+  const cv=$('v3dCv'), gl=cv.getContext('webgl',{antialias:true,alpha:false}); if(!gl){ $('v3dMsg').textContent='WebGL is not available on this device.'; return; }
+  V3.gl=gl;
+  const sh=(t,s)=>{ const o=gl.createShader(t); gl.shaderSource(o,s); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const prog=(vs,fs)=>{ const p=gl.createProgram(); gl.attachShader(p,sh(gl.VERTEX_SHADER,vs)); gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs)); gl.linkProgram(p);
+    const u={}, a={}; for(let i=0;i<gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);i++){ const n=gl.getActiveUniform(p,i).name; u[n]=gl.getUniformLocation(p,n); }
+    for(let i=0;i<gl.getProgramParameter(p,gl.ACTIVE_ATTRIBUTES);i++){ const n=gl.getActiveAttrib(p,i).name; a[n]=gl.getAttribLocation(p,n); } return {p,u,a}; };
+  // terrain: relief colour × hill shade, the draped texture over it where it has something, clearance tint, distance fog
+  V3.prog.ter=prog(`attribute vec3 pos; attribute vec3 nrm; attribute vec3 col; attribute vec2 uv; attribute float hft;
+    uniform mat4 mvp; uniform vec3 eye; varying vec3 vc; varying vec2 vuv; varying float vh; varying float vd; varying float vs;
+    void main(){ gl_Position=mvp*vec4(pos,1.0); vc=col; vuv=uv; vh=hft; vd=distance(pos,eye); vs=0.55+0.45*max(0.0,dot(normalize(nrm),normalize(vec3(-0.5,0.8,-0.3)))); }`,
+    `precision mediump float; uniform sampler2D tex; uniform float useTex; uniform float alt; uniform float clr; uniform vec3 fog; uniform float fogD;
+    varying vec3 vc; varying vec2 vuv; varying float vh; varying float vd; varying float vs;
+    void main(){ vec4 t=texture2D(tex,vuv); vec3 c=mix(vc*vs, t.rgb*(0.75+0.25*vs), useTex*t.a);
+      if(clr>0.5&&vh>0.0){ if(vh>=alt-100.0) c=mix(c,vec3(0.86,0.12,0.1),0.55); else if(vh>=alt-500.0) c=mix(c,vec3(0.95,0.6,0.1),0.45); }
+      gl_FragColor=vec4(mix(c,fog,clamp(vd/fogD,0.0,1.0)*0.7),1.0); }`);
+  // lines and translucent walls: flat colour with alpha
+  V3.prog.flat=prog(`attribute vec3 pos; attribute vec4 col; uniform mat4 mvp; varying vec4 vc; void main(){ gl_Position=mvp*vec4(pos,1.0); vc=col; gl_PointSize=6.0; }`,
+    `precision mediump float; varying vec4 vc; void main(){ gl_FragColor=vc; }`);
+  for(const k of ['tp','tn','tc','tu','th','ti','wall','line','pt']) V3.buf[k]=gl.createBuffer();
+  V3.tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,V3.tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,0]));
+  V3.texCv=document.createElement('canvas'); V3.texCv.width=V3.texCv.height=V3_TEX;
+  // touch / mouse: drag looks around (cockpit) or orbits (chase, orbit); wheel / pinch zooms the chase and orbit distance
+  const ptr=new Map();
+  cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,[e.clientX,e.clientY]); V3.view.t=Date.now(); });
+  cv.addEventListener('pointermove',e=>{ if(!ptr.has(e.pointerId)) return; const [x0,y0]=ptr.get(e.pointerId);
+    if(ptr.size===2){ const o=[...ptr.entries()].find(([k])=>k!==e.pointerId)[1], d0=Math.hypot(x0-o[0],y0-o[1]), d1=Math.hypot(e.clientX-o[0],e.clientY-o[1]); if(d0>0) V3.view.dist=Math.max(300,Math.min(60000,V3.view.dist*d0/d1)); }
+    else { V3.view.yaw+=(e.clientX-x0)*0.3; V3.view.pitch=Math.max(-85,Math.min(60,V3.view.pitch-(e.clientY-y0)*0.25)); }
+    ptr.set(e.pointerId,[e.clientX,e.clientY]); V3.view.t=Date.now(); V3.key=''; });
+  const up=e=>{ ptr.delete(e.pointerId); }; cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+  cv.addEventListener('wheel',e=>{ e.preventDefault(); V3.view.dist=Math.max(300,Math.min(60000,V3.view.dist*Math.exp(e.deltaY*0.001))); V3.key=''; },{passive:false});
+  cv.addEventListener('dblclick',()=>{ v3dResetView(); });
+}
+function v3dResetView(){ Object.assign(V3.view,{yaw:0,pitch:V3.opt.cam==='cockpit'?-4:-20,dist:V3.opt.cam==='chase'?2500:6000}); V3.key=''; }
+// ---- terrain grid ----
+function v3dGrid(la0,lo0,Rnm){
+  const G=V3_G, n=G+1, cosl=Math.cos(la0*R), half=Rnm*V3_NM, step=2*half/G;
+  const pos=new Float32Array(n*n*3), col=new Float32Array(n*n*3), uv=new Float32Array(n*n*2), hft=new Float32Array(n*n), H=new Float32Array(n*n);
+  for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const x=-half+i*step, zs=-half+j*step, la=la0-zs/V3_NM/60, lo=lo0+x/V3_NM/(60*cosl);
+    let t=terrainFt(la,lo); if(t==null) t=0; const k=j*n+i; H[k]=t; hft[k]=t;
+    pos[3*k]=x; pos[3*k+1]=Math.max(0,t)*V3_FT; pos[3*k+2]=zs; uv[2*k]=i/G; uv[2*k+1]=j/G;
+    if(t<=0){ col.set([0.42,0.66,0.82],3*k); } else { let q=1; while(q<TER_RB.length-1&&t>TER_RB[q][0]) q++; const [a,ca]=TER_RB[q-1], [b,cb]=TER_RB[q], f=Math.max(0,Math.min(1,(t-a)/(b-a)));
+      for(let c=0;c<3;c++) col[3*k+c]=(ca[c]+(cb[c]-ca[c])*f)/255; } }
+  const nrm=new Float32Array(n*n*3);
+  for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const k=j*n+i, hx=(H[j*n+Math.min(G,i+1)]-H[j*n+Math.max(0,i-1)])*V3_FT, hz=(H[Math.min(G,j+1)*n+i]-H[Math.max(0,j-1)*n+i])*V3_FT;
+    const v=[-hx/(2*step),1,-hz/(2*step)], L=Math.hypot(...v); nrm[3*k]=v[0]/L; nrm[3*k+1]=v[1]/L; nrm[3*k+2]=v[2]/L; }
+  const idx=new Uint16Array(G*G*6); /* 161x161 vertices: 16-bit indices are enough, no extension needed */ let q=0; for(let j=0;j<G;j++) for(let i=0;i<G;i++){ const a=j*n+i; idx.set([a,a+n,a+1,a+1,a+n,a+n+1],q); q+=6; }
+  const gl=V3.gl; const put=(b,d,t=gl.ARRAY_BUFFER)=>{ gl.bindBuffer(t,V3.buf[b]); gl.bufferData(t,d,gl.STATIC_DRAW); };
+  put('tp',pos); put('tn',nrm); put('tc',col); put('tu',uv); put('th',hft); put('ti',idx,gl.ELEMENT_ARRAY_BUFFER);
+  return {la0,lo0,Rnm,cosl,half,step,n,H,cnt:idx.length,ver:TER.ver||0};
+}
+function v3dXZ(la,lo){ const g=V3.grid; return [(lo-g.lo0)*60*g.cosl*V3_NM, -(la-g.la0)*60*V3_NM]; }
+function v3dGround(la,lo){ const g=V3.grid, [x,z]=v3dXZ(la,lo), fi=(x+g.half)/g.step, fj=(z+g.half)/g.step, i=Math.floor(fi), j=Math.floor(fj);
+  if(i<0||j<0||i>=g.n-1||j>=g.n-1){ const t=terrainFt(la,lo); return Math.max(0,t||0); }
+  const a=g.H[j*g.n+i], b=g.H[j*g.n+i+1], c=g.H[(j+1)*g.n+i], d=g.H[(j+1)*g.n+i+1], u=fi-i, v=fj-j;
+  return Math.max(0,(a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v); }
+// ---- draped texture: chart picture, or satellite, north-up over the grid square ----
+function v3dTexture(){
+  const g=V3.grid, s=V3.opt.surf, cv=V3.texCv, x=cv.getContext('2d'); x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,V3_TEX,V3_TEX);
+  const inv=(u,v)=>[g.la0+(V3_TEX/2-v)/(V3_TEX/2)*g.Rnm/60, g.lo0+(u-V3_TEX/2)/(V3_TEX/2)*g.Rnm/(60*g.cosl)];
+  let drew=false;
+  if(s==='chart'&&CH.idx.length){ const N=Math.max(4,Math.round(g.Rnm/5)); drew=chartsPaint(x,V3_TEX,V3_TEX,inv,N,1); }
+  else if(s==='sat'&&satVia()){ const dpr=window.devicePixelRatio||1, W=V3_TEX/dpr, sc=W/(2*g.Rnm);
+    const P=(la,lo)=>[W/2+(lo-g.lo0)*60*g.cosl*sc, W/2-(la-g.la0)*60*sc], iv=(u,v)=>inv(u*dpr,v*dpr), on=SAT.on, op=SAT.op;
+    SAT.on=true; SAT.op=1; x.setTransform(dpr,0,0,dpr,0,0); try{ drew=drawSat(x,W,W,P,iv,g.la0,g.cosl,sc); } finally{ SAT.on=on; SAT.op=op; x.setTransform(1,0,0,1,0,0); } }
+  const gl=V3.gl; gl.bindTexture(gl.TEXTURE_2D,V3.tex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cv); gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  V3.texDrew=drew; V3.texT=Date.now();
+}
+function v3dTexCount(){ let n=0; const M=V3.opt.surf==='sat'? SAT.img : CH.imgs; for(const v of M.values()) if(v&&(v.ok||v.width)) n++; return n; }
+// ---- airspace walls, flight plan, traffic, obstacles, power lines ----
+function v3dScene(altFt){
+  const g=V3.grid, W=[], Lc=[], Pt=[], lab=[], o=V3.opt, half=g.half;
+  const wall=(a,b,y0,y1,c,al)=>{ W.push(a[0],y0,a[1],...c,al, b[0],y0,b[1],...c,al, b[0],y1,b[1],...c,al, a[0],y0,a[1],...c,al, b[0],y1,b[1],...c,al, a[0],y1,a[1],...c,al); };
+  const line=(a,b,c,al=1)=>{ Lc.push(...a,...c,al,...b,...c,al); };
+  if(o.air){ const ceil=Math.max(12500,altFt+5000), C={C:v3dCss('--as-c'),A:v3dCss('--as-c'),D:v3dCss('--as-d'),CTR:v3dCss('--as-d'),E:v3dCss('--as-e'),R:v3dCss('--as-r'),P:v3dCss('--as-r'),Q:v3dCss('--as-q')};
+    const rr=g.Rnm/60;
+    for(const z of ASP){ if(!C[z.k]||z.bb[1]<g.la0-rr||z.bb[0]>g.la0+rr||z.bb[3]<g.lo0-rr/g.cosl||z.bb[2]>g.lo0+rr/g.cosl) continue;
+      if((z.k==='R'||z.k==='Q'||z.k==='P')&&(z.lo||0)>=10000) continue;
+      const ss=(z.k==='R'||z.k==='Q'||z.k==='P')? suaStatus(z.n.split(' ')[0]) : null; if(ss&&ss.s==='off') continue;
+      let cx=0,cy=0; for(const q of z.p){ cx+=q[0]; cy+=q[1]; } cx/=z.p.length; cy/=z.p.length; const gnd=v3dGround(cx,cy);
+      const L=z.lok==='NOTAM'? 0 : limFt(z.lo,z.lok,gnd,0), Hh=Math.min(ceil, z.hik==='NOTAM'? ceil : z.hik==='BCTA'? ceil : limFt(z.hi,z.hik,gnd,0)); if(!(Hh>L)) continue;
+      const pts=clipRect(z.p.map(q=>{ const [x,zz]=v3dXZ(q[0],q[1]); return [x+half,zz+half]; }),2*half,2*half); if(pts.length<3) continue;
+      const y0=L*V3_FT, y1=Hh*V3_FT, c=C[z.k], al=z.k==='E'?0.08:z.k==='R'?0.16:0.13;
+      for(let i=0;i<pts.length;i++){ const a=pts[i], b=pts[(i+1)%pts.length];
+        if((Math.abs(a[0]-b[0])<1&&(a[0]<1||a[0]>2*half-1))||(Math.abs(a[1]-b[1])<1&&(a[1]<1||a[1]>2*half-1))) continue;   // the cut along the grid edge: no wall
+        const A=[a[0]-half,a[1]-half], B=[b[0]-half,b[1]-half]; wall(A,B,y0,y1,c,al);
+        line([A[0],y1,A[1]],[B[0],y1,B[1]],c,0.8); if(L>0) line([A[0],y0,A[1]],[B[0],y0,B[1]],c,0.8); } } }
+  if(o.plan&&FP&&FP.pts.length>1){ const pr=profEnsure(), c=v3dCss('--wp');
+    for(let k=1;k<FP.pts.length;k++){ const a=FP.pts[k-1], b=FP.pts[k], lp=pr&&pr.legs&&pr.legs[k], al=(lp&&lp.alt!=null?lp.alt:altFt)*V3_FT;
+      const A=v3dXZ(a.la,a.lo), B=v3dXZ(b.la,b.lo); line([A[0],al,A[1]],[B[0],al,B[1]],c,1); }
+    FP.pts.forEach((p,k)=>{ const lp=pr&&pr.legs&&pr.legs[Math.max(1,k)], al=(lp&&lp.alt!=null?lp.alt:altFt)*V3_FT, [x,z]=v3dXZ(p.la,p.lo); if(Math.abs(x)>half*1.5||Math.abs(z)>half*1.5) return;
+      line([x,v3dGround(p.la,p.lo)*V3_FT,z],[x,al,z],c,0.6); Pt.push(x,al,z,...c,1); lab.push([x,al,z,p.c||p.n,c]); }); }
+  if(o.traf&&MAP.traffic){ for(const t of trTargets()){ if(t.alt==null) continue; const [x,z]=v3dXZ(t.la,t.lo); if(Math.abs(x)>half||Math.abs(z)>half) continue;
+      const c=t.lvl===3?[0.9,0.1,0.1]:t.lvl===2?[0.95,0.6,0.1]:[0.1,0.55,0.95], y=t.alt*V3_FT; Pt.push(x,y,z,...c,1); line([x,v3dGround(t.la,t.lo)*V3_FT,z],[x,y,z],c,0.35);
+      lab.push([x,y,z,(t.a.reg||t.a.flt||t.a.hex||'')+' '+(t.dA==null?'':(t.dA>0?'+':'')+Math.round(t.dA/100)),c]); } }
+  if(o.obst){ const c=[0.85,0.15,0.1];
+    for(const ob of ntObstacles()){ if(ob.ft==null) continue; const [x,z]=v3dXZ(ob.la,ob.lo); if(Math.abs(x)>half||Math.abs(z)>half) continue; line([x,v3dGround(ob.la,ob.lo)*V3_FT,z],[x,ob.ft*V3_FT,z],c,1); }
+    if(PL.d){ const vb=[g.lo0-g.Rnm/60/g.cosl,g.la0-g.Rnm/60,g.lo0+g.Rnm/60/g.cosl,g.la0+g.Rnm/60], pc=[0.55,0.25,0.65];
+      for(const L of PL.d.L){ if(L.bb[2]<vb[0]||L.bb[0]>vb[2]||L.bb[3]<vb[1]||L.bb[1]>vb[3]) continue; const xy=L.xy;
+        for(let i=0;i<xy.length-2;i+=2){ const A=v3dXZ(xy[i+1],xy[i]), B=v3dXZ(xy[i+3],xy[i+2]); line([A[0],v3dGround(xy[i+1],xy[i])*V3_FT+30,A[1]],[B[0],v3dGround(xy[i+3],xy[i+2])*V3_FT+30,B[1]],pc,0.9); } } }
+    else if(PL.on) plLoad(); }
+  // aerodromes: a ground mark and the code
+  for(const ad of DATA.ap){ if(ad.t==='H'&&!st.heli) continue; if(!st.all&&ad.s!=='E'&&ad.t!=='H') continue; const [x,z]=v3dXZ(ad.la,ad.lo); if(Math.abs(x)>half*0.98||Math.abs(z)>half*0.98) continue;
+    const y=v3dGround(ad.la,ad.lo)*V3_FT+15; Pt.push(x,y,z,0.55,0.2,0.75,1); lab.push([x,y,z,ad.i,[0.45,0.15,0.6],1]); }
+  const gl=V3.gl; gl.bindBuffer(gl.ARRAY_BUFFER,V3.buf.wall); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(W),gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER,V3.buf.line); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(Lc),gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER,V3.buf.pt); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(Pt),gl.DYNAMIC_DRAW);
+  V3.nW=W.length/7; V3.nL=Lc.length/7; V3.nP=Pt.length/7; V3.lab=lab;
+}
+// ---- matrices (column-major) ----
+function m4mul(a,b){ const o=new Float32Array(16); for(let i=0;i<4;i++) for(let j=0;j<4;j++){ let s=0; for(let k=0;k<4;k++) s+=a[k*4+j]*b[i*4+k]; o[i*4+j]=s; } return o; }
+function m4persp(fov,asp,n,f){ const t=1/Math.tan(fov/2); return new Float32Array([t/asp,0,0,0, 0,t,0,0, 0,0,(f+n)/(n-f),-1, 0,0,2*f*n/(n-f),0]); }
+function m4look(e,c,u){ let z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]], L=Math.hypot(...z); z=z.map(v=>v/L);
+  let x=[u[1]*z[2]-u[2]*z[1],u[2]*z[0]-u[0]*z[2],u[0]*z[1]-u[1]*z[0]]; L=Math.hypot(...x); x=x.map(v=>v/L); const y=[z[1]*x[2]-z[2]*x[1],z[2]*x[0]-z[0]*x[2],z[0]*x[1]-z[1]*x[0]];
+  return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]),-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]),-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]),1]); }
+// ---- frame ----
+function v3dLoop(){ V3.raf=0; if(!V3.on) return; try{ v3dFrame(); }catch(e){ $('v3dMsg').textContent='3D: '+e.message; } V3.raf=requestAnimationFrame(v3dLoop); }
+function v3dFrame(){
+  const gl=V3.gl; if(!gl||!st.pos) return; const cv=$('v3dCv'), r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
+  const Wd=Math.round(r.width*dpr), Hd=Math.round(r.height*dpr); if(!Wd||!Hd) return;
+  const Rnm=Math.max(3,Math.min(40,MAP.range)), [la,lo]=st.pos, h=heading(), hdg=h?h.deg:(st.trk||0), altFt=st.alt!=null? st.alt : null;
+  // grid: rebuild after moving a quarter of the way out, a new range, or new terrain tiles (at most every 2 s for tiles)
+  const g=V3.grid; let rebuilt=false;
+  if(!g||g.Rnm!==Rnm||Math.abs(la-g.la0)*60>Rnm/4||Math.abs(lo-g.lo0)*60*g.cosl>Rnm/4||((TER.ver||0)!==g.ver&&Date.now()-(g.t||0)>2000)){
+    terPrefetch(la,lo); V3.grid=v3dGrid(la,lo,Rnm); V3.grid.t=Date.now(); rebuilt=true; V3.texN=-1; }
+  const tn=v3dTexCount(), surfKey=V3.opt.surf+'|'+CH.idx.map(s=>s.dir).join(',')+'|'+SAT.src;
+  if(V3.opt.surf!=='relief'&&(rebuilt||V3.texKey!==surfKey||(tn!==V3.texN&&Date.now()-V3.texT>700))){ V3.texKey=surfKey; V3.texN=tn; v3dTexture(); V3.key=''; }
+  const gAlt=v3dGround(la,lo), myFt=altFt!=null? Math.max(altFt,gAlt+30) : gAlt+500;
+  const key=[Wd,Hd,la.toFixed(5),lo.toFixed(5),Math.round(myFt),Math.round(hdg),V3.grid.t,V3.texT,TR.t,FP&&FP.rev,JSON.stringify(V3.opt),themeKey(),V3.view.yaw,V3.view.pitch,V3.view.dist].join('|');
+  if(key===V3.key) return; V3.key=key;
+  if(cv.width!==Wd||cv.height!==Hd){ cv.width=Wd; cv.height=Hd; }
+  v3dScene(altFt!=null?altFt:myFt);
+  // camera
+  const [ox,oz]=v3dXZ(la,lo), oy=myFt*V3_FT, cam=V3.opt.cam, v=V3.view;
+  const dir=(yawDeg,pitchDeg)=>{ const y=yawDeg*R, p=pitchDeg*R; return [Math.sin(y)*Math.cos(p), Math.sin(p), -Math.cos(y)*Math.cos(p)]; };
+  let eye, at;
+  if(cam==='cockpit'){ eye=[ox,oy,oz]; const d=dir(hdg+v.yaw,v.pitch); at=[ox+d[0]*1000,oy+d[1]*1000,oz+d[2]*1000]; }
+  else { const yaw=(cam==='chase'?hdg:0)+v.yaw, pitch=Math.min(-3,v.pitch), d=dir(yaw,pitch); eye=[ox-d[0]*v.dist,oy-d[1]*v.dist,oz-d[2]*v.dist]; at=[ox,oy,oz];
+    const ge=v3dGround(V3.grid.la0-eye[2]/V3_NM/60,V3.grid.lo0+eye[0]/V3_NM/60/V3.grid.cosl)*V3_FT+50; if(eye[1]<ge) eye[1]=ge; }
+  const far=V3.grid.half*3, P=m4persp((cam==='cockpit'?60:55)*R,Wd/Hd,cam==='cockpit'?5:20,far), M=m4mul(P,m4look(eye,at,[0,1,0])); V3.M=M; V3.eye=eye;
+  const dark=CSSV.mq&&CSSV.mq.matches&&document.documentElement.getAttribute('data-theme')!=='light'||/dark|night/.test(document.documentElement.getAttribute('data-theme')||'');
+  const sky=dark?[0.07,0.11,0.16]:[0.72,0.84,0.95];
+  gl.viewport(0,0,Wd,Hd); gl.clearColor(...sky,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST);
+  // terrain
+  const T=V3.prog.ter; gl.useProgram(T.p);
+  const attr=(p,name,b,size)=>{ gl.bindBuffer(gl.ARRAY_BUFFER,V3.buf[b]); gl.enableVertexAttribArray(p.a[name]); gl.vertexAttribPointer(p.a[name],size,gl.FLOAT,false,0,0); };
+  attr(T,'pos','tp',3); attr(T,'nrm','tn',3); attr(T,'col','tc',3); attr(T,'uv','tu',2); attr(T,'hft','th',1);
+  gl.uniformMatrix4fv(T.u.mvp,false,M); gl.uniform3fv(T.u.eye,eye); gl.uniform1f(T.u.useTex,V3.opt.surf!=='relief'&&V3.texDrew?1:0);
+  gl.uniform1f(T.u.alt,altFt!=null?altFt:-1e9); gl.uniform1f(T.u.clr,V3.opt.clr&&altFt!=null?1:0); gl.uniform3fv(T.u.fog,sky); gl.uniform1f(T.u.fogD,far*0.8);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,V3.tex); gl.uniform1i(T.u.tex,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,V3.buf.ti); gl.drawElements(gl.TRIANGLES,V3.grid.cnt,gl.UNSIGNED_SHORT,0);
+  for(const k of ['nrm','col','uv','hft']) gl.disableVertexAttribArray(T.a[k]);
+  // lines, points, then translucent walls (no depth write, both sides)
+  const F=V3.prog.flat; gl.useProgram(F.p); gl.uniformMatrix4fv(F.u.mvp,false,M);
+  const fl=(b,mode,n)=>{ if(!n) return; gl.bindBuffer(gl.ARRAY_BUFFER,V3.buf[b]); gl.enableVertexAttribArray(F.a.pos); gl.vertexAttribPointer(F.a.pos,3,gl.FLOAT,false,28,0);
+    gl.enableVertexAttribArray(F.a.col); gl.vertexAttribPointer(F.a.col,4,gl.FLOAT,false,28,12); gl.drawArrays(mode,0,n); };
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  fl('line',gl.LINES,V3.nL); fl('pt',gl.POINTS,V3.nP);
+  gl.depthMask(false); fl('wall',gl.TRIANGLES,V3.nW); gl.depthMask(true); gl.disable(gl.BLEND); gl.disableVertexAttribArray(F.a.col);
+  // labels and the ownship marker on a 2D canvas over the GL one
+  const lc=$('v3dLab'); if(lc.width!==Wd||lc.height!==Hd){ lc.width=Wd; lc.height=Hd; } const c=lc.getContext('2d'); c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,Wd,Hd); c.setTransform(dpr,0,0,dpr,0,0);
+  const proj=(x,y,z)=>{ const w=M[3]*x+M[7]*y+M[11]*z+M[15]; if(w<=1) return null; return [((M[0]*x+M[4]*y+M[8]*z+M[12])/w+1)/2*r.width, (1-(M[1]*x+M[5]*y+M[9]*z+M[13])/w)/2*r.height, w]; };
+  c.font='600 11px "IBM Plex Mono", monospace'; c.textAlign='center'; c.lineWidth=3; const used=[];
+  for(const [x,y,z,t,col,small] of V3.lab.sort((a,b)=>(a[5]?1:0)-(b[5]?1:0))){ const p=proj(x,y,z); if(!p||p[0]<-20||p[1]<-10||p[0]>r.width+20||p[1]>r.height+10) continue;
+    if(small&&p[2]>V3.grid.half*1.2) continue; if(used.some(q=>Math.abs(q[0]-p[0])<36&&Math.abs(q[1]-p[1])<12)) continue; used.push(p);
+    c.strokeStyle=dark?'rgba(0,0,0,.8)':'rgba(255,255,255,.9)'; c.fillStyle=`rgb(${col.map(v=>Math.round(v*255)).join(',')})`; c.strokeText(t,p[0],p[1]-6); c.fillText(t,p[0],p[1]-6); }
+  if(cam!=='cockpit'){ const p=proj(ox,oy,oz); if(p){ c.save(); c.translate(p[0],p[1]); c.fillStyle=cssv('--freq'); c.strokeStyle=dark?'#000':'#fff'; c.lineWidth=1.5;
+    c.beginPath(); c.moveTo(0,-9); c.lineTo(6,6); c.lineTo(0,3); c.lineTo(-6,6); c.closePath(); c.stroke(); c.fill(); c.restore(); } }
+  else { c.strokeStyle=dark?'rgba(255,255,255,.55)':'rgba(0,0,0,.45)'; c.lineWidth=1.5; const cx=r.width/2, cy=r.height/2; c.beginPath(); c.moveTo(cx-18,cy); c.lineTo(cx-6,cy); c.moveTo(cx+6,cy); c.lineTo(cx+18,cy); c.moveTo(cx,cy-4); c.lineTo(cx,cy+4); c.stroke(); }
+  c.textAlign='left'; c.font='600 10px "IBM Plex Mono", monospace'; c.fillStyle=dark?'#cfe':'#123';
+  c.fillText(`${cam} · ${altFt!=null?Math.round(altFt)+' ft':'alt ?'} · hdg ${String(Math.round(((hdg+v.yaw*(cam==='cockpit'?1:0))%360+360)%360)).padStart(3,'0')}°T · ${Rnm} NM`,6,r.height-6);
+  $('v3dMsg').textContent= V3.opt.surf==='sat'&&!satVia()? 'Satellite needs the proxy or a key (Options).' : V3.opt.surf==='chart'&&!CH.idx.length? 'No charts ticked (Options).' : '';
+}
+// window: drag by the title bar, resize by the corner; option buttons
+(()=>{ const w=$('v3dWin'), hd=w.querySelector('.v3h'), rz=w.querySelector('.v3rz'); let d=null;
+  const start=(e,mode)=>{ if(e.target.closest('button,select')) return; e.preventDefault(); d={mode,x:e.clientX,y:e.clientY,b:{...V3.box}}; (mode==='m'?hd:rz).setPointerCapture(e.pointerId); };
+  const move=e=>{ if(!d) return; const dx=e.clientX-d.x, dy=e.clientY-d.y; if(d.mode==='m'){ V3.box.x=d.b.x+dx; V3.box.y=d.b.y+dy; } else { V3.box.w=d.b.w+dx; V3.box.h=d.b.h+dy; } v3dPlace(); V3.key=''; };
+  const end=()=>{ if(d){ d=null; v3dSave(); } };
+  hd.addEventListener('pointerdown',e=>start(e,'m')); rz.addEventListener('pointerdown',e=>start(e,'r'));
+  for(const el of [hd,rz]){ el.addEventListener('pointermove',move); el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end); }
+  const sync=()=>{ for(const b of w.querySelectorAll('[data-v3]')){ const k=b.dataset.v3; b.setAttribute('aria-pressed',!!V3.opt[k]); }
+    w.querySelector('#v3dSurf').value=V3.opt.surf; w.querySelector('#v3dCam').value=V3.opt.cam; V3.key=''; };
+  w.addEventListener('click',e=>{ const b=e.target.closest('[data-v3]'); if(b){ const k=b.dataset.v3; V3.opt[k]=!V3.opt[k]; if(k==='obst'&&V3.opt.obst) plLoad(); v3dSave(); sync(); }
+    if(e.target.closest('#v3dX')) v3dShow(false); if(e.target.closest('#v3dReset')) v3dResetView(); });
+  w.querySelector('#v3dSurf').addEventListener('change',e=>{ V3.opt.surf=e.target.value; V3.texKey=''; v3dSave(); sync(); });
+  w.querySelector('#v3dCam').addEventListener('change',e=>{ V3.opt.cam=e.target.value; v3dResetView(); v3dSave(); sync(); });
+  sync(); $('optV3d').addEventListener('change',()=>v3dShow($('optV3d').checked));
+  addEventListener('resize',()=>{ if(V3.on){ v3dPlace(); V3.key=''; } });
+  if(ls.get('v3dOn',false)) setTimeout(()=>v3dShow(true),500);
+})();
+
 function appUpdated(){ if(!APP_BUILT) return ''; const d=new Date(APP_BUILT), m=(Date.now()-APP_BUILT)/60000;
   const ago= m<1?'just now' : m<60?Math.round(m)+' min ago' : m<48*60?Math.round(m/60)+' h ago' : Math.round(m/1440)+' days ago';
   return d.toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})+' ('+ago+')'; }
@@ -5125,6 +5351,15 @@ async function offlineStatus(){
 window.__boot&&window.__boot.ready();   // app started: hide the loading screen
 </script>
 <div id="perfBox" hidden></div>
+<div id="v3dWin" class="v3win" hidden role="dialog" aria-label="3D view">
+  <div class="v3h"><b>3D view</b><small>dev</small>
+    <select id="v3dCam" aria-label="Camera"><option value="cockpit">Cockpit</option><option value="chase">Chase</option><option value="orbit">Orbit</option></select>
+    <select id="v3dSurf" aria-label="Surface"><option value="chart">Chart</option><option value="relief">Relief</option><option value="sat">Satellite</option></select>
+    <button type="button" id="v3dReset" title="Reset the view">⟲</button><button type="button" id="v3dX" title="Close">✕</button></div>
+  <div class="v3l"><button type="button" data-v3="air">Airspace</button><button type="button" data-v3="clr">Clearance</button><button type="button" data-v3="plan">Plan</button><button type="button" data-v3="traf">Traffic</button><button type="button" data-v3="obst">Obstacles</button></div>
+  <div class="v3b"><canvas id="v3dCv"></canvas><canvas id="v3dLab"></canvas><div id="v3dMsg"></div></div>
+  <div class="v3rz" title="Resize"></div>
+</div>
 <button type="button" id="updBar" hidden>App updated · tap to reload</button>
 </body>
 </html>
