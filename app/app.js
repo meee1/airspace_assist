@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793820781119;
+const APP_BUILT=1793832162396;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1762,7 +1762,7 @@ async function chartsPrecache(){ // download every site tile not yet stored (4 a
   CH.pre=false; chartUI(); offlineStatus(); if(document.getElementById('optsDlg')?.open) optsRender();
   if(CH.again){ CH.again=false; chartsPrecache(); }
 }
-function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
+function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k); if(CH.use) CH.use.add(k);
   if(v instanceof ImageBitmap || (v&&v.width)) { CH.imgs.delete(k); CH.imgs.set(k,v); return v; }   // LRU touch
   if(v==='loading'||v==='none') return null;
   CH.imgs.set(k,'loading');
@@ -1772,7 +1772,10 @@ function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k);
       return r? r.blob() : null; })
     .then(b=>b?createImageBitmap(b):null).then(img=>{
     CH.imgs.set(k,img||'none');
-    if(CH.imgs.size>180){ for(const [kk,vv] of CH.imgs){ if(CH.imgs.size<=150) break; if(vv&&vv.close) vv.close(); CH.imgs.delete(kk); } }
+    // never drop a tile the current chart picture uses: when one picture needed more tiles than the cap, the oldest of its own
+    // tiles were dropped, reloaded and repainted in turn, and the chart flickered between detailed and coarse/blank (56 NM on a phone)
+    const keep=CH.keep||new Set(), cap=Math.max(180,keep.size+40);
+    if(CH.imgs.size>cap){ for(const [kk,vv] of CH.imgs){ if(CH.imgs.size<=cap-30) break; if(keep.has(kk)||vv==='loading') continue; if(vv&&vv.close) vv.close(); CH.imgs.delete(kk); } }
     if(img) CHC.dirty=true;   // the chart cache is repainted with it on the next redraw (at most every 400 ms)
     if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
   }).catch(()=>CH.imgs.set(k,'none'));
@@ -1939,7 +1942,7 @@ function drawCharts(g0,W,Hh,inv,P){
     const cv=CHC.cv||(CHC.cv=document.createElement('canvas')), px=Math.round(S*CHC.dc); if(cv.width!==px||cv.height!==px){ cv.width=px; cv.height=px; }
     const g=cv.getContext('2d'); g.setTransform(CHC.dc,0,0,CHC.dc,0,0); g.clearRect(0,0,S,S);
     const N0= MAP.range>=40? 6 : MAP.range>=15? 4 : 2, N=Math.ceil(N0*S/Math.max(W,Hh));   // same grid density per screen as before
-    CHC.drew=chartsPaint(g,S,S,invC,N,CHC.dc); }
+    CH.use=new Set(); CHC.drew=chartsPaint(g,S,S,invC,N,CHC.dc); CH.keep=CH.use; CH.use=null; }
   if(!CHC.drew) return false;
   // cache css -> screen css: exact affine from three cache corners (both are local flat projections)
   const src=[[0,0],[CHC.S,0],[0,CHC.S]], dst=src.map(([u,v])=>P(...invC(u,v))), M=affine3(src,dst);
@@ -1959,11 +1962,15 @@ function chartsPaint(g,W,Hh,inv,N,dens){
   for(const [pan,sh,stx] of pans){
     const pc=geo.map(row=>row.map(([qa,qo])=>chartPt(pan,qa,qo)));
     let cu0=1e9,cv0=1e9,cu1=-1e9,cv1=-1e9; for(const [u,v] of pan.clip){ cu0=Math.min(cu0,u); cv0=Math.min(cv0,v); cu1=Math.max(cu1,u); cv1=Math.max(cv1,v); }
-    { let a0=1e9,b0=1e9,a1=-1e9,b1=-1e9; for(const row of pc) for(const [u,v] of row){ a0=Math.min(a0,u); b0=Math.min(b0,v); a1=Math.max(a1,u); b1=Math.max(b1,v); }
-      if(Math.max(a0,cu0)>=Math.min(a1,cu1)||Math.max(b0,cv0)>=Math.min(b1,cv1)) continue; }   // panel not in the area
+    let a0c=1e9,b0c=1e9,a1c=-1e9,b1c=-1e9; for(const row of pc) for(const [u,v] of row){ a0c=Math.min(a0c,u); b0c=Math.min(b0c,v); a1c=Math.max(a1c,u); b1c=Math.max(b1c,v); }
+    if(Math.max(a0c,cu0)>=Math.min(a1c,cu1)||Math.max(b0c,cv0)>=Math.min(b1c,cv1)) continue;   // panel not in the area
     const M0=affine3([pc[0][0],pc[0][N],pc[N][0]],[[0,0],[W,0],[0,Hh]]);
     const need=Math.hypot(M0[0],M0[1])*dens;   // device px per chart pt
-    const levels=stx.levels.map((lv,L)=>{ if(lv.tiles&&!lv.tset) lv.tset=new Set(lv.tiles.map(t=>t[0]+'_'+t[1])); return {...lv,L}; }), lo_=levels[0], hi_=levels.find(l=>l.s>=need*0.7)||levels[levels.length-1];
+    const levels=stx.levels.map((lv,L)=>{ if(lv.tiles&&!lv.tset) lv.tset=new Set(lv.tiles.map(t=>t[0]+'_'+t[1])); return {...lv,L}; }), lo_=levels[0];
+    let hi_=levels.find(l=>l.s>=need*0.7)||levels[levels.length-1];
+    { // at most ~60 detailed tiles per panel in one picture (memory, and the tile cache): a coarser level beyond that
+      const au=Math.max(a0c,cu0), bu=Math.min(a1c,cu1), av=Math.max(b0c,cv0), bv=Math.min(b1c,cv1), cnt=l=>{ const t=CH_TILE/l.s; return (Math.floor(bu/t)-Math.floor(au/t)+1)*(Math.floor(bv/t)-Math.floor(av/t)+1); };
+      while(hi_.L>0&&cnt(hi_)>60) hi_=levels[hi_.L-1]; }
     const tris=[]; for(let r=0;r<N;r++) for(let c=0;c<N;c++){ const A=[c,r],B=[c+1,r],C_=[c,r+1],D=[c+1,r+1]; tris.push([A,B,C_],[B,D,C_]); }
     for(const tri of tris){
       const scr=tri.map(([c,r])=>[GX[c],GY[r]]), chp=tri.map(([c,r])=>pc[r][c]);
@@ -2062,6 +2069,7 @@ function pfShow(force){ const box=$('perfBox'); if(!PF.on){ box.hidden=true; ret
 function pfText(){ const R=pfRows(), f=v=>v.toFixed(1), L=[];
   L.push(`Radio Calls AU render timing · ${new Date().toISOString()} · build ${APP_BUILT?new Date(APP_BUILT).toISOString().slice(0,16):'?'}`);
   L.push(`${navigator.userAgent}`); L.push(`viewport ${innerWidth}x${innerHeight} @${window.devicePixelRatio} · canvas ${$('map').width}x${$('map').height} · full screen ${document.body.classList.contains('fsm')}`);
+  if(CH.on) L.push(`charts: picture rebuilt ${CHC.n}× · ${CH.keep?CH.keep.size:0} tiles in it · ${[...CH.imgs.values()].filter(v=>v&&typeof v!=='string').length} in memory, ${[...CH.imgs.values()].filter(v=>v==='loading').length} loading`);
   L.push(`map range ${MAP.range} NM · up ${MAP.up} · layers: ${[['ctaf',MAP.ctaf],['terrain',MAP.ter],['sat',SAT.on],['charts',CH.on],['wires',PL.on],['radar',RAD.on],['traffic',MAP.traffic],['log',MAP.log],['lead',MAP.lead]].filter(x=>x[1]).map(x=>x[0]).join(', ')||'none'} · sim ${!!st.sim} · GS ${st.gs!=null?Math.round(st.gs):'-'}`);
   for(const [t,title] of [['render','render'],['map','drawMap']]){ const T=R.tot(t); if(!T) continue; L.push(''); L.push(`${title}: avg ${f(T.avg)} last ${f(T.last)} max60 ${f(T.max)} ms · ${R.rate(t).toFixed(1)}/s · n ${T.n}`);
     for(const s of R.parts(t)) L.push(`  ${s.name.padEnd(26)} avg ${f(s.avg).padStart(6)}  last ${f(s.last).padStart(6)}  max60 ${f(s.max).padStart(6)}`); }
@@ -2229,7 +2237,7 @@ function drawTerrain(g0,W,Hh,inv,P,sc,altFt,chartsShown,dpr){
     Object.assign(TRC,{hts,nx,ny}); }
   const key=[TRC.gkey,TRC.la0,TRC.lo0,alt,rb,!!chartsShown,themeKey()].join('|');
   if(TRC.key!==key){ TRC.key=key; TRC.np++;
-    const dc=Math.min(dpr,2,4096/TRC.S), cw=Math.ceil(TRC.S*dc);
+    const dc=Math.min(dpr,1.5,4096/TRC.S), cw=Math.ceil(TRC.S*dc);
     if(!TRC.cv) TRC.cv=document.createElement('canvas');
     if(TRC.cv.width!==cw){ TRC.cv.width=cw; TRC.cv.height=cw; } TRC.dc=dc;
     const g=TRC.cv.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,cw,cw); g.setTransform(dc,0,0,dc,0,0);
