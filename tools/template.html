@@ -2233,7 +2233,7 @@ function lccFwdP(pr,la,lo){ const k=pr.join(); let c=LCCP.get(k);
     const n=Math.log(Math.cos(p1)/Math.cos(p2))/Math.log(Math.tan(Math.PI/4+p2/2)/Math.tan(Math.PI/4+p1/2)), F=Math.cos(p1)*Math.pow(Math.tan(Math.PI/4+p1/2),n)/n;
     c={R_,rad,n,F,l0:pr[3]*rad,r0:R_*F/Math.pow(Math.tan(Math.PI/4+p0/2),n)}; LCCP.set(k,c); }
   const r=c.R_*c.F/Math.pow(Math.tan(Math.PI/4+la*c.rad/2),c.n), th=c.n*(lo*c.rad-c.l0); return [r*Math.sin(th), c.r0-r*Math.cos(th)]; }
-for(const sh of CHART_SHEETS) if(sh.proj) for(const p of sh.panels) p.proj=sh.proj;
+for(const sh of CHART_SHEETS) if(sh.proj) for(const p of sh.panels) if(!p.proj) p.proj=sh.proj;   // a panel can carry its own (an inset at another place)
 function chartPt(pan,la,lo){ const [x,y]=pan.proj? lccFwdP(pan.proj,la,lo) : lccFwd(la,lo);
   if(pan.aff){ const A=pan.aff; return [A[0]*x+A[1]*y+A[2], A[3]*x+A[4]*y+A[5]]; }   // graticule fit (the chart art is ~0.4% wider E-W)
   const [a,b,c,d]=pan.sim; return [a*x+b*y+c, -a*y+b*x+d]; }

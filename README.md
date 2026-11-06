@@ -439,17 +439,16 @@ Without publishing, a pilot can also import a newer PDF on the phone (**Chart un
 4. **Render and publish** as for a new edition (step 3 onwards), passing all the sheets the site should have, old and new, in the one `chartiles.py` run.
 
 ### WAC sheets (1:1,000,000, under the VNC/VTC)
-The app also has eight World Aeronautical Charts: Perth (3351), Nullarbor Plain (3353), Sydney (3456), Adelaide (3458), Esperance (3461), Albany (3462), Hamilton (3469) and Melbourne (3470). They are drawn under the VNCs and VTCs, so they show where those don't cover and when zoomed out. They aren't downloaded by default: tick them in **Options** (about 3-6 MB each).
+The app has all 46 World Aeronautical Charts that are on http://data.tmorris.net/aviation/wac/ (the 2009 editions): the 42 mainland and Tasmania sheets (3097 Torres Strait to 3556 Tasmania) and the four island plans (Christmas, Cocos (Keeling), Lord Howe and Norfolk Island, all numbered 1919, with the North Keeling and Balls Pyramid insets placed where they belong). They are drawn under the VNCs and VTCs, so they show where those don't cover and when zoomed out. They aren't downloaded by default: tick the ones you want in **Options** (about 2-7 MB each, about 200 MB for all of them). They are old editions: use them for the picture, not for airspace or frequencies.
 
-Source of the WAC PDFs: http://data.tmorris.net/aviation/wac/ (file names like `WAC_3470_Melbourne_Ed._17.pdf`; keep them as downloaded, the edition is read from the name). A new or updated sheet comes from there.
-
-The WAC PDFs are raster scans (no text or vector layer), so they have their own calibration script, `tools/wacref.py`:
+Download and calibrate (on your computer):
 ```
+python tools/wacget.py                     # all the PDFs into data/aip/ (skips what's there)
 cd tools
 python wacref.py ../data/aip/WAC_*.pdf > /tmp/wac.json
 python chartiles.py --add ../app/charts ../data/aip/WAC_*.pdf
 ```
-- `wacref.py` finds each sheet's neatline, takes the corner latitudes and longitudes from its `SHEETS` table (read off the sheets: a new sheet needs a line there), fits the WAC's Lambert conformal conic (standard parallels 40' inside the top and bottom edges), then refines on the printed 1° graticule crossings: rms 0.5-1 pt, about 50-100 m. Replace the `"kind": "WAC"` entries in `tools/charts.json` with its output, then rebuild the app (`python3 assemble.py && cp dist/* ../app/`).
+- `wacref.py` finds each sheet's neatline, takes the corner latitudes and longitudes from its `SHEETS` table (read off the sheets; a new sheet needs a line there), fits the WAC's Lambert conformal conic (standard parallels 40' inside the top and bottom edges), then refines on the printed 1° graticule crossings: rms 0.2-1.8 pt, about 20-190 m (most under 1 pt, 100 m). With enough crossings it fits on them alone (some scans' corners are a few pt off). Hamersley Range and Meekatharra have no longitude printed at the west corners: their west edges (113°25' and 112°40') come out of the fit. Sheets with tabs past the frame (Hamersley Range, Meekatharra, Port Augusta, Tasmania with King and Flinders Islands) are clipped to the drawn map instead of the frame. The island plans are fitted on their 5' graticule (`ISLANDS`). Replace the `"kind": "WAC"` entries in `tools/charts.json` with its output, then rebuild the app (`python3 assemble.py && cp dist/* ../app/`).
 - `chartiles.py --add` renders just the sheets given and keeps every other sheet in `app/charts/index.json`. WAC editions are numbers (`Ed 17`, from the file name), not dates.
 - Aerodrome rings on a WAC are often nudged for legibility (up to about 1 km), so check the fit against the graticule and coastline rather than the rings.
 - The PDFs stay in `data/aip/` and aren't committed (like the VTC/VNC PDFs); the tiles in `app/charts/` are.

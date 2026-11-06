@@ -30,9 +30,24 @@ import numpy as np, cv2, pymupdf
 SHEETS = {'3351': ('Perth', -28, -32, 113.5, 120), '3353': ('Nullarbor Plain', -28, -32, 126, 132),
           '3456': ('Sydney', -32, -36, 147, 153), '3458': ('Adelaide', -32, -36, 138, 144),
           '3461': ('Esperance', -32, -36, 120, 126), '3462': ('Albany', -31 - 20 / 60, -35 - 20 / 60, 114, 120),
-          '3469': ('Hamilton', -36, -40, 139, 145.5), '3470': ('Melbourne', -36, -40, 144, 150.5)}
+          '3469': ('Hamilton', -36, -40, 139, 145.5), '3470': ('Melbourne', -36, -40, 144, 150.5),
+          '3097': ('Torres Strait', -8, -12, 138, 144), '3098': ('Cape Wessel', -8, -12, 132, 138), '3099': ('Melville Island', -8, -12, 126, 132),
+          '3108': ('Brunswick Bay', -12, -16, 123, 129), '3109': ('Darwin', -12, -16, 129, 135), '3110': ('Groote Eylandt', -12, -16, 135, 141),
+          '3112': ('Cooktown', -12, -16, 141, 147), '3219': ('Townsville', -16, -20, 144, 150), '3220': ('Normanton', -16, -20, 138, 144),
+          '3221': ('Newcastle Waters', -16, -20, 132, 138), '3222': ('Halls Creek', -16, -20, 126, 132), '3223': ('Broome', -16, -20, 120, 126),
+          '3229': ('Hamersley Range', -20, -24, None, 120), '3230': ('Oakover River', -20, -24, 120, 126), '3231': ('Lake Mackay', -20, -24, 126, 132),
+          '3232': ('Alice Springs', -20, -24, 132, 138), '3233': ('Cloncurry', -20, -24, 138, 144), '3234': ('Clermont', -20, -24, 144, 150),
+          '3235': ('Rockhampton', -20, -24, 147, 153), '3340': ('Brisbane', -24, -28, 148, 154), '3341': ('Charleville', -24, -28, 144, 150),
+          '3342': ('Cooper Creek', -24, -28, 138, 144), '3343': ('Oodnadatta', -24, -28, 132, 138), '3344': ('Petermann Ranges', -24, -28, 126, 132),
+          '3345': ('Wiluna', -24, -28, 120, 126), '3346': ('Meekatharra', -24, -28, None, 120), '3352': ('Kalgoorlie', -28, -32, 120, 126),
+          '3354': ('Tarcoola', -28, -32, 132, 138), '3355': ('Broken Hill', -28, -32, 138, 144), '3356': ('Bourke', -28, -32, 144, 150),
+          '3357': ('Armidale', -28, -32, 148, 154), '3457': ('Canberra', -32, -36, 144, 150), '3459': ('Port Augusta', -32, -36, 132, 139),
+          '3556': ('Tasmania', -40, -43.9, 144, 150)}
+# None: that edge's label isn't printed by its corner (Hamersley Range, Meekatharra): it's found from the fit (east corners + graticule)
 # frames that aren't a plain quadrilateral: corners not to use (0 TL, 1 TR, 2 BR, 3 BL) and the clip's extra outline (page pt)
-STEP = {'3353': dict(skip=[3], cut_x=3080, extra=[(3075, 4300), (2233, 4633), (944, 4667)])}
+STEP = {'3353': dict(skip=[3], cut_x=3080, extra=[(3075, 4300), (2233, 4633), (944, 4667)]),
+        # frames with tabs (islands, coast beyond the edge): the clip is the drawn map area (maskclip), the fit uses the main frame
+        '3229': dict(mask=True), '3346': dict(mask=True), '3459': dict(mask=True), '3556': dict(mask=True)}
 R_NM = 6371008.8 / 1852
 
 
@@ -108,33 +123,143 @@ def fit(pr, pts):
     return ax, ay, np.hypot(M @ ax - P[:, 2], M @ ay - P[:, 3])
 
 
+def maskclip(img):
+    """the map area as drawn (largest non-white region, holes ignored), simplified: for frames with tabs and steps"""
+    small = cv2.resize(img.astype(np.uint8), (img.shape[1] // 2, img.shape[0] // 2), interpolation=cv2.INTER_AREA).astype(int)
+    m = (small.sum(2) < 735).astype(np.uint8)
+    m = cv2.morphologyEx(cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8)), cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE); c = max(cs, key=cv2.contourArea)
+    c = cv2.approxPolyDP(c, 2.0, True)[:, 0, :]
+    return [[round(float(x) * 2, 1), round(float(y) * 2, 1)] for x, y in c]
+
+
+def affP(ax, ay, pr):
+    def P(la, lo):
+        x, y = lcc(pr, la, lo); return (ax[0] * x + ax[1] * y + ax[2], ay[0] * x + ay[1] * y + ay[2])
+    return P
+
+
+def lon_at(P, lat, u, lo0, lo1):
+    """longitude where the parallel `lat` reaches page x = u (bisection)"""
+    a, b = lo0, lo1; fa = P(lat, a)[0] - u
+    for _ in range(60):
+        m = (a + b) / 2; fm = P(lat, m)[0] - u
+        if (fm < 0) == (fa < 0): a, fa = m, fm
+        else: b = m
+    return (a + b) / 2
+
+
 def sheet(path):
-    num = re.search(r'WAC[ _-]?(\d{4})', os.path.basename(path), re.I).group(1); name, N, S, Wl, E = SHEETS[num]; st = STEP.get(num, {})
+    base = os.path.basename(path); num = re.search(r'WAC[ _-]?(\d{4})', base, re.I).group(1)
+    key = num if num != '1919' else '1919-' + re.search(r'WAC[ _-]?1919[ _-]+([A-Za-z]+)', base).group(1).upper()
+    name, N, S, Wl, E = SHEETS[key]; st = STEP.get(key, {})
     page = pymupdf.open(path)[0]; pix = page.get_pixmap(matrix=pymupdf.Matrix(1, 1))
     img = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, 3).astype(int)
-    C = neatline(img); ll = [(N, Wl), (N, E), (S, E), (S, Wl)]; use = [i for i in range(4) if i not in st.get('skip', [])]
-    pr = [round(N - 2 / 3, 4), round(S + 2 / 3, 4), (N + S) / 2, (Wl + E) / 2]
-    corners = [(*ll[i], *C[i]) for i in use]
-    ax, ay, _ = fit(pr, corners)
-    P = lambda la, lo: (ax[0] * lcc(pr, la, lo)[0] + ax[1] * lcc(pr, la, lo)[1] + ax[2], ay[0] * lcc(pr, la, lo)[0] + ay[1] * lcc(pr, la, lo)[1] + ay[2])
-    gx = crossings(img, P, N, S, Wl, E)
-    ax, ay, r = fit(pr, corners + gx)
-    P = lambda la, lo: (ax[0] * lcc(pr, la, lo)[0] + ax[1] * lcc(pr, la, lo)[1] + ax[2], ay[0] * lcc(pr, la, lo)[0] + ay[1] * lcc(pr, la, lo)[1] + ay[2])
-    t = np.linspace(0, 1, 13); seg = lambda la, lo: list(zip(*P(la, lo)))
-    top = seg(np.full(13, N), Wl + (E - Wl) * t); right = seg(N + (S - N) * t, np.full(13, E))
-    bot = seg(np.full(13, S), E + (Wl - E) * t); left = seg(S + (N - S) * t, np.full(13, Wl))
-    if st.get('extra'): bot = [q for q in seg(np.full(25, S), np.linspace(E, Wl, 25)) if q[0] > st['cut_x']] + st['extra']
-    clip = [[round(float(x), 1), round(float(y), 1)] for x, y in top + right[1:] + (bot[1:] if not st.get('extra') else bot) + left[1:-1]]
+    C = neatline(img); use = [i for i in range(4) if i not in st.get('skip', [])]
+    est = Wl is None   # west edge not printed in a readable place: found from the fit
+    if est:
+        use = [i for i in use if i in (1, 2)]; Wl = E - 6.25
+    for it in range(3 if est else 1):
+        pr = [round(N - 2 / 3, 4), round(S + 2 / 3, 4), (N + S) / 2, round((Wl + E) / 2, 4)]
+        ll = [(N, Wl), (N, E), (S, E), (S, Wl)]; corners = [(*ll[i], *C[i]) for i in use]
+        if len(corners) >= 3: ax, ay, _ = fit(pr, corners)
+        else:   # two corners: similarity (conformal) through them
+            X, Y = lcc(pr, [q[0] for q in corners], [q[1] for q in corners]); U = [q[2] for q in corners]; V = [q[3] for q in corners]
+            A = np.r_[np.c_[X, Y, np.ones(2), np.zeros(2)], np.c_[-Y, X, np.zeros(2), np.ones(2)]]   # u = a x + b y + c, v = b x - a y + d
+            a, b, c, d = np.linalg.solve(A, np.r_[U, V]); ax, ay = np.array([a, b, c]), np.array([b, -a, d])
+        P = affP(ax, ay, pr)
+        gx = crossings(img, P, N, S, Wl, E)
+        ax, ay, r = fit(pr, corners + gx)
+        for _ in range(3):   # drop crossings that don't fit (a road or a river taken for the line), refit
+            bad = [i for i in range(len(corners), len(r)) if r[i] > max(3.0, 3 * np.median(r))]
+            if not bad: break
+            gx = [q for k, q in enumerate(gx) if k + len(corners) not in bad]; ax, ay, r = fit(pr, corners + gx)
+        # enough crossings across the sheet: fit on them alone (on some scans the corners are a few pt off the graticule)
+        if len(gx) >= 6 and len({q[0] for q in gx}) >= 2 and len({q[1] for q in gx}) >= 3:
+            ax, ay, r = fit(pr, gx); used = 'crossings'
+        else: used = 'corners + crossings'
+        P = affP(ax, ay, pr)
+        if est: Wl = round(lon_at(P, N, C[0][0], E - 8, E - 4) * 60) / 60
+    ll = [(N, Wl), (N, E), (S, E), (S, Wl)]
+    if st.get('mask'): clip = maskclip(img)
+    else:
+        t = np.linspace(0, 1, 13); seg = lambda la, lo: list(zip(*P(la, lo)))
+        top = seg(np.full(13, N), Wl + (E - Wl) * t); right = seg(N + (S - N) * t, np.full(13, E))
+        bot = seg(np.full(13, S), E + (Wl - E) * t); left = seg(S + (N - S) * t, np.full(13, Wl))
+        if st.get('extra'): bot = [q for q in seg(np.full(25, S), np.linspace(E, Wl, 25)) if q[0] > st['cut_x']] + st['extra']
+        clip = [[round(float(x), 1), round(float(y), 1)] for x, y in top + right[1:] + (bot[1:] if not st.get('extra') else bot) + left[1:-1]]
     # similarity for the record (the app uses aff): u = a x + b y + c, v = -a y + b x + d
     X, Y = lcc(pr, [q[0] for q in ll], [q[1] for q in ll]); U, V = P(np.array([q[0] for q in ll]), np.array([q[1] for q in ll]))
     A = np.r_[np.c_[X, Y, np.ones(4), np.zeros(4)], np.c_[-Y, X, np.zeros(4), np.ones(4)]]; sim = np.linalg.lstsq(A, np.r_[U, V], rcond=None)[0]
-    print(f'{name} WAC: {len(corners)} corners + {len(gx)} graticule crossings, rms {np.sqrt(np.mean(r ** 2)):.2f} pt, max {r.max():.2f} pt '
-          f'(1 pt = {1852 / np.hypot(ax[0], ax[1]):.0f} m)', file=sys.stderr)
-    sid = f'WAC-{num}'; nm = f'{name} WAC'
-    return dict(sheet=sid, name=nm, kind='WAC', page=[round(page.rect.width, 2), round(page.rect.height, 2)], re=f'wac[ _-]?{num}',
+    sx, sy = np.hypot(ax[0], ay[0]), np.hypot(ax[1], ay[1])
+    print(f'{name} WAC: fit on {used}: {len(corners)} corners, {len(gx)} graticule crossings, rms {np.sqrt(np.mean(r ** 2)):.2f} pt, max {r.max():.2f} pt, '
+          f'x/y scale {sx / sy:.4f} (1 pt = {1852 / sx:.0f} m)' + (f', west edge {int(-Wl) if Wl < 0 else int(Wl)} deg {round(abs(Wl) % 1 * 60)}\'' if est else ''), file=sys.stderr)
+    sid = 'WAC-' + key; nm = f'{name} WAC'
+    return dict(sheet=sid, name=nm, kind='WAC', page=[round(page.rect.width, 2), round(page.rect.height, 2)], re=f'wac[ _-]?{num}' + ('' if num != '1919' else '[ _-]+' + key[5:].lower()),
                 levels=[0.25, 1.0], proj=pr, panels=[dict(id=sid, name=nm, order=-1, sim=[round(float(v), 6) for v in sim],
                                                           aff=[round(float(v), 6) for v in [*ax, *ay]], clip=clip)])
 
 
+# ---- the four island sheets (all numbered 1919): large-scale plans with a 5' graticule, no corner labels ----
+# Lines as (value, approximate page pt); the inset (North Keeling, Balls Pyramid) is cut out of the main panel and placed as
+# its own panel from its one graticule crossing, at its printed scale relative to the main map.
+ISLANDS = {
+    'CHRISTMAS': dict(name='Christmas Island', lon=[(105 + 35 / 60, 875), (105 + 40 / 60, 1677)], lat=[(-(10 + 25 / 60), 890), (-(10.5), 1692), (-(10 + 35 / 60), 2500)]),
+    'COCOS': dict(name='Cocos (Keeling) Islands', lon=[(96 + 50 / 60, 765), (96 + 55 / 60, 1567)], lat=[(-12, 570), (-(12 + 5 / 60), 1377), (-(12 + 10 / 60), 2180), (-12.25, 2982)],
+                  inset=dict(name='North Keeling Island', rect=(395, 387, 1042, 1025), lat=(-(11 + 50 / 60), 705), lon=(96 + 50 / 60, 900), scale=1.0)),
+    'LORD': dict(name='Lord Howe Island', lon=[(159 + 5 / 60, 1112)], lat=[(-31.5, 537), (-(31 + 35 / 60), 1860)],
+                 inset=dict(name='Balls Pyramid', rect=(1350, 1805, 2090, 2265), lat=(-(31 + 47 / 60), 2168), lon=(159.25, 1718), scale=0.5, ticks=True)),   # edge ticks only: positions as read
+    'NORFOLK': dict(name='Norfolk Island', lon=[(167 + 55 / 60, 680), (168, 2037)], lat=[(-29, 425), (-(29 + 5 / 60), 1787)]),
+}
+
+
+def _line(dk, axis, p0, lo, hi, R=30):
+    """refine a graticule line near page coordinate p0 (axis 'x': vertical line, else horizontal), over lo..hi along it"""
+    best = None
+    for p in range(int(p0 - R), int(p0 + R) + 1):
+        v = dk[int(lo):int(hi), p].mean() if axis == 'x' else dk[p, int(lo):int(hi)].mean()
+        if best is None or v > best[0]: best = (v, p)
+    return best[1] + .5, best[0]
+
+
+def island(path):
+    key = re.search(r'WAC[ _-]?1919[ _-]+([A-Za-z]+)', os.path.basename(path)).group(1).upper(); I = ISLANDS[key]
+    page = pymupdf.open(path)[0]; pix = page.get_pixmap(matrix=pymupdf.Matrix(1, 1))
+    img = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, 3).astype(int); mx, mn = img.max(2), img.min(2)
+    dk = ((mx < 150) & ((mx - mn) < 40)).astype(float)
+    ins = I.get('inset'); rx = ins['rect'] if ins else None
+    ys = [y for _, y in I['lat']]; xs = [x for _, x in I['lon']]
+    X = [(v, _line(dk, 'x', x, min(ys) - 200, max(ys) + 200)[0]) for v, x in I['lon']]
+    Y = [(v, _line(dk, 'y', y, min(xs) - 200 if len(xs) > 1 else xs[0] - 600, max(xs) + 200 if len(xs) > 1 else xs[0] + 600)[0]) for v, y in I['lat']]
+    pts = [(la, lo, x, y) for lo, x in X for la, y in Y]
+    lac = np.mean([q[0] for q in pts]); loc = np.mean([q[1] for q in pts]); pr = [round(lac + .2, 4), round(lac - .2, 4), round(lac, 4), round(loc, 4)]
+    if len(X) >= 2: ax, ay, r = fit(pr, pts)
+    else:   # one meridian: similarity through the crossings (the plans are conformal)
+        P_ = np.array(pts, float); x, y = lcc(pr, P_[:, 0], P_[:, 1]); n = len(P_)
+        A = np.r_[np.c_[x, y, np.ones(n), np.zeros(n)], np.c_[-y, x, np.zeros(n), np.ones(n)]]
+        a, b, c, d = np.linalg.lstsq(A, np.r_[P_[:, 2], P_[:, 3]], rcond=None)[0]; ax, ay = np.array([a, b, c]), np.array([b, -a, d])
+        r = np.hypot(np.c_[x, y, np.ones(n)] @ ax - P_[:, 2], np.c_[x, y, np.ones(n)] @ ay - P_[:, 3])
+    outer = maskclip(img)
+    panels = []
+    if ins:   # cut the inset box out of the main panel (a bridge to the box, round it the other way, back)
+        x0, y0, x1, y1 = rx; area = sum(outer[i][0] * outer[i - 1][1] - outer[i - 1][0] * outer[i][1] for i in range(len(outer)))
+        box = [[x0, y0], [x0, y1], [x1, y1], [x1, y0]] if area > 0 else [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+        k = min(range(len(outer)), key=lambda i: (outer[i][0] - x0) ** 2 + (outer[i][1] - y0) ** 2)
+        outer = outer[:k + 1] + box + [box[0], outer[k]] + outer[k + 1:]
+        # the inset: its crossing, the main map's linear part times the scale ratio
+        la, lo = ins['lat'][0], ins['lon'][0]
+        u, v = (ins['lon'][1], ins['lat'][1]) if ins.get('ticks') else (_line(dk, 'x', ins['lon'][1], y0 + 15, y1 - 15)[0], _line(dk, 'y', ins['lat'][1], x0 + 15, x1 - 15)[0])
+        prI = [round(la + .2, 4), round(la - .2, 4), round(la, 4), round(lo, 4)]; xi, yi = lcc(prI, la, lo); k_ = ins['scale']
+        axI = np.array([ax[0] * k_, ax[1] * k_, 0.0]); ayI = np.array([ay[0] * k_, ay[1] * k_, 0.0]); axI[2] = u - axI[0] * xi - axI[1] * yi; ayI[2] = v - ayI[0] * xi - ayI[1] * yi
+        sid = f'WAC-1919-{key}-INSET'
+        panels.append(dict(id=sid, name=ins['name'], order=-1, proj=prI, aff=[round(float(q), 6) for q in [*axI, *ayI]],
+                           clip=[[x0 + 6, y0 + 6], [x1 - 6, y0 + 6], [x1 - 6, y1 - 6], [x0 + 6, y1 - 6]]))
+    sid = f'WAC-1919-{key}'; nm = I['name'] + ' WAC'
+    print(f"{nm}: {len(pts)} graticule crossings, rms {np.sqrt(np.mean(np.square(r))):.2f} pt (1 pt = {1852 / np.hypot(ax[0], ay[0]):.0f} m)" + (f", inset {ins['name']}" if ins else ''), file=sys.stderr)
+    main = dict(id=sid, name=nm, order=-1, aff=[round(float(q), 6) for q in [*ax, *ay]], clip=outer)
+    return dict(sheet=sid, name=nm, kind='WAC', page=[round(page.rect.width, 2), round(page.rect.height, 2)], re=f'wac[ _-]?1919[ _-]+{key.lower()}',
+                levels=[0.5, 1.0], proj=pr, panels=[main] + panels)
+
+
 if __name__ == '__main__':
-    print(json.dumps([sheet(p) for p in sys.argv[1:]], indent=1))
+    print(json.dumps([island(p) if re.search(r'WAC[ _-]?1919', os.path.basename(p)) else sheet(p) for p in sys.argv[1:]], indent=1))
