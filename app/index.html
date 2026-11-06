@@ -518,6 +518,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
 .v3h b{flex:1;white-space:nowrap} .v3h small{font:600 9px var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--warn);border:1px solid currentColor;border-radius:3px;padding:1px 3px}
 .v3h select,.v3h button{font:600 11px var(--f-mono);padding:3px 5px;border-radius:5px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
 .v3l{display:flex;gap:4px;flex-wrap:wrap;padding:4px 6px;border-bottom:1px solid var(--rule)} .v3l button{font:600 10.5px var(--f-mono);padding:3px 7px;border-radius:5px;border:1px solid var(--rule);background:var(--panel);color:var(--dim)}
+.v3l select{margin-left:auto;font:600 10.5px var(--f-mono);padding:2px 4px;border-radius:5px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)} .v3h button[aria-pressed="true"]{background:var(--wp);color:#fff;border-color:var(--wp)}
 .v3l button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .v3b{position:relative;flex:1;min-height:0} .v3b canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none} #v3dLab{pointer-events:none}
 #v3dMsg{position:absolute;left:6px;top:4px;font:600 11px var(--f-mono);color:var(--warn);pointer-events:none}
@@ -739,6 +740,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <button class="btn" id="bWake" aria-pressed="false">Keep screen on</button>
     <button class="btn" id="bCmp" title="The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.">Compass: not aligned</button>
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
+    <button class="btn" id="bLog" aria-haspopup="dialog" title="Your logbook: legs from the GPS log, totals, and CSV export for your logbook app">Logbook</button>
     <button class="btn" id="bOpts" aria-haspopup="dialog" title="Which VNC / VTC charts to download and keep on this device">Options</button>
     <button class="btn" id="bInstall" hidden title="Install as an app: full screen, its own icon, and Android keeps its stored data">Install app</button>
   </div>
@@ -760,7 +762,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl">Chart downloads (VNC / VTC)</div>
     <div class="opts-list" id="optsCharts"></div>
     <div class="vnote" id="optsNote"></div>
-    <div class="lbl" style="margin-top:10px">Flight logs (kept 90 days)</div>
+    <div class="lbl" style="margin-top:10px" id="optsLogsLbl">Logbook and flight logs (kept 90 days)</div>
     <div class="opts-list" id="optsLogs"></div>
     <div class="lbl" style="margin-top:10px">Top bar tiles</div>
     <div class="opts-list"><label style="cursor:default"><span><b>Flash CTAF and AREA when they change</b><br><small>The tile pulses when its frequency changes, so a new CTAF or area frequency catches your eye. 0 = off.</small></span><select id="optFlash" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)"><option value="0">0 (off)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select><span class="meta">pulses</span></label></div>
@@ -891,7 +893,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=220d0bf634';
+    const s=document.createElement('script'); s.src='app.js?v=31f1ff70d9';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
@@ -904,8 +906,9 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
   <div class="v3h"><b>3D view</b><small>dev</small>
     <select id="v3dCam" aria-label="Camera"><option value="cockpit">Cockpit</option><option value="chase">Chase</option><option value="orbit">Orbit</option></select>
     <select id="v3dSurf" aria-label="Surface"><option value="chart">Chart</option><option value="relief">Relief</option><option value="sat">Satellite</option></select>
+    <button type="button" id="v3dPlay" title="Preview: fly the flight plan (or your Go to) in 3D, down to circuit height at the destination" aria-pressed="false">▶</button>
     <button type="button" id="v3dReset" title="Reset the view">⟲</button><button type="button" id="v3dX" title="Close">✕</button></div>
-  <div class="v3l"><button type="button" data-v3="air">Airspace</button><button type="button" data-v3="clr">Clearance</button><button type="button" data-v3="plan">Plan</button><button type="button" data-v3="traf">Traffic</button><button type="button" data-v3="obst">Obstacles</button></div>
+  <div class="v3l"><button type="button" data-v3="air">Airspace</button><button type="button" data-v3="clr">Clearance</button><button type="button" data-v3="plan">Plan</button><button type="button" data-v3="traf">Traffic</button><button type="button" data-v3="obst">Obstacles</button><select id="v3dSpd" aria-label="Preview speed" title="Preview speed"><option value="10">10 NM/min</option><option value="20" selected>20 NM/min</option><option value="40">40 NM/min</option></select></div>
   <div class="v3b"><canvas id="v3dCv"></canvas><canvas id="v3dLab"></canvas><div id="v3dMsg"></div></div>
   <div class="v3rz" title="Resize"></div>
 </div>

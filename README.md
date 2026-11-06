@@ -145,7 +145,11 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - **Camera:** Cockpit (your position and altitude, looking along your heading; drag to look around), Chase (behind and above you) or Orbit (drag to go round, pinch or scroll to zoom). Double-tap or ⟲ resets the view.
 - **Surface:** Chart (the ticked VNC/VTC/WAC charts draped on the terrain), Relief (colour by height with hill shading) or Satellite (needs the proxy or an Esri key, as for the map).
 - **Layers** (each on or off): Airspace (walls between each area's lower and upper limits, map colours), Clearance (terrain at or above you red, within 500 ft amber), Plan (the flight plan at its leg altitudes), Traffic (ADS-B, with the Traffic layer on) and Obstacles (briefing obstacles and power lines).
+- **Preview (▶):** flies your flight plan in 3D at its leg altitudes (or, with no plan, from you to your Go to), easing round the turns and descending over the last 4 NM to 1,000 ft above the destination aerodrome. Speed 10, 20 or 40 NM per minute; ■ stops it. Works with any camera (orbit switches to chase).
 - Work in progress: for trying out, not for navigation.
+
+### Logbook
+**More → Logbook** opens the logbook: legs worked out from the GPS log, with your edits, 7/28/365-day totals and a CSV export (all legs, or per flight) for your logbook app. It's the same section as Options → Logbook and flight logs.
 
 ## Runways and aerodrome diagram
 The aerodrome card's head (code, name, distance and arrow) stays at the top of the screen while you scroll down through the runways and frequencies; on a landscape tablet it sits under the top bar. In the runway diagram every runway number stays inside the box, whatever way track up turns it.

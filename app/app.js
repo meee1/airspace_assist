@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793923707316;
+const APP_BUILT=1793950962370;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1404,6 +1404,8 @@ function optsRender(){
 $('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
+// More → Logbook: Options opened at the logbook (totals, legs, CSV export)
+$('bLog').onclick=async()=>{ $('bOpts').onclick(); await logsRender(); const l=$('optsLogsLbl'); l.scrollIntoView({block:'start'}); l.classList.add('fqflash'); setTimeout(()=>l.classList.remove('fqflash'),1600); };
 // flights stored in IndexedDB: fixes split where there's a gap of more than 30 min, newest first, each downloadable as GPX
 function logRead(from,to){ return new Promise(ok=>{ if(!LOGDB.db) return ok([]); const out=[];
   const q=LOGDB.db.transaction('log').objectStore('log').index('t').openCursor(IDBKeyRange.bound(from,to));
@@ -4374,11 +4376,38 @@ function m4look(e,c,u){ let z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]], L=Math.hypot(...z
   let x=[u[1]*z[2]-u[2]*z[1],u[2]*z[0]-u[0]*z[2],u[0]*z[1]-u[1]*z[0]]; L=Math.hypot(...x); x=x.map(v=>v/L); const y=[z[1]*x[2]-z[2]*x[1],z[2]*x[0]-z[0]*x[2],z[0]*x[1]-z[1]*x[0]];
   return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]),-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]),-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]),1]); }
 // ---- frame ----
+// ---- route / approach preview: fly the flight plan (else your Go to) along its leg altitudes, descending over the last
+// 4 NM to 1,000 ft above the destination aerodrome (circuit height), at the chosen speed (NM per minute of preview)
+function v3dPath(){
+  let pts=[];
+  if(FP&&FP.pts.length>=2){ const pr=profEnsure(); FP.pts.forEach((p,k)=>{ const lp=pr&&pr.legs&&pr.legs[Math.max(1,k)]; pts.push({la:p.la,lo:p.lo,ft:lp&&lp.alt!=null?lp.alt:(st.alt!=null?st.alt:1500),n:p.c||p.n}); }); }
+  else if(GO&&st.pos){ const a=st.alt!=null?Math.max(st.alt,500):1500; pts=[{la:st.pos[0],lo:st.pos[1],ft:a,n:''},{la:GO.la,lo:GO.lo,ft:a,n:GO.c||GO.n||'Go to'}]; }
+  else return null;
+  const E=pts[pts.length-1], P_=pts[pts.length-2], ad=DATA.ap.find(a=>Math.abs(a.la-E.la)<0.01&&Math.abs(a.lo-E.lo)<0.01);
+  if(ad){ const leg=distBrg(P_.la,P_.lo,E.la,E.lo)[0], cct=(ad.e||0)+1000, f=leg>4? 1-4/leg : 0;
+    if(f>0) pts.splice(pts.length-1,0,{la:P_.la+(E.la-P_.la)*f, lo:P_.lo+(E.lo-P_.lo)*f, ft:P_.ft, n:''});
+    E.ft=cct; }
+  let c=0; pts.forEach((p,k)=>{ if(k) c+=distBrg(pts[k-1].la,pts[k-1].lo,p.la,p.lo)[0]; p.c=c; });
+  return {pts, L:c}; }
+function v3dPose(){ const v=V3.pv, s=Math.min(v.L, v.s0+(performance.now()-v.t0)/60000*v.spd), P_=v.pts;
+  if(s>=v.L&&!v.end) v.end=performance.now(); if(v.end&&performance.now()-v.end>2500){ v3dPreview(false); }
+  let k=1; while(k<P_.length-1&&P_[k].c<s) k++;
+  const a=P_[k-1], b=P_[k], f=b.c>a.c? Math.max(0,Math.min(1,(s-a.c)/(b.c-a.c))) : 1;
+  let hdg=distBrg(a.la,a.lo,b.la,b.lo)[1];
+  if(k<P_.length-1&&b.c-s<0.4){ const h2=distBrg(b.la,b.lo,P_[k+1].la,P_[k+1].lo)[1], d=((h2-hdg+540)%360)-180; hdg+=d*(1-(b.c-s)/0.4)/2; }   // ease into the turn
+  const nx=P_.slice(k).find(p=>p.n);
+  return {la:a.la+(b.la-a.la)*f, lo:a.lo+(b.lo-a.lo)*f, ft:a.ft+(b.ft-a.ft)*f, hdg, s, next:nx&&nx.n}; }
+function v3dPreview(on){ const b=$('v3dPlay');
+  if(on){ const p=v3dPath(); if(!p){ $('v3dMsg').textContent='Preview: load a flight plan or set a Go to first.'; return; }
+    V3.pv={...p, s0:0, t0:performance.now(), spd:+($('v3dSpd').value||20)}; if(V3.opt.cam==='orbit'){ V3.opt.cam='chase'; $('v3dCam').value='chase'; } v3dResetView(); }
+  else V3.pv=null;
+  b.textContent= V3.pv? '■' : '▶'; b.setAttribute('aria-pressed',!!V3.pv); V3.key=''; }
 function v3dLoop(){ V3.raf=0; if(!V3.on) return; try{ v3dFrame(); }catch(e){ $('v3dMsg').textContent='3D: '+e.message; } V3.raf=requestAnimationFrame(v3dLoop); }
 function v3dFrame(){
   const gl=V3.gl; if(!gl||!st.pos) return; const cv=$('v3dCv'), r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
   const Wd=Math.round(r.width*dpr), Hd=Math.round(r.height*dpr); if(!Wd||!Hd) return;
-  const Rnm=Math.max(3,Math.min(40,MAP.range)), [la,lo]=st.pos, h=heading(), hdg=h?h.deg:(st.trk||0), altFt=st.alt!=null? st.alt : null;
+  const pose=V3.pv? v3dPose() : null;   // preview: a point flying the route instead of you
+  const Rnm=Math.max(3,Math.min(40,MAP.range)), h=heading(), [la,lo]=pose? [pose.la,pose.lo] : st.pos, hdg=pose? pose.hdg : h?h.deg:(st.trk||0), altFt=pose? pose.ft : st.alt!=null? st.alt : null;
   // grid: rebuild after moving a quarter of the way out, a new range, or new terrain tiles (at most every 2 s for tiles)
   const g=V3.grid; let rebuilt=false;
   if(!g||g.Rnm!==Rnm||Math.abs(la-g.la0)*60>Rnm/4||Math.abs(lo-g.lo0)*60*g.cosl>Rnm/4||((TER.ver||0)!==g.ver&&Date.now()-(g.t||0)>2000)){
@@ -4428,6 +4457,7 @@ function v3dFrame(){
     c.beginPath(); c.moveTo(0,-9); c.lineTo(6,6); c.lineTo(0,3); c.lineTo(-6,6); c.closePath(); c.stroke(); c.fill(); c.restore(); } }
   else { c.strokeStyle=dark?'rgba(255,255,255,.55)':'rgba(0,0,0,.45)'; c.lineWidth=1.5; const cx=r.width/2, cy=r.height/2; c.beginPath(); c.moveTo(cx-18,cy); c.lineTo(cx-6,cy); c.moveTo(cx+6,cy); c.lineTo(cx+18,cy); c.moveTo(cx,cy-4); c.lineTo(cx,cy+4); c.stroke(); }
   c.textAlign='left'; c.font='600 10px "IBM Plex Mono", monospace'; c.fillStyle=dark?'#cfe':'#123';
+  if(pose){ c.fillStyle=cssv('--wp'); c.font='700 11px "IBM Plex Mono", monospace'; c.fillText(`PREVIEW ${pose.s.toFixed(1)}/${V3.pv.L.toFixed(1)} NM${pose.next?' · next '+pose.next:''}`,6,16); c.font='600 10px "IBM Plex Mono", monospace'; c.fillStyle=dark?'#cfe':'#123'; }
   c.fillText(`${cam} · ${altFt!=null?Math.round(altFt)+' ft':'alt ?'} · hdg ${String(Math.round(((hdg+v.yaw*(cam==='cockpit'?1:0))%360+360)%360)).padStart(3,'0')}°T · ${Rnm} NM`,6,r.height-6);
   $('v3dMsg').textContent= V3.opt.surf==='sat'&&!satVia()? 'Satellite needs the proxy or a key (Options).' : V3.opt.surf==='chart'&&!CH.idx.length? 'No charts ticked (Options).' : '';
 }
@@ -4441,7 +4471,8 @@ function v3dFrame(){
   const sync=()=>{ for(const b of w.querySelectorAll('[data-v3]')){ const k=b.dataset.v3; b.setAttribute('aria-pressed',!!V3.opt[k]); }
     w.querySelector('#v3dSurf').value=V3.opt.surf; w.querySelector('#v3dCam').value=V3.opt.cam; V3.key=''; };
   w.addEventListener('click',e=>{ const b=e.target.closest('[data-v3]'); if(b){ const k=b.dataset.v3; V3.opt[k]=!V3.opt[k]; if(k==='obst'&&V3.opt.obst) plLoad(); v3dSave(); sync(); }
-    if(e.target.closest('#v3dX')) v3dShow(false); if(e.target.closest('#v3dReset')) v3dResetView(); });
+    if(e.target.closest('#v3dX')){ v3dPreview(false); v3dShow(false); } if(e.target.closest('#v3dReset')) v3dResetView(); if(e.target.closest('#v3dPlay')) v3dPreview(!V3.pv); });
+  w.querySelector('#v3dSpd').addEventListener('change',e=>{ if(V3.pv){ const p=v3dPose(); V3.pv.s0=p.s; V3.pv.t0=performance.now(); V3.pv.spd=+e.target.value; } });
   w.querySelector('#v3dSurf').addEventListener('change',e=>{ V3.opt.surf=e.target.value; V3.texKey=''; v3dSave(); sync(); });
   w.querySelector('#v3dCam').addEventListener('change',e=>{ V3.opt.cam=e.target.value; v3dResetView(); v3dSave(); sync(); });
   sync(); $('optV3d').addEventListener('change',()=>v3dShow($('optV3d').checked));
