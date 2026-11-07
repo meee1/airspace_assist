@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794089834189;
+const APP_BUILT=1794092802802;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -533,8 +533,51 @@ function naipsParse(txt){
     if(cur.after){ const p=/^(\d{10}) TO (\d{10})$/.exec(s); if(p) (cur.per=cur.per||[]).push([dt10(p[1]),dt10(p[2])]); else if(s) cur.sch=(cur.sch?cur.sch+' · ':'')+s; continue; }
     if(s||cur.lines.length) cur.lines.push(s); }
   flush();
-  const met=naipsMet(txt,issued);
-  return items.length||none.length||Object.keys(met).length? {t:Date.now(), issued, validTo, title, items, none, met} : null; }
+  const met=naipsMet(txt,issued), {aq,sig}=naipsWxx(txt,issued);
+  return items.length||none.length||Object.keys(met).length||aq.length||sig.length? {t:Date.now(), issued, validTo, title, items, none, met, aq, sig} : null; }
+/* Area QNH and SIGMET / AIRMET from the weather part of a NAIPS briefing (before "NOTAM INFORMATION").
+   "AREA30 (30) / AREA QNH 22/01 / AREA 30: NE OF JANGU/YORB/YBRN 1024, / REST 1027"
+     -> aq: [{area:'30', from, to (ms; the HH/HH UTC validity), parts:[{d:'NE OF JANGU/YORB/YBRN', q:1024}, {d:'REST', q:1027}], raw}]
+   "YMMM SIGMET U12 VALID 072235/080235 YMMC- / YMMM MELBOURNE FIR SEV TURB FCST WI S4930 E16100 - ... 10000FT/FL300 MOV ENE 30KT NC / RMK ...="
+     -> sig: [{fir, kind:'SIGMET'|'AIRMET', id, from, to, off (issuing office), wx ('SEV TURB'), obs ('OBS'|'FCST'), poly [[la,lo]...] | null,
+               lo, hi (ft; null = not given), top (true: "TOP ..." only, from the surface), mov, raw}]  ("CNL" reports drop the one they cancel) */
+// current SIGMETs / AIRMETs from the loaded briefing; the same area issued for two FIRs (YMMM U12 = YBBB B11) is one entry, ids joined
+function sigCur(t=Date.now()){ const out=[], by=new Map(); if(!NTN||!NTN.sig) return out;
+  for(const z of NTN.sig){ if(!(t>=z.from&&t<z.to)) continue; const k=z.poly? z.poly.map(q=>q[0].toFixed(2)+','+q[1].toFixed(2)).join(' ')+'|'+z.wx : z.kind+z.id;
+    const o=by.get(k); if(o){ o.ids.push(z.kind+' '+z.id); o.name=o.kind+' '+o.ids.map(i=>i.split(' ')[1]).join('/'); continue; } const e={...z, ids:[z.kind+' '+z.id], name:z.kind+' '+z.id}; by.set(k,e); out.push(e); }
+  return out; }
+function sigLim(z){ return z.top? z.topTxt.replace(/\b(\d{3,5})FT\b/,(a,b)=>limTxt(+b)) : z.lo!=null&&z.hi!=null? `${limTxt(z.lo)}–${limTxt(z.hi)}` : ''; }
+function sigAt(la,lo,t){ return sigCur(t).filter(z=>z.poly&&inRing(la,lo,z.poly)); }
+function sigLine(z){ return `${z.wx}${z.obs?' '+z.obs:''}${sigLim(z)?' · '+sigLim(z):''}${z.mov?' · '+z.mov:''} · till ${hhmmZ(z.to)}`; }
+function aqTxt(a){ return `Area ${a.area} QNH `+a.parts.map(p=>p.d==='REST'&&a.parts.length>1? `rest ${p.q}` : `${p.d?p.d+' ':''}${p.q}`).join(', ')+(a.from?` (${new Date(a.from).toISOString().slice(11,13)}–${new Date(a.to).toISOString().slice(11,13)}Z${Date.now()>a.to?', expired':''})`:''); }
+function naipsWxx(txt,issued){ const aq=[], sig=[], cnl=new Set();
+  const T=String(txt||'').replace(/\r/g,'').replace(/\t/g,'    '), cut=T.search(/^\s*NOTAM INFORMATION\s*$/m), W=cut>=0? T.slice(0,cut) : T;
+  const iss=new Date(issued||Date.now()), ddhhmm=s=>{ let t=Date.UTC(iss.getUTCFullYear(),iss.getUTCMonth(),+s.slice(0,2),+s.slice(2,4),+s.slice(4,6)); if(t-(issued||Date.now())>15*864e5) t=Date.UTC(iss.getUTCFullYear(),iss.getUTCMonth()-1,+s.slice(0,2),+s.slice(2,4),+s.slice(4,6)); else if((issued||Date.now())-t>15*864e5) t=Date.UTC(iss.getUTCFullYear(),iss.getUTCMonth()+1,+s.slice(0,2),+s.slice(2,4),+s.slice(4,6)); return t; };
+  const ft=s=>{ if(!s) return null; if(s==='SFC') return 0; let m=/^FL(\d{3})$/.exec(s); if(m) return +m[1]*100; m=/^(\d+)FT$/.exec(s); return m? +m[1] : null; };
+  const ll=s=>{ const m=/^([NS])(\d{2})(\d{2})?$/.exec(s); return m? (m[1]==='S'?-1:1)*(+m[2]+(+(m[3]||0))/60) : null; }, lg=s=>{ const m=/^([EW])(\d{3})(\d{2})?$/.exec(s); return m? (m[1]==='W'?-1:1)*(+m[2]+(+(m[3]||0))/60) : null; };
+  // area QNH blocks: a column-0 "AREAnn (nn)" heading, then its indented lines up to a blank line
+  const B=/^AREA\s?(\d{1,3}) \(\d{1,3}\)\s*\n((?:[ \t]+\S.*\n?)+)/gm; let m;
+  while((m=B.exec(W))){ const body=m[2].split('\n').map(x=>x.trim()).filter(Boolean), v=/^AREA QNH (\d{2})\/(\d{2})$/.exec(body[0]||'');
+    const rest=body.slice(v?1:0).join(' ').replace(/^AREA \d{1,3}:\s*/,''), parts=[];
+    for(const seg of rest.split(/,\s*/)){ const q=/^(.*?)\s*\b(9\d{2}|10\d{2})$/.exec(seg.trim()); if(q) parts.push({d:q[1].trim(), q:+q[2]}); }
+    if(!parts.length) continue;
+    let from=null, to=null; if(v){ const i=issued||Date.now(), d0=new Date(i); from=Date.UTC(d0.getUTCFullYear(),d0.getUTCMonth(),d0.getUTCDate(),+v[1]); if(from-i>12*3600e3) from-=864e5; else if(i-from>12*3600e3) from+=864e5; to=from+((+v[2]-+v[1]+24)%24||24)*3600e3; }
+    aq.push({area:m[1], from, to, parts, raw:body.join('\n')}); }
+  // SIGMET / AIRMET reports: "XXXX SIGMET|AIRMET id VALID ddhhmm/ddhhmm OFFC-" ... "="
+  const R_=/^\s*([A-Z]{4}) (SIGMET|AIRMET) (\S+) VALID (\d{6})\/(\d{6}) ([A-Z]{4})-\s*\n([\s\S]*?)=\s*$/gm;
+  while((m=R_.exec(W))){ const fir=m[1], body=m[7].split('\n').map(x=>x.trim()).filter(Boolean).join(' ').replace(/\s+/g,' ');
+    const x=body.replace(new RegExp('^'+fir+' '),''), c=/\bCNL (?:SIGMET|AIRMET) (\S+) (\d{6})\/(\d{6})/.exec(x);
+    if(c){ cnl.add(m[2]+' '+c[1]+' '+c[2]); continue; }
+    const ph=/^(?:[A-Z]+ )*?FIR (.*?) (OBS|FCST)\b/.exec(x), wi=/\bWI ((?:[NS]\d{2,4} [EW]\d{3,5}(?: - |\s*-\s*|$| (?=[A-Z0-9])))+)/.exec(x);
+    let poly=null; if(wi){ const pts=[...wi[1].matchAll(/([NS]\d{2,4}) ([EW]\d{3,5})/g)].map(q=>[ll(q[1]),lg(q[2])]).filter(q=>q[0]!=null&&q[1]!=null); if(pts.length>=3) poly=pts; }
+    const after=wi? x.slice(wi.index+wi[0].length) : x;
+    let lo=null, hi=null, top=false, q=/\b(SFC|\d{3,5}FT|FL\d{3})\/(\d{3,5}FT|FL\d{3})\b/.exec(after);
+    if(q){ lo=ft(q[1]); hi=ft(q[2]); } else if((q=/\bFL(\d{3})\/(\d{3})\b/.exec(after))){ lo=+q[1]*100; hi=+q[2]*100; }
+    else if((q=/\bTOP (?:ABV )?(FL\d{3}|\d{3,5}FT)\b/.exec(after))){ lo=0; hi=ft(q[1]); top=true; if(/\bTOP ABV\b/.test(after)) hi=99999; }
+    const mv=/\b(MOV [NSEW]{1,3} \d+KT|STNR)\b/.exec(after), ch=/\b(NC|WKN|INTSF)\b/.exec(after);
+    sig.push({fir, kind:m[2], id:m[3], from:ddhhmm(m[4]), to:ddhhmm(m[5]), off:m[6], wx:ph? ph[1] : '', obs:ph? ph[2] : '', poly, lo, hi, top, topTxt:q&&top?q[0]:'',
+      mov:mv? mv[1] : '', chg:ch? ch[1] : '', raw:m[0].trim().split('\n').map(l=>l.trim()).join('\n')}); }
+  return {aq, sig:sig.filter(z=>!cnl.has(z.kind+' '+z.id+' '+new Date(z.from).toISOString().slice(8,10)+new Date(z.from).toISOString().slice(11,13)+new Date(z.from).toISOString().slice(14,16)))}; }
 /* METAR / SPECI / TAF in a NAIPS briefing (trial: format taken from the standard reports; NAIPS's own layout may need
    tuning). Each report runs from "METAR YMMB ..." / "TAF YMMB ..." to a blank line, "=", or the next report. Latest
    METAR/SPECI and TAF per aerodrome. -> {ICAO: {metar:{raw,t}, taf:{raw,t}}} */
@@ -561,13 +604,16 @@ function ntSrcTxt(){ const a=[]; if(NTN) a.push(`NAIPS ${esc(NTN.title.replace(/
 const TR={t:0, ac:[], err:null, busy:false, said:new Map(), sel:null};   // sel: hex of the target tapped on the map
 const trVoiceOn=()=>ls.get('trVoice',true);
 function trOwnId(){ const v=(typeof decodeSpoken==='function'? decodeSpoken($('cSign').value||'') : $('cSign').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''); return v.replace(/^VH/,''); }
+// ADS-B fetch radius (Options → ADS-B traffic; rc_trNm, default 25 NM; the proxy allows up to 100, older proxies 40)
+const TR_NM=[10,15,25,40,60,100], trNm=()=>{ const v=+ls.get('trNm',25); return TR_NM.includes(v)? v : 25; };
+$('optTrNm').value=String(trNm()); $('optTrNm').addEventListener('change',()=>{ ls.set('trNm',+$('optTrNm').value); TR.t=0; trPoll(); });
 async function trPoll(){
   const u=ntUrl(); if(!MAP.traffic||!u||!st.pos||TR.busy||!navigator.onLine||document.hidden) return;
   TR.busy=true;
   try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),12000);   // the proxy may try two feeds (5 s each)
-    const r=await fetch(`${u}/traffic?lat=${st.pos[0].toFixed(3)}&lon=${st.pos[1].toFixed(3)}&nm=25`,{signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(tm));
+    const r=await fetch(`${u}/traffic?lat=${st.pos[0].toFixed(3)}&lon=${st.pos[1].toFixed(3)}&nm=${trNm()}`,{signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(tm));
     const j=await r.json().catch(()=>({})); if(!r.ok||!Array.isArray(j.ac)) throw new Error((j.error||('HTTP '+r.status))+(Array.isArray(j.errors)&&j.errors.length? ' ('+j.errors.join('; ')+')' : ''));
-    TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.skip=Array.isArray(j.skipped)?j.skipped:[]; TR.err=null; trLogAdd();
+    TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.nm=j.nm||Math.min(trNm(),40);   // an older proxy caps at 40 NM and doesn't say TR.skip=Array.isArray(j.skipped)?j.skipped:[]; TR.err=null; trLogAdd();
   }catch(e){ TR.err=String(e&&e.message||e).slice(0,220); }
   TR.busy=false; render(); }
 setInterval(trPoll,10000);   // ADS-B refresh: every 10 s
@@ -1182,10 +1228,10 @@ function tafTable(raw,issued,ad){ const D=tafDecode(raw,issued); if(!D) return '
   if(D.taf3) ex.push('TAF3: issued every 3 hours and reviewed hourly');
   if(D.validTl) ex.push('Valid only until '+fT(D.validTl)+' (VALID TL)');
   return h+'</tbody></table></div>'+(ex.length?'<div class="vnote">'+ex.join(' · ')+'</div>':'')+'<div class="vnote">Decoded from the briefing\'s TAF, local times; TEMPO = 30 to 60 min at a time, INTER = under 30 min, PROB alone = an hour or more; temperature and QNH interpolated between the 3-hourly RMK values; wind °T (the arrow points downwind). Categories: VFR ceiling above 3,000 ft and visibility over 8 km, MVFR 1,000–3,000 ft or 5–8 km, IFR 500–1,000 ft or 1.6–5 km, LIFR below that (US-style codes, a guide only).</div>'; }
-function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i];
-  if(!M){ el.hidden=true; el.innerHTML=''; return; }
+function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i], AQ=NTN&&NTN.aq&&NTN.aq.length? NTN.aq : null;
+  if(!M&&!AQ){ el.hidden=true; el.innerHTML=''; return; }
   const was=el.open; el.hidden=false; let h=''; const age=t=>{ if(!t) return ''; const m=Math.round((Date.now()-t)/60e3); return m<0?'':m<90? m+' min ago' : Math.round(m/60)+' h ago'; };
-  if(M.metar){ const d=metDecode(M.metar.raw), old=M.metar.t&&Date.now()-M.metar.t>90*60e3; const bits=[];
+  if(M&&M.metar){ const d=metDecode(M.metar.raw), old=M.metar.t&&Date.now()-M.metar.t>90*60e3; const bits=[];
     if(d.spd!=null) bits.push(`wind <b>${d.vrb?'VRB':String(d.dir).padStart(3,'0')+'°T'} ${d.spd}${d.gust?'G'+d.gust:''} kt</b>`);
     if(d.qnh) bits.push(`QNH <b>${d.qnh}</b>`); if(d.temp!=null) bits.push(`${d.temp}°C${d.dew!=null?' / '+d.dew:''}`);
     if(d.qnh&&d.temp!=null&&a.e!=null){ const pa=a.e+(1013.25-d.qnh)*30, isa=15-1.98*pa/1000, da=Math.round((pa+118.8*(d.temp-isa))/10)*10; bits.push(`density alt <b${da>a.e+1000?' class="w"':''}>${da} ft</b>`); }
@@ -1193,9 +1239,10 @@ function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i];
       const ends=a.rw.flatMap(r=>[r[0],r[1]]).filter(x=>/^\d{2}/.test(x)).map(x=>{ const hd=+x.slice(0,2)*10, r_=(wm-hd)*R, hw=Math.round(d.spd*Math.cos(r_)), xw=Math.round(d.spd*Math.sin(r_)); return {x,hw,xw}; }).sort((p,q)=>q.hw-p.hw);
       rw=`<div class="wxrw">${ends.map(e=>`<span>${e.x}: ${e.hw>=0?'head '+e.hw:'<span class="w">tail '+(-e.hw)+'</span>'}, cross ${Math.abs(e.xw)}${e.xw?(e.xw>0?' R':' L'):''}</span>`).join('')}</div>`; }
     h+=`<div class="nt"><div class="h"><b>${esc(M.metar.kind)}</b> ${esc(age(M.metar.t))}${old?' · <span class="w">old</span>':''}</div><div class="wxd">${bits.join(' · ')}</div>${rw}<div class="tx mono">${esc(M.metar.raw)}</div></div>`; }
-  if(M.taf){ let tt=''; try{ tt=tafTable(M.taf.raw,M.taf.t,a); }catch(e){ tt=''; }
+  if(M&&M.taf){ let tt=''; try{ tt=tafTable(M.taf.raw,M.taf.t,a); }catch(e){ tt=''; }
     h+=`<div class="nt"><div class="h"><b>TAF</b> ${esc(age(M.taf.t))}</div>${tt}<details class="tafraw"><summary>Original</summary><div class="tx mono">${esc(M.taf.raw).replace(/ (FM\d{6}|BECMG|TEMPO|INTER|PROB\d{2}|RMK)/g,'<br>$1')}</div></details></div>`; }
-  const d=M.metar?metDecode(M.metar.raw):null;
+  const d=M&&M.metar?metDecode(M.metar.raw):null;
+  if(AQ) h+=`<div class="nt"><div class="h"><b>Area QNH</b> (briefing)</div><div class="wxd">${AQ.map(q=>esc(aqTxt(q))).join('<br>')}</div></div>`;
   el.innerHTML=`<summary>Weather ${esc(a.i)}${d&&d.spd!=null?' · '+(d.vrb?'VRB':String(d.dir).padStart(3,'0'))+'/'+d.spd+(d.gust?'G'+d.gust:'')+(d.qnh?' · Q'+d.qnh:''):''} <small>(NAIPS briefing, trial)</small></summary>`+h; el.open=was; }
 function goTarget(){ // the Go to point (flight plan waypoints set it too) and its aerodrome: the point itself, or the nearest within 10 NM
   if(!GO||!st.pos) return null;
@@ -2555,6 +2602,16 @@ function drawMap0(la,lo,h,pick,AS,altFt){
         const l1='NOTAM '+n.id, l2=(n.lo!=null&&n.hi!=null? `${n.lo<=0?'SFC':n.agl?n.lo+'AGL':limTxt(n.lo)}–${n.hi>=99900?'UNL':n.agl?n.hi+'AGL':limTxt(n.hi)}` : '')+(on?'':' from '+hhmmZ(ntTime(n.from)));
         g.lineWidth=3; g.strokeStyle=C.bg; g.fillStyle=C.R; for(const [t,dy] of [[l1,-2],[l2,9]]){ if(!t) continue; g.strokeText(t,cx,cy+dy); g.fillText(t,cx,cy+dy); } } }
     g.textAlign='left'; }
+  // SIGMET / AIRMET areas from the briefing (current only): amber long dashes, label at the middle
+  if(NTN&&NTN.sig&&NTN.sig.length){ const Z=sigCur(); g.font='700 9.5px "IBM Plex Mono", monospace'; g.textAlign='center';
+    for(const z of Z){ if(!z.poly) continue; const sp=z.poly.map(q=>P(q[0],q[1]));
+      const xs=sp.map(q=>q[0]), ys=sp.map(q=>q[1]); if(Math.max(...xs)<0||Math.max(...ys)<0||Math.min(...xs)>W||Math.min(...ys)>Hh) continue;
+      g.beginPath(); sp.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.closePath();
+      g.globalAlpha=.08; g.fillStyle=C.Q; g.fill(); g.globalAlpha=.9; g.strokeStyle=C.Q; g.lineWidth=2; g.setLineDash([12,5]); g.stroke(); g.setLineDash([]); g.globalAlpha=1;
+      let cx=xs.reduce((a,b)=>a+b,0)/xs.length, cy=ys.reduce((a,b)=>a+b,0)/ys.length; cx=Math.max(60,Math.min(W-60,cx)); cy=Math.max(20,Math.min(Hh-20,cy));
+      g.lineWidth=3; g.strokeStyle=C.bg; g.fillStyle=C.Q;
+      for(const [t,dy] of [[z.name,-2],[z.wx+(sigLim(z)?' '+sigLim(z):''),9]]){ g.strokeText(t,cx,cy+dy); g.fillText(t,cx,cy+dy); } }
+    g.textAlign='left'; }
   // briefing obstacles: a tower symbol with its top (ft AMSL); red when the top is within 300 ft below you or higher
   if(ntHave()&&MAP.range<=20){ const O=ntObstacles(), seen=[]; g.font='700 9.5px "IBM Plex Mono", monospace'; g.textAlign='center';
     for(const o of O){ const [x,y]=P(o.la,o.lo); if(x<-10||y<-10||x>W+10||y>Hh+10) continue;
@@ -3344,6 +3401,8 @@ function render0(){
     for(const n of tz){ const l=n.lo!=null&&n.hi!=null? ` · ${n.lo<=0?'SFC':n.agl?n.lo+' ft AGL':limTxt(n.lo)}–${n.hi>=99900?'UNL':n.agl?n.hi+' ft AGL':limTxt(n.hi)}` : '';
       const what=(n.text||'').split('\n')[0].slice(0,70);
       rows.push({h:`<div title="${esc(n.text||'')}"><small>IN</small><b style="color:var(--as-r)">NOTAM</b><span>${esc(n.id)}${l} · ${esc(what)}${ntPoly(n)?' · temporary zone':''} · ${esc(n.loc||'')}</span></div>`}); }
+    for(const z of sigAt(la,lo)){ if(z.lo!=null&&z.hi!=null&&!(altFt>=z.lo-50&&altFt<z.hi)) continue;   // SIGMET / AIRMET area at your altitude
+      rows.push({h:`<div title="${esc(z.raw)}"><small>IN</small><b style="color:var(--as-q)">${esc(z.kind)}</b><span>${esc(z.ids.map(i=>i.split(' ')[1]).join('/'))} · ${esc(sigLine(z))}</span></div>`}); }
     box.hidden=!rows.length; box.classList.toggle('warn',rows.some(r=>!r.off)); box.classList.toggle('quiet',rows.length>0&&rows.every(r=>r.off));
     box.innerHTML=rows.map(r=>r.h).join(''); }
   { const g=!cur||cur.k==='G'||cur.k==='E'; $('sAreaLbl').textContent=g?'AREA':'ATC'; $('sArea').textContent=cur&&cur.f||'—';
@@ -3534,7 +3593,7 @@ $('logLeg').hidden=!MAP.log;
 $('mapLog').setAttribute('aria-pressed',MAP.log);
 $('ntUrl').value=ntUrl();
 $('ntUrl').addEventListener('change',()=>{ setTimeout(()=>{ SAT.img.clear(); SAT.lastErr=''; satUI(); render(); },0); const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
-function nbStatus(){ $('ntSum').textContent= NTN? `NAIPS · ${NTN.items.filter(n=>ntActive(n)).length} active${NTN.validTo&&Date.now()>NTN.validTo?' · expired':''}` : 'no briefing'; $('nbStat').innerHTML= NTN? `${esc(NTN.title)}: ${NTN.items.length} NOTAMs (${NTN.items.filter(n=>ntActive(n)).length} active now), ${NTN.none.length} locations with none. Issued ${new Date(NTN.issued).toISOString().slice(0,16).replace('T',' ')}Z${NTN.validTo?', valid to '+new Date(NTN.validTo).toISOString().slice(0,16).replace('T',' ')+'Z':''}${NTN.met&&Object.keys(NTN.met).length?`. Weather: ${Object.values(NTN.met).filter(m=>m.metar).length} METAR/SPECI, ${Object.values(NTN.met).filter(m=>m.taf).length} TAF`:''}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(expired: get a new briefing)</span>':''}.` : 'No NAIPS briefing loaded. Copy a location or area briefing from NAIPS (website or app) and paste it here; it stays on the phone for use offline.'; }
+function nbStatus(){ $('ntSum').textContent= NTN? `NAIPS · ${NTN.items.filter(n=>ntActive(n)).length} active${NTN.validTo&&Date.now()>NTN.validTo?' · expired':''}` : 'no briefing'; $('nbStat').innerHTML= NTN? `${esc(NTN.title)}: ${NTN.items.length} NOTAMs (${NTN.items.filter(n=>ntActive(n)).length} active now), ${NTN.none.length} locations with none. Issued ${new Date(NTN.issued).toISOString().slice(0,16).replace('T',' ')}Z${NTN.validTo?', valid to '+new Date(NTN.validTo).toISOString().slice(0,16).replace('T',' ')+'Z':''}${NTN.met&&Object.keys(NTN.met).length?`. Weather: ${Object.values(NTN.met).filter(m=>m.metar).length} METAR/SPECI, ${Object.values(NTN.met).filter(m=>m.taf).length} TAF`:''}${NTN.aq&&NTN.aq.length?'. '+esc(NTN.aq.map(aqTxt).join('; ')):''}${NTN.sig&&NTN.sig.length?`. ${sigCur().length} SIGMET/AIRMET current (${NTN.sig.length} in the briefing)`:''}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(expired: get a new briefing)</span>':''}.` : 'No NAIPS briefing loaded. Copy a location or area briefing from NAIPS (website or app) and paste it here; it stays on the phone for use offline.'; }
 // briefing text that arrives with its line breaks escaped (the proxy's JSON .text can carry literal \n, \r\n, \t; or the whole
 // text still JSON-quoted): turn them back into real ones. Only when escapes outnumber real line breaks, so a briefing that
 // happens to contain a backslash is left alone.
@@ -3639,7 +3698,7 @@ $('mapTraffic').onclick=()=>{ MAP.traffic=!MAP.traffic; ls.set('mapTraffic',MAP.
   if(MAP.traffic&&!ntUrl()){ $('ntSet').open=true; $('ntStat').innerHTML='<span class="w">Traffic needs the proxy: enter its address here.</span>'; fsShow($('ntSet'),{block:'center'}); }
   if(MAP.traffic){ TR.t=0; TR.ac=[]; trPoll(); } render(); };
 $('trVoice').checked=trVoiceOn(); $('trVoice').onchange=()=>ls.set('trVoice',$('trVoice').checked);
-setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within 25 NM from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+((TR.skip||[]).length?` Skipped first: ${TR.skip.join('; ')}.`:'')+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
+setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within ${TR.nm||trNm()} NM${TR.nm&&TR.nm<trNm()?' (the proxy limits it: redeploy it for '+trNm()+' NM)':''} from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+((TR.skip||[]).length?` Skipped first: ${TR.skip.join('; ')}.`:'')+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
 $('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
 addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';
@@ -3861,6 +3920,8 @@ function mapMenu(px,py){ if(document.body.classList.contains('fsm')&&FS.s!=='pee
     const L=ob.filter(q=>!seen.has(q.o.n.id)&&seen.add(q.o.n.id)).slice(0,4);
     if(L.length) $('mmFq').insertAdjacentHTML('beforeend','<div class="mm-ob">'+L.map(({o,d})=>`<span><b style="color:var(--as-r)">▲ ${o.ft!=null?o.ft+' ft':'?'}</b> <small>${esc(o.what)}${o.hAgl!=null?' '+o.hAgl+' AGL':''}${o.lit?' lit':''} · ${d.toFixed(1)} NM · NOTAM ${esc(o.n.id)} ${esc(o.n.loc||'')}</small></span>`).join('')+'</div>'); }
   $('mmSua').innerHTML=suaHere(la,lo);
+  { const Z=sigAt(la,lo); if(Z.length){ const d=document.createElement('div'); d.className='mm-sig';
+      d.innerHTML=Z.map(z=>`<details class="notams"><summary><b style="color:var(--as-q)">${esc(z.name)}</b> ${esc(sigLine(z))}</summary><div class="tx mono" style="white-space:pre-wrap">${esc(z.raw)}</div></details>`).join(''); $('mmSua').appendChild(d); } }
   { const L=ntAt(la,lo); const box=document.createElement('details'); box.className='notams'; $('mmSua').appendChild(box); ntBox(box,L,`NOTAMs here (${L.length})`,true); }
   const goPt={k:'USR',c:town&&town.d<1.5? town.t.n : dm,n:`${town&&town.d<1.5?(kind||'Map point'):place} · ${dm}`,la,lo};
   const B=$('mmBtns'); B.innerHTML='';

@@ -770,6 +770,8 @@ body.fsm.fsm-tab #fsSheet{left:300px}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="gdConnect">Connect Google Drive</button><button type="button" class="btn" id="gdNow" hidden>Save now</button><button type="button" class="btn" id="gdRestore" hidden>Restore settings</button><button type="button" class="btn" id="gdOff" hidden>Disconnect</button></div>
       <label><input type="checkbox" id="gdAuto"><span><b>Save after each flight</b><br><small>A few minutes after a flight ends (35 min with no movement), when there's signal, its GPX track (with the logged traffic) goes to the <b>Radio Calls AU</b> folder in your Drive, with Logbook.csv and a settings backup (aircraft, W&amp;B, plans, call wording, options; not your NAIPS login or keys). The app can only see the files it made there. If there's no signal it tries again later.</small></span></label>
     </div>
+    <div class="lbl" style="margin-top:10px">ADS-B traffic</div>
+    <div class="opts-list"><label style="cursor:default"><span><b>Traffic distance</b><br><small>How far around you the Traffic layer fetches aircraft from the proxy. Further shows more, but each update is bigger (more data on mobile). Above 40 NM needs the updated proxy.</small></span><select id="optTrNm" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"><option value="10">10 NM</option><option value="15">15 NM</option><option value="25">25 NM</option><option value="40">40 NM</option><option value="60">60 NM</option><option value="100">100 NM</option></select></label></div>
     <div class="lbl" style="margin-top:10px">Settings file</div>
     <div class="opts-list" id="cfgBox">
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="cfgExport">Export settings</button><label class="btn" for="cfgFile">Import settings</label><input type="file" id="cfgFile" accept=".json,application/json" hidden></div>
@@ -904,7 +906,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=f7855af530';
+    const s=document.createElement('script'); s.src='app.js?v=15b2a2af92';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

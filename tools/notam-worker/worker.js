@@ -4,7 +4,7 @@
    were removed 29 Oct 2026: NOTAMs now come only from a NAIPS briefing the pilot loads into the app.)
 
    GET /traffic?lat=-38.25&lon=144.43&nm=25
-     ADS-B traffic within nm (max 40) from adsb.lol (ODbL; with the ADSBLOL_KEY secret its keyed re-api first),
+     ADS-B traffic within nm (max 100) from adsb.lol (ODbL; with the ADSBLOL_KEY secret its keyed re-api first),
      falling back to adsb.fi, or, with ADSB_URL/ADSB_KEY set, another readsb-style feed. (airplanes.live's API now answers 403 "please contact us"
      unless they have approved the project.)
    -> {src, t, n, ac:[{hex, flt, reg, type, la, lo, ab, gnd, ag, gs, trk, vs, cat, seen}]}  ab = baro alt ft (null on the
@@ -54,7 +54,7 @@ export default {
   }
 };
 async function traffic(u,env,ctx,H){
-  const lat=parseFloat(u.searchParams.get('lat')), lon=parseFloat(u.searchParams.get('lon')), nm=Math.min(40,Math.max(1,Math.round(parseFloat(u.searchParams.get('nm'))||25)));
+  const lat=parseFloat(u.searchParams.get('lat')), lon=parseFloat(u.searchParams.get('lon')), nm=Math.min(100,Math.max(1,Math.round(parseFloat(u.searchParams.get('nm'))||25)));
   if(!(Math.abs(lat)<=90&&Math.abs(lon)<=180)) return json({error:'give lat/lon'},400,H);
   const la=lat.toFixed(2), lo=lon.toFixed(2);   // ~0.6 NM: nearby callers share an answer
   const dbg=u.searchParams.has('debug');   // ?debug=1: skip the cache, so every feed is asked now
@@ -82,7 +82,7 @@ async function traffic(u,env,ctx,H){
     la:a.lat, lo:a.lon, ab:num(a.alt_baro), gnd:a.alt_baro==='ground'||undefined, ag:num(a.alt_geom), gs:num(a.gs), trk:num(a.track)??num(a.true_heading),
     vs:num(a.baro_rate)??num(a.geom_rate), cat:a.category||'', seen:num(a.seen_pos)??num(a.seen)??0}));
   // keyed: the ADSBLOL_KEY secret is set; skipped: why earlier feeds were passed over (e.g. re-api 401 invalid api key)
-  const res=json({src:new URL(url).host,keyed:!!env.ADSBLOL_KEY,skipped:errs,t:new Date().toISOString(),n:out.length,ac:out},200,{...H,'Cache-Control':'public, max-age=3'});
+  const res=json({src:new URL(url).host,keyed:!!env.ADSBLOL_KEY,skipped:errs,t:new Date().toISOString(),nm,n:out.length,ac:out},200,{...H,'Cache-Control':'public, max-age=3'});
   ctx.waitUntil(cache.put(key,res.clone()));
   return res;
 }
