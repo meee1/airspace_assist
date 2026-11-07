@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794051022280;
+const APP_BUILT=1794082819354;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -4575,10 +4575,7 @@ async function gdRestore(){ if(!gdOn()) return; GD.err=''; GD.msg='Looking for t
     if(!id){ const q=encodeURIComponent(`name='Settings backup.json' and trashed=false`), j=await (await gdFetch(GD_API+'/drive/v3/files?q='+q+'&orderBy=modifiedTime desc&fields=files(id,modifiedTime)')).json(); id=j.files&&j.files[0]&&j.files[0].id; }
     if(!id) throw new Error('no backup in Drive yet');
     const o=await (await gdFetch(GD_API+'/drive/v3/files/'+id+'?alt=media')).json(); if(!o||o.app!=='Radio Calls AU'||!o.keys) throw new Error("that isn't a Radio Calls AU backup");
-    GD.msg=''; gdUI();
-    if(!confirm(`Restore the settings saved ${new Date(o.t).toLocaleString('en-AU')}? Your current settings (aircraft, W&B, plans, call wording, options) are replaced; logs and charts stay.`)) return;
-    for(const [k,v] of Object.entries(o.keys)) if(k.startsWith('rc_')&&!GD_SKIP.has(k)) localStorage.setItem(k,v);
-    location.reload(); }
+    GD.msg=''; gdUI(); cfgApply(o); }
   catch(e){ GD.msg=''; GD.err=e.message; gdUI(); } }
 function gdUI(){ const el=$('gdBox'); if(!el) return; const c=ls.get('gdCred',null), dl=ls.get('gdIds',{}), on=!!c;
   $('gdConnect').hidden=on; $('gdNow').hidden=!on; $('gdRestore').hidden=!on; $('gdOff').hidden=!on; $('gdAuto').disabled=!on; $('gdAuto').checked=GD.auto;
@@ -4586,6 +4583,21 @@ function gdUI(){ const el=$('gdBox'); if(!el) return; const c=ls.get('gdCred',nu
   $('gdStat').innerHTML= !ntUrl()? 'Needs the proxy (set under NOTAMs (NAIPS) and traffic).'
     : (on? `Connected${c.who?' as <b>'+esc(c.who)+'</b>':''} · folder <b>${GD_DIR}</b>${GD.last?' · last saved '+new Date(GD.last).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):''}${GD.done.size?` · ${GD.done.size} flight${GD.done.size>1?'s':''} saved`:''}` : 'Not connected.')
     + (GD.msg? '<br>'+esc(GD.msg) : '') + (GD.err? `<br><span class="w">${esc(GD.err)}</span>` : ''); }
+// ---- settings file: the same JSON as the Drive backup, exported as a download, imported from a file ----
+function cfgApply(o){   // o: a parsed backup {app, t, keys}; asks, writes the rc_ keys (never the skipped secrets), reloads. false if declined
+  if(!confirm(`Restore the settings saved ${new Date(o.t).toLocaleString('en-AU')}? Your current settings (aircraft, W&B, plans, call wording, options) are replaced; logs and charts stay.`)) return false;
+  for(const [k,v] of Object.entries(o.keys)) if(k.startsWith('rc_')&&!GD_SKIP.has(k)&&typeof v==='string') localStorage.setItem(k,v);
+  location.reload(); return true; }
+function cfgExport(){ const d=new Date(), p=n=>String(n).padStart(2,'0'), name=`Radio Calls AU settings ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.json`;
+  const url=URL.createObjectURL(new Blob([gdBackup()],{type:'application/json'})), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000); $('cfgStat').textContent=`Saved ${name} to your downloads.`; }
+async function cfgImport(f){ if(!f) return; const st_=$('cfgStat');
+  try{ if(f.size>5e6) throw new Error('that file is too big to be a settings file');
+    let o; try{ o=JSON.parse(await f.text()); }catch(e){ throw new Error("that isn't a settings file (not JSON)"); }
+    if(!o||o.app!=='Radio Calls AU'||!o.keys||typeof o.keys!=='object') throw new Error("that isn't a Radio Calls AU settings file");
+    if(!cfgApply(o)) st_.textContent='Import cancelled: nothing changed.'; }
+  catch(e){ st_.textContent='Import failed: '+e.message; } }
+$('cfgExport').onclick=cfgExport; $('cfgFile').onchange=e=>{ cfgImport(e.target.files[0]); e.target.value=''; };
 $('gdConnect').onclick=gdConnect; $('gdNow').onclick=()=>gdSync('now'); $('gdRestore').onclick=gdRestore; $('gdOff').onclick=()=>{ if(confirm('Disconnect Google Drive? Files already in Drive stay there.')) gdDisconnect(); };
 $('gdAuto').onchange=()=>{ GD.auto=$('gdAuto').checked; ls.set('gdAuto',GD.auto); };
 setInterval(()=>{ if(GD.auto&&gdOn()&&!document.hidden) gdSync('auto'); },5*60e3);

@@ -770,6 +770,11 @@ body.fsm.fsm-tab #fsSheet{left:300px}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="gdConnect">Connect Google Drive</button><button type="button" class="btn" id="gdNow" hidden>Save now</button><button type="button" class="btn" id="gdRestore" hidden>Restore settings</button><button type="button" class="btn" id="gdOff" hidden>Disconnect</button></div>
       <label><input type="checkbox" id="gdAuto"><span><b>Save after each flight</b><br><small>A few minutes after a flight ends (35 min with no movement), when there's signal, its GPX track (with the logged traffic) goes to the <b>Radio Calls AU</b> folder in your Drive, with Logbook.csv and a settings backup (aircraft, W&amp;B, plans, call wording, options; not your NAIPS login or keys). The app can only see the files it made there. If there's no signal it tries again later.</small></span></label>
     </div>
+    <div class="lbl" style="margin-top:10px">Settings file</div>
+    <div class="opts-list" id="cfgBox">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="cfgExport">Export settings</button><label class="btn" for="cfgFile">Import settings</label><input type="file" id="cfgFile" accept=".json,application/json" hidden></div>
+      <div class="vnote" id="cfgStat">Saves aircraft, W&amp;B, plans, call wording and options to a .json file, to keep or to move to another phone or tablet. Passwords and keys (NAIPS, Esri, Drive) aren't in it. Logs and charts aren't either.</div>
+    </div>
     <div class="lbl" style="margin-top:10px">Top bar tiles</div>
     <div class="opts-list"><label style="cursor:default"><span><b>Flash CTAF and AREA when they change</b><br><small>The tile pulses when its frequency changes, so a new CTAF or area frequency catches your eye. 0 = off.</small></span><select id="optFlash" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)"><option value="0">0 (off)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select><span class="meta">pulses</span></label></div>
     <div class="opts-list opts-tiles" id="optsTiles"></div>
@@ -899,7 +904,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=8468f583dd';
+    const s=document.createElement('script'); s.src='app.js?v=fec35718b1';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

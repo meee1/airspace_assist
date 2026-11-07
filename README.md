@@ -157,6 +157,8 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - `Logbook.csv`, rewritten each time (the same columns as the logbook export);
 - `Settings backup.json`: aircraft, W&B, saved plans, call wording and options (not your NAIPS login, Drive sign-in or satellite key). **Restore settings** loads it back, e.g. on a new phone.
 
+**Settings file (no Drive needed):** Options → Settings file → **Export settings** saves the same settings to a `.json` file in your downloads (no passwords or keys; no logs or charts). **Import settings** on any phone or tablet reads that file back after you confirm, then reloads the app.
+
 **Save now** saves straight away. The app uses Drive's `drive.file` permission, so it can only see the files it made. Your sign-in is kept on the phone, encrypted; the proxy swaps it for a 1-hour access token when saving (so no tap is needed after a flight) and stores nothing. **Disconnect** removes it and withdraws the app's access; the files stay in Drive.
 
 One-off setup (your own Google OAuth client; the secret goes on the proxy, never in the app):
