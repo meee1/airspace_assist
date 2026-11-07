@@ -149,12 +149,12 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 - Work in progress: for trying out, not for navigation.
 
 ### Logbook
-**More → Logbook** opens the logbook: legs worked out from the GPS log, with your edits, 7/28/365-day totals and a CSV export (all legs, or per flight) for your logbook app. It's the same section as Options → Logbook and flight logs.
+**More → Logbook** opens the logbook: legs worked out from the GPS log, with your edits, 7/28/365-day totals and a CSV export for your logbook app. The "all" CSV has every leg ever logged on this phone, not just the last 90 days of GPS log (a short summary of each leg is kept for good; it also travels in the settings backup/file). Per-flight CSVs cover the flights still in the 90-day log. It's the same section as Options → Logbook and flight logs.
 
 ### Google Drive (flight logs, logbook, settings backup)
 **Options → Google Drive → Connect Google Drive** signs in with Google once. After each flight (35 min with no movement, when there's signal) the app saves to a **Radio Calls AU** folder in your Drive:
 - one GPX track per flight (with the logged ADS-B traffic), named `Flight 2026-11-06 0912.gpx`;
-- `Logbook.csv`, rewritten each time (the same columns as the logbook export);
+- `Logbook.csv`, rewritten each time with every leg ever logged (the same columns as the logbook export). The first time a phone saves to a Drive that already has a Logbook.csv (another phone, a reinstall), the rows in it that this phone doesn't have are taken in first, so the history isn't lost;
 - `Settings backup.json`: aircraft, W&B, saved plans, call wording and options (not your NAIPS login, Drive sign-in or satellite key). **Restore settings** loads it back, e.g. on a new phone.
 
 **Settings file (no Drive needed):** Options → Settings file → **Export settings** saves the same settings to a `.json` file in your downloads (no passwords or keys; no logs or charts). **Import settings** on any phone or tablet reads that file back after you confirm, then reloads the app.

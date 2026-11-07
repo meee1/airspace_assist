@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794082819354;
+const APP_BUILT=1794089834189;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1430,7 +1430,7 @@ function logCsv(legs){ const z=t=>new Date(t).toISOString().slice(11,16), lc=t=>
   const dt=t=>{ const d=new Date(t); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
   const reg=($('cSign')&&$('cSign').value||'').toUpperCase(), typ=$('cType')&&$('cType').value||'';
   return 'Date (local),Aircraft,Type,From,To,Off UTC,On UTC,Off local,On local,Airborne h:mm,Airborne hrs,Day hrs,Night hrs,Landings,Distance NM,Max alt ft\n'+
-    legs.map(l=>[dt(l.off),reg,typ,l.from,l.to,z(l.off),z(l.on),lc(l.off),lc(l.on),hmm(l.on-l.off),((l.on-l.off)/3600e3).toFixed(1),((l.on-l.off)/3600e3-(l.night||0)/60).toFixed(1),((l.night||0)/60).toFixed(1),l.ldg!=null?l.ldg:1,l.nm.toFixed(1),l.hi!=null?Math.round(l.hi):''].map(v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v).join(',')).join('\n')+'\n'; }
+    legs.map(l=>[dt(l.off),l.ac||reg,l.ty||typ,l.from,l.to,z(l.off),z(l.on),lc(l.off),lc(l.on),hmm(l.on-l.off),((l.on-l.off)/3600e3).toFixed(1),((l.on-l.off)/3600e3-(l.night||0)/60).toFixed(1),((l.night||0)/60).toFixed(1),l.ldg!=null?l.ldg:1,(+l.nm||0).toFixed(1),l.hi!=null?Math.round(l.hi):''].map(v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v).join(',')).join('\n')+'\n'; }
 // the logged flights (newest first: rows, legs with your edits) and every kept leg; a gap of 30 min starts a new flight
 async function logFlights(from){ const all=await logRead(from||Date.now()-LOG_KEEP,Date.now()+1), fl=[];
   for(const r of all){ if(r[1]==='ev'){ if(fl.length) fl[fl.length-1].rows.push(r); continue; }
@@ -1441,13 +1441,14 @@ async function logsRender(){ const el=$('optsLogs');
   if(!LOGDB.db){ el.innerHTML='<div class="vnote">'+(LOGDB.ok?'Loading…':'This browser can\'t store the log (no IndexedDB).')+'</div>'; return; }
   const fmt=t=>new Date(t).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}), tm=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
   const {L, legs:all_}=await logFlights(), tl=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
-  const T=logTotals(), totRow=`<div class="logtot">${T.map(t=>`<span><b>${t.d} days</b> ${hmm(t.ms)} · ${t.n} leg${t.n===1?'':'s'} · ${t.ldg} ldg${t.night?' · night '+hmm(t.night*60e3):''}</span>`).join('')}</div>`;
+  const T=logTotals(), BK=logbookLegs(), totRow=`<div class="logtot">${T.map(t=>`<span><b>${t.d} days</b> ${hmm(t.ms)} · ${t.n} leg${t.n===1?'':'s'} · ${t.ldg} ldg${t.night?' · night '+hmm(t.night*60e3):''}</span>`).join('')}</div>`;
   const legRow=(l,fi,li)=>`<div class="lg${l.del?' del':''}" data-f="${fi}" data-l="${li}"><b>${esc(l.from)} → ${esc(l.to)}</b> · off ${tl(l.off)} · on ${tl(l.on)} · <b>${hmm(l.on-l.off)}</b>${l.night?' (night '+hmm(l.night*60e3)+')':''} · ${l.ldg} ldg · ${Math.round(l.nm)} NM${l.hi!=null?' · max '+Math.round(l.hi).toLocaleString('en-AU')+' ft':''}${l.merged?' · merged':''} <button class="btn meta" data-ed="${fi}:${li}">Edit</button></div>`;
-  el.innerHTML= L.length? (all_.length?`<label style="cursor:default;flex-wrap:wrap"><span><b>Logbook</b><br><small>${all_.length} leg${all_.length>1?'s':''} · ${hmm(all_.reduce((a,l)=>a+l.on-l.off,0))} airborne (last 90 days, from GPS)</small></span><button class="btn meta" data-csv="all" style="margin-left:auto">CSV</button>${totRow}</label>`:'')+
+  el.innerHTML= L.length? (all_.length?`<label style="cursor:default;flex-wrap:wrap"><span><b>Logbook</b><br><small>${all_.length} leg${all_.length>1?'s':''} · ${hmm(all_.reduce((a,l)=>a+l.on-l.off,0))} airborne (last 90 days, from GPS)${BK.length>all_.length?` · CSV: all ${BK.length} legs since ${new Date(BK[0].off).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}`:''}</small></span><button class="btn meta" data-csv="all" style="margin-left:auto">CSV</button>${totRow}</label>`:'')+
       L.map((f,i)=>`<label style="cursor:default;flex-wrap:wrap"><span><b>${fmt(f.t0)}–${tm(f.t1)}</b><br><small>${Math.round((f.t1-f.t0)/60e3)} min · ${f.n} fixes</small></span><span style="margin-left:auto;display:flex;gap:6px">${f.legs.length?`<button class="btn meta" data-csv="${i}">CSV</button>`:''}<button class="btn meta" data-rp="${i}" title="Replay this flight through the app">▶</button><button class="btn meta" data-log="${i}">GPX</button></span>`+
         (f.legs.length?`<div class="legs">${f.legs.map((l,j)=>legRow(l,i,j)).join('')}</div>`:'')+`</label>`).join('')
+    : BK.length? `<label style="cursor:default;flex-wrap:wrap"><span><b>Logbook</b><br><small>No flights in the last 90 days · CSV: all ${BK.length} leg${BK.length>1?'s':''} since ${new Date(BK[0].off).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}</small></span><button class="btn meta" data-csv="all" style="margin-left:auto">CSV</button>${totRow}</label>`
     : '<div class="vnote">No flights logged yet.</div>';
-  el.onclick=e=>{ const c=e.target.closest('[data-csv]'); if(c){ const lg=c.dataset.csv==='all'? all_ : L[+c.dataset.csv].legs.filter(l=>!l.del), t0=lg[0].off;
+  el.onclick=e=>{ const c=e.target.closest('[data-csv]'); if(c){ const lg=c.dataset.csv==='all'? BK : L[+c.dataset.csv].legs.filter(l=>!l.del), t0=lg[0].off;   // all = every leg ever logged
       dlFile('radio-calls-logbook-'+(c.dataset.csv==='all'?'all-':'')+new Date(t0).toISOString().slice(0,10)+'.csv',logCsv(lg),'text/csv'); return; }
     const rp=e.target.closest('[data-rp]'); if(rp){ const f=L[+rp.dataset.rp]; rpLoad(f.rows.filter(r=>r[1]!=='ev').map(r=>({t:r[0],la:r[1],lo:r[2],alt:r[3],gs:r[4],trk:r[5]})),fmt(f.t0)); $('optsDlg').close(); fsShow($('simBox')); return; }
     const ed=e.target.closest('[data-ed]'); if(ed){ const [fi,li]=ed.dataset.ed.split(':').map(Number); logEdit(L[fi],li,ed.closest('.lg')); return; }
@@ -1720,8 +1721,27 @@ function legsEdited(legs){ const out=[];
     if(x.merge&&p&&!p.del){ p.on=x.on; p.to=x.to; p.nm+=x.nm; p.hi=Math.max(p.hi??-1e9,x.hi??-1e9); p.ldg+=x.ldg; p.night+=x.night; p.merged=(p.merged||0)+1; x.hidden=true; }
     out.push(x); }
   return out.filter(x=>!x.hidden); }
-function logbookStore(legs,raw){ let ch=false; const keep=new Set(legs.map(l=>l.key)); for(const r of raw||[]){ const k=String(r.off); if(!keep.has(k)&&LOGBK[k]){ delete LOGBK[k]; ch=true; } } for(const l of legs){ const v={off:l.off,on:l.on,from:l.from,to:l.to,ldg:l.del?0:l.ldg,night:l.night,nm:Math.round(l.nm*10)/10,hi:l.hi,del:l.del||undefined};   // merged-away legs leave the summary
+function logbookStore(legs,raw){ let ch=false; const keep=new Set(legs.map(l=>l.key)); for(const r of raw||[]){ const k=String(r.off); if(!keep.has(k)&&LOGBK[k]){ delete LOGBK[k]; ch=true; } } const reg=($('cSign')&&$('cSign').value||'').toUpperCase()||undefined, typ=$('cType')&&$('cType').value||undefined;
+  for(const l of legs){ const o=LOGBK[l.key]||{}, v={off:l.off,on:l.on,from:l.from,to:l.to,ldg:l.del?0:l.ldg,night:l.night,nm:Math.round(l.nm*10)/10,hi:l.hi,del:l.del||undefined,ac:o.ac||reg,ty:o.ty||typ};   // aircraft as it was when the leg was first logged   // merged-away legs leave the summary
     if(JSON.stringify(LOGBK[l.key])!==JSON.stringify(v)){ LOGBK[l.key]=v; ch=true; } } if(ch) ls.set('logbook',LOGBK); }
+// every leg ever logged (the permanent summary, not just the 90-day fix log), oldest first, in logCsv's shape
+function logbookLegs(){ return Object.values(LOGBK).filter(v=>!v.del).sort((a,b)=>a.off-b.off); }
+// Logbook.csv rows from another phone or an older install (found in Drive) go into the summary, so the CSV never loses history.
+// Times come back to the minute from the local date and off/on local columns; a row matching a leg already here (off within 2 min) is skipped.
+function logbookFromCsv(text){ const rows=csvRows(text); if(!rows.length||rows[0][0]!=='Date (local)') return 0; const H=rows[0], c=n=>H.indexOf(n); let n=0;
+  const have=Object.values(LOGBK).map(v=>v.off);
+  for(const r of rows.slice(1)){ const d=r[c('Date (local)')], a=r[c('Off local')], b=r[c('On local')]; if(!/^\d{4}-\d\d-\d\d$/.test(d||'')||!/^\d\d:\d\d$/.test(a||'')||!/^\d\d:\d\d$/.test(b||'')) continue;
+    const off=new Date(d+'T'+a+':00').getTime(); let on=new Date(d+'T'+b+':00').getTime(); if(on<off) on+=86400e3; if(!isFinite(off)) continue;
+    if(have.some(t=>Math.abs(t-off)<=120e3)) continue;
+    const num=k=>{ const v=parseFloat(r[c(k)]); return isFinite(v)?v:undefined; };
+    LOGBK['csv'+off]={off,on,from:r[c('From')]||'',to:r[c('To')]||'',ldg:num('Landings')??1,night:Math.round((num('Night hrs')||0)*60),nm:num('Distance NM')??0,hi:num('Max alt ft'),ac:r[c('Aircraft')]||undefined,ty:r[c('Type')]||undefined};
+    have.push(off); n++; }
+  if(n) ls.set('logbook',LOGBK); return n; }
+function csvRows(t){ const out=[]; let row=[], f='', q=false;
+  for(let i=0;i<t.length;i++){ const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=ch; }
+    else if(ch==='"') q=true; else if(ch===','){ row.push(f); f=''; } else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&t[i+1]==='\n') i++; row.push(f); f=''; if(row.length>1||row[0]) out.push(row); row=[]; } else f+=ch; }
+  if(f||row.length){ row.push(f); out.push(row); } return out; }
 function logTotals(){ const now=Date.now(), V=Object.values(LOGBK).filter(v=>!v.del);
   return [7,28,365].map(d=>{ const S=V.filter(v=>v.off>now-d*86400e3); const ms=S.reduce((a,v)=>a+v.on-v.off,0);
     return {d, n:S.length, ms, night:S.reduce((a,v)=>a+(v.night||0),0), ldg:S.reduce((a,v)=>a+(v.ldg||0),0)}; }); }
@@ -3515,7 +3535,15 @@ $('mapLog').setAttribute('aria-pressed',MAP.log);
 $('ntUrl').value=ntUrl();
 $('ntUrl').addEventListener('change',()=>{ setTimeout(()=>{ SAT.img.clear(); SAT.lastErr=''; satUI(); render(); },0); const v=$('ntUrl').value.trim(); if(v&&!/^https:\/\/|^http:\/\/localhost/.test(v)){ $('ntStat').textContent='The address must start with https://'; return; } ls.set('notamUrl',v); $('ntStat').textContent= v? 'Traffic proxy set.' : 'Traffic proxy off.'; });
 function nbStatus(){ $('ntSum').textContent= NTN? `NAIPS · ${NTN.items.filter(n=>ntActive(n)).length} active${NTN.validTo&&Date.now()>NTN.validTo?' · expired':''}` : 'no briefing'; $('nbStat').innerHTML= NTN? `${esc(NTN.title)}: ${NTN.items.length} NOTAMs (${NTN.items.filter(n=>ntActive(n)).length} active now), ${NTN.none.length} locations with none. Issued ${new Date(NTN.issued).toISOString().slice(0,16).replace('T',' ')}Z${NTN.validTo?', valid to '+new Date(NTN.validTo).toISOString().slice(0,16).replace('T',' ')+'Z':''}${NTN.met&&Object.keys(NTN.met).length?`. Weather: ${Object.values(NTN.met).filter(m=>m.metar).length} METAR/SPECI, ${Object.values(NTN.met).filter(m=>m.taf).length} TAF`:''}${NTN.validTo&&Date.now()>NTN.validTo?' <span class="w">(expired: get a new briefing)</span>':''}.` : 'No NAIPS briefing loaded. Copy a location or area briefing from NAIPS (website or app) and paste it here; it stays on the phone for use offline.'; }
-function nbLoad(txt){ const r=naipsParse(txt); if(!r){ $('nbStat').innerHTML='<span class="w">That doesn\'t look like a NAIPS briefing (no "hhmm UTC dd/mm/yy" header).</span>'; return false; }
+// briefing text that arrives with its line breaks escaped (the proxy's JSON .text can carry literal \n, \r\n, \t; or the whole
+// text still JSON-quoted): turn them back into real ones. Only when escapes outnumber real line breaks, so a briefing that
+// happens to contain a backslash is left alone.
+function nbUnescape(t){ t=String(t||''); const s=t.trim();
+  if(s.length>1&&s[0]==='"'&&s[s.length-1]==='"'){ try{ const u=JSON.parse(s); if(typeof u==='string') t=u; }catch(e){} }
+  const esc_=(t.match(/\\r\\n|\\n|\\r/g)||[]).length, real=(t.match(/\n/g)||[]).length;
+  if(esc_&&esc_>real) t=t.replace(/\\r\\n|\\n|\\r/g,'\n').replace(/\\t/g,'\t').replace(/\\"/g,'"').replace(/\\\//g,'/').replace(/\\\\/g,'\\');
+  return t.replace(/\r\n?/g,'\n'); }
+function nbLoad(txt){ txt=nbUnescape(txt); const r=naipsParse(txt); if(!r){ $('nbStat').innerHTML='<span class="w">That doesn\'t look like a NAIPS briefing (no "hhmm UTC dd/mm/yy" header).</span>'; return false; }
   NTN=r; try{ ls.set('naips',NTN); }catch(e){ $('nbStat').textContent='Too large to store on the phone; loaded for this session only.'; } $('nbText').value=''; nbStatus(); render(); return true; }
 $('nbLoad').onclick=()=>nbLoad($('nbText').value);
 $('nbPaste').onclick=async()=>{ try{ const t=await navigator.clipboard.readText(); if(t){ $('nbText').value=t; nbLoad(t); } }catch(e){ $('nbStat').textContent='The browser blocked reading the clipboard: long-press in the box and paste instead.'; } };
@@ -4501,7 +4529,7 @@ function v3dFrame(){
 const GD={tok:null, exp:0, busy:false, err:'', msg:'', client:null, gis:null, cid:null, last:ls.get('gdLast',0), ids:ls.get('gdIds',{}),
   done:new Set(ls.get('gdDone',[])), auto:ls.get('gdAuto',true)};
 const GD_SCOPE='https://www.googleapis.com/auth/drive.file', GD_DIR='Radio Calls AU', GD_API='https://www.googleapis.com';
-const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_gdHw','rc_satKey','rc_v3dBox']);   // never in the backup
+const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_gdHw','rc_gdLbIn','rc_satKey','rc_v3dBox']);   // never in the backup
 async function gdKey(create){ const db=await nbIdb(), st=m=>db.transaction('k',m).objectStore('k');
   let key=await new Promise((res,rej)=>{ const q=st('readonly').get('gdrive'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
   if(!key&&create){ key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
@@ -4535,7 +4563,7 @@ async function gdSignedIn(code){ GD.msg='Signing in…'; gdUI();
   catch(e){ GD.msg=''; GD.err=e.message; gdUI(); } }
 async function gdDisconnect(){ const rt=await gdRtGet();
   if(rt) try{ await gdProxy({revoke:rt}); }catch(e){}   // also take back Google's grant (through the proxy: the browser may not reach Google's revoke)
-  ls.set('gdCred',null); GD.tok=null; GD.exp=0; GD.err=''; try{ const db=await nbIdb(); db.transaction('k','readwrite').objectStore('k').delete('gdrive'); }catch(e){} gdUI(); }
+  ls.set('gdCred',null); ls.set('gdLbIn',false); GD.tok=null; GD.exp=0; GD.err=''; try{ const db=await nbIdb(); db.transaction('k','readwrite').objectStore('k').delete('gdrive'); }catch(e){} gdUI(); }
 async function gdToken(){ if(GD.tok&&Date.now()<GD.exp-60e3) return GD.tok; const rt=await gdRtGet(); if(!rt) throw new Error('not connected');
   try{ const j=await gdProxy({refresh_token:rt}); GD.tok=j.access_token; GD.exp=Date.now()+(j.expires_in||3600)*1000; return GD.tok; }
   catch(e){ if(e.reauth){ ls.set('gdCred',null); throw new Error('Google access was withdrawn or expired: connect again'); } throw e; } }
@@ -4554,7 +4582,7 @@ function gdBackup(){ const o={app:'Radio Calls AU', t:new Date().toISOString(), 
   for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith('rc_')&&!GD_SKIP.has(k)) o.keys[k]=localStorage.getItem(k); }
   return JSON.stringify(o); }
 const gdName=t=>{ const d=new Date(t), p=n=>String(n).padStart(2,'0'); return `Flight ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}${p(d.getMinutes())}.gpx`; };
-async function gdSync(why){ if(GD.busy||!gdOn()||!navigator.onLine||!LOGDB.db) return; GD.busy=true; GD.err=''; GD.msg='Saving to Drive…'; gdUI(); let n=0;
+async function gdSync(why){ if(GD.busy||!gdOn()||!navigator.onLine||!LOGDB.db) return; GD.busy=true; GD.err=''; GD.msg='Saving to Drive…'; gdUI(); let n=0, lbIn=false;
   try{ const over=Date.now()-35*60e3, hw=ls.get('gdHw',0), due=why!=='auto'||Date.now()-GD.last>24*3600e3;
     // automatic checks read only the log after the newest flight already saved (the full 90 days only when there's something to save)
     let {L}=await logFlights(why==='auto'&&hw? hw+1 : 0);
@@ -4564,7 +4592,12 @@ async function gdSync(why){ if(GD.busy||!gdOn()||!navigator.onLine||!LOGDB.db) r
       const tr=await trLogRead(f.t0-60e3,f.t1+60e3), title=new Date(f.t0).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
       await gdPut(gdName(f.t0),fpLogGpx(f.rows,title,tr),'application/gpx+xml'); GD.done.add(k); ls.set('gdDone',[...GD.done].slice(-500)); n++;
       if(f.t1>ls.get('gdHw',0)) ls.set('gdHw',f.t1); }
-    if(n||why!=='auto') await gdPut('Logbook.csv',logCsv(legs),'text/csv');
+    if(!ls.get('gdLbIn',false)){   // once: take in any history from a Logbook.csv already in Drive (another phone, an older install)
+      let id=GD.ids['Logbook.csv'];
+      if(!id){ const q=encodeURIComponent(`name='Logbook.csv' and trashed=false`), j=await (await gdFetch(GD_API+'/drive/v3/files?q='+q+'&orderBy=modifiedTime desc&fields=files(id)')).json(); id=j.files&&j.files[0]&&j.files[0].id; if(id){ GD.ids['Logbook.csv']=id; ls.set('gdIds',GD.ids); } }
+      if(id){ const r=await gdFetch(GD_API+'/drive/v3/files/'+id+'?alt=media').catch(e=>{ if(e.status===404) return null; throw e; }); if(r&&logbookFromCsv(await r.text())) lbIn=true; }
+      ls.set('gdLbIn',true); }
+    if(n||lbIn||why!=='auto') await gdPut('Logbook.csv',logCsv(logbookLegs()),'text/csv');   // every leg ever logged, not just the 90-day fix log
     if(n||why!=='auto'||Date.now()-GD.last>24*3600e3) await gdPut('Settings backup.json',gdBackup(),'application/json');
     if(n||why!=='auto'||Date.now()-GD.last>24*3600e3){ GD.last=Date.now(); ls.set('gdLast',GD.last); }
     GD.msg= n? `Saved ${n} flight${n>1?'s':''} to Drive.` : why==='auto'? '' : 'Drive is up to date.'; }
