@@ -433,7 +433,7 @@ cd tools && pip install pymupdf pillow numpy scipy opencv-python matplotlib shap
           --sheet ML-VTC --name "Melbourne VTC" --kind VTC --match melbourne > /tmp/ml-vtc.json
    ```
    It prints, for each panel, the label matches, the airspace misfit (about 0.5 pt is normal) and which fit the app will use: the graticule (`rms` under ~20 m is good), the aerodrome symbols (median offset under ~20 m), or, for an inset with neither, the airspace similarity (about 45 m). If the page size, the panels or the numbers changed, replace that sheet's entry in `charts.json` with the new output (keep its `"sheet"` id).
-3. **Render the tiles. Pass every chart in one run:** the script rewrites `app/charts/index.json` with only the sheets it was given and removes the folders of anything else (older editions included).
+3. **Render the tiles:** the script renders the sheets you give it (a new edition replaces that sheet's old folder) and keeps every other sheet in `app/charts/index.json`. (`--only` makes the site have exactly the sheets given and removes all the others, the WACs included.)
    ```
    python chartiles.py ../app/charts ../data/charts/Melbourne_VNC_<date>.pdf ../data/charts/Melbourne_VTC_<date>.pdf
    ```
@@ -456,7 +456,7 @@ Without publishing, a pilot can also import a newer PDF on the phone (**Chart un
    - **Checks:** the fit must be conformal (x and y scale within 2 %); panels that can't be located are dropped with a message. Look at the result with a few aerodromes before publishing.
 2. **Add the printed JSON object to the array in `tools/charts.json`.** Add `"default": true` only if every new install should download it; otherwise pilots tick it in **Options**.
 3. **Check it lines up:** run `python3 assemble.py`, serve `dist/` (`cd dist && python3 -m http.server 8811`), import the PDF in **Chart underlay**, and compare aerodrome symbols, the coast and the graticule with the app's own aerodromes and airspace at a few places across the sheet.
-4. **Render and publish** as for a new edition (step 3 onwards), passing all the sheets the site should have, old and new, in the one `chartiles.py` run.
+4. **Render and publish** as for a new edition (step 3 onwards); the other sheets are kept.
 
 ### WAC sheets (1:1,000,000, under the VNC/VTC)
 The app has all 46 World Aeronautical Charts that are on http://data.tmorris.net/aviation/wac/ (the 2009 editions): the 42 mainland and Tasmania sheets (3097 Torres Strait to 3556 Tasmania) and the four island plans (Christmas, Cocos (Keeling), Lord Howe and Norfolk Island, all numbered 1919, with the North Keeling and Balls Pyramid insets placed where they belong). They are drawn under the VNCs and VTCs, so they show where those don't cover and when zoomed out. They aren't downloaded by default: tick the ones you want in **Options** (about 2-7 MB each, about 200 MB for all of them). They are old editions: use them for the picture, not for airspace or frequencies.
@@ -469,7 +469,7 @@ python wacref.py ../data/aip/WAC_*.pdf > /tmp/wac.json
 python chartiles.py --add ../app/charts ../data/aip/WAC_*.pdf
 ```
 - `wacref.py` finds each sheet's neatline, takes the corner latitudes and longitudes from its `SHEETS` table (read off the sheets; a new sheet needs a line there), fits the WAC's Lambert conformal conic (standard parallels 40' inside the top and bottom edges), then refines on the printed 1° graticule crossings: rms 0.2-1.8 pt, about 20-190 m (most under 1 pt, 100 m). With enough crossings it fits on them alone (some scans' corners are a few pt off). Hamersley Range and Meekatharra have no longitude printed at the west corners: their west edges (113°25' and 112°40') come out of the fit. Sheets with tabs past the frame (Hamersley Range, Meekatharra, Port Augusta, Tasmania with King and Flinders Islands) are clipped to the drawn map instead of the frame. The island plans are fitted on their 5' graticule (`ISLANDS`). Replace the `"kind": "WAC"` entries in `tools/charts.json` with its output, then rebuild the app (`python3 assemble.py && cp dist/* ../app/`).
-- `chartiles.py --add` renders just the sheets given and keeps every other sheet in `app/charts/index.json`. WAC editions are numbers (`Ed 17`, from the file name), not dates.
+- `chartiles.py` renders just the sheets given and keeps every other sheet in `app/charts/index.json` (`--add` is the default). WAC editions are numbers (`Ed 17`, from the file name), not dates.
 - Aerodrome rings on a WAC are often nudged for legibility (up to about 1 km), so check the fit against the graticule and coastline rather than the rings.
 - The PDFs stay in `data/aip/` and aren't committed (like the VTC/VNC PDFs); the tiles in `app/charts/` are.
 

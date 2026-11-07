@@ -2296,7 +2296,7 @@ function logCsv(legs){ const z=t=>new Date(t).toISOString().slice(11,16), lc=t=>
   return 'Date (local),Aircraft,Type,From,To,Off UTC,On UTC,Off local,On local,Airborne h:mm,Airborne hrs,Day hrs,Night hrs,Landings,Distance NM,Max alt ft\n'+
     legs.map(l=>[dt(l.off),reg,typ,l.from,l.to,z(l.off),z(l.on),lc(l.off),lc(l.on),hmm(l.on-l.off),((l.on-l.off)/3600e3).toFixed(1),((l.on-l.off)/3600e3-(l.night||0)/60).toFixed(1),((l.night||0)/60).toFixed(1),l.ldg!=null?l.ldg:1,l.nm.toFixed(1),l.hi!=null?Math.round(l.hi):''].map(v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v).join(',')).join('\n')+'\n'; }
 // the logged flights (newest first: rows, legs with your edits) and every kept leg; a gap of 30 min starts a new flight
-async function logFlights(){ const all=await logRead(Date.now()-LOG_KEEP,Date.now()+1), fl=[];
+async function logFlights(from){ const all=await logRead(from||Date.now()-LOG_KEEP,Date.now()+1), fl=[];
   for(const r of all){ if(r[1]==='ev'){ if(fl.length) fl[fl.length-1].rows.push(r); continue; }
     const f=fl[fl.length-1]; if(!f||r[0]-f.t1>30*60e3) fl.push({t0:r[0],t1:r[0],n:0,rows:[]}); const g=fl[fl.length-1]; g.t1=r[0]; g.n++; g.rows.push(r); }
   const L=fl.filter(f=>f.n>=6).reverse(); for(const f of L){ f.raw=logLegs(f.rows); f.legs=legsEdited(f.raw); logbookStore(f.legs,f.raw); }
@@ -2642,7 +2642,7 @@ function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k); 
     CH.imgs.set(k,img||'none');
     // never drop a tile the current chart picture uses: when one picture needed more tiles than the cap, the oldest of its own
     // tiles were dropped, reloaded and repainted in turn, and the chart flickered between detailed and coarse/blank (56 NM on a phone)
-    const keep=CH.keep||new Set(), cap=Math.max(180,keep.size+40);
+    const keep=new Set([...(CH.keep||[]),...(V3.on&&V3.keep||[])]), cap=Math.max(180,keep.size+40);   // the map's picture and the 3D view's
     if(CH.imgs.size>cap){ for(const [kk,vv] of CH.imgs){ if(CH.imgs.size<=cap-30) break; if(keep.has(kk)||vv==='loading') continue; if(vv&&vv.close) vv.close(); CH.imgs.delete(kk); } }
     if(img) CHC.dirty=true;   // the chart cache is repainted with it on the next redraw (at most every 400 ms)
     if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
@@ -5120,7 +5120,9 @@ function v3dPlace(){ const w=$('v3dWin'), b=V3.box||{w:Math.min(innerWidth-16,46
   b.x=Math.max(0,Math.min(innerWidth-60,b.x)); b.y=Math.max(0,Math.min(innerHeight-40,b.y));
   Object.assign(w.style,{left:b.x+'px',top:b.y+'px',width:b.w+'px',height:b.h+'px'}); V3.box=b; }
 function v3dSave(){ ls.set('v3dBox',V3.box); ls.set('v3dOpt',V3.opt); }
-function v3dCss(n){ const c=document.createElement('canvas').getContext('2d'); c.fillStyle=cssv(n)||'#888'; const s=c.fillStyle;   // -> [r,g,b] 0..1
+const V3C={k:'',m:new Map(),c:null};   // parsed theme colours, per theme (one canvas for the parsing)
+function v3dCss(n){ const k=themeKey(); if(V3C.k!==k){ V3C.k=k; V3C.m.clear(); } let v=V3C.m.get(n); if(v) return v; v=v3dCss0(n); V3C.m.set(n,v); return v; }
+function v3dCss0(n){ const c=V3C.c||(V3C.c=document.createElement('canvas').getContext('2d')); c.fillStyle=cssv(n)||'#888'; const s=c.fillStyle;   // -> [r,g,b] 0..1
   if(s[0]==='#'){ const v=parseInt(s.slice(1),16); return [(v>>16&255)/255,(v>>8&255)/255,(v&255)/255]; }
   const m=s.match(/[\d.]+/g)||[136,136,136]; return [m[0]/255,m[1]/255,m[2]/255]; }
 function v3dInit(){
@@ -5145,6 +5147,10 @@ function v3dInit(){
   for(const k of ['tp','tn','tc','tu','th','ti','wall','line','pt']) V3.buf[k]=gl.createBuffer();
   V3.tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,V3.tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,0]));
   V3.texCv=document.createElement('canvas'); V3.texCv.width=V3.texCv.height=V3_TEX;
+  if(V3.ev) return; V3.ev=true;   // the listeners below once only (v3dInit runs again after a lost GPU context)
+  // the phone can take the GPU memory back (a background tab, memory pressure): stop drawing, and rebuild everything when it returns
+  cv.addEventListener('webglcontextlost',e=>{ e.preventDefault(); V3.lost=true; });
+  cv.addEventListener('webglcontextrestored',()=>{ Object.assign(V3,{lost:false, gl:null, grid:null, texKey:'', texN:-1, key:'', skey:''}); v3dInit(); });
   // touch / mouse: drag looks around (cockpit) or orbits (chase, orbit); wheel / pinch zooms the chase and orbit distance
   const ptr=new Map();
   cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,[e.clientX,e.clientY]); V3.view.t=Date.now(); });
@@ -5184,7 +5190,8 @@ function v3dTexture(){
   const g=V3.grid, s=V3.opt.surf, cv=V3.texCv, x=cv.getContext('2d'); x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,V3_TEX,V3_TEX);
   const inv=(u,v)=>[g.la0+(V3_TEX/2-v)/(V3_TEX/2)*g.Rnm/60, g.lo0+(u-V3_TEX/2)/(V3_TEX/2)*g.Rnm/(60*g.cosl)];
   let drew=false;
-  if(s==='chart'&&CH.idx.length){ const N=Math.max(4,Math.round(g.Rnm/5)); drew=chartsPaint(x,V3_TEX,V3_TEX,inv,N,1); }
+  if(s==='chart'&&CH.idx.length){ const N=Math.max(4,Math.round(g.Rnm/5)), prev=CH.use, use=new Set(); CH.use=use;   // the tiles it uses are kept, like the map's
+    try{ drew=chartsPaint(x,V3_TEX,V3_TEX,inv,N,1); } finally{ CH.use=prev; } V3.keep=use; }
   else if(s==='sat'&&satVia()){ const dpr=window.devicePixelRatio||1, W=V3_TEX/dpr, sc=W/(2*g.Rnm);
     const P=(la,lo)=>[W/2+(lo-g.lo0)*60*g.cosl*sc, W/2-(la-g.la0)*60*sc], iv=(u,v)=>inv(u*dpr,v*dpr), on=SAT.on, op=SAT.op;
     SAT.on=true; SAT.op=1; x.setTransform(dpr,0,0,dpr,0,0); try{ drew=drawSat(x,W,W,P,iv,g.la0,g.cosl,sc); } finally{ SAT.on=on; SAT.op=op; x.setTransform(1,0,0,1,0,0); } }
@@ -5270,7 +5277,7 @@ function v3dPreview(on){ const b=$('v3dPlay');
   b.textContent= V3.pv? '■' : '▶'; b.setAttribute('aria-pressed',!!V3.pv); V3.key=''; }
 function v3dLoop(){ V3.raf=0; if(!V3.on) return; try{ v3dFrame(); }catch(e){ $('v3dMsg').textContent='3D: '+e.message; } V3.raf=requestAnimationFrame(v3dLoop); }
 function v3dFrame(){
-  const gl=V3.gl; if(!gl||!st.pos) return; const cv=$('v3dCv'), r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
+  const gl=V3.gl; if(!gl||V3.lost||!st.pos) return; const cv=$('v3dCv'), r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
   const Wd=Math.round(r.width*dpr), Hd=Math.round(r.height*dpr); if(!Wd||!Hd) return;
   const pose=V3.pv? v3dPose() : null;   // preview: a point flying the route instead of you
   const Rnm=Math.max(3,Math.min(40,MAP.range)), h=heading(), [la,lo]=pose? [pose.la,pose.lo] : st.pos, hdg=pose? pose.hdg : h?h.deg:(st.trk||0), altFt=pose? pose.ft : st.alt!=null? st.alt : null;
@@ -5284,7 +5291,9 @@ function v3dFrame(){
   const key=[Wd,Hd,la.toFixed(5),lo.toFixed(5),Math.round(myFt),Math.round(hdg),V3.grid.t,V3.texT,TR.t,FP&&FP.rev,JSON.stringify(V3.opt),themeKey(),V3.view.yaw,V3.view.pitch,V3.view.dist].join('|');
   if(key===V3.key) return; V3.key=key;
   if(cv.width!==Wd||cv.height!==Hd){ cv.width=Wd; cv.height=Hd; }
-  v3dScene(altFt!=null?altFt:myFt);
+  // the scene (airspace walls, plan, traffic, obstacles, labels) only when what it shows changes, not on every camera move
+  const {cam:_c, surf:_s, ...lay}=V3.opt, skey=[V3.grid.t,Math.round((altFt!=null?altFt:myFt)/100),JSON.stringify(lay),FP&&FP.rev,FP&&FP.pts.length,MAP.traffic&&TR.t,themeKey(),!!PL.d,typeof NTN!=='undefined'&&NTN&&NTN.t].join('|');
+  if(skey!==V3.skey){ V3.skey=skey; v3dScene(altFt!=null?altFt:myFt); }
   // camera
   const [ox,oz]=v3dXZ(la,lo), oy=myFt*V3_FT, cam=V3.opt.cam, v=V3.view;
   const dir=(yawDeg,pitchDeg)=>{ const y=yawDeg*R, p=pitchDeg*R; return [Math.sin(y)*Math.cos(p), Math.sin(p), -Math.cos(y)*Math.cos(p)]; };
@@ -5356,7 +5365,7 @@ function v3dFrame(){
 const GD={tok:null, exp:0, busy:false, err:'', msg:'', client:null, gis:null, cid:null, last:ls.get('gdLast',0), ids:ls.get('gdIds',{}),
   done:new Set(ls.get('gdDone',[])), auto:ls.get('gdAuto',true)};
 const GD_SCOPE='https://www.googleapis.com/auth/drive.file', GD_DIR='Radio Calls AU', GD_API='https://www.googleapis.com';
-const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_satKey','rc_v3dBox']);   // never in the backup
+const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_gdHw','rc_satKey','rc_v3dBox']);   // never in the backup
 async function gdKey(create){ const db=await nbIdb(), st=m=>db.transaction('k',m).objectStore('k');
   let key=await new Promise((res,rej)=>{ const q=st('readonly').get('gdrive'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
   if(!key&&create){ key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
@@ -5389,16 +5398,17 @@ async function gdSignedIn(code){ GD.msg='Signing in…'; gdUI();
     await gdRtSave(j.refresh_token,who); GD.msg=''; gdUI(); gdSync('connect'); }
   catch(e){ GD.msg=''; GD.err=e.message; gdUI(); } }
 async function gdDisconnect(){ const rt=await gdRtGet();
-  if(rt) try{ await fetch('https://oauth2.googleapis.com/revoke?token='+encodeURIComponent(rt),{method:'POST'}); }catch(e){}   // also take back Google's grant
+  if(rt) try{ await gdProxy({revoke:rt}); }catch(e){}   // also take back Google's grant (through the proxy: the browser may not reach Google's revoke)
   ls.set('gdCred',null); GD.tok=null; GD.exp=0; GD.err=''; try{ const db=await nbIdb(); db.transaction('k','readwrite').objectStore('k').delete('gdrive'); }catch(e){} gdUI(); }
 async function gdToken(){ if(GD.tok&&Date.now()<GD.exp-60e3) return GD.tok; const rt=await gdRtGet(); if(!rt) throw new Error('not connected');
   try{ const j=await gdProxy({refresh_token:rt}); GD.tok=j.access_token; GD.exp=Date.now()+(j.expires_in||3600)*1000; return GD.tok; }
   catch(e){ if(e.reauth){ ls.set('gdCred',null); throw new Error('Google access was withdrawn or expired: connect again'); } throw e; } }
-async function gdFetch(url,opt={}){ const t=await gdToken(), r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+t}});
+async function gdFetch(url,opt={},again){ const t=await gdToken(), r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+t}});
+  if(r.status===401&&!again){ GD.tok=null; GD.exp=0; return gdFetch(url,opt,true); }   // token refused before its time (access withdrawn?): a fresh one, once; gdToken clears the sign-in if Google says so
   if(!r.ok){ const j=await r.json().catch(()=>({})); const e=new Error('Drive: '+((j.error&&j.error.message)||r.status)); e.status=r.status; throw e; } return r; }
 async function gdDir(){ if(GD.ids.__dir){ try{ const j=await (await gdFetch(GD_API+'/drive/v3/files/'+GD.ids.__dir+'?fields=id,trashed')).json(); if(!j.trashed) return GD.ids.__dir; }catch(e){ if(e.status!==404) throw e; } }
   const j=await (await gdFetch(GD_API+'/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:GD_DIR,mimeType:'application/vnd.google-apps.folder'})})).json();
-  GD.ids={__dir:j.id}; ls.set('gdIds',GD.ids); GD.done=new Set(); ls.set('gdDone',[]); return j.id; }   // a new folder: everything goes again
+  GD.ids={__dir:j.id}; ls.set('gdIds',GD.ids); GD.done=new Set(); ls.set('gdDone',[]); ls.set('gdHw',0); return j.id; }   // a new folder: everything goes again
 async function gdPut(name,text,mime){ const dir=await gdDir(), id=GD.ids[name];
   if(id){ try{ await gdFetch(GD_API+'/upload/drive/v3/files/'+id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':mime},body:text}); return id; }catch(e){ if(e.status!==404) throw e; } }
   const b='rcau'+Math.random().toString(36).slice(2), body=`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name,parents:[dir],mimeType:mime})}\r\n--${b}\r\nContent-Type: ${mime}\r\n\r\n${text}\r\n--${b}--`;
@@ -5409,10 +5419,15 @@ function gdBackup(){ const o={app:'Radio Calls AU', t:new Date().toISOString(), 
   return JSON.stringify(o); }
 const gdName=t=>{ const d=new Date(t), p=n=>String(n).padStart(2,'0'); return `Flight ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}${p(d.getMinutes())}.gpx`; };
 async function gdSync(why){ if(GD.busy||!gdOn()||!navigator.onLine||!LOGDB.db) return; GD.busy=true; GD.err=''; GD.msg='Saving to Drive…'; gdUI(); let n=0;
-  try{ const {L, legs}=await logFlights(), over=Date.now()-35*60e3;
+  try{ const over=Date.now()-35*60e3, hw=ls.get('gdHw',0), due=why!=='auto'||Date.now()-GD.last>24*3600e3;
+    // automatic checks read only the log after the newest flight already saved (the full 90 days only when there's something to save)
+    let {L}=await logFlights(why==='auto'&&hw? hw+1 : 0);
+    if(why==='auto'&&!due&&!L.some(f=>!GD.done.has(String(f.t0))&&f.t1<=over)){ GD.busy=false; GD.msg=''; gdUI(); return; }
+    const full=await logFlights(), legs=full.legs; if(!(why==='auto'&&hw)) L=full.L;
     for(const f of L){ const k=String(f.t0); if(GD.done.has(k)||f.t1>over) continue;   // a flight still going (or just ended) waits
       const tr=await trLogRead(f.t0-60e3,f.t1+60e3), title=new Date(f.t0).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
-      await gdPut(gdName(f.t0),fpLogGpx(f.rows,title,tr),'application/gpx+xml'); GD.done.add(k); ls.set('gdDone',[...GD.done].slice(-500)); n++; }
+      await gdPut(gdName(f.t0),fpLogGpx(f.rows,title,tr),'application/gpx+xml'); GD.done.add(k); ls.set('gdDone',[...GD.done].slice(-500)); n++;
+      if(f.t1>ls.get('gdHw',0)) ls.set('gdHw',f.t1); }
     if(n||why!=='auto') await gdPut('Logbook.csv',logCsv(legs),'text/csv');
     if(n||why!=='auto'||Date.now()-GD.last>24*3600e3) await gdPut('Settings backup.json',gdBackup(),'application/json');
     if(n||why!=='auto'||Date.now()-GD.last>24*3600e3){ GD.last=Date.now(); ls.set('gdLast',GD.last); }

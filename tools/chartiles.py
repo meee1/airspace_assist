@@ -7,7 +7,9 @@ every map panel (legends, margins) are skipped. Output, per sheet:
   app/charts/index.json                                [{sheet,name,ed,edT,dir,bytes,levels:[{s,cols,rows,tiles:[[i,j],..]}],def?}]
   def: the sheet has "default": true in charts.json, so a new install downloads it without being asked (Options)
 Usage: python chartiles.py OUT_DIR CHART.pdf [CHART.pdf ...]      (needs pymupdf, pillow)
-       python chartiles.py --add OUT_DIR CHART.pdf ...    add or replace just these sheets, keep the others in index.json
+         renders these sheets (a new edition replaces the old one's folder) and keeps every other sheet in index.json
+       python chartiles.py --only OUT_DIR CHART.pdf ...   the site gets exactly these sheets: every other sheet's folder is removed
+       (--add is accepted and is the default; before Nov 2026 the default was --only, which would now remove the 46 WACs)
 WAC sheets (raster scans, 1 px per pt) carry an edition number rather than a date ("WAC_3470_Melbourne_Ed._17.pdf" -> "Ed 17").
 Note: Airservices charts are copyright; publishing these tiles is the site owner's decision.
 """
@@ -25,8 +27,8 @@ def edition(name, title):
     return f'Ed {m.group(1)}' if m else ''
 
 def main():
-    args = sys.argv[1:]; add = args[:1] == ['--add']
-    if add: args = args[1:]
+    args = sys.argv[1:]; add = True
+    if args[:1] in (['--add'], ['--only']): add = args[0] == '--add'; args = args[1:]
     out = args[0]; pdfs = args[1:]
     sheets = json.load(open(os.path.join(here, 'charts.json')))
     os.makedirs(out, exist_ok=True); idx = []

@@ -7,14 +7,15 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
  await ctx.route('https://accounts.google.com/gsi/client',r=>r.fulfill({contentType:'text/javascript',body:`window.google={accounts:{oauth2:{initCodeClient(o){ window.__gis=o; return {requestCode(){ setTimeout(()=>o.callback({code:'CODE1'}),30); }}; }}}};`}));
  await ctx.route('https://test.mission.workers.dev/gauth',async r=>{ const q=r.request(); const h={'Access-Control-Allow-Origin':'*'};
    if(q.method()==='GET'){ log.push('proxy GET'); return r.fulfill({headers:h,json:{client_id:'CID.apps.googleusercontent.com'}}); }
-   const j=q.postDataJSON(); log.push('proxy '+(j.code?'code':'refresh'));
+   const j=q.postDataJSON(); log.push('proxy '+(j.code?'code':j.revoke?'revoke':'refresh'));
+   if(j.revoke) return r.fulfill({headers:h,json:{ok:true}});
    if(j.code) return r.fulfill({headers:h,json:{access_token:'AT'+(++tokN),expires_in:3600,refresh_token:'RT-secret'}});
    if(j.refresh_token!=='RT-secret') return r.fulfill({status:400,headers:h,json:{error:'bad',reauth:true}});
    return r.fulfill({headers:h,json:{access_token:'AT'+(++tokN),expires_in:3600}}); });
  await ctx.route('https://oauth2.googleapis.com/revoke**',r=>{ log.push('revoke'); r.fulfill({status:200,body:''}); });
  await ctx.route('https://www.googleapis.com/**',async r=>{ const q=r.request(), u=new URL(q.url()), auth=q.headers()['authorization']||'', h={'Access-Control-Allow-Origin':'*'};
    if(!/^Bearer AT\d+$/.test(auth)) return r.fulfill({status:401,headers:h,json:{error:{message:'no token'}}});
-   const tag=auth.slice(7);
+   const tag=auth.slice(7); if(globalThis.__deny&&tag===globalThis.__deny){ log.push('401 '+tag); return r.fulfill({status:401,headers:h,json:{error:{message:'Invalid Credentials'}}}); }
    if(u.pathname==='/drive/v3/about') return r.fulfill({headers:h,json:{user:{emailAddress:'pilot@example.com'}}});
    if(u.pathname==='/drive/v3/files'&&q.method()==='POST'){ const id='dir'+(++nid); files[id]={name:JSON.parse(q.postData()).name,dir:true}; log.push('mkdir '+files[id].name); return r.fulfill({headers:h,json:{id}}); }
    if(u.pathname==='/drive/v3/files'&&q.method()==='GET'){ const f=Object.entries(files).filter(([,v])=>v.name==='Settings backup.json'); return r.fulfill({headers:h,json:{files:f.map(([id])=>({id}))}}); }
@@ -45,6 +46,10 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
  log.length=0; await p.click('#gdNow'); await p.waitForTimeout(1000); console.log('save now again:', log.join('; '));
  log.length=0; await p.evaluate(()=>{ GD.tok=null; GD.exp=0; }); const lg=Object.entries(files).find(([,v])=>v.name==='Logbook.csv')[0]; delete files[lg];
  await p.click('#gdNow'); await p.waitForTimeout(1000); console.log('expired token + deleted Logbook.csv:', log.join('; '));
+ log.length=0; globalThis.__deny=await p.evaluate(()=>GD.tok); await p.click('#gdNow'); await p.waitForTimeout(1000); globalThis.__deny=null; console.log('token refused early:', log.join('; '), '· error', await p.evaluate(()=>GD.err||'none'));
+ console.log('high-water mark set', await p.evaluate(()=>ls.get('gdHw',0)>0));
+ const froms=await p.evaluate(async()=>{ const f=[], o=logRead; window.logRead=(a,b)=>{ f.push(Math.round((Date.now()-a)/60e3)); return o(a,b); }; GD.last=Date.now(); await gdSync('auto'); window.logRead=o; return f; });
+ console.log('auto check with nothing new reads back (min):', froms.join(','), '· drive calls', log.length);
  await p.evaluate(()=>{ ls.set('aircraftTest','CHANGED'); window.confirm=()=>true; }); const nav=p.waitForNavigation(); await p.click('#gdRestore'); await nav; await p.waitForFunction(()=>typeof render==='function');
  console.log('restored aircraftTest:', await p.evaluate(()=>ls.get('aircraftTest')), '· still connected', await p.evaluate(()=>gdOn()));
  await p.evaluate(()=>{ $('bOpts').click(); window.confirm=()=>true; }); await p.waitForTimeout(500); log.length=0; await p.click('#gdOff'); await p.waitForTimeout(500);

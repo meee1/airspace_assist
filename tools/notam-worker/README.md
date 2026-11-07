@@ -56,6 +56,6 @@ folder keeps its old name.)
   `http://localhost:8812` (app served on :8811). It also serves fake Esri tiles on `/tile/…` (green checks) and prints how many came from the edge cache; the app test `play/satproxy.js` uses it to check the Sat layer, service-worker storage and offline display.
 
 ## Google Drive sign-in (`/gauth`)
-- `GET /gauth` returns `{client_id}`; `POST /gauth {code}` (after the app's Google pop-up) and `POST /gauth {refresh_token}` return Google tokens. The client secret is needed for both swaps, so it lives here as a secret; nothing is stored or logged. Only the app's origins may call it.
+- `GET /gauth` returns `{client_id}`; `POST /gauth {code}` (after the app's Google pop-up) and `POST /gauth {refresh_token}` return Google tokens; `POST /gauth {revoke}` withdraws the app's access (Disconnect). The client secret is needed for both swaps, so it lives here as a secret; nothing is stored or logged. Only the app's origins may call it.
 - Secrets: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (a "Web application" OAuth client with `https://meee1.github.io` as an authorised JavaScript origin). Without them `/gauth` answers 501 and the app says Drive isn't set up.
 - Setup steps: README.md → Google Drive.
