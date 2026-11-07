@@ -27,7 +27,15 @@
      "Brief in NAIPS" button uses (BriefingArea1-5, Notam, Met, Validity), logs off, and returns {text, t} with the
      briefing as plain text. On failure {error, stage, detail} with the page title / form field names found (never
      values) so a change to the NAIPS site can be diagnosed. Unofficial: NAIPS's own machine access is Airservices'
-     Dynamic Data service; the website can change, and its bot protection may refuse requests from here. */
+     Dynamic Data service; the website can change, and its bot protection may refuse requests from here.
+
+   GET  /gauth                       -> {client_id}   the Google OAuth client ID the app signs in with (not a secret)
+   POST /gauth {code}                -> {access_token, expires_in, refresh_token}   after the app's Google sign-in pop-up
+   POST /gauth {refresh_token}       -> {access_token, expires_in}                  a fresh 1-hour token, no pop-up
+     Google Drive for the app's flight logs (scope drive.file: only files the app made). The client secret stays here
+     (secrets GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, a "Web application" OAuth client with https://meee1.github.io as
+     an authorised JavaScript origin); the refresh token is kept encrypted on the pilot's device and sent only to swap it
+     for an access token. Nothing is stored or logged here. Only from ALLOW_ORIGIN. */
 const cors=(req,env)=>{ const o=req.headers.get('Origin')||'', ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean);
   return {'Access-Control-Allow-Origin': ok.includes(o)? o : ok[0]||'*', 'Access-Control-Allow-Methods':'GET, POST, OPTIONS', 'Access-Control-Allow-Headers':'Content-Type', 'Vary':'Origin'}; };
 const json=(o,status,h)=>new Response(JSON.stringify(o),{status,headers:{'Content-Type':'application/json',...h}});
@@ -40,7 +48,8 @@ export default {
     if(u.pathname==='/traffic') return traffic(u,env,ctx,H);
     if(u.pathname.startsWith('/tile/')) return tile(req,u,env,ctx,H);
     if(u.pathname==='/naips') return naips(req,env,ctx,H);
-    return json({error:'use /traffic?lat=&lon=&nm=, /tile/{wi|st}/{z}/{y}/{x} or POST /naips'},404,H);
+    if(u.pathname==='/gauth') return gauth(req,env,H);
+    return json({error:'use /traffic?lat=&lon=&nm=, /tile/{wi|st}/{z}/{y}/{x}, POST /naips or /gauth'},404,H);
   }
 };
 async function traffic(u,env,ctx,H){
@@ -162,4 +171,23 @@ async function naips(req,env,ctx,H){
     if(!/\d{4} UTC \d{2}\/\d{2}\/\d{2}/.test(text)) return fail('briefing',br,"NAIPS didn't return a briefing (the page may have changed)");
     return json({text, t:new Date().toISOString(), areas},200,{...H,'Cache-Control':'no-store'});
   }catch(e){ return json({error:'NAIPS '+(e.name==='AbortError'?'timed out':'unreachable: '+e.message)},502,H); }
+}
+
+// ---------- Google sign-in for Drive: the code / refresh-token swap needs the client secret, so it happens here ----------
+async function gauth(req,env,H){
+  const ok=(env.ALLOW_ORIGIN||'').split(',').map(s=>s.trim()).filter(Boolean), org=req.headers.get('Origin')||'';
+  if(ok.length&&!ok.includes(org)) return json({error:'not allowed'},403,H);
+  if(!env.GOOGLE_CLIENT_ID||!env.GOOGLE_CLIENT_SECRET) return json({error:"Google Drive isn't set up on the proxy (secrets GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)"},501,H);
+  if(req.method==='GET') return json({client_id:env.GOOGLE_CLIENT_ID},200,H);
+  if(req.method!=='POST') return json({error:'GET, or POST {code} / {refresh_token}'},405,H);
+  let b; try{ b=await req.json(); }catch(e){ return json({error:'bad JSON'},400,H); }
+  const base={client_id:env.GOOGLE_CLIENT_ID, client_secret:env.GOOGLE_CLIENT_SECRET};
+  const body= b.code? {...base, code:String(b.code), redirect_uri:'postmessage', grant_type:'authorization_code'}
+            : b.refresh_token? {...base, refresh_token:String(b.refresh_token), grant_type:'refresh_token'} : null;
+  if(!body) return json({error:'give code or refresh_token'},400,H);
+  let r, j;
+  try{ r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)}); j=await r.json(); }
+  catch(e){ return json({error:'Google token service: '+e.message},502,H); }
+  if(!r.ok||!j.access_token) return json({error:j.error_description||j.error||('Google token service '+r.status), reauth:j.error==='invalid_grant'},r.status>=400&&r.status<500?400:502,H);
+  return json({access_token:j.access_token, expires_in:j.expires_in||3600, ...(j.refresh_token?{refresh_token:j.refresh_token}:{})},200,{...H,'Cache-Control':'no-store'});
 }

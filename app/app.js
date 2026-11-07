@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1793950962370;
+const APP_BUILT=1793966738397;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1401,7 +1401,7 @@ function optsRender(){
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+$('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // More → Logbook: Options opened at the logbook (totals, legs, CSV export)
@@ -1431,14 +1431,16 @@ function logCsv(legs){ const z=t=>new Date(t).toISOString().slice(11,16), lc=t=>
   const reg=($('cSign')&&$('cSign').value||'').toUpperCase(), typ=$('cType')&&$('cType').value||'';
   return 'Date (local),Aircraft,Type,From,To,Off UTC,On UTC,Off local,On local,Airborne h:mm,Airborne hrs,Day hrs,Night hrs,Landings,Distance NM,Max alt ft\n'+
     legs.map(l=>[dt(l.off),reg,typ,l.from,l.to,z(l.off),z(l.on),lc(l.off),lc(l.on),hmm(l.on-l.off),((l.on-l.off)/3600e3).toFixed(1),((l.on-l.off)/3600e3-(l.night||0)/60).toFixed(1),((l.night||0)/60).toFixed(1),l.ldg!=null?l.ldg:1,l.nm.toFixed(1),l.hi!=null?Math.round(l.hi):''].map(v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v).join(',')).join('\n')+'\n'; }
-async function logsRender(){ const el=$('optsLogs');
-  if(!LOGDB.db){ el.innerHTML='<div class="vnote">'+(LOGDB.ok?'Loading…':'This browser can\'t store the log (no IndexedDB).')+'</div>'; return; }
-  const all=await logRead(Date.now()-LOG_KEEP,Date.now()+1), fl=[];
+// the logged flights (newest first: rows, legs with your edits) and every kept leg; a gap of 30 min starts a new flight
+async function logFlights(){ const all=await logRead(Date.now()-LOG_KEEP,Date.now()+1), fl=[];
   for(const r of all){ if(r[1]==='ev'){ if(fl.length) fl[fl.length-1].rows.push(r); continue; }
     const f=fl[fl.length-1]; if(!f||r[0]-f.t1>30*60e3) fl.push({t0:r[0],t1:r[0],n:0,rows:[]}); const g=fl[fl.length-1]; g.t1=r[0]; g.n++; g.rows.push(r); }
-  const fmt=t=>new Date(t).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}), tm=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
   const L=fl.filter(f=>f.n>=6).reverse(); for(const f of L){ f.raw=logLegs(f.rows); f.legs=legsEdited(f.raw); logbookStore(f.legs,f.raw); }
-  const all_=L.flatMap(f=>f.legs).filter(l=>!l.del).sort((x,y)=>x.off-y.off), tl=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
+  return {L, legs:L.flatMap(f=>f.legs).filter(l=>!l.del).sort((x,y)=>x.off-y.off)}; }
+async function logsRender(){ const el=$('optsLogs');
+  if(!LOGDB.db){ el.innerHTML='<div class="vnote">'+(LOGDB.ok?'Loading…':'This browser can\'t store the log (no IndexedDB).')+'</div>'; return; }
+  const fmt=t=>new Date(t).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}), tm=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
+  const {L, legs:all_}=await logFlights(), tl=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
   const T=logTotals(), totRow=`<div class="logtot">${T.map(t=>`<span><b>${t.d} days</b> ${hmm(t.ms)} · ${t.n} leg${t.n===1?'':'s'} · ${t.ldg} ldg${t.night?' · night '+hmm(t.night*60e3):''}</span>`).join('')}</div>`;
   const legRow=(l,fi,li)=>`<div class="lg${l.del?' del':''}" data-f="${fi}" data-l="${li}"><b>${esc(l.from)} → ${esc(l.to)}</b> · off ${tl(l.off)} · on ${tl(l.on)} · <b>${hmm(l.on-l.off)}</b>${l.night?' (night '+hmm(l.night*60e3)+')':''} · ${l.ldg} ldg · ${Math.round(l.nm)} NM${l.hi!=null?' · max '+Math.round(l.hi).toLocaleString('en-AU')+' ft':''}${l.merged?' · merged':''} <button class="btn meta" data-ed="${fi}:${li}">Edit</button></div>`;
   el.innerHTML= L.length? (all_.length?`<label style="cursor:default;flex-wrap:wrap"><span><b>Logbook</b><br><small>${all_.length} leg${all_.length>1?'s':''} · ${hmm(all_.reduce((a,l)=>a+l.on-l.off,0))} airborne (last 90 days, from GPS)</small></span><button class="btn meta" data-csv="all" style="margin-left:auto">CSV</button>${totRow}</label>`:'')+
@@ -4479,6 +4481,102 @@ function v3dFrame(){
   addEventListener('resize',()=>{ if(V3.on){ v3dPlace(); V3.key=''; } });
   if(ls.get('v3dOn',false)) setTimeout(()=>v3dShow(true),500);
 })();
+
+/* ---------- Google Drive: flight tracks (GPX), the logbook (CSV) and a settings backup, in a "Radio Calls AU" folder ----------
+   Scope drive.file: the app sees only the files it made. Sign-in is Google's own pop-up (Google Identity Services, code
+   flow); the code is swapped for tokens by the proxy (POST /gauth), which holds the client secret. The refresh token is kept
+   on this device encrypted (AES-GCM, non-extractable key in IndexedDB, as the NAIPS login), and swapped for a 1-hour access
+   token when needed, so saving after a flight needs no tap. Uploads: each finished flight's GPX once, then Logbook.csv and
+   "Settings backup.json" rewritten (same file ids, kept in rc_gdIds). Automatic: a few minutes after the last fix of a
+   flight (35 min without fixes = the flight is over), when online; retried on the next check if it fails. */
+const GD={tok:null, exp:0, busy:false, err:'', msg:'', client:null, gis:null, cid:null, last:ls.get('gdLast',0), ids:ls.get('gdIds',{}),
+  done:new Set(ls.get('gdDone',[])), auto:ls.get('gdAuto',true)};
+const GD_SCOPE='https://www.googleapis.com/auth/drive.file', GD_DIR='Radio Calls AU', GD_API='https://www.googleapis.com';
+const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_satKey','rc_v3dBox']);   // never in the backup
+async function gdKey(create){ const db=await nbIdb(), st=m=>db.transaction('k',m).objectStore('k');
+  let key=await new Promise((res,rej)=>{ const q=st('readonly').get('gdrive'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+  if(!key&&create){ key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    await new Promise((res,rej)=>{ const q=st('readwrite').put(key,'gdrive'); q.onsuccess=res; q.onerror=()=>rej(q.error); }); }
+  return key||null; }
+async function gdRtSave(rt,who){ const key=await gdKey(true), iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(rt)); ls.set('gdCred',{iv:nbB64(iv),ct:nbB64(ct),who:who||'',t:Date.now()}); }
+async function gdRtGet(){ const c=ls.get('gdCred',null); if(!c) return null; try{ const key=await gdKey(false); if(!key) return null;
+  return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:nbUnB64(c.iv)},key,nbUnB64(c.ct))); }catch(e){ return null; } }
+const gdOn=()=>!!ls.get('gdCred',null);
+async function gdProxy(body){ const u=ntUrl(); if(!u) throw new Error('set the proxy (NOTAMs (NAIPS) and traffic) first');
+  const r=await fetch(u+'/gauth',body? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
+  const j=await r.json().catch(()=>({error:'proxy HTTP '+r.status})); if(!r.ok||j.error){ const e=new Error(j.error||('proxy HTTP '+r.status)); e.reauth=!!j.reauth; throw e; } return j; }
+// load Google's sign-in script and the client ID ahead of the tap (the pop-up must open straight from the tap)
+function gdPrep(){ if(GD.gis||!ntUrl()) return GD.gis;
+  GD.gis=Promise.all([ gdProxy().then(j=>{ GD.cid=j.client_id; }),
+    window.google&&google.accounts? Promise.resolve() : new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.onload=res; s.onerror=()=>rej(new Error("couldn't load Google sign-in (offline?)")); document.head.appendChild(s); }) ])
+    .then(()=>{ GD.client=google.accounts.oauth2.initCodeClient({client_id:GD.cid, scope:GD_SCOPE, ux_mode:'popup', select_account:true,
+      callback:r=>{ if(r.error){ GD.err='Google sign-in: '+(r.error_description||r.error); gdUI(); return; } gdSignedIn(r.code); },
+      error_callback:e=>{ GD.err=e&&e.type==='popup_closed'? '' : 'Google sign-in: '+((e&&e.message)||(e&&e.type)||'failed'); gdUI(); } }); })
+    .catch(e=>{ GD.gis=null; GD.err=e.message; gdUI(); });
+  return GD.gis; }
+function gdConnect(){ GD.err='';
+  if(GD.client){ GD.client.requestCode(); return; }   // straight from the tap: the pop-up isn't blocked
+  GD.msg='Getting Google sign-in ready… tap Connect again.'; gdUI(); gdPrep()?.then(()=>{ GD.msg=GD.client?'Ready: tap Connect Google Drive.':''; gdUI(); }); }
+async function gdSignedIn(code){ GD.msg='Signing in…'; gdUI();
+  try{ const j=await gdProxy({code}); if(!j.refresh_token) throw new Error("Google sent no refresh token: remove the app's access at myaccount.google.com/permissions and connect again");
+    GD.tok=j.access_token; GD.exp=Date.now()+(j.expires_in||3600)*1000; let who='';
+    try{ const a=await (await fetch(GD_API+'/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+GD.tok}})).json(); who=a.user&&a.user.emailAddress||''; }catch(e){}
+    await gdRtSave(j.refresh_token,who); GD.msg=''; gdUI(); gdSync('connect'); }
+  catch(e){ GD.msg=''; GD.err=e.message; gdUI(); } }
+async function gdDisconnect(){ const rt=await gdRtGet();
+  if(rt) try{ await fetch('https://oauth2.googleapis.com/revoke?token='+encodeURIComponent(rt),{method:'POST'}); }catch(e){}   // also take back Google's grant
+  ls.set('gdCred',null); GD.tok=null; GD.exp=0; GD.err=''; try{ const db=await nbIdb(); db.transaction('k','readwrite').objectStore('k').delete('gdrive'); }catch(e){} gdUI(); }
+async function gdToken(){ if(GD.tok&&Date.now()<GD.exp-60e3) return GD.tok; const rt=await gdRtGet(); if(!rt) throw new Error('not connected');
+  try{ const j=await gdProxy({refresh_token:rt}); GD.tok=j.access_token; GD.exp=Date.now()+(j.expires_in||3600)*1000; return GD.tok; }
+  catch(e){ if(e.reauth){ ls.set('gdCred',null); throw new Error('Google access was withdrawn or expired: connect again'); } throw e; } }
+async function gdFetch(url,opt={}){ const t=await gdToken(), r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+t}});
+  if(!r.ok){ const j=await r.json().catch(()=>({})); const e=new Error('Drive: '+((j.error&&j.error.message)||r.status)); e.status=r.status; throw e; } return r; }
+async function gdDir(){ if(GD.ids.__dir){ try{ const j=await (await gdFetch(GD_API+'/drive/v3/files/'+GD.ids.__dir+'?fields=id,trashed')).json(); if(!j.trashed) return GD.ids.__dir; }catch(e){ if(e.status!==404) throw e; } }
+  const j=await (await gdFetch(GD_API+'/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:GD_DIR,mimeType:'application/vnd.google-apps.folder'})})).json();
+  GD.ids={__dir:j.id}; ls.set('gdIds',GD.ids); GD.done=new Set(); ls.set('gdDone',[]); return j.id; }   // a new folder: everything goes again
+async function gdPut(name,text,mime){ const dir=await gdDir(), id=GD.ids[name];
+  if(id){ try{ await gdFetch(GD_API+'/upload/drive/v3/files/'+id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':mime},body:text}); return id; }catch(e){ if(e.status!==404) throw e; } }
+  const b='rcau'+Math.random().toString(36).slice(2), body=`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name,parents:[dir],mimeType:mime})}\r\n--${b}\r\nContent-Type: ${mime}\r\n\r\n${text}\r\n--${b}--`;
+  const j=await (await gdFetch(GD_API+'/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body})).json();
+  GD.ids[name]=j.id; ls.set('gdIds',GD.ids); return j.id; }
+function gdBackup(){ const o={app:'Radio Calls AU', t:new Date().toISOString(), build:APP_BUILT, keys:{}};
+  for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith('rc_')&&!GD_SKIP.has(k)) o.keys[k]=localStorage.getItem(k); }
+  return JSON.stringify(o); }
+const gdName=t=>{ const d=new Date(t), p=n=>String(n).padStart(2,'0'); return `Flight ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}${p(d.getMinutes())}.gpx`; };
+async function gdSync(why){ if(GD.busy||!gdOn()||!navigator.onLine||!LOGDB.db) return; GD.busy=true; GD.err=''; GD.msg='Saving to Drive…'; gdUI(); let n=0;
+  try{ const {L, legs}=await logFlights(), over=Date.now()-35*60e3;
+    for(const f of L){ const k=String(f.t0); if(GD.done.has(k)||f.t1>over) continue;   // a flight still going (or just ended) waits
+      const tr=await trLogRead(f.t0-60e3,f.t1+60e3), title=new Date(f.t0).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+      await gdPut(gdName(f.t0),fpLogGpx(f.rows,title,tr),'application/gpx+xml'); GD.done.add(k); ls.set('gdDone',[...GD.done].slice(-500)); n++; }
+    if(n||why!=='auto') await gdPut('Logbook.csv',logCsv(legs),'text/csv');
+    if(n||why!=='auto'||Date.now()-GD.last>24*3600e3) await gdPut('Settings backup.json',gdBackup(),'application/json');
+    if(n||why!=='auto'||Date.now()-GD.last>24*3600e3){ GD.last=Date.now(); ls.set('gdLast',GD.last); }
+    GD.msg= n? `Saved ${n} flight${n>1?'s':''} to Drive.` : why==='auto'? '' : 'Drive is up to date.'; }
+  catch(e){ GD.msg=''; GD.err=e.message; }
+  GD.busy=false; gdUI(); }
+async function gdRestore(){ if(!gdOn()) return; GD.err=''; GD.msg='Looking for the backup…'; gdUI();
+  try{ let id=GD.ids['Settings backup.json'];
+    if(!id){ const q=encodeURIComponent(`name='Settings backup.json' and trashed=false`), j=await (await gdFetch(GD_API+'/drive/v3/files?q='+q+'&orderBy=modifiedTime desc&fields=files(id,modifiedTime)')).json(); id=j.files&&j.files[0]&&j.files[0].id; }
+    if(!id) throw new Error('no backup in Drive yet');
+    const o=await (await gdFetch(GD_API+'/drive/v3/files/'+id+'?alt=media')).json(); if(!o||o.app!=='Radio Calls AU'||!o.keys) throw new Error("that isn't a Radio Calls AU backup");
+    GD.msg=''; gdUI();
+    if(!confirm(`Restore the settings saved ${new Date(o.t).toLocaleString('en-AU')}? Your current settings (aircraft, W&B, plans, call wording, options) are replaced; logs and charts stay.`)) return;
+    for(const [k,v] of Object.entries(o.keys)) if(k.startsWith('rc_')&&!GD_SKIP.has(k)) localStorage.setItem(k,v);
+    location.reload(); }
+  catch(e){ GD.msg=''; GD.err=e.message; gdUI(); } }
+function gdUI(){ const el=$('gdBox'); if(!el) return; const c=ls.get('gdCred',null), dl=ls.get('gdIds',{}), on=!!c;
+  $('gdConnect').hidden=on; $('gdNow').hidden=!on; $('gdRestore').hidden=!on; $('gdOff').hidden=!on; $('gdAuto').disabled=!on; $('gdAuto').checked=GD.auto;
+  $('gdNow').disabled=GD.busy;
+  $('gdStat').innerHTML= !ntUrl()? 'Needs the proxy (set under NOTAMs (NAIPS) and traffic).'
+    : (on? `Connected${c.who?' as <b>'+esc(c.who)+'</b>':''} · folder <b>${GD_DIR}</b>${GD.last?' · last saved '+new Date(GD.last).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):''}${GD.done.size?` · ${GD.done.size} flight${GD.done.size>1?'s':''} saved`:''}` : 'Not connected.')
+    + (GD.msg? '<br>'+esc(GD.msg) : '') + (GD.err? `<br><span class="w">${esc(GD.err)}</span>` : ''); }
+$('gdConnect').onclick=gdConnect; $('gdNow').onclick=()=>gdSync('now'); $('gdRestore').onclick=gdRestore; $('gdOff').onclick=()=>{ if(confirm('Disconnect Google Drive? Files already in Drive stay there.')) gdDisconnect(); };
+$('gdAuto').onchange=()=>{ GD.auto=$('gdAuto').checked; ls.set('gdAuto',GD.auto); };
+setInterval(()=>{ if(GD.auto&&gdOn()&&!document.hidden) gdSync('auto'); },5*60e3);
+addEventListener('online',()=>{ if(GD.auto&&gdOn()) setTimeout(()=>gdSync('auto'),5000); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&GD.auto&&gdOn()) setTimeout(()=>gdSync('auto'),8000); });
+if(GD.auto&&gdOn()) setTimeout(()=>gdSync('auto'),20000);
 
 function appUpdated(){ if(!APP_BUILT) return ''; const d=new Date(APP_BUILT), m=(Date.now()-APP_BUILT)/60000;
   const ago= m<1?'just now' : m<60?Math.round(m)+' min ago' : m<48*60?Math.round(m/60)+' h ago' : Math.round(m/1440)+' days ago';

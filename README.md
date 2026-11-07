@@ -151,6 +151,22 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 ### Logbook
 **More → Logbook** opens the logbook: legs worked out from the GPS log, with your edits, 7/28/365-day totals and a CSV export (all legs, or per flight) for your logbook app. It's the same section as Options → Logbook and flight logs.
 
+### Google Drive (flight logs, logbook, settings backup)
+**Options → Google Drive → Connect Google Drive** signs in with Google once. After each flight (35 min with no movement, when there's signal) the app saves to a **Radio Calls AU** folder in your Drive:
+- one GPX track per flight (with the logged ADS-B traffic), named `Flight 2026-11-06 0912.gpx`;
+- `Logbook.csv`, rewritten each time (the same columns as the logbook export);
+- `Settings backup.json`: aircraft, W&B, saved plans, call wording and options (not your NAIPS login, Drive sign-in or satellite key). **Restore settings** loads it back, e.g. on a new phone.
+
+**Save now** saves straight away. The app uses Drive's `drive.file` permission, so it can only see the files it made. Your sign-in is kept on the phone, encrypted; the proxy swaps it for a 1-hour access token when saving (so no tap is needed after a flight) and stores nothing. **Disconnect** removes it and withdraws the app's access; the files stay in Drive.
+
+One-off setup (your own Google OAuth client; the secret goes on the proxy, never in the app):
+1. Go to console.cloud.google.com and create a project (e.g. "Radio Calls AU").
+2. **APIs & Services → Library**: enable **Google Drive API**.
+3. **Google Auth Platform** (OAuth consent screen): app name "Radio Calls AU" and your email; audience **External**; under **Data access** add the scope `.../auth/drive.file`; then on **Audience** press **Publish app** (In production). drive.file needs no Google review, and published apps keep you signed in (an app left in "Testing" signs you out every 7 days).
+4. **Clients → Create client → Web application**. Authorised JavaScript origins: `https://meee1.github.io` (and `http://localhost:8811` if you test locally). No redirect URI is needed. Copy the client ID and client secret.
+5. In the Cloudflare dashboard, on the worker: **Settings → Variables and Secrets**, add two secrets, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and deploy the updated `worker.js` (it has the new `/gauth` route).
+6. In the app: **Options → Google Drive → Connect Google Drive**, pick your Google account and allow access.
+
 ## Runways and aerodrome diagram
 The aerodrome card's head (code, name, distance and arrow) stays at the top of the screen while you scroll down through the runways and frequencies; on a landscape tablet it sits under the top bar. In the runway diagram every runway number stays inside the box, whatever way track up turns it.
 - **ERSA FAC sheet:** under the aerodrome name, **ERSA FAC YMMB · 7 pages** opens that aerodrome's pages from the ERSA in the app (pdf.js), scrolled to its entry. **Zoom** doubles the width; **Open PDF** hands the file to the phone's own viewer. The sheet is from the same ERSA cycle as the frequencies on screen. An entry that starts or ends part way down a page shares that page with its neighbour, so it is shown whole. Each sheet is stored on the phone the first time it's opened; the sheets for your flight plan and Go to aerodromes are fetched in the background while you have signal, so they open offline in flight. Aerodromes without an ERSA entry have no button.
