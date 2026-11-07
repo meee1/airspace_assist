@@ -6,13 +6,14 @@ function png(w,h,fn){ const raw=Buffer.alloc((w*3+1)*h); for(let y=0;y<h;y++){ r
   const ih=Buffer.alloc(13); ih.writeUInt32BE(w,0); ih.writeUInt32BE(h,4); ih[8]=8; ih[9]=2; return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),ch('IHDR',ih),ch('IDAT',zlib.deflateSync(raw)),ch('IEND',Buffer.alloc(0))]); }
 // tile content: checker by tile parity + a black dot exactly at YMMB's lat/lon
 const YM=[-37.93,145.18];
-(async()=>{ const b=await chromium.launch(); const ctx=await b.newContext(PX9); let reqs=0;
+(async()=>{ const b=await chromium.launch(); require('./classic.js')(b); const ctx=await b.newContext(PX9); let reqs=0;
  await ctx.route(/ibasemaps-api\.arcgis\.com|static-map-tiles-api\.arcgis\.com/,route=>{ const u=route.request().url(); reqs++;
    if(!/token=good/.test(u)) return route.fulfill({status:498,body:'invalid token'});
    const m=/tile\/(\d+)\/(\d+)\/(\d+)/.exec(u), z=+m[1], y=+m[2], x=+m[3], S=/static-map/.test(u)?512:256, n=2**z;
    const px=((YM[1]+180)/360*n-x)*S, r=YM[0]*Math.PI/180, py=((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n-y)*S;
    const base=(x+y)%2?[120,170,120]:[160,200,160];
    route.fulfill({status:200,contentType:'image/png',body:png(S,S,(i,j)=>Math.hypot(i-px,j-py)<5*S/256?[0,0,0]:(i<2||j<2)?[90,90,90]:base)}); });
+ await ctx.addInitScript(()=>{ if(localStorage.getItem('rc_notamUrl')==null) localStorage.setItem('rc_notamUrl','""'); });   // no proxy: the key flow is what's tested
  const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
  await p.goto('http://localhost:8811/index.html?sim=YMMB&alt=1500&trk=045&gs=60'); await p.waitForFunction(()=>typeof render==='function'); await p.waitForTimeout(600);
  // no key: Sat opens Options at the key

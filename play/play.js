@@ -2,11 +2,11 @@ const {chromium,devices}=require('playwright'); const fs=require('fs');
 const START=Date.parse(process.argv[2]||'2026-10-26T22:00:00Z');   // 09:00 local Tue (AEDT)
 const OUT=process.argv[3]||'/home/claude/build/play/run.json';
 (async()=>{
- const b=await chromium.launch(); const ctx=await b.newContext({...devices['iPhone 13']}); const p=await ctx.newPage();
+ const b=await chromium.launch(); require('./classic.js')(b); const ctx=await b.newContext({...devices['iPhone 13']}); const p=await ctx.newPage();
  const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error') errs.push('console: '+m.text()); });
  await p.clock.setFixedTime(START);
  await p.goto('http://localhost:8811/index.html?sim=YBRS&alt=50&trk=&gs=0'); await p.waitForTimeout(600);
- await p.setInputFiles('#fpFile','/tmp/claude-0/gpx/ybrs.gpx'); await p.waitForTimeout(300);
+ await p.setInputFiles('#fpFile',__dirname+'/fixtures/ybrs.gpx'); await p.waitForTimeout(300);
  await p.evaluate(async()=>{ document.getElementById('calls').open=true;
    for(const [id,v] of [['cSign','ALPHA BRAVO CHARLIE'],['cType','Helicopter']]){ document.getElementById(id).value=v; document.getElementById(id).dispatchEvent(new Event('input')); }
    const c=document.getElementById('cCat'); c.value='H'; c.dispatchEvent(new Event('change'));

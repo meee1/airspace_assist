@@ -72,7 +72,7 @@ def neatline(img):
     """corners TL TR BR BL and the fitted sides, page pt"""
     H, W = img.shape[:2]; mx, mn = img.max(2), img.min(2)
     dark = (mx < 175) & ((mx - mn) < 45)
-    small = cv2.resize(img.astype(np.uint8), (W // 4, H // 4), interpolation=cv2.INTER_AREA).astype(int)
+    small = cv2.resize(img, (W // 4, H // 4), interpolation=cv2.INTER_AREA).astype(np.int32)
     m = cv2.morphologyEx((small.sum(2) < 735).astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(m); k = 1 + np.argmax(st[1:, 4]); ys, xs = np.nonzero(lab == k)
     TL, TR, BR, BL = [(xs[i] * 4, ys[i] * 4) for i in [np.argmax(dx * xs + dy * ys) for dx, dy in [(-1, -1), (1, -1), (1, 1), (-1, 1)]]]
@@ -101,7 +101,7 @@ def neatline(img):
 
 def crossings(img, P, N, S, Wl, E):
     """1-degree graticule crossings found near P(lat, lon): [(lat, lon, u, v)]"""
-    mx, mn = img.max(2), img.min(2); dk = ((mx < 150) & ((mx - mn) < 35)).astype(float); out = []
+    mx, mn = img.max(2), img.min(2); dk = (mx < 150) & ((mx - mn) < 35); out = []   # bool: .mean() still gives the dark fraction
     for la in np.arange(np.ceil(S), np.floor(N) + 1):
         for lo in np.arange(np.ceil(Wl), np.floor(E) + 1):
             if not (S + .05 < la < N - .05 and Wl + .05 < lo < E - .05): continue
@@ -125,7 +125,7 @@ def fit(pr, pts):
 
 def maskclip(img):
     """the map area as drawn (largest non-white region, holes ignored), simplified: for frames with tabs and steps"""
-    small = cv2.resize(img.astype(np.uint8), (img.shape[1] // 2, img.shape[0] // 2), interpolation=cv2.INTER_AREA).astype(int)
+    small = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2), interpolation=cv2.INTER_AREA).astype(np.int32)
     m = (small.sum(2) < 735).astype(np.uint8)
     m = cv2.morphologyEx(cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8)), cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
     cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE); c = max(cs, key=cv2.contourArea)
@@ -149,12 +149,19 @@ def lon_at(P, lat, u, lo0, lo1):
     return (a + b) / 2
 
 
+RMS_WARN, MIN_CROSS, MIN_LINE = 3.0, 6, 4.0   # pt; graticule crossings on a mainland sheet; island grid line contrast (peak / median)
+
+
+def warn(name, msgs):
+    for m in msgs: print(f'WARNING {name}: {m} - check this sheet on the map before publishing it', file=sys.stderr)
+
+
 def sheet(path):
     base = os.path.basename(path); num = re.search(r'WAC[ _-]?(\d{4})', base, re.I).group(1)
     key = num if num != '1919' else '1919-' + re.search(r'WAC[ _-]?1919[ _-]+([A-Za-z]+)', base).group(1).upper()
     name, N, S, Wl, E = SHEETS[key]; st = STEP.get(key, {})
     page = pymupdf.open(path)[0]; pix = page.get_pixmap(matrix=pymupdf.Matrix(1, 1))
-    img = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, 3).astype(int)
+    img = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, 3)   # uint8 (mx - mn can't wrap: max >= min)
     C = neatline(img); use = [i for i in range(4) if i not in st.get('skip', [])]
     est = Wl is None   # west edge not printed in a readable place: found from the fit
     if est:
@@ -194,6 +201,10 @@ def sheet(path):
     sx, sy = np.hypot(ax[0], ay[0]), np.hypot(ax[1], ay[1])
     print(f'{name} WAC: fit on {used}: {len(corners)} corners, {len(gx)} graticule crossings, rms {np.sqrt(np.mean(r ** 2)):.2f} pt, max {r.max():.2f} pt, '
           f'x/y scale {sx / sy:.4f} (1 pt = {1852 / sx:.0f} m)' + (f', west edge {int(-Wl) if Wl < 0 else int(Wl)} deg {round(abs(Wl) % 1 * 60)}\'' if est else ''), file=sys.stderr)
+    rms = float(np.sqrt(np.mean(r ** 2)))
+    warn(f'{name} WAC', ([f'fit rms {rms:.2f} pt is over {RMS_WARN} pt'] if rms > RMS_WARN else []) +
+         ([f'only {len(gx)} graticule crossings found (expected {MIN_CROSS} or more), the fit leans on the corners'] if len(gx) < MIN_CROSS else []) +
+         ([f'only {len(corners)} usable corners'] if len(corners) < 3 and not est else []))
     sid = 'WAC-' + key; nm = f'{name} WAC'
     return dict(sheet=sid, name=nm, kind='WAC', page=[round(page.rect.width, 2), round(page.rect.height, 2)], re=f'wac[ _-]?{num}' + ('' if num != '1919' else '[ _-]+' + key[5:].lower()),
                 levels=[0.25, 1.0], proj=pr, panels=[dict(id=sid, name=nm, order=-1, sim=[round(float(v), 6) for v in sim],
@@ -215,22 +226,23 @@ ISLANDS = {
 
 def _line(dk, axis, p0, lo, hi, R=30):
     """refine a graticule line near page coordinate p0 (axis 'x': vertical line, else horizontal), over lo..hi along it"""
-    best = None
-    for p in range(int(p0 - R), int(p0 + R) + 1):
-        v = dk[int(lo):int(hi), p].mean() if axis == 'x' else dk[p, int(lo):int(hi)].mean()
-        if best is None or v > best[0]: best = (v, p)
-    return best[1] + .5, best[0]
+    vs = [(dk[int(lo):int(hi), p].mean() if axis == 'x' else dk[p, int(lo):int(hi)].mean(), p) for p in range(int(p0 - R), int(p0 + R) + 1)]
+    best = max(vs)
+    return best[1] + .5, best[0] / (np.median([v for v, _ in vs]) + .005)   # position, and how far the line stands out from its surroundings
 
 
 def island(path):
     key = re.search(r'WAC[ _-]?1919[ _-]+([A-Za-z]+)', os.path.basename(path)).group(1).upper(); I = ISLANDS[key]
     page = pymupdf.open(path)[0]; pix = page.get_pixmap(matrix=pymupdf.Matrix(1, 1))
-    img = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, 3).astype(int); mx, mn = img.max(2), img.min(2)
-    dk = ((mx < 150) & ((mx - mn) < 40)).astype(float)
+    img = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, 3); mx, mn = img.max(2), img.min(2)   # uint8: mx - mn can't wrap
+    dk = (mx < 150) & ((mx - mn) < 40)
     ins = I.get('inset'); rx = ins['rect'] if ins else None
     ys = [y for _, y in I['lat']]; xs = [x for _, x in I['lon']]
-    X = [(v, _line(dk, 'x', x, min(ys) - 200, max(ys) + 200)[0]) for v, x in I['lon']]
-    Y = [(v, _line(dk, 'y', y, min(xs) - 200 if len(xs) > 1 else xs[0] - 600, max(xs) + 200 if len(xs) > 1 else xs[0] + 600)[0]) for v, y in I['lat']]
+    LX = [(v, _line(dk, 'x', x, min(ys) - 200, max(ys) + 200)) for v, x in I['lon']]
+    LY = [(v, _line(dk, 'y', y, min(xs) - 200 if len(xs) > 1 else xs[0] - 600, max(xs) + 200 if len(xs) > 1 else xs[0] + 600)) for v, y in I['lat']]
+    X = [(v, q[0]) for v, q in LX]; Y = [(v, q[0]) for v, q in LY]
+    weak = [f"{'meridian' if a == 'x' else 'parallel'} {v:.4f} (contrast {q[1]:.1f}, found {q[0] - x0:+.1f} pt from where it was read)"
+            for a, L, I0 in (('x', LX, I['lon']), ('y', LY, I['lat'])) for (v, q), (_, x0) in zip(L, I0) if q[1] < MIN_LINE or abs(q[0] - x0) > 25]
     pts = [(la, lo, x, y) for lo, x in X for la, y in Y]
     lac = np.mean([q[0] for q in pts]); loc = np.mean([q[1] for q in pts]); pr = [round(lac + .2, 4), round(lac - .2, 4), round(lac, 4), round(loc, 4)]
     if len(X) >= 2: ax, ay, r = fit(pr, pts)
@@ -256,6 +268,8 @@ def island(path):
                            clip=[[x0 + 6, y0 + 6], [x1 - 6, y0 + 6], [x1 - 6, y1 - 6], [x0 + 6, y1 - 6]]))
     sid = f'WAC-1919-{key}'; nm = I['name'] + ' WAC'
     print(f"{nm}: {len(pts)} graticule crossings, rms {np.sqrt(np.mean(np.square(r))):.2f} pt (1 pt = {1852 / np.hypot(ax[0], ay[0]):.0f} m)" + (f", inset {ins['name']}" if ins else ''), file=sys.stderr)
+    rms = float(np.sqrt(np.mean(np.square(r))))
+    warn(nm, ([f'fit rms {rms:.2f} pt is over {RMS_WARN} pt'] if rms > RMS_WARN else []) + [f'weak grid line: {w}' for w in weak])
     main = dict(id=sid, name=nm, order=-1, aff=[round(float(q), 6) for q in [*ax, *ay]], clip=outer)
     return dict(sheet=sid, name=nm, kind='WAC', page=[round(page.rect.width, 2), round(page.rect.height, 2)], re=f'wac[ _-]?1919[ _-]+{key.lower()}',
                 levels=[0.5, 1.0], proj=pr, panels=[main] + panels)

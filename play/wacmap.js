@@ -4,7 +4,7 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
  await p.addInitScript(()=>{ try{ localStorage.setItem('rc_fsMap','true'); localStorage.setItem('rc_mapUp','"north"'); localStorage.setItem('rc_mapTer','false'); }catch(e){} });
  await p.goto('http://localhost:8811/index.html?sim=YMMB&alt=1500&trk=000&gs=0'); await p.waitForFunction(()=>typeof render==='function'&&CH.site.length>0,{timeout:20000});
  console.log('sheets', await p.evaluate(()=>CH.site.map(s=>s.sheet+(s.def?'*':'')).join(' ')));
- await p.evaluate(()=>{ ls.set('chartSel',CH.site.map(s=>s.sheet)); chartMerge(); });
+ await p.evaluate(()=>{ ls.set('chartSel',CH.site.map(s=>s.sheet)); chartMerge(); MAP.ter=false; });
  for(const [nm,pos,rg] of (process.argv[2]?JSON.parse(process.argv[2]):[['bendigo','-36.74,144.28',20],['melb40','-37.9,144.9',40],['perth','-31.94,115.97',40],['nullarbor','-31.45,129.0',80],['sydney','-33.95,151.18',80]])){
    await p.evaluate(([pos,rg])=>{ $('simPos').value=pos; simApply(); MAP.range=rg; render(); },[pos,rg]);
    for(let i=0;i<10;i++){ await p.waitForTimeout(700); if(await p.evaluate(()=>![...CH.imgs.values()].includes('loading'))) break; }

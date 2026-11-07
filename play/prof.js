@@ -2,7 +2,7 @@ const {chromium,devices}=require('playwright');
 (async()=>{ const b=await chromium.launch(); for(const scheme of ['light','dark']){ const ctx=await b.newContext({...devices['iPhone 13'],colorScheme:scheme}); const p=await ctx.newPage(); await p.addInitScript(()=>{ try{ localStorage.setItem('rc_fsMap','false'); }catch(e){} }); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
  await p.clock.setFixedTime(Date.parse('2026-10-26T22:30:00Z'));
  await p.goto('http://localhost:8811/index.html?sim=-37.60,144.50&alt=3000&trk=&gs=90'); await p.waitForTimeout(500);
- await p.setInputFiles('#fpFile','/tmp/claude-0/gpx/ybrs.gpx'); await p.waitForTimeout(300);
+ await p.setInputFiles('#fpFile',__dirname+'/fixtures/ybrs.gpx'); await p.waitForTimeout(300);
  await p.click('#fpLegs li[data-k="3"]'); await p.waitForTimeout(1500);
  const t0=Date.now(); await p.evaluate(()=>{ PROF=null; drawProf(); }); console.log('build ms', Date.now()-t0);
  const el=await p.$('#fpBox'); await el.scrollIntoViewIfNeeded(); await el.screenshot({path:`play/prof_${scheme}.png`});

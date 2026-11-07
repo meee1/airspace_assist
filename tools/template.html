@@ -5250,14 +5250,14 @@ function m4look(e,c,u){ let z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]], L=Math.hypot(...z
   return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]),-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]),-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]),1]); }
 // ---- frame ----
 // ---- route / approach preview: fly the flight plan (else your Go to) along its leg altitudes, descending over the last
-// 4 NM to 1,000 ft above the destination aerodrome (circuit height), at the chosen speed (NM per minute of preview)
+// 4 NM to circuit height over the destination aerodrome (500 ft AGL helicopter, 1,000 ft aeroplane: Radio calls → category), at the chosen speed (NM per minute of preview)
 function v3dPath(){
   let pts=[];
   if(FP&&FP.pts.length>=2){ const pr=profEnsure(); FP.pts.forEach((p,k)=>{ const lp=pr&&pr.legs&&pr.legs[Math.max(1,k)]; pts.push({la:p.la,lo:p.lo,ft:lp&&lp.alt!=null?lp.alt:(st.alt!=null?st.alt:1500),n:p.c||p.n}); }); }
   else if(GO&&st.pos){ const a=st.alt!=null?Math.max(st.alt,500):1500; pts=[{la:st.pos[0],lo:st.pos[1],ft:a,n:''},{la:GO.la,lo:GO.lo,ft:a,n:GO.c||GO.n||'Go to'}]; }
   else return null;
   const E=pts[pts.length-1], P_=pts[pts.length-2], ad=DATA.ap.find(a=>Math.abs(a.la-E.la)<0.01&&Math.abs(a.lo-E.lo)<0.01);
-  if(ad){ const leg=distBrg(P_.la,P_.lo,E.la,E.lo)[0], cct=(ad.e||0)+1000, f=leg>4? 1-4/leg : 0;
+  if(ad){ const leg=distBrg(P_.la,P_.lo,E.la,E.lo)[0], cct=(ad.e||0)+($('cCat')&&$('cCat').value==='H'?500:1000), f=leg>4? 1-4/leg : 0;   // circuit height: 500 ft AGL helicopter, 1,000 ft aeroplane
     if(f>0) pts.splice(pts.length-1,0,{la:P_.la+(E.la-P_.la)*f, lo:P_.lo+(E.lo-P_.lo)*f, ft:P_.ft, n:''});
     E.ft=cct; }
   let c=0; pts.forEach((p,k)=>{ if(k) c+=distBrg(pts[k-1].la,pts[k-1].lo,p.la,p.lo)[0]; p.c=c; });
