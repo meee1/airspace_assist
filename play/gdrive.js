@@ -17,11 +17,14 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
    if(!/^Bearer AT\d+$/.test(auth)) return r.fulfill({status:401,headers:h,json:{error:{message:'no token'}}});
    const tag=auth.slice(7); if(globalThis.__deny&&tag===globalThis.__deny){ log.push('401 '+tag); return r.fulfill({status:401,headers:h,json:{error:{message:'Invalid Credentials'}}}); }
    if(u.pathname==='/drive/v3/about') return r.fulfill({headers:h,json:{user:{emailAddress:'pilot@example.com'}}});
-   if(u.pathname==='/drive/v3/files'&&q.method()==='POST'){ const id='dir'+(++nid); files[id]={name:JSON.parse(q.postData()).name,dir:true}; log.push('mkdir '+files[id].name); return r.fulfill({headers:h,json:{id}}); }
-   if(u.pathname==='/drive/v3/files'&&q.method()==='GET'){ const f=Object.entries(files).filter(([,v])=>v.name==='Settings backup.json'); return r.fulfill({headers:h,json:{files:f.map(([id])=>({id}))}}); }
+   if(u.pathname==='/drive/v3/files'&&q.method()==='POST'){ const id='dir'+(++nid); files[id]={name:JSON.parse(q.postData()).name,dir:true,parent:'root'}; log.push('mkdir '+files[id].name); return r.fulfill({headers:h,json:{id}}); }
+   if(u.pathname==='/drive/v3/files'&&q.method()==='GET'){ const Q=u.searchParams.get('q')||'', nm=/name='([^']+)'/.exec(Q), mt=/mimeType='([^']+)'/.exec(Q), par=/'([^']+)' in parents/.exec(Q);
+     const f=Object.entries(files).filter(([,v])=>!v.trashed&&(!nm||v.name===nm[1])&&(!mt||(mt[1].endsWith('folder')?!!v.dir:!v.dir))&&(!par||v.parent===par[1])); return r.fulfill({headers:h,json:{files:f.map(([id,v])=>({id,name:v.name,modifiedTime:v.mt||'2026-01-01T00:00:00Z'}))}}); }
    let m=u.pathname.match(/^\/drive\/v3\/files\/([^/]+)$/);
    if(m&&u.searchParams.get('alt')==='media'){ const f=files[m[1]]; return f? r.fulfill({headers:h,body:f.body,contentType:'application/json'}) : r.fulfill({status:404,headers:h,json:{error:{message:'nf'}}}); }
-   if(m){ return files[m[1]]? r.fulfill({headers:h,json:{id:m[1],trashed:false}}) : r.fulfill({status:404,headers:h,json:{error:{message:'nf'}}}); }
+   if(m&&q.method()==='PATCH'){ const F=files[m[1]]; if(!F) return r.fulfill({status:404,headers:h,json:{error:{message:'nf'}}}); const b=JSON.parse(q.postData()||'{}'); if(b.trashed){ F.trashed=true; log.push('trash '+F.name); }
+     if(u.searchParams.get('addParents')){ F.parent=u.searchParams.get('addParents'); log.push('move '+F.name); } return r.fulfill({headers:h,json:{id:m[1]}}); }
+   if(m){ return files[m[1]]? r.fulfill({headers:h,json:{id:m[1],trashed:!!files[m[1]].trashed}}) : r.fulfill({status:404,headers:h,json:{error:{message:'nf'}}}); }
    if(u.pathname==='/upload/drive/v3/files'&&q.method()==='POST'){ const body=q.postData(); const meta=JSON.parse(body.split('\r\n\r\n')[1].split('\r\n')[0]); const content=body.split('\r\n\r\n')[2].replace(/\r\n--\w+--$/,'');
      const id='f'+(++nid); files[id]={name:meta.name,parent:meta.parents[0],body:content,mime:meta.mimeType}; log.push(`create ${meta.name} (${tag})`); return r.fulfill({headers:h,json:{id}}); }
    m=u.pathname.match(/^\/upload\/drive\/v3\/files\/([^/]+)$/);

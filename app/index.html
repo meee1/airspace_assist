@@ -149,6 +149,8 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .fr.hero .v{font-size:40px}
 .fr.hero .k{font-size:18px}
 .fr .v.none{color:var(--dim);font-size:16px}
+.pc-ready{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.5} .pc-ready.ok{border-color:var(--ok)} .pc-ready.bad{border-color:var(--warn)} .pc-ready small{color:var(--dim)}
+.wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
 .tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
 .tag.w{color:var(--accent)}
 
@@ -800,7 +802,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
   </dialog>
 
   <dialog class="opts pcdlg" id="pcDlg" aria-labelledby="pcTitle">
-    <div class="opts-head"><b id="pcTitle">Plan check</b><button class="btn" id="pcClose" aria-label="Close">✕</button></div>
+    <div class="opts-head"><b id="pcTitle">Pre-flight brief</b><button class="btn" id="pcClose" aria-label="Close">✕</button></div>
     <div class="pc-in"><label>Altitude ft <input id="pcAlt" type="number" inputmode="numeric" step="100" min="0"></label><label>GS kt <input id="pcGs" type="number" inputmode="numeric" step="5" min="20"></label><label>Departure (local) <input id="pcDep" type="time"></label><label>Burn L/h <input id="pcBurn" type="number" inputmode="decimal" step="1" min="0" placeholder="e.g. 100"></label><label>Fuel L <input id="pcFuel" type="number" inputmode="decimal" step="1" min="0" placeholder="on board"></label><label title="Final reserve in minutes. Empty: CASA Part 91 MOS 19.02 by category and day/night (helicopter 20/30, aeroplane 30/45)">Reserve min <input id="pcRes" type="number" inputmode="numeric" step="5" min="0" max="180" placeholder="CASA"></label><button class="btn" id="pcRun">Check</button></div>
     <div class="vnote" id="pcStat"></div>
     <div id="pcOut"></div>
@@ -906,7 +908,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=15b2a2af92';
+    const s=document.createElement('script'); s.src='app.js?v=43176c659a';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

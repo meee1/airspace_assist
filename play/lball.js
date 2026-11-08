@@ -1,5 +1,5 @@
 // Logbook CSV has every leg ever logged: legs older than the 90-day fix log (the permanent summary) are in the Options CSV and
-// in Drive's Logbook.csv; an existing Logbook.csv in Drive (another phone) is taken in once, without duplicating legs already here.
+// in Drive's Logbook.csv; rows another phone added to the Logbook.csv in Drive are taken in before each write, without duplicating legs already here.
 const {chromium}=require('playwright'); const {PX9}=require('./px9.js'); const os=require('os'), path=require('path'), fs=require('fs');
 (async()=>{ const b=await chromium.launch(); const ctx=await b.newContext({...PX9,acceptDownloads:true}); const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
  const files={}; let nid=0; const h={'Access-Control-Allow-Origin':'*'};
@@ -7,12 +7,13 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js'); const o
  await ctx.route('https://test.mission.workers.dev/gauth',r=>r.request().method()==='GET'? r.fulfill({headers:h,json:{client_id:'CID'}}) : r.fulfill({headers:h,json:{access_token:'AT1',expires_in:3600,refresh_token:'RT'}}));
  await ctx.route('https://www.googleapis.com/**',async r=>{ const q=r.request(), u=new URL(q.url());
    if(u.pathname==='/drive/v3/about') return r.fulfill({headers:h,json:{user:{emailAddress:'pilot@example.com'}}});
-   if(u.pathname==='/drive/v3/files'&&q.method()==='POST'){ const id='dir'+(++nid); files[id]={name:'folder'}; return r.fulfill({headers:h,json:{id}}); }
-   if(u.pathname==='/drive/v3/files'&&q.method()==='GET'){ const nm=/name='([^']+)'/.exec(u.searchParams.get('q')||''); return r.fulfill({headers:h,json:{files:Object.entries(files).filter(([,v])=>nm&&v.name===nm[1]).map(([id])=>({id}))}}); }
+   if(u.pathname==='/drive/v3/files'&&q.method()==='POST'){ const id='dir'+(++nid); files[id]={name:JSON.parse(q.postData()).name}; return r.fulfill({headers:h,json:{id}}); }
+   if(u.pathname==='/drive/v3/files'&&q.method()==='GET'){ const Q=u.searchParams.get('q')||'', nm=/name='([^']+)'/.exec(Q), par=/'([^']+)' in parents/.exec(Q);
+     return r.fulfill({headers:h,json:{files:Object.entries(files).filter(([,v])=>(!nm||v.name===nm[1])&&(!par||v.parent===par[1])).map(([id,v])=>({id,name:v.name}))}}); }
    let m=u.pathname.match(/^\/drive\/v3\/files\/([^/]+)$/);
    if(m&&u.searchParams.get('alt')!=='media') return files[m[1]]? r.fulfill({headers:h,json:{id:m[1],trashed:false}}) : r.fulfill({status:404,headers:h,json:{error:{message:'nf'}}});
    if(m) return files[m[1]]? r.fulfill({headers:h,body:files[m[1]].body||'',contentType:'text/plain'}) : r.fulfill({status:404,headers:h,json:{error:{message:'nf'}}});
-   if(u.pathname==='/upload/drive/v3/files'&&q.method()==='POST'){ const body=q.postData(), meta=JSON.parse(body.split('\r\n\r\n')[1].split('\r\n')[0]); const id='f'+(++nid); files[id]={name:meta.name,body:body.split('\r\n\r\n')[2].replace(/\r\n--\w+--$/,'')}; return r.fulfill({headers:h,json:{id}}); }
+   if(u.pathname==='/upload/drive/v3/files'&&q.method()==='POST'){ const body=q.postData(), meta=JSON.parse(body.split('\r\n\r\n')[1].split('\r\n')[0]); const id='f'+(++nid); files[id]={name:meta.name,parent:meta.parents[0],body:body.split('\r\n\r\n')[2].replace(/\r\n--\w+--$/,'')}; return r.fulfill({headers:h,json:{id}}); }
    m=u.pathname.match(/^\/upload\/drive\/v3\/files\/([^/]+)$/); if(m&&files[m[1]]){ files[m[1]].body=q.postData(); return r.fulfill({headers:h,json:{id:m[1]}}); }
    r.fulfill({status:400,headers:h,json:{error:{message:'unexpected'}}}); });
  await p.goto('http://localhost:8811/index.html'); await p.waitForFunction(()=>typeof render==='function'&&LOGDB.db); await p.waitForTimeout(400);
@@ -29,12 +30,12 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js'); const o
  // Drive already has a Logbook.csv from another phone: one row a year ago (quoted field), one duplicating the recent leg
  const rec=await p.evaluate(()=>{ const l=logbookLegs().slice(-1)[0], d=new Date(l.off), z=n=>String(n).padStart(2,'0'); return {date:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`,off:`${z(d.getHours())}:${z(d.getMinutes())}`,on:new Date(l.on).toTimeString().slice(0,5)}; });
  const yr=new Date(Date.now()-365*86400e3), yd=yr.toISOString().slice(0,10);
- files.dirX={name:'folder'}; files.lb={name:'Logbook.csv',body:'Date (local),Aircraft,Type,From,To,Off UTC,On UTC,Off local,On local,Airborne h:mm,Airborne hrs,Day hrs,Night hrs,Landings,Distance NM,Max alt ft\n'+
+ files.dirX={name:'Radio Calls AU'}; files.lb={name:'Logbook.csv',parent:'dirX',body:'Date (local),Aircraft,Type,From,To,Off UTC,On UTC,Off local,On local,Airborne h:mm,Airborne hrs,Day hrs,Night hrs,Landings,Distance NM,Max alt ft\n'+
    `${yd},VH-XYZ,"Bell 206B, JetRanger",YMMB,YBRS,00:00,01:30,10:00,11:30,1:30,1.5,1.0,0.5,3,55.0,2500\n${rec.date},VH-ABC,,YBRS,YMMB,00:00,00:00,${rec.off},${rec.on},0:30,0.5,0.5,0.0,1,40.0,2500\n`};
  await p.click('#gdConnect'); await p.waitForTimeout(2500); console.log('stat', await p.evaluate(()=>GD.err+' / '+GD.msg));
  const lb=Object.values(files).filter(f=>f.name==='Logbook.csv'); console.log('Logbook.csv files in Drive:', lb.length);
  const rows=lb[0].body.trim().split('\n').slice(1); console.log('Drive Logbook.csv', rows.length, 'rows:'); rows.forEach(r=>console.log('  ', r.slice(0,110)));
  console.log('taken in:', await p.evaluate(()=>{ const v=Object.values(LOGBK).find(v=>v.ac==='VH-XYZ'); return v&&`${v.from}-${v.to} ${(v.on-v.off)/60e3} min night ${v.night} ldg ${v.ldg} ty "${v.ty}"`; }), '· flag', await p.evaluate(()=>ls.get('gdLbIn')));
  files.lb.body+='2020-01-01,VH-NEW,,YAAA,YBBB,00:00,01:00,10:00,11:00,1:00,1.0,1.0,0.0,1,10.0,1000\n';
- await p.click('#gdNow'); await p.waitForTimeout(1200); console.log('second save takes in again?', await p.evaluate(()=>Object.values(LOGBK).some(v=>v.ac==='VH-NEW'))? 'yes':'no (once only)', '· rows', lb[0].body.trim().split('\n').length-1);
+ await p.click('#gdNow'); await p.waitForTimeout(1200); console.log('a row added in Drive (another phone) taken in on the next save?', await p.evaluate(()=>Object.values(LOGBK).some(v=>v.ac==='VH-NEW'))? 'yes':'no', '· rows', lb[0].body.trim().split('\n').length-1);
  console.log(errs); await b.close(); })();
