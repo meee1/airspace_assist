@@ -151,6 +151,8 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .fr .v.none{color:var(--dim);font-size:16px}
 .pc-ready{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.5} .pc-ready.ok{border-color:var(--ok)} .pc-ready.bad{border-color:var(--warn)} .pc-ready small{color:var(--dim)}
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
+.pl-save{display:flex;gap:6px;margin:8px 0} .pl-save input,.pl-filter input{flex:1;min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .pl-filter input{width:100%;box-sizing:border-box;margin-bottom:6px}
+.pl-list{list-style:none;margin:0;padding:0} .pl-list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--rule)} .pl-list li>span{flex:1;min-width:0} .pl-list li small{color:var(--dim);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pl-list li.cur b::after{content:' · loaded';font-weight:500;color:var(--dim);font-size:12px} .pl-list .btn{padding:6px 8px;font-size:11px}
 .tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
 .tag.w{color:var(--accent)}
 
@@ -664,6 +666,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="fp-h">
       <button class="sim-toggle" id="fpToggle" aria-expanded="true" aria-controls="fpBody"><span class="lbl">Flight plan</span><span class="fp-sum mono" id="fpSum"></span><span class="fold-i" aria-hidden="true"></span></button>
       <button class="btn" id="fpNew" title="Build a flight plan by searching for points">New plan</button>
+      <button class="btn" id="fpPlans" aria-haspopup="dialog" title="Your saved flight plans: save this one, or load one">Plans</button>
       <label class="btn" for="fpFile" id="fpImport">Import GPX</label>
       <input type="file" id="fpFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
     </div>
@@ -826,6 +829,14 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="opts-head"><b id="facTitle">ERSA FAC</b><span class="fac-ctl"><button class="btn" id="facZoom" type="button" aria-pressed="false">Zoom</button><a class="btn" id="facExt" target="_blank" rel="noopener">Open PDF</a><button class="btn" id="facClose" aria-label="Close">✕</button></span></div>
     <div class="vnote" id="facStat"></div>
     <div id="facBody"></div>
+  </dialog>
+  <dialog class="opts" id="plDlg" aria-labelledby="plTitle">
+    <div class="opts-head"><b id="plTitle">Saved flight plans</b><button class="btn" id="plClose" aria-label="Close">✕</button></div>
+    <div class="pl-save" id="plSaveRow"><input id="plName" maxlength="40" autocomplete="off" spellcheck="false" aria-label="Name to save the current plan as" placeholder="Name"><button class="btn" id="plSave">Save current plan</button></div>
+    <div class="vnote" id="plStat"></div>
+    <div class="pl-filter" id="plFilterRow" hidden><input id="plFilter" type="search" autocomplete="off" spellcheck="false" placeholder="Find a plan (name or point)" aria-label="Find a saved plan"></div>
+    <ul class="pl-list" id="plList"></ul>
+    <div class="vnote">Kept on this device, with your edits (altitudes, land / overfly). They're in the settings backup and the settings file, so they move to another phone with those.</div>
   </dialog>
   <dialog class="opts" id="mycDlg" aria-labelledby="mycTitle">
     <div class="opts-head"><b id="mycTitle">Your wording</b><button class="btn" id="mycClose" aria-label="Close">✕</button></div>
@@ -1135,6 +1146,34 @@ function parseGPX(xml){
   return {name: nm || pts[0].n+' – '+pts[pts.length-1].n, kind, pts, i: pts.length>1?1:0};
 }
 function fpSet(fp){ FP=fp; ls.set('fp',FP); if(FP) fpGo(); render(); }
+/* ---------- saved flight plans (rc_plans: [{id, name, t (saved ms), pts:[{n, c, la, lo, desc, alt, land, ...}]}], newest first) ---------- */
+let PLANS=ls.get('plans',[]); if(!Array.isArray(PLANS)) PLANS=[];
+const fplRoute=pts=>pts.map(p=>p.c||p.n||'WP').join(' → ');
+const fplDist=pts=>{ let D=0; for(let k=1;k<pts.length;k++) D+=distBrg(pts[k-1].la,pts[k-1].lo,pts[k].la,pts[k].lo)[0]; return D; };
+const fplPts=pts=>JSON.parse(JSON.stringify(pts.map(p=>{ const q={...p}; delete q.seq; return q; })));   // a copy without run-time state
+const fplSame=(a,b)=>a.length===b.length&&a.every((p,k)=>Math.abs(p.la-b[k].la)<1e-6&&Math.abs(p.lo-b[k].lo)<1e-6&&(p.alt??null)===(b[k].alt??null)&&!!p.land===!!b[k].land);
+function fplSaveCur(name){ if(!FP||FP.pts.length<2) return 'Build or import a plan with at least two points first.';
+  name=(name||'').trim().slice(0,40)||FP.name||fplRoute([FP.pts[0],FP.pts[FP.pts.length-1]]);
+  const old=PLANS.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(old&&old.id!==FP.plan&&!fplSame(old.pts,FP.pts)&&!confirm(`Replace the saved plan "${old.name}"?`)) return '';
+  const e={id:old?old.id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, t:Date.now(), pts:fplPts(FP.pts)};
+  PLANS=[e,...PLANS.filter(x=>x!==old)]; ls.set('plans',PLANS); FP.name=name; FP.plan=e.id; ls.set('fp',FP); render();
+  return `Saved "${name}".`; }
+function fplLoad(id,rev){ const e=PLANS.find(x=>x.id===id); if(!e) return;
+  if(FP&&FP.pts.length>1&&FP.plan!==e.id&&!PLANS.some(x=>fplSame(x.pts,FP.pts))&&!confirm('Replace the current plan? It isn\'t saved.')) return;
+  const pts=fplPts(e.pts); if(rev) pts.reverse();
+  $('fpToggle').setAttribute('aria-expanded','true'); FP_EDIT=false;
+  fpSet({name:rev? e.name+' (reversed)' : e.name, kind:'saved', plan:rev? null : e.id, pts, i:pts.length>1?1:0});
+  e.used=Date.now(); ls.set('plans',PLANS); $('plDlg').close(); }
+function fplRender(){ const cur=FP&&FP.pts.length>1, f=($('plFilter').value||'').trim().toUpperCase();
+  $('plSave').disabled=!cur; if(cur&&!$('plName').value) $('plName').value=FP.name||'';
+  $('plFilterRow').hidden=PLANS.length<6;
+  const L=PLANS.filter(e=>!f||e.name.toUpperCase().includes(f)||e.pts.some(p=>String(p.c||'').toUpperCase()===f||String(p.n||'').toUpperCase().includes(f)));
+  $('plList').innerHTML= !PLANS.length? '<li><span class="vnote">No saved plans yet. Build or import one, then Save current plan.</span></li>'
+    : !L.length? '<li><span class="vnote">No saved plan matches.</span></li>'
+    : L.map(e=>`<li data-id="${e.id}" class="${FP&&FP.plan===e.id?'cur':''}"><span><b>${esc(e.name)}</b><small>${esc(fplRoute(e.pts))}</small><small>${e.pts.length} points · ${Math.round(fplDist(e.pts))} NM · saved ${new Date(e.t).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}</small></span>`+
+      `<button class="btn" data-a="load">Load</button><button class="btn" data-a="rev" title="Load it backwards (the return trip)">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(e.name)}">✕</button></li>`).join(''); }
+function fplOpen(){ $('plStat').textContent=''; $('plName').value= FP&&FP.pts.length>1? (FP.name||'') : ''; $('plFilter').value=''; fplRender(); $('plDlg').showModal(); }
 function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto-advance undo it
   if(!FP) return; FP.dct=null; FP.i=Math.max(0,Math.min(FP.pts.length-1,i));
   const p=FP.pts[FP.i], d=st.pos&&p? distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0] : null;
@@ -4772,6 +4811,13 @@ $('fpLegs').addEventListener('click',e=>{ if(e.target.closest('.altin')) return;
   $('fpLegs').scrollTop=at; });
 $('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; FP_REPL=null; $('fpAddErr').hidden=true; render(); };
 $('fpNew').onclick=()=>{ FP_EDIT=true; render(); $('fpAddIn').focus(); };
+$('fpPlans').onclick=fplOpen; $('plClose').onclick=()=>$('plDlg').close();
+$('plSave').onclick=()=>{ const m=fplSaveCur($('plName').value); if(m) $('plStat').textContent=m; fplRender(); };
+$('plName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('plSave').click(); } });
+$('plFilter').addEventListener('input',fplRender);
+$('plList').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'), li=e.target.closest('li[data-id]'); if(!b||!li) return; const id=li.dataset.id, x=PLANS.find(q=>q.id===id); if(!x) return;
+  if(b.dataset.a==='load') fplLoad(id,false); else if(b.dataset.a==='rev') fplLoad(id,true);
+  else if(b.dataset.a==='del'&&confirm(`Delete the saved plan "${x.name}"?`)){ PLANS=PLANS.filter(q=>q!==x); ls.set('plans',PLANS); if(FP&&FP.plan===id){ FP.plan=null; ls.set('fp',FP); } $('plStat').textContent=`Deleted "${x.name}".`; fplRender(); } });
 $('fpAddAt').value=ls.get('fpAddAt','end'); $('fpAddAt').onchange=()=>ls.set('fpAddAt',$('fpAddAt').value);
 function fpAddPick(p){
   if(FP&&FP_REPL!=null&&FP.pts[FP_REPL]){ const k=FP_REPL, act=FP.i===k; FP_REPL=null; fpEdit(P_=>{ P_[k]=fpPt(p); }); if(act) fpPick(k); }   // replacing the active waypoint: head for its replacement

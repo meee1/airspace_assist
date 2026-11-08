@@ -151,6 +151,8 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .fr .v.none{color:var(--dim);font-size:16px}
 .pc-ready{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.5} .pc-ready.ok{border-color:var(--ok)} .pc-ready.bad{border-color:var(--warn)} .pc-ready small{color:var(--dim)}
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
+.pl-save{display:flex;gap:6px;margin:8px 0} .pl-save input,.pl-filter input{flex:1;min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .pl-filter input{width:100%;box-sizing:border-box;margin-bottom:6px}
+.pl-list{list-style:none;margin:0;padding:0} .pl-list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--rule)} .pl-list li>span{flex:1;min-width:0} .pl-list li small{color:var(--dim);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pl-list li.cur b::after{content:' · loaded';font-weight:500;color:var(--dim);font-size:12px} .pl-list .btn{padding:6px 8px;font-size:11px}
 .tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
 .tag.w{color:var(--accent)}
 
@@ -664,6 +666,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="fp-h">
       <button class="sim-toggle" id="fpToggle" aria-expanded="true" aria-controls="fpBody"><span class="lbl">Flight plan</span><span class="fp-sum mono" id="fpSum"></span><span class="fold-i" aria-hidden="true"></span></button>
       <button class="btn" id="fpNew" title="Build a flight plan by searching for points">New plan</button>
+      <button class="btn" id="fpPlans" aria-haspopup="dialog" title="Your saved flight plans: save this one, or load one">Plans</button>
       <label class="btn" for="fpFile" id="fpImport">Import GPX</label>
       <input type="file" id="fpFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
     </div>
@@ -827,6 +830,14 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="vnote" id="facStat"></div>
     <div id="facBody"></div>
   </dialog>
+  <dialog class="opts" id="plDlg" aria-labelledby="plTitle">
+    <div class="opts-head"><b id="plTitle">Saved flight plans</b><button class="btn" id="plClose" aria-label="Close">✕</button></div>
+    <div class="pl-save" id="plSaveRow"><input id="plName" maxlength="40" autocomplete="off" spellcheck="false" aria-label="Name to save the current plan as" placeholder="Name"><button class="btn" id="plSave">Save current plan</button></div>
+    <div class="vnote" id="plStat"></div>
+    <div class="pl-filter" id="plFilterRow" hidden><input id="plFilter" type="search" autocomplete="off" spellcheck="false" placeholder="Find a plan (name or point)" aria-label="Find a saved plan"></div>
+    <ul class="pl-list" id="plList"></ul>
+    <div class="vnote">Kept on this device, with your edits (altitudes, land / overfly). They're in the settings backup and the settings file, so they move to another phone with those.</div>
+  </dialog>
   <dialog class="opts" id="mycDlg" aria-labelledby="mycTitle">
     <div class="opts-head"><b id="mycTitle">Your wording</b><button class="btn" id="mycClose" aria-label="Close">✕</button></div>
     <div class="vnote" id="mycWhat"></div>
@@ -908,7 +919,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=97398da610';
+    const s=document.createElement('script'); s.src='app.js?v=3e73feb4cb';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

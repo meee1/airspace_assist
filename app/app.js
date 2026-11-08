@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794106476495;
+const APP_BUILT=1794105749985;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -262,6 +262,34 @@ function parseGPX(xml){
   return {name: nm || pts[0].n+' – '+pts[pts.length-1].n, kind, pts, i: pts.length>1?1:0};
 }
 function fpSet(fp){ FP=fp; ls.set('fp',FP); if(FP) fpGo(); render(); }
+/* ---------- saved flight plans (rc_plans: [{id, name, t (saved ms), pts:[{n, c, la, lo, desc, alt, land, ...}]}], newest first) ---------- */
+let PLANS=ls.get('plans',[]); if(!Array.isArray(PLANS)) PLANS=[];
+const fplRoute=pts=>pts.map(p=>p.c||p.n||'WP').join(' → ');
+const fplDist=pts=>{ let D=0; for(let k=1;k<pts.length;k++) D+=distBrg(pts[k-1].la,pts[k-1].lo,pts[k].la,pts[k].lo)[0]; return D; };
+const fplPts=pts=>JSON.parse(JSON.stringify(pts.map(p=>{ const q={...p}; delete q.seq; return q; })));   // a copy without run-time state
+const fplSame=(a,b)=>a.length===b.length&&a.every((p,k)=>Math.abs(p.la-b[k].la)<1e-6&&Math.abs(p.lo-b[k].lo)<1e-6&&(p.alt??null)===(b[k].alt??null)&&!!p.land===!!b[k].land);
+function fplSaveCur(name){ if(!FP||FP.pts.length<2) return 'Build or import a plan with at least two points first.';
+  name=(name||'').trim().slice(0,40)||FP.name||fplRoute([FP.pts[0],FP.pts[FP.pts.length-1]]);
+  const old=PLANS.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(old&&old.id!==FP.plan&&!fplSame(old.pts,FP.pts)&&!confirm(`Replace the saved plan "${old.name}"?`)) return '';
+  const e={id:old?old.id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, t:Date.now(), pts:fplPts(FP.pts)};
+  PLANS=[e,...PLANS.filter(x=>x!==old)]; ls.set('plans',PLANS); FP.name=name; FP.plan=e.id; ls.set('fp',FP); render();
+  return `Saved "${name}".`; }
+function fplLoad(id,rev){ const e=PLANS.find(x=>x.id===id); if(!e) return;
+  if(FP&&FP.pts.length>1&&FP.plan!==e.id&&!PLANS.some(x=>fplSame(x.pts,FP.pts))&&!confirm('Replace the current plan? It isn\'t saved.')) return;
+  const pts=fplPts(e.pts); if(rev) pts.reverse();
+  $('fpToggle').setAttribute('aria-expanded','true'); FP_EDIT=false;
+  fpSet({name:rev? e.name+' (reversed)' : e.name, kind:'saved', plan:rev? null : e.id, pts, i:pts.length>1?1:0});
+  e.used=Date.now(); ls.set('plans',PLANS); $('plDlg').close(); }
+function fplRender(){ const cur=FP&&FP.pts.length>1, f=($('plFilter').value||'').trim().toUpperCase();
+  $('plSave').disabled=!cur; if(cur&&!$('plName').value) $('plName').value=FP.name||'';
+  $('plFilterRow').hidden=PLANS.length<6;
+  const L=PLANS.filter(e=>!f||e.name.toUpperCase().includes(f)||e.pts.some(p=>String(p.c||'').toUpperCase()===f||String(p.n||'').toUpperCase().includes(f)));
+  $('plList').innerHTML= !PLANS.length? '<li><span class="vnote">No saved plans yet. Build or import one, then Save current plan.</span></li>'
+    : !L.length? '<li><span class="vnote">No saved plan matches.</span></li>'
+    : L.map(e=>`<li data-id="${e.id}" class="${FP&&FP.plan===e.id?'cur':''}"><span><b>${esc(e.name)}</b><small>${esc(fplRoute(e.pts))}</small><small>${e.pts.length} points · ${Math.round(fplDist(e.pts))} NM · saved ${new Date(e.t).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}</small></span>`+
+      `<button class="btn" data-a="load">Load</button><button class="btn" data-a="rev" title="Load it backwards (the return trip)">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(e.name)}">✕</button></li>`).join(''); }
+function fplOpen(){ $('plStat').textContent=''; $('plName').value= FP&&FP.pts.length>1? (FP.name||'') : ''; $('plFilter').value=''; fplRender(); $('plDlg').showModal(); }
 function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto-advance undo it
   if(!FP) return; FP.dct=null; FP.i=Math.max(0,Math.min(FP.pts.length-1,i));
   const p=FP.pts[FP.i], d=st.pos&&p? distBrg(st.pos[0],st.pos[1],p.la,p.lo)[0] : null;
@@ -3899,6 +3927,13 @@ $('fpLegs').addEventListener('click',e=>{ if(e.target.closest('.altin')) return;
   $('fpLegs').scrollTop=at; });
 $('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; FP_REPL=null; $('fpAddErr').hidden=true; render(); };
 $('fpNew').onclick=()=>{ FP_EDIT=true; render(); $('fpAddIn').focus(); };
+$('fpPlans').onclick=fplOpen; $('plClose').onclick=()=>$('plDlg').close();
+$('plSave').onclick=()=>{ const m=fplSaveCur($('plName').value); if(m) $('plStat').textContent=m; fplRender(); };
+$('plName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('plSave').click(); } });
+$('plFilter').addEventListener('input',fplRender);
+$('plList').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'), li=e.target.closest('li[data-id]'); if(!b||!li) return; const id=li.dataset.id, x=PLANS.find(q=>q.id===id); if(!x) return;
+  if(b.dataset.a==='load') fplLoad(id,false); else if(b.dataset.a==='rev') fplLoad(id,true);
+  else if(b.dataset.a==='del'&&confirm(`Delete the saved plan "${x.name}"?`)){ PLANS=PLANS.filter(q=>q!==x); ls.set('plans',PLANS); if(FP&&FP.plan===id){ FP.plan=null; ls.set('fp',FP); } $('plStat').textContent=`Deleted "${x.name}".`; fplRender(); } });
 $('fpAddAt').value=ls.get('fpAddAt','end'); $('fpAddAt').onchange=()=>ls.set('fpAddAt',$('fpAddAt').value);
 function fpAddPick(p){
   if(FP&&FP_REPL!=null&&FP.pts[FP_REPL]){ const k=FP_REPL, act=FP.i===k; FP_REPL=null; fpEdit(P_=>{ P_[k]=fpPt(p); }); if(act) fpPick(k); }   // replacing the active waypoint: head for its replacement

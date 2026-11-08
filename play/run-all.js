@@ -4,7 +4,7 @@
 //   node play/run-all.js --all           include the slow ones too
 // Start the app first: python3 assemble.py, then serve dist/ on port 8811 (see CLAUDE.md). Run from the repo's build folder,
 // because the tests save screenshots to play/... relative to it.
-// A test fails if it exits non-zero, times out, or the last error list it prints ("[...]", the page errors it collected) has
+// A test fails if it exits non-zero, times out, or the last error list it prints ("[]" or a list of quoted messages: the page errors it collected) has
 // anything in it other than blocked-network noise (the sandbox can't reach map tiles or fonts). Tests that print no error list
 // (measurement probes) pass if they finish.
 const {spawn}=require('child_process'), fs=require('fs'), path=require('path'), http=require('http');
@@ -24,7 +24,7 @@ function run(n){ return new Promise(done=>{ const t0=Date.now(); let out='';
   const c=spawn(process.execPath,[path.join(__dirname,n+'.js')],{cwd:path.join(__dirname,'..')});
   c.stdout.on('data',d=>out+=d); c.stderr.on('data',d=>out+=d);
   const k=setTimeout(()=>{ out+='\n(timed out)'; c.kill('SIGKILL'); },SLOW.includes(n)?600e3:TIMEOUT);
-  c.on('close',code=>{ clearTimeout(k); const lines=out.trim().split('\n'), arr=out.match(/\[[^\[\]]*\]\s*$/), errs=arr? arr[0].trim().slice(1,-1).split(/',\s*'|",\s*"/).map(x=>x.trim()).filter(Boolean) : [];
+  c.on('close',code=>{ clearTimeout(k); const lines=out.trim().split('\n'), arr=out.match(/\[\s*(?:['"][^\[\]]*)?\]\s*$/), errs=arr? arr[0].trim().slice(1,-1).split(/',\s*'|",\s*"/).map(x=>x.trim()).filter(Boolean) : [];
     const real=errs.filter(e=>!/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|ERR_PROXY|fonts\.g/.test(e));
     const ok=code===0&&!real.length;
     done({n,ok,code,s:((Date.now()-t0)/1e3).toFixed(0),why:ok?'':(code!==0?`exit ${code}: `:'')+lines.slice(-3).join(' | ').slice(0,300)}); }); }); }
