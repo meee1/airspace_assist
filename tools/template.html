@@ -1173,6 +1173,16 @@ function fplRender(){ const cur=FP&&FP.pts.length>1, f=($('plFilter').value||'')
     : !L.length? '<li><span class="vnote">No saved plan matches.</span></li>'
     : L.map(e=>`<li data-id="${e.id}" class="${FP&&FP.plan===e.id?'cur':''}"><span><b>${esc(e.name)}</b><small>${esc(fplRoute(e.pts))}</small><small>${e.pts.length} points · ${Math.round(fplDist(e.pts))} NM · saved ${new Date(e.t).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}</small></span>`+
       `<button class="btn" data-a="load">Load</button><button class="btn" data-a="rev" title="Load it backwards (the return trip)">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(e.name)}">✕</button></li>`).join(''); }
+// saved plans from another phone's settings backup: every plan either has (same id: the newer save), minus deletions made
+// after that plan was saved (rc_plansDel [{id, t}], kept a year). -> true if this phone's list changed
+function fplMerge(rp,rd){ const del=new Map(ls.get('plansDel',[]).map(d=>[d.id,d.t]));
+  for(const d of Array.isArray(rd)?rd:[]) if(d&&d.id&&(!del.has(d.id)||del.get(d.id)<d.t)) del.set(d.id,d.t);
+  const by=new Map(PLANS.map(p=>[p.id,p])); let ch=false;
+  for(const p of Array.isArray(rp)?rp:[]){ if(!p||!p.id||!Array.isArray(p.pts)) continue; const q=by.get(p.id); if(!q||(p.t||0)>(q.t||0)){ by.set(p.id,p); ch=true; } }
+  for(const [id,t] of del){ const q=by.get(id); if(q&&(q.t||0)<=t){ by.delete(id); ch=true; } }
+  if(ch){ PLANS=[...by.values()].sort((a,b)=>(b.t||0)-(a.t||0)); ls.set('plans',PLANS); }
+  ls.set('plansDel',[...del].map(([id,t])=>({id,t})).filter(d=>Date.now()-d.t<365*864e5));
+  return ch; }
 function fplOpen(){ $('plStat').textContent=''; $('plName').value= FP&&FP.pts.length>1? (FP.name||'') : ''; $('plFilter').value=''; fplRender(); $('plDlg').showModal(); }
 function fpPick(i){ // manual choice (Prev/Next/leg tap/Reverse): don't let auto-advance undo it
   if(!FP) return; FP.dct=null; FP.i=Math.max(0,Math.min(FP.pts.length-1,i));
@@ -4840,7 +4850,7 @@ $('plName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefaul
 $('plFilter').addEventListener('input',fplRender);
 $('plList').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'), li=e.target.closest('li[data-id]'); if(!b||!li) return; const id=li.dataset.id, x=PLANS.find(q=>q.id===id); if(!x) return;
   if(b.dataset.a==='load') fplLoad(id,false); else if(b.dataset.a==='rev') fplLoad(id,true);
-  else if(b.dataset.a==='del'&&confirm(`Delete the saved plan "${x.name}"?`)){ PLANS=PLANS.filter(q=>q!==x); ls.set('plans',PLANS); if(FP&&FP.plan===id){ FP.plan=null; ls.set('fp',FP); } $('plStat').textContent=`Deleted "${x.name}".`; fplRender(); } });
+  else if(b.dataset.a==='del'&&confirm(`Delete the saved plan "${x.name}"?`)){ PLANS=PLANS.filter(q=>q!==x); ls.set('plans',PLANS); ls.set('plansDel',[...ls.get('plansDel',[]).filter(d=>d.id!==id),{id,t:Date.now()}]); /* remembered, so another phone's copy doesn't bring it back */ if(FP&&FP.plan===id){ FP.plan=null; ls.set('fp',FP); } $('plStat').textContent=`Deleted "${x.name}".`; fplRender(); } });
 $('fpAddAt').value=ls.get('fpAddAt','end'); $('fpAddAt').onchange=()=>ls.set('fpAddAt',$('fpAddAt').value);
 function fpAddPick(p){
   if(FP&&FP_REPL!=null&&FP.pts[FP_REPL]){ const k=FP_REPL, act=FP.i===k; FP_REPL=null; fpEdit(P_=>{ P_[k]=fpPt(p); }); if(act) fpPick(k); }   // replacing the active waypoint: head for its replacement
@@ -5652,7 +5662,7 @@ function v3dFrame(){
 const GD={tok:null, exp:0, busy:false, err:'', msg:'', client:null, gis:null, cid:null, last:ls.get('gdLast',0), ids:ls.get('gdIds',{}),
   done:new Set(ls.get('gdDone',[])), auto:ls.get('gdAuto',true)};
 const GD_SCOPE='https://www.googleapis.com/auth/drive.file', GD_DIR='Radio Calls AU', GD_API='https://www.googleapis.com';
-const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_gdHw','rc_gdLbIn','rc_satKey','rc_v3dBox']);   // never in the backup
+const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_gdHw','rc_gdLbIn','rc_gdBkSeen','rc_gdBkHold','rc_satKey','rc_v3dBox']);   // never in the backup
 async function gdKey(create){ const db=await nbIdb(), st=m=>db.transaction('k',m).objectStore('k');
   let key=await new Promise((res,rej)=>{ const q=st('readonly').get('gdrive'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
   if(!key&&create){ key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
@@ -5682,11 +5692,23 @@ async function gdSignedIn(code){ GD.msg='Signing in…'; gdUI();
   try{ const j=await gdProxy({code}); if(!j.refresh_token) throw new Error("Google sent no refresh token: remove the app's access at myaccount.google.com/permissions and connect again");
     GD.tok=j.access_token; GD.exp=Date.now()+(j.expires_in||3600)*1000; let who='';
     try{ const a=await (await fetch(GD_API+'/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+GD.tok}})).json(); who=a.user&&a.user.emailAddress||''; }catch(e){}
-    await gdRtSave(j.refresh_token,who); GD.msg=''; gdUI(); gdSync('connect'); }
+    await gdRtSave(j.refresh_token,who); GD.msg=''; gdUI(); gdFirst(); }
   catch(e){ GD.msg=''; GD.err=e.message; gdUI(); } }
+// first connect on this phone: if Drive already has a settings backup (another phone, an earlier install), offer it
+// BEFORE anything is written; declined, the Drive copy is left alone (gdBkHold) until Save now on this phone
+async function gdFirst(){
+  try{ await gdDir(); const id=GD.ids['Settings backup.json'];
+    if(id&&!ls.get('gdBkSeen',false)){ const o=await (await gdFetch(GD_API+'/drive/v3/files/'+id+'?alt=media')).json(); ls.set('gdBkSeen',true);
+      if(o&&o.app==='Radio Calls AU'&&o.keys){
+        if(confirm(`Google Drive has settings saved ${new Date(o.t).toLocaleString('en-AU',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})} (another phone or an earlier install): aircraft, weight and balance, saved plans, call wording and options.\n\nOK: use them on this phone (it reloads).\nCancel: keep this phone's settings. The copy in Drive is left as it is until you tap Save now here.`)){
+          cfgWrite(o); location.reload(); return; }
+        ls.set('gdBkHold',true); } }
+    ls.set('gdBkSeen',true); }
+  catch(e){ GD.err=e.message; gdUI(); }
+  gdSync('connect'); }
 async function gdDisconnect(){ const rt=await gdRtGet();
   if(rt) try{ await gdProxy({revoke:rt}); }catch(e){}   // also take back Google's grant (through the proxy: the browser may not reach Google's revoke)
-  ls.set('gdCred',null); ls.set('gdLbIn',false); GD.dirOk=false; GD.tok=null; GD.exp=0; GD.err=''; try{ const db=await nbIdb(); db.transaction('k','readwrite').objectStore('k').delete('gdrive'); }catch(e){} gdUI(); }
+  ls.set('gdCred',null); ls.set('gdLbIn',false); ls.set('gdBkSeen',false); ls.set('gdBkHold',false); GD.dirOk=false; GD.tok=null; GD.exp=0; GD.err=''; try{ const db=await nbIdb(); db.transaction('k','readwrite').objectStore('k').delete('gdrive'); }catch(e){} gdUI(); }
 async function gdToken(){ if(GD.tok&&Date.now()<GD.exp-60e3) return GD.tok; const rt=await gdRtGet(); if(!rt) throw new Error('not connected');
   try{ const j=await gdProxy({refresh_token:rt}); GD.tok=j.access_token; GD.exp=Date.now()+(j.expires_in||3600)*1000; return GD.tok; }
   catch(e){ if(e.reauth){ ls.set('gdCred',null); throw new Error('Google access was withdrawn or expired: connect again'); } throw e; } }
@@ -5754,7 +5776,11 @@ async function gdSync(why){ if(GD.busy||!gdOn()||!navigator.onLine||!LOGDB.db) r
     if(GD.ids['Logbook.csv']&&(n||why!=='auto')){ const r=await gdFetch(GD_API+'/drive/v3/files/'+GD.ids['Logbook.csv']+'?alt=media').catch(e=>{ if(e.status===404) return null; throw e; }); if(r&&logbookFromCsv(await r.text())) lbIn=true; }
     else if(GD.ids['Logbook.csv']&&!ls.get('gdLbIn',false)){ const r=await gdFetch(GD_API+'/drive/v3/files/'+GD.ids['Logbook.csv']+'?alt=media').catch(e=>{ if(e.status===404) return null; throw e; }); if(r&&logbookFromCsv(await r.text())) lbIn=true; ls.set('gdLbIn',true); }
     if(n||lbIn||why!=='auto') await gdPut('Logbook.csv',logCsv(logbookLegs()),'text/csv');   // every leg ever logged, not just the 90-day fix log
-    if(n||why!=='auto'||Date.now()-GD.last>24*3600e3) await gdPut('Settings backup.json',gdBackup(),'application/json');
+    if(n||why!=='auto'||Date.now()-GD.last>24*3600e3){
+      const bid=GD.ids['Settings backup.json'];   // saved plans from the other phones first (union; deletions win over older copies)
+      if(bid){ try{ const o=await (await gdFetch(GD_API+'/drive/v3/files/'+bid+'?alt=media')).json(); const K=o&&o.keys||{}, J=v=>{ try{ return JSON.parse(v); }catch(e){ return null; } };
+        if(fplMerge(J(K.rc_plans),J(K.rc_plansDel))&&$('plDlg').open) fplRender(); }catch(e){ if(e.status!==404) throw e; } }
+      if(!ls.get('gdBkHold',false)||why==='now'){ await gdPut('Settings backup.json',gdBackup(),'application/json'); ls.set('gdBkHold',false); } }
     if(n||why!=='auto'||Date.now()-GD.last>24*3600e3){ GD.last=Date.now(); ls.set('gdLast',GD.last); }
     GD.msg= (GD.merged?`Merged ${GD.merged} duplicate folder${GD.merged>1?'s':''} into one. `:'')+(n? `Saved ${n} flight${n>1?'s':''} to Drive.` : why==='auto'? '' : 'Drive is up to date.'); GD.merged=0; }
   catch(e){ GD.msg=''; GD.err=e.message; }
@@ -5770,13 +5796,13 @@ function gdUI(){ const el=$('gdBox'); if(!el) return; const c=ls.get('gdCred',nu
   $('gdConnect').hidden=on; $('gdNow').hidden=!on; $('gdRestore').hidden=!on; $('gdOff').hidden=!on; $('gdAuto').disabled=!on; $('gdAuto').checked=GD.auto;
   $('gdNow').disabled=GD.busy;
   $('gdStat').innerHTML= !ntUrl()? 'Needs the proxy (set under NOTAMs (NAIPS) and traffic).'
-    : (on? `Connected${c.who?' as <b>'+esc(c.who)+'</b>':''} · folder <b>${GD_DIR}</b>${GD.last?' · last saved '+new Date(GD.last).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):''}${GD.done.size?` · ${GD.done.size} flight${GD.done.size>1?'s':''} saved`:''}` : 'Not connected.')
+    : (on? `Connected${c.who?' as <b>'+esc(c.who)+'</b>':''} · folder <b>${GD_DIR}</b>${ls.get('gdBkHold',false)?' · <span class="w">the settings backup in Drive is from another phone: Save now replaces it with this phone\'s (saved plans are combined)</span>':''}${GD.last?' · last saved '+new Date(GD.last).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):''}${GD.done.size?` · ${GD.done.size} flight${GD.done.size>1?'s':''} saved`:''}` : 'Not connected.')
     + (GD.msg? '<br>'+esc(GD.msg) : '') + (GD.err? `<br><span class="w">${esc(GD.err)}</span>` : ''); }
 // ---- settings file: the same JSON as the Drive backup, exported as a download, imported from a file ----
 function cfgApply(o){   // o: a parsed backup {app, t, keys}; asks, writes the rc_ keys (never the skipped secrets), reloads. false if declined
   if(!confirm(`Restore the settings saved ${new Date(o.t).toLocaleString('en-AU')}? Your current settings (aircraft, W&B, plans, call wording, options) are replaced; logs and charts stay.`)) return false;
-  for(const [k,v] of Object.entries(o.keys)) if(k.startsWith('rc_')&&!GD_SKIP.has(k)&&typeof v==='string') localStorage.setItem(k,v);
-  location.reload(); return true; }
+  cfgWrite(o); location.reload(); return true; }
+function cfgWrite(o){ for(const [k,v] of Object.entries(o.keys)) if(k.startsWith('rc_')&&!GD_SKIP.has(k)&&typeof v==='string') localStorage.setItem(k,v); }
 function cfgExport(){ const d=new Date(), p=n=>String(n).padStart(2,'0'), name=`Radio Calls AU settings ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.json`;
   const url=URL.createObjectURL(new Blob([gdBackup()],{type:'application/json'})), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),10000); $('cfgStat').textContent=`Saved ${name} to your downloads.`; }
