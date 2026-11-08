@@ -153,6 +153,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
 .fu-big{font:700 22px var(--f-mono);margin:6px 0} .fu-big small{display:block;font:500 13px var(--f-label);color:var(--dim)} .fu-opt{display:flex;align-items:center;gap:10px;margin:8px 0} .fu-opt span{flex:1} .fu-opt small{color:var(--dim)}
 #sFuel{cursor:pointer}
+.measbox{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;box-shadow:0 4px 14px rgba(0,0,0,.18);font:500 13px/1.35 var(--f-label)}
+.measbox b{font:700 16px var(--f-mono)} .measbox .mb-b{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap} .measbox .btn{padding:6px 9px;font-size:11px;min-height:32px} .measbox small{color:var(--dim)}
+body.fsm .measbox{position:fixed;bottom:calc(var(--fsH,64px) + 10px);left:10px;right:auto;width:min(calc(100vw - 110px),420px)}
 .pl-save{display:flex;gap:6px;margin:8px 0} .pl-save input,.pl-filter input{flex:1;min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .pl-filter input{width:100%;box-sizing:border-box;margin-bottom:6px}
 .pl-list{list-style:none;margin:0;padding:0} .pl-list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--rule)} .pl-list li>span{flex:1;min-width:0} .pl-list li small{color:var(--dim);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pl-list li.cur b::after{content:' · loaded';font-weight:500;color:var(--dim);font-size:12px} .pl-list .btn{padding:6px 8px;font-size:11px}
 .tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
@@ -575,6 +578,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="mapwrap">
       <div class="mapbox">
       <canvas id="map" aria-label="Airspace map around your position. Drag to pan, pinch to zoom, press and hold for options at that point."></canvas>
+      <div class="measbox" id="measBox" hidden role="status"><div id="measTxt"></div><div class="mb-b"><button class="btn" id="measFrom" title="Start the measurement at your position">From me</button><button class="btn" id="measUndo">Undo</button><button class="btn" id="measClr">Clear</button><button class="btn" id="measDone">Done</button></div></div>
       <div class="mapmenu" id="mapMenu" hidden role="dialog" aria-label="Map point options">
         <div class="mm-head"><b id="mmName"></b><button class="btn" id="mmClose" aria-label="Close">✕</button></div>
         <div class="mm-sub" id="mmSub"></div>
@@ -601,6 +605,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
         <button class="btn" id="mapWire" aria-pressed="false" title="Power lines: Geoscience Australia transmission lines (66 kV and up; local distribution lines are not included)">Wires</button>
         <button class="btn" id="mapRadar" aria-pressed="false" title="Rain radar from RainViewer, the latest image (10-minute steps, online only)">Radar</button>
+        <button class="btn" id="mapMeas" aria-pressed="false" title="Measure: tap points on the map (aerodromes and waypoints snap) for distance, magnetic bearing and time at your groundspeed">Measure</button>
         <button class="btn" id="mapRange" aria-pressed="false" title="Range circle: how far you can fly at your groundspeed before reaching your fuel reserve (from the fuel timer); dashed: out and back">Range</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
@@ -2516,7 +2521,9 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   clr:`<div class="st nxcls clr"><small>CLEARANCE</small><b>4123</b><span>A015 · via CARR · ATIS C</span></div>`,
   inbound:`<div class="st nxcls amber inbound"><small>INBOUND CALL</small><b>119.1</b><span>Lilydale traffic, Bell 206 …, 10 miles south, 1,500 feet, inbound …</span></div>`,
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
-  traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`};
+  traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`,
+  wires:`<div class="st traffic wires"><b>WIRES</b><span>0.8 NM ahead · 220 kV power line · you're 350 ft above terrain</span></div>`,
+  fuel:`<div class="st nxcls fuel"><small>FUEL</small><b style="color:var(--ink)">145 L</b><span>1:05 to reserve · 103 NM at 95 kt · reserve 20 min</span></div>`};
 // ---------- full-screen map. FS.on = rc_fsMap (default on); applied while the map is shown. Elements are moved, not copied, so
 // every render/handler keeps working: a comment marker is left where each one came from and fsBack puts it back.
 const FS={on:ls.get('fsMap',true), bar:false, marks:new Map(), s:'peek'};
@@ -2528,7 +2535,7 @@ let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px 
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
 const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
-const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapLog'];
+const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
 function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
@@ -3635,6 +3642,15 @@ function drawMap0(la,lo,h,pick,AS,altFt){
       if(MAP.range<=10&&o.ft!=null){ const t=String(o.ft); g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(t,x,y+15); g.fillText(t,x,y+15); } }
     g.textAlign='left'; }
   pfMark('NOTAM areas + obstacles');
+  // measure: the tapped points and legs, each labelled with distance and magnetic bearing at its middle
+  if(MEAS.on&&MEAS.pts.length){ const Q=MEAS.pts.map(q=>P(q.la,q.lo)), col=cssv('--ink'), {L}=measLegs(); g.save();
+    g.lineWidth=4; g.strokeStyle=C.bg; g.beginPath(); Q.forEach(([x,y],k)=>k?g.lineTo(x,y):g.moveTo(x,y)); g.stroke();
+    g.lineWidth=2; g.strokeStyle=col; g.setLineDash([10,5]); g.stroke(); g.setLineDash([]);
+    for(const [x,y] of Q){ g.beginPath(); g.arc(x,y,5,0,2*Math.PI); g.fillStyle=C.bg; g.fill(); g.lineWidth=2.2; g.strokeStyle=col; g.stroke(); }
+    g.font='700 11px "IBM Plex Mono", monospace'; g.textAlign='center'; g.lineWidth=3.5;
+    L.forEach((l,k)=>{ const [x1,y1]=Q[k], [x2,y2]=Q[k+1], t=`${l.d<100?l.d.toFixed(1):Math.round(l.d)} NM ${measM(l.m)}`; let a=Math.atan2(y2-y1,x2-x1); if(a>Math.PI/2) a-=Math.PI; if(a<-Math.PI/2) a+=Math.PI;
+      if(Math.hypot(x2-x1,y2-y1)<g.measureText(t).width+16) return; g.save(); g.translate((x1+x2)/2,(y1+y2)/2); g.rotate(a); g.strokeStyle=C.bg; g.fillStyle=col; g.strokeText(t,0,-6); g.fillText(t,0,-6); g.restore(); });
+    g.restore(); }
   // range circle (fuel timer): to the reserve at your groundspeed (solid), out and back (dashed), round you
   if(ls.get('mapRange',false)){ const S=fuState(); if(S&&S.rangeNM>0){ const rr=S.rangeNM*sc, hr=rr/2; g.save(); g.strokeStyle=C.acc; g.lineWidth=2.2; g.globalAlpha=.9;
       g.beginPath(); g.arc(ox,oy,rr,0,2*Math.PI); g.stroke(); g.setLineDash([8,6]); g.lineWidth=1.6; g.beginPath(); g.arc(ox,oy,hr,0,2*Math.PI); g.stroke(); g.setLineDash([]);
@@ -4381,6 +4397,21 @@ function fuTick(){ const t=Date.now();
     if('speechSynthesis' in window){ try{ const m=Math.max(0,Math.round(S.endMin)); speechSynthesis.speak(new SpeechSynthesisUtterance(`Fuel check. ${Math.round(S.left)} ${u==='L'?'litres':'gallons'}. ${Math.floor(m/60)?Math.floor(m/60)+' hour'+(Math.floor(m/60)>1?'s ':' '):''}${m%60} minutes to reserve.`)); }catch(e){} } }
   if($('fuDlg').open) fuUI(); }
 setInterval(()=>{ try{ fuTick(); }catch(e){} },5000);
+/* ---------- measure (map button): tap points; legs with distance, magnetic bearing and time at your groundspeed ---------- */
+const MEAS={on:false, pts:[]};   // pts: [{la, lo, n (name when snapped)}]
+function measLegs(){ const L=[]; let tot=0; for(let k=1;k<MEAS.pts.length;k++){ const a=MEAS.pts[k-1], b=MEAS.pts[k], [d,br]=distBrg(a.la,a.lo,b.la,b.lo), m=(br-variation(a.la,a.lo)+720)%360; tot+=d; L.push({a,b,d,m}); } return {L,tot}; }
+const measM=m=>String(Math.round(m)%360||360).padStart(3,'0')+'°M';
+function measUI(){ const box=$('measBox'); $('mapMeas').setAttribute('aria-pressed',MEAS.on); box.hidden=!MEAS.on; if(!MEAS.on) return;
+  const {L,tot}=measLegs(), gs=st.gs>=40? st.gs : (+ls.get('pcGs',90)||90), ete=m=>{ const n=Math.round(m); return n<60? n+' min' : Math.floor(n/60)+' h '+String(n%60).padStart(2,'0'); };
+  const nm=d=>d<100? d.toFixed(1) : Math.round(d), nmP=q=>q.n||(Math.abs(q.la).toFixed(3)+(q.la<0?'S':'N')+' '+q.lo.toFixed(3)+'E');
+  let h;
+  if(!MEAS.pts.length) h='<small>Tap the map to start (aerodromes and waypoints snap), or <b style="font:inherit">From me</b>. Drag still pans.</small>';
+  else if(!L.length) h=`From <b style="font:inherit">${esc(nmP(MEAS.pts[0]))}</b> <small>· tap the next point</small>`;
+  else h=`<b>${nm(tot)} NM</b> ${L.length===1?measM(L[0].m):''} · ${ete(tot/gs*60)} at ${Math.round(gs)} kt${L.length>1?`<br><small>${L.map(l=>`${esc(l.b.n||'')}${l.b.n?' ':''}${nm(l.d)} ${measM(l.m)}`).join(' · ')}</small>`:''}`;
+  if(st.pos&&MEAS.pts.length&&!(MEAS.pts[0].me)){ const q=MEAS.pts[MEAS.pts.length-1], [d,br]=distBrg(st.pos[0],st.pos[1],q.la,q.lo); h+=`<br><small>You to ${esc(nmP(q))}: ${nm(d)} NM ${measM((br-variation(st.pos[0],st.pos[1])+720)%360)}</small>`; }
+  $('measTxt').innerHTML=h; $('measUndo').disabled=!MEAS.pts.length; $('measClr').disabled=!MEAS.pts.length; }
+function measAdd(q){ MEAS.pts.push(q); measUI(); if(MAP.last) drawMap(...MAP.last); }
+function measSet(on){ MEAS.on=on; if(!on) MEAS.pts=[]; measUI(); render(); }
 function fuUI(){ const S=fuState(), u=fuUnit(); $('fuU').textContent=u; $('fuBU').textContent=u;
   $('fuRun').textContent=FUEL.on?'Stop':'Start'; $('fuRun').disabled=FUEL.fob==null;
   $('fuNow').innerHTML= S? `${Math.round(S.left)} ${u} left${FUEL.on?'':' (stopped)'}<small>${S.endMin<=0?'at or below your reserve':fuHM(S.endMin)+' and '+Math.round(S.rangeNM)+' NM to the reserve ('+S.resMin+' min = '+Math.round(S.resQ)+' '+u+')'} · used ${Math.round(S.used)} ${u} in ${fuHM(S.ranMs/60e3)}</small>` : '<small>Set the fuel on board and burn rate, then Set fuel now.</small>'; }
@@ -4909,6 +4940,9 @@ $('fuAuto').onchange=()=>{ FUEL.auto=$('fuAuto').checked; fuSave(); };
 $('fuRem').onchange=()=>{ FUEL.rem=+$('fuRem').value; FUEL.remT=Date.now(); fuSave(); };
 $('mapRange').setAttribute('aria-pressed',!!ls.get('mapRange',false));
 $('mapRange').onclick=()=>{ const on=!ls.get('mapRange',false); if(on&&!fuState()){ fuOpen(); return; } ls.set('mapRange',on); $('mapRange').setAttribute('aria-pressed',on); render(); };
+$('mapMeas').onclick=()=>measSet(!MEAS.on);
+$('measDone').onclick=()=>measSet(false); $('measClr').onclick=()=>{ MEAS.pts=[]; measUI(); render(); }; $('measUndo').onclick=()=>{ MEAS.pts.pop(); measUI(); render(); };
+$('measFrom').onclick=()=>{ if(!st.pos) return; MEAS.pts=[{la:st.pos[0],lo:st.pos[1],n:'You',me:true}]; measUI(); render(); };
 $('fpPlans').onclick=fplOpen; $('plClose').onclick=()=>$('plDlg').close();
 $('plSave').onclick=()=>{ const m=fplSaveCur($('plName').value); if(m) $('plStat').textContent=m; fplRender(); };
 $('plName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('plSave').click(); } });
@@ -4955,6 +4989,8 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
     if(d.moved){ render(); return; }
     if(!$('mapMenu').hidden){ mapMenuClose(); return; }   // a tap elsewhere closes the menu
     const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+    if(MEAS.on&&MAP.inv){ let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){ bd=q; best=it.p; } }   // measuring: a tap adds a point (snapped to an aerodrome or waypoint)
+      if(best) measAdd({la:best.la, lo:best.lo, n:best.c||best.n}); else { const [la,lo]=MAP.inv(x,y); measAdd({la,lo}); } return; }
     if(MAP.traffic){ let tb=null, td=24; for(const h of (MAP.trHits||[])){ const q=Math.hypot(h.x-x,h.y-y); if(q<td){ td=q; tb=h.hex; } }   // tap a traffic symbol: select / deselect it
       if(tb){ TR.sel= TR.sel===tb? null : tb; if(MAP.last) drawMap(...MAP.last); return; }
       if(TR.sel){ TR.sel=null; if(MAP.last) drawMap(...MAP.last); return; } }   // a tap elsewhere clears the selection
@@ -5072,6 +5108,7 @@ function mapMenu(px,py){ if(document.body.classList.contains('fsm')&&FS.s!=='pee
     if(k<P_.length) btn(`Insert ${fqN} after ${P_[k-1].c||P_[k-1].n}`,()=>{ mapMenuClose(); fpAdd(fq,k); });
     btn(`Add ${fqN} at end of plan`,()=>{ mapMenuClose(); fpAdd(fq); });
     if(FP_EDIT&&FP_REPL!=null&&P_[FP_REPL]) btn(`Replace ${P_[FP_REPL].c||P_[FP_REPL].n} with ${fqN}`,()=>{ mapMenuClose(); fpAddPick(fq); }); }
+  btn(MEAS.on&&MEAS.pts.length? `Measure to ${fqN}` : `Measure from ${fqN}`,()=>{ mapMenuClose(); if(!MEAS.on){ MEAS.on=true; MEAS.pts=[]; } measAdd({la:fq.la,lo:fq.lo,n:fq.c||fq.n}); render(); });
   if(navigator.clipboard) btn('Copy lat/lon',()=>{ navigator.clipboard.writeText(ll).then(()=>{ B.lastChild.textContent='Copied'; },()=>{}); });
   $('mapMenu').hidden=false; drawMap(...MAP.last);
 

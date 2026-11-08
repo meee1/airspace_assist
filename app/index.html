@@ -153,6 +153,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
 .fu-big{font:700 22px var(--f-mono);margin:6px 0} .fu-big small{display:block;font:500 13px var(--f-label);color:var(--dim)} .fu-opt{display:flex;align-items:center;gap:10px;margin:8px 0} .fu-opt span{flex:1} .fu-opt small{color:var(--dim)}
 #sFuel{cursor:pointer}
+.measbox{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;box-shadow:0 4px 14px rgba(0,0,0,.18);font:500 13px/1.35 var(--f-label)}
+.measbox b{font:700 16px var(--f-mono)} .measbox .mb-b{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap} .measbox .btn{padding:6px 9px;font-size:11px;min-height:32px} .measbox small{color:var(--dim)}
+body.fsm .measbox{position:fixed;bottom:calc(var(--fsH,64px) + 10px);left:10px;right:auto;width:min(calc(100vw - 110px),420px)}
 .pl-save{display:flex;gap:6px;margin:8px 0} .pl-save input,.pl-filter input{flex:1;min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .pl-filter input{width:100%;box-sizing:border-box;margin-bottom:6px}
 .pl-list{list-style:none;margin:0;padding:0} .pl-list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--rule)} .pl-list li>span{flex:1;min-width:0} .pl-list li small{color:var(--dim);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pl-list li.cur b::after{content:' · loaded';font-weight:500;color:var(--dim);font-size:12px} .pl-list .btn{padding:6px 8px;font-size:11px}
 .tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
@@ -575,6 +578,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="mapwrap">
       <div class="mapbox">
       <canvas id="map" aria-label="Airspace map around your position. Drag to pan, pinch to zoom, press and hold for options at that point."></canvas>
+      <div class="measbox" id="measBox" hidden role="status"><div id="measTxt"></div><div class="mb-b"><button class="btn" id="measFrom" title="Start the measurement at your position">From me</button><button class="btn" id="measUndo">Undo</button><button class="btn" id="measClr">Clear</button><button class="btn" id="measDone">Done</button></div></div>
       <div class="mapmenu" id="mapMenu" hidden role="dialog" aria-label="Map point options">
         <div class="mm-head"><b id="mmName"></b><button class="btn" id="mmClose" aria-label="Close">✕</button></div>
         <div class="mm-sub" id="mmSub"></div>
@@ -601,6 +605,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
         <button class="btn" id="mapWire" aria-pressed="false" title="Power lines: Geoscience Australia transmission lines (66 kV and up; local distribution lines are not included)">Wires</button>
         <button class="btn" id="mapRadar" aria-pressed="false" title="Rain radar from RainViewer, the latest image (10-minute steps, online only)">Radar</button>
+        <button class="btn" id="mapMeas" aria-pressed="false" title="Measure: tap points on the map (aerodromes and waypoints snap) for distance, magnetic bearing and time at your groundspeed">Measure</button>
         <button class="btn" id="mapRange" aria-pressed="false" title="Range circle: how far you can fly at your groundspeed before reaching your fuel reserve (from the fuel timer); dashed: out and back">Range</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
@@ -933,7 +938,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=0c99019002';
+    const s=document.createElement('script'); s.src='app.js?v=412e6701b7';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
