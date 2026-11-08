@@ -2912,13 +2912,14 @@ function drawCharts(g0,W,Hh,inv,P){
   if(!CH.on||!CH.idx.length) return false;
   const dpr=window.devicePixelRatio||1, sc=MAP.sc, now=Date.now();
   const S=Math.ceil(Math.hypot(W,Hh)*1.25), key=[sc.toFixed(6),S,CH.idx.map(s=>s.sheet+':'+s.dir).join(','),MAP.range].join('|');
-  const toC=(la,lo)=>[CHC.S/2+(lo-CHC.lo0)*CHC.cosl0*60*CHC.sc0, CHC.S/2-(la-CHC.la0)*60*CHC.sc0];
-  const invC=(u,v)=>[CHC.la0+(CHC.S/2-v)/(60*CHC.sc0), CHC.lo0+(u-CHC.S/2)/(60*CHC.sc0*CHC.cosl0)];
+  let [cF,cI]=projMake(CHC.la0,CHC.lo0);   // the cache canvas: the map's projection about its own centre (north up)
+  const toC=(la,lo)=>{ const [x,y]=cF(la,lo); return [CHC.S/2+x*CHC.sc0, CHC.S/2-y*CHC.sc0]; };
+  const invC=(u,v)=>cI((u-CHC.S/2)/CHC.sc0,(CHC.S/2-v)/CHC.sc0);
   let ok= CHC.cv && CHC.key===key;
   if(ok){ for(const [px,py] of [[0,0],[W,0],[0,Hh],[W,Hh]]){ const [u,v]=toC(...inv(px,py)); if(u<2||v<2||u>CHC.S-2||v>CHC.S-2){ ok=false; break; } } }   // the screen still inside the cache?
   if(ok&&CHC.dirty&&now-CHC.t<=400&&!CHC.later) CHC.later=setTimeout(()=>{ CHC.later=0; if(MAP.last) drawMap(...MAP.last); },420-(now-CHC.t));   // tiles came in just after a repaint
   if(!ok || (CHC.dirty&&now-CHC.t>400)){
-    const [la0,lo0]=inv(W/2,Hh/2); Object.assign(CHC,{key,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,t:now,dirty:false}); CHC.n++;
+    const [la0,lo0]=inv(W/2,Hh/2); Object.assign(CHC,{key,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,t:now,dirty:false}); CHC.n++; [cF,cI]=projMake(la0,lo0);
     CHC.dc=Math.min(dpr,2,4096/S);   // at most 2 px per CSS px: a 3x cache (3,500 px square in full screen) took ~200 ms to draw each frame at CPU x4; 2x is ~2,300 px
     const cv=CHC.cv||(CHC.cv=document.createElement('canvas')), px=Math.round(S*CHC.dc); if(cv.width!==px||cv.height!==px){ cv.width=px; cv.height=px; }
     const g=cv.getContext('2d'); g.setTransform(CHC.dc,0,0,CHC.dc,0,0); g.clearRect(0,0,S,S);
@@ -3207,12 +3208,13 @@ function drawTrail(g,P,C,W,Hh){ // flight log on the map: fixes joined where the
 const TRC={cv:null, gkey:'', key:'', la0:0, lo0:0, cosl0:1, sc0:0, S:0, dc:1, hts:null, nx:0, ny:0, n:0, np:0};
 function drawTerrain(g0,W,Hh,inv,P,sc,altFt,chartsShown,dpr){
   const step=6, S=Math.ceil(Math.hypot(W,Hh)*1.25), rb=ls.get('terRainbow',true), alt=st.alt!=null? Math.round(altFt/20)*20 : null;
-  const toC=(la,lo)=>[TRC.S/2+(lo-TRC.lo0)*TRC.cosl0*60*TRC.sc0, TRC.S/2-(la-TRC.la0)*60*TRC.sc0];
-  const invC=(u,v)=>[TRC.la0+(TRC.S/2-v)/(60*TRC.sc0), TRC.lo0+(u-TRC.S/2)/(60*TRC.sc0*TRC.cosl0)];
+  let [tF,tI]=projMake(TRC.la0,TRC.lo0);   // the cache canvas: the map's projection about its own centre (north up)
+  const toC=(la,lo)=>{ const [x,y]=tF(la,lo); return [TRC.S/2+x*TRC.sc0, TRC.S/2-y*TRC.sc0]; };
+  const invC=(u,v)=>tI((u-TRC.S/2)/TRC.sc0,(TRC.S/2-v)/TRC.sc0);
   const gkey=[sc.toFixed(6),S,TER.ver||0,TER.sea.size].join('|');
   let ok= TRC.hts && TRC.gkey===gkey;
   if(ok){ for(const [px,py] of [[0,0],[W,0],[0,Hh],[W,Hh]]){ const [u,v]=toC(...inv(px,py)); if(u<0||v<0||u>TRC.S||v>TRC.S){ ok=false; break; } } }
-  if(!ok){ const [la0,lo0]=inv(W/2,Hh/2); Object.assign(TRC,{gkey,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,key:''}); TRC.n++;
+  if(!ok){ const [la0,lo0]=inv(W/2,Hh/2); Object.assign(TRC,{gkey,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,key:''}); TRC.n++; [tF,tI]=projMake(la0,lo0);
     const nx=Math.ceil(S/step), ny=nx, hts=new Float32Array(nx*ny);
     for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){ const [qa,qo]=invC(i*step+step/2,j*step+step/2), t=terrainFt(qa,qo); hts[j*nx+i]= t==null? NaN : t; }
     Object.assign(TRC,{hts,nx,ny}); }
@@ -3240,6 +3242,20 @@ function drawTerrain(g0,W,Hh,inv,P,sc,altFt,chartsShown,dpr){
   const src=[[0,0],[TRC.S,0],[0,TRC.S]], dst=src.map(([u,v])=>P(...invC(u,v))), M=affine3(src,dst);
   g0.save(); g0.setTransform(dpr*M[0],dpr*M[1],dpr*M[2],dpr*M[3],dpr*M[4],dpr*M[5]); g0.drawImage(TRC.cv,0,0,TRC.cv.width,TRC.cv.height,0,0,TRC.S,TRC.S); g0.restore();
 }
+/* ---------- map projection ----------
+   Stereographic (conformal, exact at the centre) centred on the middle of the map: NM east (x) / north (y) of the centre
+   on the same sphere as distBrg (R = 3440 NM). Scale error ≈ (d/2R)²: 0.01% at 80 NM, 0.2% at 320 NM (the old local
+   equirectangular map was ~2% out in E-W scale 80 NM north or south of the centre). rc_mapProj 'flat' = the old one.
+   projMake(la0, lo0) -> [fwd(la, lo) -> [x, y], inv(x, y) -> [la, lo]], constants precomputed (fwd runs for every point drawn). */
+const RE_NM=NM;   // the same sphere as distBrg, so on-screen distances match the app's
+MAP.proj=ls.get('mapProj','stereo')==='flat'? 'flat' : 'stereo';
+function projMake(la0,lo0){
+  if(MAP.proj==='flat'){ const c=Math.cos(la0*R); return [(la,lo)=>[(lo-lo0)*c*60,(la-la0)*60], (x,y)=>[la0+y/60, lo0+x/(60*c)]]; }
+  const f0=la0*R, s0=Math.sin(f0), c0=Math.cos(f0), D=2*RE_NM;
+  const fwd=(la,lo)=>{ const f=la*R, dl=(lo-lo0)*R, s=Math.sin(f), c=Math.cos(f), cd=Math.cos(dl), k=D/(1+s0*s+c0*c*cd); return [k*c*Math.sin(dl), k*(c0*s-s0*c*cd)]; };
+  const inv=(x,y)=>{ const rho=Math.hypot(x,y); if(rho<1e-9) return [la0,lo0]; const cc=2*Math.atan(rho/D), sc=Math.sin(cc), cs=Math.cos(cc);
+    return [Math.asin(Math.max(-1,Math.min(1,cs*s0+y*sc*c0/rho)))/R, lo0+Math.atan2(x*sc, rho*c0*cs-y*s0*sc)/R]; };
+  return [fwd,inv]; }
 function drawMap(...a){ if(!PF.on) return drawMap0(...a); pfStart('map'); try{ return drawMap0(...a); } finally{ pfEnd(); } }
 function drawMap0(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
@@ -3256,12 +3272,13 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   const rot = MAP.up==='trk' && h ? h.deg : 0;
   const cx=W/2, cy= MAP.up==='trk'&&h ? Hh*0.62 : Hh/2;
   const sc=Math.min(W,Hh)*0.46/MAP.range, cosl=Math.cos(la*R), cr=Math.cos(rot*R), sr=Math.sin(rot*R);   // +rot: your heading ends up pointing up the screen
-  const P=(pla,plo)=>{ const x=(plo-lo)*cosl*60, y=(pla-la)*60; return [cx+(x*cr-y*sr)*sc, cy-(x*sr+y*cr)*sc]; };
-  const [ox,oy]=P(own[0],own[1]); MAP.sc=sc; MAP.cosl=cosl;
+  const [pF,pI]=projMake(la,lo);
+  const P=(pla,plo)=>{ const [x,y]=pF(pla,plo); return [cx+(x*cr-y*sr)*sc, cy-(x*sr+y*cr)*sc]; };
+  const [ox,oy]=P(own[0],own[1]); MAP.sc=sc; MAP.cosl=cosl; MAP.cx=cx; MAP.cy=cy;
   const reach=MAP.range*1.6/60, bbHit=bb=>!(bb[1]<la-reach||bb[0]>la+reach||bb[3]<lo-reach/cosl||bb[2]>lo+reach/cosl);
   const C={C:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),CTR:cssv('--as-d'),A:cssv('--as-c'),R:cssv('--as-r'),Q:cssv('--as-q'),FIA:cssv('--as-fia'),EF:cssv('--as-e'),ink:cssv('--ink'),dim:cssv('--dim'),bg:cssv('--panel'),acc:cssv('--accent'),fr:cssv('--freq')};
   const curSet=new Set(AS.bands.filter(b=>altFt>=b.L-50&&altFt<b.H).map(b=>b.n));
-  const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return [la+y/60, lo+x/(60*cosl)]; };
+  const invPx=(px,py)=>{ const dx=(px-cx)/sc, dy=(cy-py)/sc; const x=dx*cr+dy*sr, y=-dx*sr+dy*cr; return pI(x,y); };
   MAP.inv=invPx; MAP.P=P;
   pfMark('setup');
   const satShown=drawSat(g,W,Hh,P,invPx,la,cosl,sc); pfMark('satellite');
@@ -4771,7 +4788,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
   const zoomTo=r=>{ MAP.range=Math.min(320,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
   const spread=()=>{ const [a,b]=[...ptr.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
   let lpT=null; const lpCancel=()=>{ clearTimeout(lpT); lpT=null; };
-  const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId};
+  const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId,inv:MAP.inv,cx:MAP.cx,cy:MAP.cy};
     // press and hold (550 ms without moving): options for that point
     lpCancel(); const r=cv.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
     lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mmGuardOn(); mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
@@ -4785,7 +4802,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
     if(!drag||e.pointerId!==drag.id) return;
     const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(!drag.moved && Math.hypot(dx,dy)<6) return;
     drag.moved=true; lpCancel(); if(!$('mapMenu').hidden) mapMenuClose(); const sc=MAP.sc, cosl=MAP.cosl||1;
-    MAP.pan=[drag.c[0]+dy/sc/60, drag.c[1]-dx/sc/(60*cosl)];
+    MAP.pan= drag.inv&&drag.cx!=null? drag.inv(drag.cx-dx, drag.cy-dy) : [drag.c[0]+dy/sc/60, drag.c[1]-dx/sc/(60*cosl)];   // the point now under the centre, in the frame the drag began in
     if(!raf) raf=requestAnimationFrame(redraw); });
   const end=e=>{ ptr.delete(e.pointerId); lpCancel();
     if(pinch){ if(ptr.size<2){ pinch=null; ls.set('mapRange',MAP.range); render(); drag=null; } return; }   // lift both fingers before panning again
