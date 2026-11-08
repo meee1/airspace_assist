@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794105749985;
+const APP_BUILT=1794120951543;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2063,6 +2063,31 @@ $('mapRadar').onclick=()=>{ RAD.on=!RAD.on; ls.set('mapRadar',RAD.on); $('mapRad
 // redraw lays that cache on the map with one affine (shift + rotation). It's repainted when the view leaves it, the scale or
 // size changes, the chart set changes, or new tiles have arrived (at most every 400 ms).
 const CHC={cv:null, key:'', la0:0, lo0:0, cosl0:1, sc0:0, S:0, dc:1, t:0, dirty:false, drew:false, n:0};
+/* A cache canvas (chart or terrain picture in the map's projection about the cache's own centre, north up) onto the map.
+   About the same centre that's a rotation + scale (one affine). Once the map has moved on (panning, flying) the two
+   stereographic projections differ a little, more the further out: at 320 NM one affine was visibly out (the chart
+   slid against the airspace while planning). So: one affine when it's within 0.5 px over the screen, else an 8×8 grid of
+   triangles over the part on screen, each with its own affine (piecewise linear: well under 0.5 px).
+   map(u,v) -> screen css px; probe(px,py) -> cache (u,v); dc = cache device px per css px. */
+function drawCache(g0,cv,S,dc,map,probe,W,Hh,dpr){
+  const src=[[0,0],[S,0],[0,S]], M=affine3(src,src.map(([u,v])=>map(u,v)));
+  const pr=[[0,0],[W/2,0],[W,0],[0,Hh/2],[W/2,Hh/2],[W,Hh/2],[0,Hh],[W/2,Hh],[W,Hh]].map(([x,y])=>probe(x,y)); let err=0;
+  for(const [u,v] of pr){ const [x,y]=map(u,v); err=Math.max(err,Math.hypot(x-(M[0]*u+M[2]*v+M[4]),y-(M[1]*u+M[3]*v+M[5]))); }
+  DCE.err=err;
+  if(err<=0.5||DCE.one){ g0.save(); g0.setTransform(dpr*M[0],dpr*M[1],dpr*M[2],dpr*M[3],dpr*M[4],dpr*M[5]); g0.drawImage(cv,0,0,cv.width,cv.height,0,0,S,S); g0.restore(); DCE.mesh=false; return; }
+  let u0=1e9,v0=1e9,u1=-1e9,v1=-1e9; for(const [u,v] of pr){ u0=Math.min(u0,u); v0=Math.min(v0,v); u1=Math.max(u1,u); v1=Math.max(v1,v); }
+  u0=Math.max(0,u0-4); v0=Math.max(0,v0-4); u1=Math.min(S,u1+4); v1=Math.min(S,v1+4);
+  const N=8, U=k=>u0+(u1-u0)*k/N, V=k=>v0+(v1-v0)*k/N, sp=[]; for(let j=0;j<=N;j++){ const row=[]; for(let i=0;i<=N;i++) row.push(map(U(i),V(j))); sp.push(row); }
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const cu0=U(i), cu1=U(i+1), cv0=V(j), cv1=V(j+1);
+    for(const tri of [[[i,j],[i+1,j],[i,j+1]],[[i+1,j],[i+1,j+1],[i,j+1]]]){
+      const uv=tri.map(([a,b])=>[U(a),V(b)]), xy=tri.map(([a,b])=>sp[b][a]), cx=(xy[0][0]+xy[1][0]+xy[2][0])/3, cy=(xy[0][1]+xy[1][1]+xy[2][1])/3;
+      g0.save(); g0.setTransform(dpr,0,0,dpr,0,0); g0.beginPath();
+      xy.forEach(([x,y],k)=>{ const dx=x-cx, dy=y-cy, L=Math.hypot(dx,dy)||1, X=x+dx/L*0.7, Y=y+dy/L*0.7; k?g0.lineTo(X,Y):g0.moveTo(X,Y); }); g0.closePath(); g0.clip();   // grown 0.7 px: no hairlines between triangles
+      g0.transform(...affine3(uv,xy));
+      const a=Math.max(0,cu0-2), b=Math.max(0,cv0-2), w=Math.min(S,cu1+2)-a, h=Math.min(S,cv1+2)-b;
+      g0.drawImage(cv,a*dc,b*dc,w*dc,h*dc,a,b,w,h); g0.restore(); } }
+  DCE.mesh=true; }
+const DCE={err:0,mesh:false};   // the last drawCache: affine error (px) and whether the grid was used (tests, perf panel)
 function drawCharts(g0,W,Hh,inv,P){
   if(!CH.on||!CH.idx.length) return false;
   const dpr=window.devicePixelRatio||1, sc=MAP.sc, now=Date.now();
@@ -2081,10 +2106,9 @@ function drawCharts(g0,W,Hh,inv,P){
     const N0= MAP.range>=40? 6 : MAP.range>=15? 4 : 2, N=Math.ceil(N0*S/Math.max(W,Hh));   // same grid density per screen as before
     CH.use=new Set(); CHC.drew=chartsPaint(g,S,S,invC,N,CHC.dc); CH.keep=CH.use; CH.use=null; }
   if(!CHC.drew) return false;
-  // cache css -> screen css: exact affine from three cache corners (both are local flat projections)
-  const src=[[0,0],[CHC.S,0],[0,CHC.S]], dst=src.map(([u,v])=>P(...invC(u,v))), M=affine3(src,dst);
-  g0.save(); g0.setTransform(dpr*M[0],dpr*M[1],dpr*M[2],dpr*M[3],dpr*M[4],dpr*M[5]); g0.globalAlpha=CH.op; g0.imageSmoothingEnabled=true;
-  g0.drawImage(CHC.cv,0,0,CHC.cv.width,CHC.cv.height,0,0,CHC.S,CHC.S); g0.restore();
+  // cache css -> screen css (one affine, or a grid of them once the map has moved away from the cache's centre)
+  g0.save(); g0.globalAlpha=CH.op; g0.imageSmoothingEnabled=true;
+  drawCache(g0,CHC.cv,CHC.S,CHC.dc,(u,v)=>P(...invC(u,v)),(x,y)=>toC(...inv(x,y)),W,Hh,dpr); g0.restore();
   return true; }
 // paint the charts warped onto a W×H (css px) context g whose view is given by inv (px -> lat/lon); dens = device px per css px
 function chartsPaint(g,W,Hh,inv,N,dens){
@@ -2394,8 +2418,7 @@ function drawTerrain(g0,W,Hh,inv,P,sc,altFt,chartsShown,dpr){
       for(let k=0;k<arr.length;k+=2){ const x=arr[k], y=arr[k+1]; g.moveTo(x,y+step); g.lineTo(x+step,y); if(arr===hz){ g.moveTo(x,y); g.lineTo(x+step,y+step); } }   // red: cross-hatch; orange: single hatch
       g.stroke(); } }
     g.globalAlpha=1; }
-  const src=[[0,0],[TRC.S,0],[0,TRC.S]], dst=src.map(([u,v])=>P(...invC(u,v))), M=affine3(src,dst);
-  g0.save(); g0.setTransform(dpr*M[0],dpr*M[1],dpr*M[2],dpr*M[3],dpr*M[4],dpr*M[5]); g0.drawImage(TRC.cv,0,0,TRC.cv.width,TRC.cv.height,0,0,TRC.S,TRC.S); g0.restore();
+  drawCache(g0,TRC.cv,TRC.S,TRC.cv.width/TRC.S,(u,v)=>P(...invC(u,v)),(x,y)=>toC(...inv(x,y)),W,Hh,dpr);
 }
 /* ---------- map projection ----------
    Stereographic (conformal, exact at the centre) centred on the middle of the map: NM east (x) / north (y) of the centre
