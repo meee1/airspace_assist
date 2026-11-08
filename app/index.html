@@ -151,6 +151,8 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .fr .v.none{color:var(--dim);font-size:16px}
 .pc-ready{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.5} .pc-ready.ok{border-color:var(--ok)} .pc-ready.bad{border-color:var(--warn)} .pc-ready small{color:var(--dim)}
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
+.fu-big{font:700 22px var(--f-mono);margin:6px 0} .fu-big small{display:block;font:500 13px var(--f-label);color:var(--dim)} .fu-opt{display:flex;align-items:center;gap:10px;margin:8px 0} .fu-opt span{flex:1} .fu-opt small{color:var(--dim)}
+#sFuel{cursor:pointer}
 .pl-save{display:flex;gap:6px;margin:8px 0} .pl-save input,.pl-filter input{flex:1;min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .pl-filter input{width:100%;box-sizing:border-box;margin-bottom:6px}
 .pl-list{list-style:none;margin:0;padding:0} .pl-list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--rule)} .pl-list li>span{flex:1;min-width:0} .pl-list li small{color:var(--dim);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pl-list li.cur b::after{content:' · loaded';font-weight:500;color:var(--dim);font-size:12px} .pl-list .btn{padding:6px 8px;font-size:11px}
 .tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
@@ -550,6 +552,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
     <div class="st traffic wires" id="sWires" hidden role="alert"></div>
     <div class="st nxcls warn" id="sLastRow" hidden></div>
+    <div class="st nxcls fuel" id="sFuel" hidden role="button" tabindex="0" title="Fuel timer: fuel left, time and range to your reserve. Tap to set fuel, burn, start or stop"></div>
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
     <button class="st fsbar-x" id="fsBarX">▲ Back to the map</button>
@@ -598,6 +601,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
         <button class="btn" id="mapWire" aria-pressed="false" title="Power lines: Geoscience Australia transmission lines (66 kV and up; local distribution lines are not included)">Wires</button>
         <button class="btn" id="mapRadar" aria-pressed="false" title="Rain radar from RainViewer, the latest image (10-minute steps, online only)">Radar</button>
+        <button class="btn" id="mapRange" aria-pressed="false" title="Range circle: how far you can fly at your groundspeed before reaching your fuel reserve (from the fuel timer); dashed: out and back">Range</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
@@ -745,6 +749,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <button class="btn" id="bWake" aria-pressed="false">Keep screen on</button>
     <button class="btn" id="bCmp" title="The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.">Compass: not aligned</button>
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
+    <button class="btn" id="bFuel" aria-haspopup="dialog" title="Fuel timer: fuel on board, burn rate, start/stop, reminders">Fuel timer</button>
     <button class="btn" id="bLog" aria-haspopup="dialog" title="Your logbook: legs from the GPS log, totals, and CSV export for your logbook app">Logbook</button>
     <button class="btn" id="bOpts" aria-haspopup="dialog" title="Which VNC / VTC charts to download and keep on this device">Options</button>
     <button class="btn" id="bInstall" hidden title="Install as an app: full screen, its own icon, and Android keeps its stored data">Install app</button>
@@ -829,6 +834,15 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="opts-head"><b id="facTitle">ERSA FAC</b><span class="fac-ctl"><button class="btn" id="facZoom" type="button" aria-pressed="false">Zoom</button><a class="btn" id="facExt" target="_blank" rel="noopener">Open PDF</a><button class="btn" id="facClose" aria-label="Close">✕</button></span></div>
     <div class="vnote" id="facStat"></div>
     <div id="facBody"></div>
+  </dialog>
+  <dialog class="opts" id="fuDlg" aria-labelledby="fuTitle">
+    <div class="opts-head"><b id="fuTitle">Fuel timer</b><button class="btn" id="fuClose" aria-label="Close">✕</button></div>
+    <div class="fu-big" id="fuNow"></div>
+    <div class="pc-in"><label>Fuel on board <span id="fuU">L</span> <input id="fuFob" type="number" inputmode="decimal" step="1" min="0"></label><label>Burn <span id="fuBU">L</span>/h <input id="fuBurn" type="number" inputmode="decimal" step="1" min="1"></label><label>Reserve min <input id="fuRes" type="number" inputmode="numeric" step="5" min="0" placeholder="CASA"></label></div>
+    <div class="ctl"><button class="btn" id="fuSet">Set fuel now</button><button class="btn" id="fuRun">Start</button></div>
+    <label class="fu-opt"><input type="checkbox" id="fuAuto"> <span><b>Start and stop by itself</b><br><small>Starts when you're moving at 40 kt or more, stops after 3 minutes below 5 kt.</small></span></label>
+    <label class="fu-opt"><span><b>Fuel check reminder</b><br><small>Spoken (and a vibration) while the timer runs.</small></span><select id="fuRem"><option value="0">Off</option><option value="15">every 15 min</option><option value="20">every 20 min</option><option value="30">every 30 min</option></select></label>
+    <div class="vnote">Fuel left = what you set minus burn × time the timer has run. Reserve: your setting, else CASA's final reserve (helicopter 20 / 30 min, aeroplane 30 / 45 min, day / night). Range = time to the reserve × your groundspeed now (Plan check's GS when you're slow), so it already includes the wind along your track, but not on other headings. It's an estimate: dip or gauge the tanks.</div>
   </dialog>
   <dialog class="opts" id="plDlg" aria-labelledby="plTitle">
     <div class="opts-head"><b id="plTitle">Saved flight plans</b><button class="btn" id="plClose" aria-label="Close">✕</button></div>
@@ -919,7 +933,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=e3ccd5c05d';
+    const s=document.createElement('script'); s.src='app.js?v=0c99019002';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

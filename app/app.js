@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794134557652;
+const APP_BUILT=1794136775289;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1591,7 +1591,7 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['traffic','TRAFFIC alert',['sTraffic']]];
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['traffic','TRAFFIC alert',['sTraffic']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -1629,8 +1629,8 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
-const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapLog'];
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapLog'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
 function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
@@ -2737,6 +2737,12 @@ function drawMap0(la,lo,h,pick,AS,altFt){
       if(MAP.range<=10&&o.ft!=null){ const t=String(o.ft); g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(t,x,y+15); g.fillText(t,x,y+15); } }
     g.textAlign='left'; }
   pfMark('NOTAM areas + obstacles');
+  // range circle (fuel timer): to the reserve at your groundspeed (solid), out and back (dashed), round you
+  if(ls.get('mapRange',false)){ const S=fuState(); if(S&&S.rangeNM>0){ const rr=S.rangeNM*sc, hr=rr/2; g.save(); g.strokeStyle=C.acc; g.lineWidth=2.2; g.globalAlpha=.9;
+      g.beginPath(); g.arc(ox,oy,rr,0,2*Math.PI); g.stroke(); g.setLineDash([8,6]); g.lineWidth=1.6; g.beginPath(); g.arc(ox,oy,hr,0,2*Math.PI); g.stroke(); g.setLineDash([]);
+      g.font='700 10.5px "IBM Plex Mono", monospace'; g.textAlign='center'; g.lineWidth=3; g.strokeStyle=C.bg; g.fillStyle=C.acc; g.globalAlpha=1;
+      for(const [t,y] of [[`RANGE ${Math.round(S.rangeNM)} NM · ${fuHM(S.endMin)} to reserve`,oy-rr-6],[`OUT & BACK ${Math.round(S.rangeNM/2)} NM`,oy-hr-6]]) if(y>12&&y<Hh-4){ g.strokeText(t,ox,y); g.fillText(t,ox,y); }
+      g.restore(); } }
   // the area you're in, highlighted: the control zone you're inside (below its top), else the CTAF area of the aerodrome on the
   // CTAF tile, cut by the same halfway lines as the split CTAF areas; a marker at its nearest edge with the distance to it
   if(ZHI.on&&!MAP.pan){ const edge=[]; let drew=false;
@@ -3446,6 +3452,42 @@ function lastLightUI(){ if(!st.pos){ $('sLast').textContent=''; $('sLastRow').hi
   row.hidden=false; row.className='st nxcls'+(m<=10?' warn':' amber');
   row.innerHTML=`<small>LAST LIGHT</small><b style="color:${m<=10?'var(--warn)':'var(--accent)'}">in ${Math.max(0,Math.round(m))} min</b><span>${hhmmZ(L.ll)} (${loc(L.ll)}) · end of civil twilight here</span>`; }
 setInterval(()=>{ try{ lastLightUI(); }catch(e){} },20000);
+/* ---------- fuel timer (rc_fuel) and range ----------
+   FUEL {fob (fuel set, L or USG), burn (per hour), res (reserve min, null = CASA), run (ms the timer ran since fob was set),
+   on (running), t1 (ms it was last started), auto (start ≥40 kt, stop after 3 min <5 kt), rem (reminder min, 0 off)}. */
+let FUEL=Object.assign({fob:null,burn:null,res:null,run:0,on:false,t1:0,auto:true,rem:0},ls.get('fuel',{}));
+const fuSave=()=>ls.set('fuel',FUEL);
+const fuUnit=()=>{ const P=typeof wbCur==='function'&&wbCur(); return P&&P.u==='lb'? 'USG' : 'L'; };
+function fuSet(fob,burn){ if(fob!=null) { FUEL.fob=fob; FUEL.run=0; if(FUEL.on) FUEL.t1=Date.now(); FUEL.remT=Date.now(); } if(burn!=null) FUEL.burn=burn; fuSave(); }
+function fuStart(){ if(FUEL.on||FUEL.fob==null) return; FUEL.on=true; FUEL.t1=Date.now(); FUEL.remT=Date.now(); fuSave(); }
+function fuStop(){ if(!FUEL.on) return; FUEL.run+=Date.now()-FUEL.t1; FUEL.on=false; fuSave(); }
+// -> null (not set up) or {left, used, ranMs, resMin, resQ, endMin (to the reserve), gs, rangeNM, heli, night}
+function fuState(t=Date.now()){ if(FUEL.fob==null||!(FUEL.burn>0)) return null;
+  const ranMs=FUEL.run+(FUEL.on? t-FUEL.t1 : 0), used=FUEL.burn*ranMs/3600e3, left=FUEL.fob-used;
+  const here=st.pos? {la:st.pos[0],lo:st.pos[1]} : null, R_=reserveFuel(here,here,t,t+Math.max(0,left/FUEL.burn)*3600e3);
+  const resMin= FUEL.res!=null&&FUEL.res>=0? +FUEL.res : R_.casa, resQ=FUEL.burn*resMin/60, endMin=(left-resQ)/FUEL.burn*60;
+  const gs= st.gs>=40? st.gs : (+ls.get('pcGs',90)||90);
+  return {left, used, ranMs, resMin, resQ, endMin, gs, rangeNM:Math.max(0,endMin/60*gs), casa:R_.casa}; }
+const fuHM=m=>{ const n=Math.max(0,Math.round(m)); return Math.floor(n/60)+':'+String(n%60).padStart(2,'0'); };
+let fuSlow=0;
+function fuTick(){ const t=Date.now();
+  if(FUEL.auto&&FUEL.fob!=null){ if(!FUEL.on&&st.gs>=40){ fuStart(); }
+    else if(FUEL.on){ if(st.gs!=null&&st.gs<5){ if(!fuSlow) fuSlow=t; else if(t-fuSlow>3*60e3){ fuStop(); fuSlow=0; } } else fuSlow=0; } }
+  const S=fuState(t), row=$('sFuel'), u=fuUnit();
+  if(!S){ row.hidden=true; return; }
+  const cls= S.endMin<=0? ' warn' : S.endMin<30? ' amber' : '';
+  row.hidden=false; row.className='st nxcls fuel'+cls;
+  row.innerHTML=`<small>FUEL${FUEL.on?'':' ⏸'}</small><b style="color:${S.endMin<=0?'var(--warn)':S.endMin<30?'var(--accent)':'var(--ink)'}">${Math.round(S.left)} ${u}</b><span>${S.endMin<=0?'<b>at or below your reserve</b>':fuHM(S.endMin)+' to reserve'} · ${Math.round(S.rangeNM)} NM at ${Math.round(S.gs)} kt · reserve ${S.resMin} min${FUEL.on?'':' · timer stopped'} · ran ${fuHM(S.ranMs/60e3)}</span>`;
+  if(FUEL.on&&FUEL.rem>0&&t-(FUEL.remT||FUEL.t1)>=FUEL.rem*60e3){ FUEL.remT=t; fuSave();
+    try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){}
+    if('speechSynthesis' in window){ try{ const m=Math.max(0,Math.round(S.endMin)); speechSynthesis.speak(new SpeechSynthesisUtterance(`Fuel check. ${Math.round(S.left)} ${u==='L'?'litres':'gallons'}. ${Math.floor(m/60)?Math.floor(m/60)+' hour'+(Math.floor(m/60)>1?'s ':' '):''}${m%60} minutes to reserve.`)); }catch(e){} } }
+  if($('fuDlg').open) fuUI(); }
+setInterval(()=>{ try{ fuTick(); }catch(e){} },5000);
+function fuUI(){ const S=fuState(), u=fuUnit(); $('fuU').textContent=u; $('fuBU').textContent=u;
+  $('fuRun').textContent=FUEL.on?'Stop':'Start'; $('fuRun').disabled=FUEL.fob==null;
+  $('fuNow').innerHTML= S? `${Math.round(S.left)} ${u} left${FUEL.on?'':' (stopped)'}<small>${S.endMin<=0?'at or below your reserve':fuHM(S.endMin)+' and '+Math.round(S.rangeNM)+' NM to the reserve ('+S.resMin+' min = '+Math.round(S.resQ)+' '+u+')'} · used ${Math.round(S.used)} ${u} in ${fuHM(S.ranMs/60e3)}</small>` : '<small>Set the fuel on board and burn rate, then Set fuel now.</small>'; }
+function fuOpen(){ $('fuFob').value= FUEL.fob!=null? Math.round(fuState()?fuState().left:FUEL.fob) : (ls.get('pcFuel','')||''); $('fuBurn').value=FUEL.burn||ls.get('pcBurn','')||''; $('fuRes').value= FUEL.res!=null? FUEL.res : '';
+  $('fuAuto').checked=!!FUEL.auto; $('fuRem').value=String(FUEL.rem||0); fuUI(); $('fuDlg').showModal(); }
 function render(){ if(!PF.on) return render0(); pfStart('render'); try{ return render0(); } finally{ pfEnd(); } }
 function render0(){
   if($('mapSec').hidden!==!st.pos){ $('mapSec').hidden=!st.pos; fsApply(); }
@@ -3960,6 +4002,15 @@ $('fpLegs').addEventListener('click',e=>{ if(e.target.closest('.altin')) return;
   $('fpLegs').scrollTop=at; });
 $('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; FP_REPL=null; $('fpAddErr').hidden=true; render(); };
 $('fpNew').onclick=()=>{ FP_EDIT=true; render(); $('fpAddIn').focus(); };
+$('bFuel').onclick=fuOpen; $('sFuel').onclick=fuOpen; $('fuClose').onclick=()=>$('fuDlg').close();
+$('fuSet').onclick=()=>{ const f=parseFloat($('fuFob').value), b=parseFloat($('fuBurn').value), r=$('fuRes').value.trim();
+  if(!(f>=0)||!(b>0)){ $('fuNow').innerHTML='<small class="w">Enter the fuel on board and the burn rate.</small>'; return; }
+  FUEL.res= r!==''&&+r>=0? +r : null; fuSet(f,b); fuTick(); render(); };
+$('fuRun').onclick=()=>{ FUEL.on? fuStop() : fuStart(); fuTick(); render(); };
+$('fuAuto').onchange=()=>{ FUEL.auto=$('fuAuto').checked; fuSave(); };
+$('fuRem').onchange=()=>{ FUEL.rem=+$('fuRem').value; FUEL.remT=Date.now(); fuSave(); };
+$('mapRange').setAttribute('aria-pressed',!!ls.get('mapRange',false));
+$('mapRange').onclick=()=>{ const on=!ls.get('mapRange',false); if(on&&!fuState()){ fuOpen(); return; } ls.set('mapRange',on); $('mapRange').setAttribute('aria-pressed',on); render(); };
 $('fpPlans').onclick=fplOpen; $('plClose').onclick=()=>$('plDlg').close();
 $('plSave').onclick=()=>{ const m=fplSaveCur($('plName').value); if(m) $('plStat').textContent=m; fplRender(); };
 $('plName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('plSave').click(); } });
