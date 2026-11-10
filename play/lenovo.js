@@ -1,8 +1,10 @@
-// Lenovo Tab 10.1" (ZAEJ0157AU, TB311XU): 1920x1200 WUXGA at DPR 1.5 -> 1280x800 CSS px; Android status + nav bars ~48 px (installed app), Chrome adds ~56 px
+// Lenovo Tab 10.1" (ZAEJ0157AU, TB311XU). Measured 10 Nov 2026 on the render timing panel: viewport 1470x970 @1.5 in landscape
+// (the earlier estimate, 1920x1200 at DPR 1.5 = 1280x800, was wrong; possibly Android's display size setting).
+// Landscape is the measured size; landscape in Chrome (~56 px of bars) and portrait are estimates from it.
 const {chromium}=require('playwright');
 const UA='Mozilla/5.0 (Linux; Android 14; TB311XU) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 const FSON={cookies:[],origins:[{origin:'http://localhost:8811',localStorage:[{name:'rc_fsMap',value:'true'}]}]};
-const V=[['land_app',1280,752],['land_chrome',1280,696],['port_app',800,1232]];
+const V=[['land_app',1470,970],['land_chrome',1470,914],['port_app',1010,1430]];
 (async()=>{ const b=await chromium.launch();
  for(const scheme of ['light','dark']) for(const [n,w,h] of V){ if(scheme==='dark'&&n==='land_chrome') continue;
   const ctx=await b.newContext({viewport:{width:w,height:h},screen:{width:w,height:h+48},deviceScaleFactor:1.5,isMobile:true,hasTouch:true,userAgent:UA,colorScheme:scheme,storageState:FSON});

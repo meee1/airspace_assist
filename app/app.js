@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794299012780;
+const APP_BUILT=1794297251810;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2246,9 +2246,10 @@ function pfShow(force){ const box=$('perfBox'); if(!PF.on){ box.hidden=true; ret
     R.parts(t).filter(s=>PF.all||s.avg>=0.3||s.max>=2).map(s=>`<tr class="${s.avg>=8?'w':''}"><td>${esc(s.name)}</td><td class="n">${f(s.avg)}</td><td class="n">${f(s.last)}</td><td class="n">${f(s.max)}</td><td></td></tr>`).join(''); };
   box.hidden=false; const Tr=R.tot('render'), Tm=R.tot('map'), hid=t=>PF.all?0:R.parts(t).filter(s=>!(s.avg>=0.3||s.max>=2)).length;
   if(PF.min){ box.innerHTML=`<div class="pb"><b>render ${Tr?f(Tr.avg):'-'} · map ${Tm?f(Tm.avg):'-'} ms${Tm&&R.parts('map')[0]?' · '+esc(R.parts('map')[0].name)+' '+f(R.parts('map')[0].avg):''}</b><button type="button" data-pf="max">+</button><button type="button" data-pf="off">✕</button></div>`; return; }
-  box.innerHTML=`<div class="pb"><b>Render timing, ms</b><button type="button" data-pf="copy">Copy</button><button type="button" data-pf="min">–</button><button type="button" data-pf="reset">Reset</button><button type="button" data-pf="off">✕</button></div>`+
+  box.innerHTML=`<div class="pb"><b>Render timing, ms</b><button type="button" data-pf="bench"${BN.on?' disabled':''}>${BN.on?'Running…':'Benchmark'}</button><button type="button" data-pf="copy">Copy</button><button type="button" data-pf="min">–</button><button type="button" data-pf="reset">Reset</button><button type="button" data-pf="off">✕</button></div>`+
     `<table><tr><td></td><td class="n">avg</td><td class="n">last</td><td class="n">max 60s</td><td class="n">rate</td></tr>${sec('render','Screen update (render)')}${sec('map','Map drawing (drawMap)')}</table>`+
     (hid('render')+hid('map')? `<div><button type="button" data-pf="all">Show ${hid('render')+hid('map')} more under 0.3 ms</button></div>` : PF.all? `<div><button type="button" data-pf="all">Hide parts under 0.3 ms</button></div>` : '')+
+    (BN.msg? `<div class="bn">${esc(BN.msg)}</div>` : '')+(BN.res&&!BN.on? `<pre class="bn">${esc(BN.res)}</pre>` : '')+
     `<div>Long tasks (over 50 ms) in the last minute: ${R.long.length}${R.long.length?' · worst '+Math.round(Math.max(...R.long.map(x=>x[1])))+' ms':''} · canvas ${cv?cv.width+'×'+cv.height:'-'} @${(window.devicePixelRatio||1).toFixed(2)}</div>`; }
 function pfText(){ const R=pfRows(), f=v=>v.toFixed(1), L=[];
   L.push(`Radio Calls AU render timing · ${new Date().toISOString()} · build ${APP_BUILT?new Date(APP_BUILT).toISOString().slice(0,16):'?'}`);
@@ -2258,13 +2259,112 @@ function pfText(){ const R=pfRows(), f=v=>v.toFixed(1), L=[];
   for(const [t,title] of [['render','render'],['map','drawMap']]){ const T=R.tot(t); if(!T) continue; L.push(''); L.push(`${title}: avg ${f(T.avg)} last ${f(T.last)} max60 ${f(T.max)} ms · ${R.rate(t).toFixed(1)}/s · n ${T.n}`);
     for(const s of R.parts(t)) L.push(`  ${s.name.padEnd(26)} avg ${f(s.avg).padStart(6)}  last ${f(s.last).padStart(6)}  max60 ${f(s.max).padStart(6)}`); }
   L.push(''); L.push(`long tasks 60s: ${R.long.length}${R.long.length?' (ms: '+R.long.map(x=>Math.round(x[1])).join(', ')+')':''}`);
+  if(BN.res){ L.push(''); L.push(BN.res); }
   return L.join('\n'); }
 $('perfBox').addEventListener('click',e=>{ const b=e.target.closest('[data-pf]'); if(!b) return; const k=b.dataset.pf;
   if(k==='min'||k==='max'){ PF.min=k==='min'; ls.set('perfMin',PF.min); pfShow(true); }
   else if(k==='all'){ PF.all=!PF.all; pfShow(true); }
   else if(k==='reset'){ PF.st.clear(); PF.long=[]; PF.ev={render:[],map:[]}; pfShow(true); }
-  else if(k==='off'){ PF.on=false; ls.set('perfOn',false); $('optPerf').checked=false; pfShow(true); }
+  else if(k==='bench'){ if(!BN.on) benchRun(); }
+  else if(k==='off'){ if(BN.on) return; PF.on=false; ls.set('perfOn',false); $('optPerf').checked=false; pfShow(true); }
   else if(k==='copy'){ const t=pfText(); (navigator.clipboard&&navigator.clipboard.writeText? navigator.clipboard.writeText(t) : Promise.reject()).then(()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1500); }).catch(()=>{ dlFile('render-timing.txt',t,'text/plain'); }); } });
+/* Map benchmark (Benchmark on the render timing panel, about two minutes): what each layer costs on this device, to decide
+   what's worth moving to WebGL. The live 1 Hz map drawing pauses (BN.on) while it runs; the layers, range and view are put
+   back afterwards. For each layer set and range (10, 40, 320 NM):
+     fly  : drawMap with the position moved a little (the chart/terrain pictures reused): the 1 Hz update in flight
+     pan  : a drag animation for 1.5 s, one drawMap per frame: frames per second (the real smoothness, GPU work included)
+            and drawMap's own ms per frame (JavaScript and drawing calls; the GPU's part shows only in the frame rate)
+     zoom : the range changes each frame, so every cached picture is rebuilt: the worst case (a zoom step)
+   Then a WebGL probe: the chart picture drawn as a textured 9×9 mesh panning in WebGL for 1.5 s (frames per second and ms
+   per frame) against the same picture through the 2D canvas (drawCache, mesh forced), and the texture upload's cost.
+   Nothing is read back from the map canvas (Chrome stops using the GPU for a canvas that's read often). */
+const BN={on:false, msg:'', res:''};
+async function benchRun(){
+  const sleep=t=>new Promise(r=>setTimeout(r,t)), raf=()=>new Promise(r=>requestAnimationFrame(r)), med=a=>{ const q=[...a].sort((x,y)=>x-y); return q.length? q[Math.floor(q.length/2)] : 0; };
+  const show=m=>{ BN.msg=m; pfShow(true); };
+  if(!MAP.last){ show('Benchmark: the map has not been drawn yet'); return; }
+  const S0={range:MAP.range, pan:MAP.pan, ter:MAP.ter, ch:CH.on, sat:SAT.on, op:SAT.op, ctaf:MAP.ctaf, rad:RAD.on, tr:MAP.traffic, wire:PL.on, last:MAP.last.slice()};
+  BN.on=true; BN.res=''; const L=[], f1=v=>v.toFixed(1);
+  L.push(`Map benchmark · ${new Date().toISOString()} · build ${APP_BUILT?new Date(APP_BUILT).toISOString().slice(0,16):'?'}`); L.push(navigator.userAgent);
+  L.push(`viewport ${innerWidth}x${innerHeight} @${window.devicePixelRatio} · map canvas ${$('map').width}x${$('map').height} · full screen ${document.body.classList.contains('fsm')}`);
+  // display refresh rate: frames in half a second of doing nothing
+  { let n=0; const t0=performance.now(); while(performance.now()-t0<500){ await raf(); n++; } L.push(`display ~${Math.round(n/((performance.now()-t0)/1000))} frames/s when idle`); }
+  const sets=[['map only',{}],['+CTAF',{ctaf:1}],['+charts',{ch:1}],['+terrain',{ter:1}]];
+  if(satVia()) sets.push(['+satellite',{sat:1,op:1}],['+sat faded',{sat:1,op:0.5}]);
+  if(!CH.idx.length) L.push('(no chart sheets ticked: +charts is the map only)');
+  L.push(''); L.push('set          range  fly ms  pan fps  pan ms  zoom ms   top parts (pan, ms per frame)');
+  try{
+    let k=0; const total=sets.length*3;
+    for(const [nm,o] of sets) for(const rg of [10,40,320]){
+      show(`Benchmark ${++k}/${total}: ${nm}, ${rg} NM…`);
+      Object.assign(MAP,{range:rg, pan:null, ctaf:!!o.ctaf, ter:!!o.ter, traffic:false}); CH.on=!!o.ch; SAT.on=!!o.sat; SAT.op=o.op||S0.op; RAD.on=false; PL.on=false; CHC.key='';
+      MAP.last=S0.last.slice(); drawMap(...MAP.last);
+      for(let i=0;i<16;i++){ await sleep(400);   // tiles, terrain and charts for this view
+        const busy=(CH.on&&[...CH.imgs.values()].includes('loading'))||(SAT.on&&[...SAT.img.values()].some(t=>!t.ok&&!t.bad))||(MAP.ter&&TER.busy.size>TER.tiles.size);
+        drawMap(...MAP.last); if(!busy&&i>=1) break; }
+      await raf(); await raf();
+      const fly=[]; for(let i=0;i<6;i++){ MAP.last=[S0.last[0]+i*0.0003,S0.last[1]+i*0.0003,...S0.last.slice(2)]; const t=performance.now(); drawMap(...MAP.last); fly.push(performance.now()-t); await raf(); }
+      MAP.last=S0.last.slice();
+      // pan: about a quarter of the range per second, diagonally
+      PF.st.clear(); const pj=[], c0=[S0.last[0],S0.last[1]]; let fr=0; const t0=performance.now();
+      while(performance.now()-t0<1500){ const el=(performance.now()-t0)/1000, d=rg/60*0.25*el; MAP.pan=[c0[0]-d*0.7,c0[1]+d/Math.cos(c0[0]*R)];
+        const t=performance.now(); drawMap(...MAP.last); pj.push(performance.now()-t); fr++; await raf(); }
+      const fps=fr/((performance.now()-t0)/1000);
+      const parts=[...PF.st.values()].filter(q=>q.tag==='map'&&q.name!=='TOTAL').sort((a,b)=>b.avg-a.avg).slice(0,3).map(q=>q.name+' '+f1(q.avg)).join(', ');
+      MAP.pan=null; const zm=[]; for(let i=0;i<4;i++){ MAP.range= i%2? rg : rg*1.25; const t=performance.now(); drawMap(...MAP.last); zm.push(performance.now()-t); await raf(); } MAP.range=rg;
+      L.push(`${nm.padEnd(12)} ${String(rg).padStart(4)}  ${f1(med(fly)).padStart(6)}  ${f1(fps).padStart(7)}  ${f1(med(pj)).padStart(6)}  ${f1(med(zm)).padStart(7)}   ${parts}`);
+    }
+    // WebGL probe on the chart picture (or the map itself when there are no charts)
+    show('Benchmark: WebGL probe…'); L.push('');
+    Object.assign(MAP,{range:40, pan:null, ctaf:false, ter:false}); CH.on=CH.idx.length>0; SAT.on=false; CHC.key=''; MAP.last=S0.last.slice(); drawMap(...MAP.last);
+    for(let i=0;i<10&&CH.on&&[...CH.imgs.values()].includes('loading');i++){ await sleep(400); drawMap(...MAP.last); }
+    CHC.key=''; drawMap(...MAP.last);
+    const src= CH.on&&CHC.drew? CHC.cv : $('map');
+    L.push(`WebGL probe · picture ${src.width}x${src.height} (${src===$('map')?'the map, no charts ticked':'the chart picture'})`);
+    L.push(...await benchGl(src,raf));
+  }catch(e){ L.push('stopped: '+(e&&e.message||e)); }
+  finally{
+    Object.assign(MAP,{range:S0.range, pan:S0.pan, ter:S0.ter, ctaf:S0.ctaf, traffic:S0.traffic}); CH.on=S0.ch; SAT.on=S0.sat; SAT.op=S0.op; RAD.on=S0.rad; PL.on=S0.wire; CHC.key=''; MAP.last=S0.last;
+    BN.on=false; BN.msg=''; BN.res=L.join('\n'); PF.st.clear(); render(); pfShow(true); }
+}
+// The WebGL side of the probe: the picture as a texture on a 9×9 grid (the shape drawCache uses when it has to bend the
+// picture), panned for 1.5 s on a WebGL canvas over the map; and the same picture through the 2D canvas, mesh forced, for 1.5 s.
+async function benchGl(src,raf){ const out=[], f1=v=>v.toFixed(1), W=MAP.W, Hh=MAP.H, dpr=window.devicePixelRatio||1, map=$('map');
+  const run=async(draw)=>{ const js=[]; let fr=0; const t0=performance.now(); while(performance.now()-t0<1500){ const t=performance.now(); draw((performance.now()-t0)/1500); js.push(performance.now()-t); fr++; await raf(); }
+    js.sort((a,b)=>a-b); return [fr/((performance.now()-t0)/1000), js[Math.floor(js.length/2)]]; };
+  // 2D: the picture onto the map canvas through drawCache with the grid forced
+  { const g=map.getContext('2d'), S=src.width/(CHC.dc||1), [a,b]=await run(p=>{ g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,map.width,map.height);
+      const sh=p*40, ang=0.3*p; drawCache(g,src,S,src.width/S,(u,v)=>{ const x=u-S/2, y=v-S/2, k=1+0.02*Math.sin((u+v)/S*6); return [W/2+(x*Math.cos(ang)-y*Math.sin(ang))*k-sh, Hh/2+(x*Math.sin(ang)+y*Math.cos(ang))*k-sh]; },
+        (x,y)=>[x+S/2-W/2+sh, y+S/2-Hh/2+sh],W,Hh,dpr); });
+    out.push(`2D canvas (drawCache, ${DCE.mesh?'8×8 grid':'one affine'}): ${f1(a)} frames/s, ${f1(b)} ms per frame`); }
+  // WebGL
+  const cv=document.createElement('canvas'); cv.width=map.width; cv.height=map.height; Object.assign(cv.style,{position:'fixed',left:'0',top:'0',width:W+'px',height:Hh+'px',pointerEvents:'none',zIndex:9998});
+  const gl=cv.getContext('webgl',{alpha:true,antialias:false,premultipliedAlpha:true});
+  if(!gl){ out.push('WebGL: not available on this device'); return out; }
+  try{ document.body.appendChild(cv);
+    const sh=(t,c)=>{ const o=gl.createShader(t); gl.shaderSource(o,c); gl.compileShader(o); return o; }, pr=gl.createProgram();
+    gl.attachShader(pr,sh(gl.VERTEX_SHADER,'attribute vec2 p;attribute vec2 t;varying vec2 v;void main(){v=t;gl_Position=vec4(p,0.,1.);}'));
+    gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,'precision mediump float;varying vec2 v;uniform sampler2D s;uniform float a;void main(){gl_FragColor=texture2D(s,v)*a;}'));
+    gl.linkProgram(pr); gl.useProgram(pr);
+    const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex); [[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]].forEach(([k,v])=>gl.texParameteri(gl.TEXTURE_2D,k,v));
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+    const up=[]; for(let i=0;i<3;i++){ const t=performance.now(); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src); gl.finish(); up.push(performance.now()-t); }
+    out.push(`WebGL texture upload of the picture: ${f1(Math.min(...up))} ms (needed each time the picture is rebuilt)`);
+    const N=8, idx=[]; for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const q=j*(N+1)+i; idx.push(q,q+1,q+N+1,q+1,q+N+2,q+N+1); }
+    const ib=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+    const vb=gl.createBuffer(), pa=gl.getAttribLocation(pr,'p'), ta=gl.getAttribLocation(pr,'t'), vtx=new Float32Array((N+1)*(N+1)*4);
+    gl.bindBuffer(gl.ARRAY_BUFFER,vb); gl.enableVertexAttribArray(pa); gl.enableVertexAttribArray(ta); gl.vertexAttribPointer(pa,2,gl.FLOAT,false,16,0); gl.vertexAttribPointer(ta,2,gl.FLOAT,false,16,8);
+    gl.uniform1f(gl.getUniformLocation(pr,'a'),0.7); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA); gl.viewport(0,0,cv.width,cv.height);
+    const S=src.width/(CHC.dc||1);
+    const [a,b]=await run(p=>{ const sft=p*40, ang=0.3*p; let o=0;
+      for(let j=0;j<=N;j++) for(let i=0;i<=N;i++){ const u=S*i/N, v=S*j/N, x=u-S/2, y=v-S/2, k=1+0.02*Math.sin((u+v)/S*6), X=W/2+(x*Math.cos(ang)-y*Math.sin(ang))*k-sft, Y=Hh/2+(x*Math.sin(ang)+y*Math.cos(ang))*k-sft;
+        vtx[o++]=X/W*2-1; vtx[o++]=1-Y/Hh*2; vtx[o++]=i/N; vtx[o++]=j/N; }
+      gl.bufferData(gl.ARRAY_BUFFER,vtx,gl.DYNAMIC_DRAW); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawElements(gl.TRIANGLES,idx.length,gl.UNSIGNED_SHORT,0); });
+    out.push(`WebGL (8×8 textured grid): ${f1(a)} frames/s, ${f1(b)} ms per frame`);
+    const dbg=gl.getExtension('WEBGL_debug_renderer_info'); out.push('GPU: '+(dbg? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)));
+    gl.deleteTexture(tex); gl.deleteBuffer(vb); gl.deleteBuffer(ib); const lose=gl.getExtension('WEBGL_lose_context'); if(lose) lose.loseContext();
+  } finally{ cv.remove(); }
+  return out; }
 $('optPerf').checked=PF.on; $('optPerf').addEventListener('change',()=>{ PF.on=$('optPerf').checked; ls.set('perfOn',PF.on); PF.st.clear(); PF.stack=[]; pfShow(true); render(); });
 // a new version took over while the app was open (the page itself is still the old one): offer a reload; and check for an
 // update whenever the app comes back to the front (a tablet left open for days otherwise keeps the old version)
@@ -3700,7 +3800,7 @@ function render0(){
   }
   pfMark('alerts + tiles');
   plUI(); pfMark('power line check');   // power line warning (before the map: it marks the crossing)
-  drawMap(la,lo,h,pick,AS,altFt); pfMark('map (all)');
+  if(!BN.on) drawMap(la,lo,h,pick,AS,altFt); pfMark('map (all)');   // not while the benchmark is drawing the map itself
   $('stack').innerHTML=html;
 
   // list

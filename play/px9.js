@@ -3,7 +3,12 @@ const {chromium}=require('playwright');
 const PX9={viewport:{width:427,height:880},screen:{width:427,height:952},deviceScaleFactor:3,isMobile:true,hasTouch:true,
   userAgent:'Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
   storageState:{cookies:[],origins:[{origin:'http://localhost:8811',localStorage:[{name:'rc_fsMap',value:'false'}]}]}};   // older tests: classic page layout (play/fsmap.js turns full screen on)
-module.exports={PX9};
+// Michael's tablet, a Lenovo Tab 10.1" (TB311XU) (10 Nov 2026): the render timing panel's viewport line reads 1470x970 @1.5 (CSS px, landscape, after browser bars) ->
+// ~2205x1455 device px. Android Chrome, touch; full-screen map uses the tablet layout here (fsTab: landscape, >=800 wide).
+const TAB={viewport:{width:1470,height:970},screen:{width:1470,height:970},deviceScaleFactor:1.5,isMobile:true,hasTouch:true,
+  userAgent:'Mozilla/5.0 (Linux; Android 14; TB311XU) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+  storageState:{cookies:[],origins:[{origin:'http://localhost:8811',localStorage:[{name:'rc_fsMap',value:'false'}]}]}};
+module.exports={PX9,TAB};
 if(require.main===module)(async()=>{ const b=await chromium.launch(); const errs=[];
  for(const scheme of ['light','dark']){
  const ctx=await b.newContext({...PX9,colorScheme:scheme}); const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(e.message));

@@ -11,8 +11,8 @@ const {spawn}=require('child_process'), fs=require('fs'), path=require('path'), 
 const HELPERS=['run-all','classic'];
 const TOOLS=['asp','fr24replay','fr24replay_tool','tercmp'];              // take arguments, or compare against a second build on :8813
 const NEED_PROXY=['nbdl','satproxy','traffic','trlog','trsel'];   // need the worker (or a stand-in) on localhost:8812
-const SLOW=['chart_off','chart','chart_def','chclip','allcharts','play','lenovo'];   // import 13-20 MB AIP PDFs (several minutes; paths in the
-                                                                 // tests) or download every site chart, or run a long simulated flight
+const SLOW=['chart_off','chart','chart_def','chclip','allcharts','play','lenovo','bench','perfbench'];   // import 13-20 MB AIP PDFs (several minutes;
+                                                                 // paths in the tests), download every site chart, run a long simulated flight or a benchmark
 const WEBGL=['v3d','v3dui','v3dprev','v3dfix'];                  // fine headless, just slower (software WebGL)
 const args=process.argv.slice(2), all=args.includes('--all'), pick=args.filter(a=>!a.startsWith('--'));
 const names=pick.length? pick : fs.readdirSync(__dirname).filter(f=>f.endsWith('.js')).map(f=>f.slice(0,-3))
