@@ -51,3 +51,10 @@ tools/chartctaf_work/
 
 # written by play/run-all.js (test times on this machine)
 play/.durations.json
+
+# coast-route prototype and its Victorian test data (tools/coastroute.py; the app does this itself now): kept locally
+/coast/
+tools/coastroute.py
+# local scratch
+chart_clips.pdf
+tools/__pycache__/

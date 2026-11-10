@@ -1,5 +1,5 @@
-const C='radio-au-3e745f22e7', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
-const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./app.js?v=6d2bbcd32f','./urban.json?v=b7ee073b12','./data.json?v=f125575d9a','./data-next.json?v=a653815da6'];   // build files with the ?v= the page asks for
+const C='radio-au-b0b767479b', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
+const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./app.js?v=bdf45c10f8','./urban.json?v=b7ee073b12','./data.json?v=f125575d9a','./data-next.json?v=a653815da6'];   // build files with the ?v= the page asks for
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
 const BUILD=/\/(app\.js|data\.json|data-next\.json|urban\.json)$/;
@@ -46,6 +46,10 @@ self.addEventListener('fetch',e=>{
     e.respondWith(timed(req,3000).catch(()=>null).then(r=>r&&r.ok? r : caches.open(X).then(c=>c.match('charts/index.json').then(x=>x||r||Response.error()))));
   } else if(/\/terrain\/[^/]+\.bin\.z$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));
+  } else if(/\/coast\/[SN]\d\d[EW]\d{3}\.json$/.test(u.pathname)){   // coastline tiles (tools/coast.py): cache first, kept across builds
+    e.respondWith(caches.open(T).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));   // ?v= (the build) is part of the key: a rebuild fetches fresh
+  } else if(/\/coast\/index\.json$/.test(u.pathname)){   // network first: a rebuilt coastline replaces the tiles (the page asks with ?v=)
+    e.respondWith(caches.open(T).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('coast/index.json',n.clone()); return n; }).catch(()=>c.match('coast/index.json').then(r=>r||Response.error()))));
   } else if(/\/terrain\/index\.json$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('terrain/index.json',n.clone()); return n; }).catch(()=>c.match('terrain/index.json'))));
   } else if(BUILD.test(u.pathname)){

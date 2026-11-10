@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794315071140;
+const APP_BUILT=1794347754557;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -378,6 +378,142 @@ function fpAdd(p,at){ // at: index, 'best' or undefined (end); starts a plan whe
   if(at==='next') fpPick(k);   // head for it now
   else if(atStart&&FP.pts.length>1) fpPick(1);   // the plan started where you are: head for the point just added
 }
+/* ---------- coast legs: a flight plan leg that follows the coast a set distance off the shore ----------
+   rc_coastOff (ft, default 500) off the shore, with hops over open water up to rc_coastGap (NM, default 2: across the Rip,
+   river mouths, narrow bay entrances, to an island). Coastline: Geoscience Australia GEODATA COAST 100K 2004, cut into 1°
+   tiles by tools/coast.py (coast/index.json lists the coastal tiles and the all-land ones; anything else is sea). The land
+   round the leg is drawn onto a grid (cells a quarter of the offset, at most 2400 across; anything a cell touches counts as land), every water cell gets its
+   exact distance to land, and the route is traced along the line at the offset (see coastTry). Its turn points go into
+   the plan as ordinary waypoints (CST1…, cg = the leg's id; the leg's end point has via:'coast', cgid, coff, cgap), so
+   sequencing, Go to, the profile, Plan check, saved plans and GPX all use them; the list and the map hide them (the end
+   point says COAST). Direct again takes them out. If the route needs more room than the leg's surroundings (round Port
+   Phillip's heads) the area grows: 6 → 12 → 24 → 48 NM round the leg. */
+const COAST={idx:null, tiles:new Map(), off:ls.get('coastOff',500), gap:ls.get('coastGap',2)};
+async function coastIndex(){ if(COAST.idx) return COAST.idx;
+  const r=await fetch('coast/index.json',{cache:'no-cache'}).catch(()=>null); if(!r||!r.ok) throw new Error('the coastline data isn\'t on this device yet (it needs a connection the first time)');
+  const j=await r.json(); COAST.c=new Set(j.c||[]); COAST.l=new Set(j.l||[]); COAST.idx=j; return j; }
+function coastTile(n){ let p=COAST.tiles.get(n); if(p) return p;
+  p=fetch('coast/'+n+'.json?v='+encodeURIComponent(COAST.idx.built||'')).then(r=>{ if(!r.ok) throw new Error('coastline tile '+n+' not loaded'); return r.json(); }).then(j=>j.p||[]);
+  COAST.tiles.set(n,p); p.catch(()=>COAST.tiles.delete(n)); return p; }
+// exact squared Euclidean distance transform (Felzenszwalb & Huttenlocher): f = 0 on land, BIG on water; in place, cells²
+const EDT_BIG=1e20;
+function edt2(f,W,H){ const n=Math.max(W,H), v=new Int32Array(n), z=new Float64Array(n+1), g=new Float64Array(n), d=new Float64Array(n);
+  const one=N=>{ let k=0; v[0]=0; z[0]=-Infinity; z[1]=Infinity;
+    for(let q=1;q<N;q++){ let s=((g[q]+q*q)-(g[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);
+      while(s<=z[k]){ k--; s=((g[q]+q*q)-(g[v[k]]+v[k]*v[k]))/(2*q-2*v[k]); }
+      k++; v[k]=q; z[k]=s; z[k+1]=Infinity; }
+    k=0; for(let q=0;q<N;q++){ while(z[k+1]<q) k++; const dq=q-v[k]; d[q]=dq*dq+g[v[k]]; } };
+  for(let x=0;x<W;x++){ for(let y=0;y<H;y++) g[y]=f[y*W+x]; one(H); for(let y=0;y<H;y++) f[y*W+x]=d[y]; }
+  for(let y=0;y<H;y++){ const o=y*W; for(let x=0;x<W;x++) g[x]=f[o+x]; one(W); for(let x=0;x<W;x++) f[o+x]=d[x]; }
+  return f; }
+// The land round a leg on a grid (metres, x east / y north about the leg's middle); land[] and dist[] (m to the nearest land)
+async function coastGrid(a,b,M_nm,cellMin){
+  const la0=(a.la+b.la)/2, lo0=(a.lo+b.lo)/2, kx=111320*Math.cos(la0*R), ky=110540;
+  const X_=lo=>(lo-lo0)*kx, Y_=la=>(la-la0)*ky, M=M_nm*NM_M;
+  const ax=X_(a.lo), ay=Y_(a.la), bx=X_(b.lo), by=Y_(b.la), x0=Math.min(ax,bx)-M, x1=Math.max(ax,bx)+M, y0=Math.min(ay,by)-M, y1=Math.max(ay,by)+M;
+  const cell=Math.max(cellMin, Math.max(x1-x0,y1-y0)/2400), W=Math.ceil((x1-x0)/cell)+1, H=Math.ceil((y1-y0)/cell)+1;
+  const laA=la0+y0/ky, laB=la0+y1/ky, loA=lo0+x0/kx, loB=lo0+x1/kx, need=[];
+  for(let la=Math.floor(laA);la<=Math.floor(laB);la++) for(let lo=Math.floor(loA);lo<=Math.floor(loB);lo++) need.push([la,lo,tName(la,lo)]);
+  const polys=await Promise.all(need.map(([,,n])=>COAST.c.has(n)? coastTile(n) : Promise.resolve(null)));
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const g=cv.getContext('2d',{willReadFrequently:true});
+  g.fillStyle=g.strokeStyle='#000'; g.lineWidth=1.5; const PX=lo=>(X_(lo)-x0)/cell, PY=la=>(y1-Y_(la))/cell;   // cell (i, j): centre at x0 + (i+0.5) cell, y1 - (j+0.5) cell
+  need.forEach(([la,lo,n],i)=>{ if(COAST.l.has(n)){ g.fillRect(PX(lo),PY(la+1),PX(lo+1)-PX(lo),PY(la)-PY(la+1)); return; }
+    for(const poly of polys[i]||[]){ g.beginPath();
+      for(const r of poly){ let x=r[0], y=r[1]; g.moveTo(PX(x/1e4),PY(y/1e4)); for(let k=2;k<r.length;k+=2){ x+=r[k]; y+=r[k+1]; g.lineTo(PX(x/1e4),PY(y/1e4)); } g.closePath(); }
+      g.fill('evenodd'); g.stroke(); } });   // the outline too: a cell any land touches is land (rocks, spits, a breakwater thinner than a cell), so the line errs to seaward
+  const px=g.getImageData(0,0,W,H).data, N=W*H, f=new Float64Array(N), land=new Uint8Array(N);
+  for(let i=0;i<N;i++){ const l=px[i*4+3]>40; land[i]=l?1:0; f[i]= l? 0 : EDT_BIG; }
+  edt2(f,W,H); const dist=new Float32Array(N); for(let i=0;i<N;i++) dist[i]=Math.sqrt(f[i])*cell;
+  return {la0,lo0,kx,ky,x0,y1,cell,W,H,land,dist,A:[ax,ay],B:[bx,by]}; }
+const NM_M=1852;
+/* One try at a given margin -> {pts:[{la,lo}]} | 'grow' | null. The line `off` metres off the coast is traced through the
+   distance field (marching squares at off); its pieces are chained into lines, each point knowing how far along its line it
+   is. Graph: each point to the next along its line; hops over open water up to `gap` (staying at least 85% of the offset off
+   the land) where the hop saves at least half of the way round (or joins two different lines: an island, the far side of a
+   river mouth); each end joined in a straight leg to the line's points within 5 NM of its nearest. Dijkstra, then the path
+   is simplified (Douglas-Peucker, a fifth of the offset) into turn points. */
+async function coastTry(a,b,off,gap,M){
+  const G=await coastGrid(a,b,M,Math.max(15,off/4)), {W,H,cell,dist}=G, L=off-0.4*cell;   // touched cells count as land, which puts the line about 0.7 cell further out: aim a little in (measured against the polygons, play/coastleg.js)
+  const cx=i=>G.x0+(i+0.5)*cell, cy=j=>G.y1-(j+0.5)*cell, v=(i,j)=>dist[j*W+i];
+  // marching squares over the cell centres: a node on each grid edge the line crosses
+  const nodeOf=new Map(), nx=[], ny=[], segA=[], segB=[];
+  const node=(key,x,y)=>{ let n=nodeOf.get(key); if(n===undefined){ n=nx.length; nodeOf.set(key,n); nx.push(x); ny.push(y); } return n; };
+  const eH=(i,j)=>{ const a_=v(i,j), b_=v(i+1,j), t=(L-a_)/(b_-a_); return node((j*W+i)*2,cx(i)+t*cell,cy(j)); };       // (i,j)-(i+1,j)
+  const eV=(i,j)=>{ const a_=v(i,j), b_=v(i,j+1), t=(L-a_)/(b_-a_); return node((j*W+i)*2+1,cx(i),cy(j)-t*cell); };      // (i,j)-(i,j+1)
+  for(let j=0;j<H-1;j++) for(let i=0;i<W-1;i++){
+    const tl=v(i,j)>=L, tr=v(i+1,j)>=L, br=v(i+1,j+1)>=L, bl=v(i,j+1)>=L, c=(tl?8:0)|(tr?4:0)|(br?2:0)|(bl?1:0); if(c===0||c===15) continue;
+    const T=()=>eH(i,j), B=()=>eH(i,j+1), Lf=()=>eV(i,j), Rt=()=>eV(i+1,j), seg=(p,q)=>{ segA.push(p); segB.push(q); };
+    switch(c){ case 1: case 14: seg(Lf(),B()); break; case 2: case 13: seg(B(),Rt()); break; case 3: case 12: seg(Lf(),Rt()); break;
+      case 4: case 11: seg(T(),Rt()); break; case 6: case 9: seg(T(),B()); break; case 7: case 8: seg(Lf(),T()); break;
+      case 5: case 10: { const mid=(v(i,j)+v(i+1,j)+v(i+1,j+1)+v(i,j+1))/4>=L; if((c===5)===mid){ seg(Lf(),T()); seg(B(),Rt()); } else { seg(Lf(),B()); seg(T(),Rt()); } break; } } }
+  const n=nx.length; if(n<2){ COAST.why='no coast in the area'; return M<48? 'grow' : null; }
+  const adj=Array.from({length:n},()=>[]); for(let k=0;k<segA.length;k++){ if(segA[k]===segB[k]) continue; adj[segA[k]].push(segB[k]); adj[segB[k]].push(segA[k]); }
+  // chain into lines: line id and distance along it per point; a closed line knows its length
+  const lid=new Int32Array(n).fill(-1), s=new Float64Array(n), llen=[], lclosed=[];
+  const walk=(st)=>{ const id=llen.length; let p=-1, q=st, acc=0; lid[q]=id; s[q]=0; let closed=false;
+    for(;;){ const nxt=adj[q].find(r=>r!==p&&lid[r]===-1); if(nxt===undefined){ closed=adj[q].some(r=>r===st)&&q!==st&&p!==st; if(closed) acc+=Math.hypot(nx[q]-nx[st],ny[q]-ny[st]); break; }
+      acc+=Math.hypot(nx[nxt]-nx[q],ny[nxt]-ny[q]); lid[nxt]=id; s[nxt]=acc; p=q; q=nxt; }
+    llen.push(acc); lclosed.push(closed); };
+  for(let k=0;k<n;k++) if(lid[k]===-1&&adj[k].length===1) walk(k);
+  for(let k=0;k<n;k++) if(lid[k]===-1) walk(k);
+  // graph
+  const E=Array.from({length:n+2},()=>[]), add=(p,q,w)=>{ E[p].push(q,w); E[q].push(p,w); };
+  for(let k=0;k<segA.length;k++) if(segA[k]!==segB[k]) add(segA[k],segB[k],Math.hypot(nx[segA[k]]-nx[segB[k]],ny[segA[k]]-ny[segB[k]]));
+  if(gap>0){ const Gm=gap*NM_M, bk=new Map(), key=(x,y)=>Math.floor(x/Gm)+','+Math.floor(y/Gm);
+    for(let k=0;k<n;k++){ const q=key(nx[k],ny[k]); let arr=bk.get(q); if(!arr) bk.set(q,arr=[]); arr.push(k); }
+    const wet=(p,q)=>{ const d=Math.hypot(nx[q]-nx[p],ny[q]-ny[p]), m=Math.ceil(d/(cell/2)); for(let t=1;t<m;t++){ const x=nx[p]+(nx[q]-nx[p])*t/m, y=ny[p]+(ny[q]-ny[p])*t/m, i=Math.floor((x-G.x0)/cell), j=Math.floor((G.y1-y)/cell);
+      if(i<0||j<0||i>=W||j>=H||dist[j*W+i]<off*0.85) return false; } return true; };
+    for(let p=0;p<n;p++){ const bxk=Math.floor(nx[p]/Gm), byk=Math.floor(ny[p]/Gm);
+      for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){ const arr=bk.get((bxk+dx)+','+(byk+dy)); if(!arr) continue;
+        for(const q of arr){ if(q<=p) continue; const d=Math.hypot(nx[q]-nx[p],ny[q]-ny[p]); if(d>Gm||d<3*cell) continue;
+          if(lid[p]===lid[q]){ let round=Math.abs(s[q]-s[p]); if(lclosed[lid[p]]) round=Math.min(round,llen[lid[p]]-round); if(round<2*d+3*cell) continue; }
+          if(wet(p,q)) add(p,q,d); } } } }
+  const iA=n, iB=n+1;
+  for(const [P,ie] of [[G.A,iA],[G.B,iB]]){ let dmin=Infinity; const dd=new Float64Array(n); for(let k=0;k<n;k++){ dd[k]=Math.hypot(nx[k]-P[0],ny[k]-P[1]); if(dd[k]<dmin) dmin=dd[k]; }
+    if(M<48&&dmin>M*NM_M/2){ COAST.why='end '+(ie-n)+' far from the coast: '+(dmin/NM_M).toFixed(1)+' NM'; return 'grow'; }   // an inland end whose nearest coast may be outside the area (Bankstown: Botany Bay)
+    const cand=[]; for(let k=0;k<n;k++) if(dd[k]<=dmin+5*NM_M) cand.push(k); const step=Math.max(1,Math.floor(cand.length/400));
+    for(let c=0;c<cand.length;c++) if(c%step===0||dd[cand[c]]===dmin) add(ie,cand[c],dd[cand[c]]); }
+  // Dijkstra
+  const D=new Float64Array(n+2).fill(Infinity), par=new Int32Array(n+2).fill(-1), hp=[], hk=[];
+  const push=(i,k)=>{ hp.push(i); hk.push(k); let c=hp.length-1; while(c>0){ const p=(c-1)>>1; if(hk[p]<=hk[c]) break; [hp[p],hp[c]]=[hp[c],hp[p]]; [hk[p],hk[c]]=[hk[c],hk[p]]; c=p; } };
+  const pop=()=>{ const top=hp[0], last=hp.pop(), lk=hk.pop(); if(hp.length){ hp[0]=last; hk[0]=lk; let c=0; for(;;){ const l=2*c+1, r=l+1; let m=c; if(l<hp.length&&hk[l]<hk[m]) m=l; if(r<hp.length&&hk[r]<hk[m]) m=r; if(m===c) break; [hp[m],hp[c]]=[hp[c],hp[m]]; [hk[m],hk[c]]=[hk[c],hk[m]]; c=m; } } return top; };
+  D[iA]=0; push(iA,0);
+  while(hp.length){ const k=hp[0], dk=hk[0]; pop(); if(dk>D[k]) continue; if(k===iB) break; const e=E[k]; for(let z=0;z<e.length;z+=2){ const q=e[z], nd=dk+e[z+1]; if(nd<D[q]){ D[q]=nd; par[q]=k; push(q,nd); } } }
+  if(!isFinite(D[iB])){ COAST.why='no way through'; return M<48? 'grow' : null; }
+  const path=[]; for(let k=iB;k!==-1;k=par[k]) path.push(k); path.reverse();
+  const XY=k=> k===iA? G.A : k===iB? G.B : [nx[k],ny[k]];
+  if(M<48&&path.some(k=>{ if(k>=n) return false; const i=(nx[k]-G.x0)/cell, j=(G.y1-ny[k])/cell; return i<3||j<3||i>W-4||j>H-4; })){ COAST.why='along the edge'; return 'grow'; }
+  // Douglas-Peucker (metres)
+  const P=path.map(XY), keep=new Uint8Array(P.length); keep[0]=keep[P.length-1]=1; const st=[[0,P.length-1]], tol=Math.min(cell,off/5);
+  while(st.length){ const [i0,i1]=st.pop(); const [ax_,ay_]=P[i0], [bx_,by_]=P[i1], dx=bx_-ax_, dy=by_-ay_, l2=dx*dx+dy*dy||1e-9; let md=0, mi=-1;
+    for(let k=i0+1;k<i1;k++){ const t=Math.max(0,Math.min(1,((P[k][0]-ax_)*dx+(P[k][1]-ay_)*dy)/l2)), e=Math.hypot(P[k][0]-ax_-t*dx,P[k][1]-ay_-t*dy); if(e>md){ md=e; mi=k; } }
+    if(md>tol&&mi>0){ keep[mi]=1; st.push([i0,mi],[mi,i1]); } }
+  const pts=[]; for(let k=1;k<P.length-1;k++) if(keep[k]) pts.push({la:G.la0+P[k][1]/G.ky, lo:G.lo0+P[k][0]/G.kx});
+  return {pts, cell, NM:D[iB]/NM_M}; }
+async function coastRoute(a,b,offFt,gapNm){ await coastIndex(); const off=offFt*0.3048;
+  for(let M=6;M<=48;M*=2){ const r=await coastTry(a,b,off,gapNm,Math.max(M,gapNm*2)); if(r==='grow') continue; return r; }
+  return null; }
+const coastId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+// make the leg into the point with id-less index k (the point itself, found again by reference after the await) coastal or direct
+async function fpCoastSet(end,on){ if(!FP) return; const P_=FP.pts, st_=$('fpCoastStat');
+  // flying this leg (heading for one of its turn points or its end): the active waypoint moves to its end before the turn
+  // points go, and to the first new turn point after
+  const onLeg=()=>{ const c=FP.pts[FP.i]; return !FP.dct&&!!c&&(c===end||(!!end.cgid&&c.cg===end.cgid)); };
+  const strip=()=>{ if(!end.cgid) return; if(onLeg()) FP.i=FP.pts.indexOf(end); const gid=end.cgid; fpEdit(P=>{ for(let j=P.length-1;j>=0;j--) if(P[j].cg===gid) P.splice(j,1); }); };
+  if(!on){ strip(); delete end.via; delete end.cgid; delete end.coff; delete end.cgap; fpEdit(()=>{}); st_.textContent=''; return; }
+  let k=P_.indexOf(end); if(k<1) return; const fly=onLeg(); strip(); k=FP.pts.indexOf(end);
+  const a=FP.pts[k-1], off=COAST.off, gp=COAST.gap, how=`${off} ft off the shore${gp?`, hops up to ${gp} NM`:''}`; st_.textContent=`Working out a route to ${end.c||end.n}, ${how}…`;
+  let r; try{ r=await coastRoute(a,end,off,gp); }catch(e){ st_.textContent='No coast route: '+e.message+'.'; return; }
+  k=FP.pts.indexOf(end); if(k<1||FP.pts[k-1]!==a){ st_.textContent=''; return; }   // the plan changed meanwhile
+  if(!r){ st_.textContent=`No coast route from ${a.c||a.n} to ${end.c||end.n} (${how}): try longer hops.`; return; }
+  const gid=coastId(), D0=distBrg(a.la,a.lo,end.la,end.lo)[0];
+  const ins=r.pts.map((q,i)=>({n:'CST'+(i+1), la:+q.la.toFixed(5), lo:+q.lo.toFixed(5), desc:`Coast route to ${end.c||end.n}, ${how}`, cg:gid}));
+  fpEdit(P=>{ P.splice(k,0,...ins); end.via='coast'; end.cgid=gid; end.coff=off; end.cgap=gp; delete end.cnm; });
+  if(fly&&ins.length&&FP.pts[FP.i]===end) fpPick(FP.pts.indexOf(ins[0]));
+  let D=0, L=[a,...ins,end]; for(let i=1;i<L.length;i++) D+=distBrg(L[i-1].la,L[i-1].lo,L[i].la,L[i].lo)[0];
+  st_.textContent=`${a.c||a.n} → ${end.c||end.n} along the coast, ${how}: ${D.toFixed(1)} NM (direct ${D0.toFixed(1)}), ${ins.length} turn point${ins.length===1?'':'s'}.`; }
+// a new distance: every coast leg again
+async function fpCoastAll(){ if(!FP) return; for(const p of FP.pts.filter(q=>q.via==='coast')) await fpCoastSet(p,true); }
 function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGoRaw({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
 function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-track remaining
   const [d13,b13]=distBrg(a.la,a.lo,la,lo), [,b12]=distBrg(a.la,a.lo,b.la,b.lo);
@@ -1107,11 +1243,11 @@ function drawProf(){
     const x0=xA(i); g.fillRect(x0,y(q.base)-1.5,Math.max(1,xB(j)-x0),3); i=j; }
   // waypoints
   const P_=FP.pts; g.textAlign='center'; g.textBaseline='alphabetic';
-  P_.forEach((p,k)=>{ const X=x(pr.cum[k]), on=k===FP.i; g.strokeStyle=on?C.wp:C.dim; g.globalAlpha=on?.9:.45; g.setLineDash([2,3]);
+  P_.forEach((p,k)=>{ if(p.cg&&k!==FP.i) return; const X=x(pr.cum[k]), on=k===FP.i; g.strokeStyle=on?C.wp:C.dim; g.globalAlpha=on?.9:.45; g.setLineDash([2,3]);
     g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke(); g.setLineDash([]); g.globalAlpha=1; });
   // labels: active waypoint first, then start and end, then the rest left to right, skipping any that would overlap
   const order=[FP.i,0,P_.length-1,...P_.map((_,k)=>k)].filter((k,j,a)=>a.indexOf(k)===j), placed=[];
-  for(const k of order){ const p=P_[k], on=k===FP.i; g.font=(on?'600 ':'')+'10px '+C.mono;
+  for(const k of order){ const p=P_[k], on=k===FP.i; if(p.cg&&!on) continue; g.font=(on?'600 ':'')+'10px '+C.mono;
     const lab=(p.c||p.n||'').slice(0,5), wdt=g.measureText(lab).width, LX=Math.min(W-r-wdt/2,Math.max(l+wdt/2,x(pr.cum[k])));
     if(placed.some(q=>LX+wdt/2+4>q[0]&&LX-wdt/2-4<q[1])) continue; placed.push([LX-wdt/2,LX+wdt/2]);
     g.fillStyle=on?C.wp:C.ink; g.fillText(lab,LX,t-4); }
@@ -1180,7 +1316,7 @@ function renderFP(h,varE){
   drawProf();
   // not while you're typing in it: the keyboard opening resizes the page, which re-renders
   if(!($('fpLegs').contains(document.activeElement)&&document.activeElement.tagName==='INPUT')){ const html=P_.map((p,k)=>{ const leg=k>0?distBrg(P_[k-1].la,P_[k-1].lo,p.la,p.lo):null; const lp=PROF&&PROF.legs?PROF.legs[k]:null;
-    return `<li class="${k<i?'done':k===i?'on':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b>${fpAd(p)&&fpLand(k)?' <i class="landt">LAND</i>':''} <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed">${k?`<input class="altin${p.alt!=null?' set':''}" data-k="${k}" type="text" inputmode="numeric" autocomplete="off" maxlength="6" value="${p.alt!=null?p.alt:''}" placeholder="${lp&&lp.set?(lp.sug!=null?lp.sug:''):(lp&&lp.alt!=null?lp.alt:'alt')}" title="Altitude for the leg to ${esc(p.c||p.n)} (ft AMSL, or A045 / FL095). Empty = the suggestion" aria-label="Altitude for the leg to ${esc(p.c||p.n)}">`:''}<button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button>${fpAd(p)?`<button class="btn landb${fpLand(k)?' on':''}" data-a="land" aria-pressed="${fpLand(k)}" title="Landing here: the 10 NM reminder is an inbound call (otherwise a transit call)">Land</button>`:''}<button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
+    return `<li class="${k<i?'done':k===i?'on':''}${p.cg&&k!==i?' cgh':''}" data-k="${k}"><span class="n">${k+1}</span><span class="w"><b>${esc(p.c||p.n)}</b>${fpAd(p)&&fpLand(k)?' <i class="landt">LAND</i>':''}${p.via==='coast'?` <i class="cstt" title="Coast leg: ${p.coff||COAST.off} ft off the shore, hops up to ${p.cgap??COAST.gap} NM">COAST</i>`:''} <span>${esc(p.desc||(p.c?'':''))}</span></span><span class="m">${leg?fmt3(leg[1]-varE)+'°':''}</span><span class="m">${leg?leg[0].toFixed(1)+' NM':''}</span><span class="m alt ${lp?'k-'+lp.kind:''}" title="Suggested VFR altitude for this leg">${legAltTxt(lp)}</span><span class="ed">${k?`<input class="altin${p.alt!=null?' set':''}" data-k="${k}" type="text" inputmode="numeric" autocomplete="off" maxlength="6" value="${p.alt!=null?p.alt:''}" placeholder="${lp&&lp.set?(lp.sug!=null?lp.sug:''):(lp&&lp.alt!=null?lp.alt:'alt')}" title="Altitude for the leg to ${esc(p.c||p.n)} (ft AMSL, or A045 / FL095). Empty = the suggestion" aria-label="Altitude for the leg to ${esc(p.c||p.n)}">`:''}<button class="btn" data-a="up" aria-label="Move ${esc(p.c||p.n)} up"${k?'':' disabled'}>▲</button><button class="btn" data-a="dn" aria-label="Move ${esc(p.c||p.n)} down"${k<P_.length-1?'':' disabled'}>▼</button>${fpAd(p)?`<button class="btn landb${fpLand(k)?' on':''}" data-a="land" aria-pressed="${fpLand(k)}" title="Landing here: the 10 NM reminder is an inbound call (otherwise a transit call)">Land</button>`:''}${k&&!p.cg?`<button class="btn cst${p.via==='coast'?' on':''}" data-a="cst" aria-pressed="${p.via==='coast'}" title="The leg to ${esc(p.c||p.n)}: direct, or along the coast (${COAST.off} ft off the shore, hops up to ${COAST.gap} NM)" aria-label="Coast leg to ${esc(p.c||p.n)}">≈</button>`:''}<button class="btn${FP_REPL===k?' on':''}" data-a="rep" aria-label="Replace ${esc(p.c||p.n)}" aria-pressed="${FP_REPL===k}" title="Replace with a point from the Add box">⇄</button><button class="btn" data-a="del" aria-label="Delete ${esc(p.c||p.n)}">✕</button></span></li>`; }).join('');
     if(renderFP.legs!==html||!$('fpLegs').firstChild){ renderFP.legs=html; $('fpLegs').innerHTML=html; } }   // unchanged: leave the DOM alone
   if(FP_REPL!=null&&!P_[FP_REPL]) FP_REPL=null;
   { const r=FP_REPL!=null&&FP_EDIT? P_[FP_REPL] : null; $('fpAddLbl').textContent=r?'Replace':'Add'; $('fpAddAt').hidden=!!r;
@@ -2932,6 +3068,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     g.lineWidth=3; g.strokeStyle=wp; g.globalAlpha=.75; g.beginPath(); pts.forEach((q,k)=>k?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.stroke(); g.globalAlpha=1;
     g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='left';
     FP.pts.forEach((p,k)=>{ const [x,y]=pts[k]; if(x<-20||y<-20||x>W+20||y>Hh+20) return;
+      if(p.cg&&k!==FP.i) return;   // a coast leg's turn points: the line shows them
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
       const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
   if(MAP.log) drawTrail(g,P,C,W,Hh);
@@ -4308,10 +4445,13 @@ $('fpLegs').addEventListener('click',e=>{ if(e.target.closest('.altin')) return;
   if(!FP_EDIT){ fpPick(k); return; } if(!a) return;
   const at=$('fpLegs').scrollTop;
   if(a.dataset.a==='land'){ const v=!fpLand(k); fpEdit(P_=>{ if(P_[k]) P_[k].land=v; }); $('fpLegs').scrollTop=at; return; }
+  if(a.dataset.a==='cst'){ const p=FP.pts[k]; if(p) fpCoastSet(p,p.via!=='coast').then(()=>{ $('fpLegs').scrollTop=at; }); return; }
   if(a.dataset.a==='rep'){ FP_REPL=FP_REPL===k?null:k; render(); if(FP_REPL!=null){ $('fpAddIn').value=''; $('fpAddIn').focus(); } return; }
-  if(a.dataset.a==='del'){ if(FP_REPL!=null&&k<=FP_REPL) FP_REPL=k===FP_REPL?null:FP_REPL-1; fpEdit(P_=>P_.splice(k,1)); }
+  if(a.dataset.a==='del'){ if(FP_REPL!=null&&k<=FP_REPL) FP_REPL=k===FP_REPL?null:FP_REPL-1; const gid=FP.pts[k]&&FP.pts[k].cgid; fpEdit(P_=>{ P_.splice(k,1); if(gid) for(let j=P_.length-1;j>=0;j--) if(P_[j].cg===gid) P_.splice(j,1); }); }
   else { const j=a.dataset.a==='up'?k-1:k+1; if(j<0||j>=FP.pts.length) return; if(FP_REPL===k) FP_REPL=j; else if(FP_REPL===j) FP_REPL=k; fpEdit(P_=>{ [P_[k],P_[j]]=[P_[j],P_[k]]; }); }
   $('fpLegs').scrollTop=at; });
+$('fpCoastOff').value=String(COAST.off); $('fpCoastGap').value=String(COAST.gap);
+for(const id of ['fpCoastOff','fpCoastGap']) $(id).onchange=()=>{ COAST.off=+$('fpCoastOff').value; COAST.gap=+$('fpCoastGap').value; ls.set('coastOff',COAST.off); ls.set('coastGap',COAST.gap); renderFP.legs=''; fpCoastAll().then(()=>render()); };
 $('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; FP_REPL=null; $('fpAddErr').hidden=true; render(); };
 $('fpNew').onclick=()=>{ FP_EDIT=true; render(); $('fpAddIn').focus(); };
 $('bFuel').onclick=fuOpen; $('sFuel').onclick=fuOpen; $('fuClose').onclick=()=>$('fuDlg').close();

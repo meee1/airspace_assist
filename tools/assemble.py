@@ -53,6 +53,10 @@ self.addEventListener('fetch',e=>{
     e.respondWith(timed(req,3000).catch(()=>null).then(r=>r&&r.ok? r : caches.open(X).then(c=>c.match('charts/index.json').then(x=>x||r||Response.error()))));
   } else if(/\/terrain\/[^/]+\.bin\.z$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));
+  } else if(/\/coast\/[SN]\d\d[EW]\d{3}\.json$/.test(u.pathname)){   // coastline tiles (tools/coast.py): cache first, kept across builds
+    e.respondWith(caches.open(T).then(c=>c.match(req).then(r=>r||fetch(req).then(n=>{ if(n.ok) c.put(req,n.clone()); return n; }))));   // ?v= (the build) is part of the key: a rebuild fetches fresh
+  } else if(/\/coast\/index\.json$/.test(u.pathname)){   // network first: a rebuilt coastline replaces the tiles (the page asks with ?v=)
+    e.respondWith(caches.open(T).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('coast/index.json',n.clone()); return n; }).catch(()=>c.match('coast/index.json').then(r=>r||Response.error()))));
   } else if(/\/terrain\/index\.json$/.test(u.pathname)){
     e.respondWith(caches.open(T).then(c=>timed(req,3000).then(n=>{ if(n.ok) c.put('terrain/index.json',n.clone()); return n; }).catch(()=>c.match('terrain/index.json'))));
   } else if(BUILD.test(u.pathname)){
