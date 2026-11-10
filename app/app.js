@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794168048907;
+const APP_BUILT=1794271625975;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -3453,14 +3453,16 @@ function lastLight(la,lo,t=Date.now()){
   const D=[-1,0,1].map(o=>sunUTC(la,lo,t+o*864e5,-6)).filter(Boolean);   // [first light, last light] per UTC day
   const day=D.find(([f,l])=>f<=t&&t<l); if(day) return {ll:day[1], night:false};
   return {ll:Math.max(...D.map(d=>d[1]).filter(v=>v<=t)), fl:Math.min(...D.map(d=>d[0]).filter(v=>v>t)), night:true}; }
+// set a top-bar row's classes without losing 'off' (the row is turned off in Options → Top bar tiles; tilesLayout sets it)
+function rowCls(el,c){ const off=el.classList.contains('off'); el.className=c; if(off) el.classList.add('off'); }
 function lastLightUI(){ if(!st.pos){ $('sLast').textContent=''; $('sLastRow').hidden=true; return; }
   const t=Date.now(), L=lastLight(st.pos[0],st.pos[1],t), loc=ms=>new Date(ms).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
   if(!L.ll){ $('sLast').textContent=''; $('sLastRow').hidden=true; return; }
   const m=(L.ll-t)/60e3, row=$('sLastRow');
   $('sLast').textContent= L.night? 'night' : 'last '+hhmmZ(L.ll);
-  if(L.night){ row.hidden=false; row.className='st nxcls warn'; row.innerHTML=`<small>NIGHT</small><b style="color:var(--warn)">after last light</b><span>${hhmmZ(L.ll)} (${loc(L.ll)})${L.fl?' · first light '+hhmmZ(L.fl)+' ('+loc(L.fl)+')':''}</span>`; return; }
+  if(L.night){ row.hidden=false; rowCls(row,'st nxcls warn'); row.innerHTML=`<small>NIGHT</small><b style="color:var(--warn)">after last light</b><span>${hhmmZ(L.ll)} (${loc(L.ll)})${L.fl?' · first light '+hhmmZ(L.fl)+' ('+loc(L.fl)+')':''}</span>`; return; }
   if(m>30){ row.hidden=true; return; }
-  row.hidden=false; row.className='st nxcls'+(m<=10?' warn':' amber');
+  row.hidden=false; rowCls(row,'st nxcls'+(m<=10?' warn':' amber'));
   row.innerHTML=`<small>LAST LIGHT</small><b style="color:${m<=10?'var(--warn)':'var(--accent)'}">in ${Math.max(0,Math.round(m))} min</b><span>${hhmmZ(L.ll)} (${loc(L.ll)}) · end of civil twilight here</span>`; }
 setInterval(()=>{ try{ lastLightUI(); }catch(e){} },20000);
 /* ---------- fuel timer (rc_fuel) and range ----------
@@ -3487,7 +3489,7 @@ function fuTick(){ const t=Date.now();
   const S=fuState(t), row=$('sFuel'), u=fuUnit();
   if(!S){ row.hidden=true; return; }
   const cls= S.endMin<=0? ' warn' : S.endMin<30? ' amber' : '';
-  row.hidden=false; row.className='st nxcls fuel'+cls;
+  row.hidden=false; rowCls(row,'st nxcls fuel'+cls);
   row.innerHTML=`<small>FUEL${FUEL.on?'':' ⏸'}</small><b style="color:${S.endMin<=0?'var(--warn)':S.endMin<30?'var(--accent)':'var(--ink)'}">${Math.round(S.left)} ${u}</b><span>${S.endMin<=0?'<b>at or below your reserve</b>':fuHM(S.endMin)+' to reserve'} · ${Math.round(S.rangeNM)} NM at ${Math.round(S.gs)} kt · reserve ${S.resMin} min${FUEL.on?'':' · timer stopped'} · ran ${fuHM(S.ranMs/60e3)}</span>`;
   if(FUEL.on&&FUEL.rem>0&&t-(FUEL.remT||FUEL.t1)>=FUEL.rem*60e3){ FUEL.remT=t; fuSave();
     try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){}
