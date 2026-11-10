@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794289244917;
+const APP_BUILT=1794299012780;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1968,7 +1968,11 @@ function drawSat(g,W,Hh,P,inv,la,cosl,sc){
   const x0=Math.floor(Math.min(...xs)), x1=Math.floor(Math.max(...xs)), y0=Math.max(0,Math.floor(Math.min(...ys))), y1=Math.min(n-1,Math.floor(Math.max(...ys)));
   if((x1-x0+1)*(y1-y0+1)>140) return false;   // far too many: stop rather than flood the provider
   const dpr=window.devicePixelRatio||1; let drew=false;
-  g.save(); g.globalAlpha=SAT.op;
+  // Tiles overlap their neighbours by a pixel (no hairline gaps). Faded one by one, the overlaps would be drawn twice and show
+  // as a grid of darker lines. The satellite is the first thing drawn on the cleared map, so the tiles go down solid and
+  // the whole layer is then faded at once ('destination-in' keeps what's there at the opacity's alpha): one pass, no spare canvas.
+  const fade=SAT.op<1;
+  g.save();
   for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
     const xx=((tx%n)+n)%n; let t=satTile(SAT.src,L,xx,ty), dz=0, sx=0, sy=0, sw=S.size;
     if(!t.ok){ // a parent tile already loaded stands in, scaled up
@@ -1978,6 +1982,7 @@ function drawSat(g,W,Hh,P,inv,la,cosl,sc){
     g.setTransform(dpr*(b[0]-a[0])/sw, dpr*(b[1]-a[1])/sw, dpr*(d[0]-a[0])/sw, dpr*(d[1]-a[1])/sw, dpr*a[0], dpr*a[1]);
     g.drawImage(t.im,sx,sy,sw,sw,-0.5,-0.5,sw+1,sw+1); drew=true; }   // +1: no hairline seams
   g.restore();
+  if(fade&&drew){ g.save(); g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='destination-in'; g.fillStyle='rgba(0,0,0,'+SAT.op+')'; g.fillRect(0,0,g.canvas.width,g.canvas.height); g.restore(); }
   // provider credit, as Esri's terms require
   g.font='500 9px "IBM Plex Sans", sans-serif'; g.textAlign='right'; const tx=S.attr; g.lineWidth=3; g.strokeStyle='rgba(255,255,255,.85)'; g.strokeText(tx,W-4,Hh-4); g.fillStyle='#222'; g.fillText(tx,W-4,Hh-4); g.textAlign='left';
   if(SAT.lastErr&&!drew){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--warn'); g.fillText('Satellite: '+SAT.lastErr,8,18); }
