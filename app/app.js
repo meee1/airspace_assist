@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794299798637;
+const APP_BUILT=1794303286359;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2068,10 +2068,14 @@ const satUrl=(src,z,y,x,k)=> satVia()==='proxy'&&k==null? `${ntUrl()}/tile/${src
 function satTile(src,z,x,y){ const key=src+'/'+z+'/'+x+'/'+y; let t=SAT.img.get(key);
   if(!t){ if(SAT.img.size>600){ for(const k of [...SAT.img.keys()].slice(0,200)) SAT.img.delete(k); }
     const im=new Image(); t={im,ok:false,bad:false}; SAT.img.set(key,t);
-    im.onload=()=>{ t.ok=true; SAT.ok++; SAT.lastErr=''; clearTimeout(SAT.rt); SAT.rt=setTimeout(()=>{ if(MAP.last) drawMap(...MAP.last); },120); };
-    im.onerror=()=>{ t.bad=true; SAT.err++; SAT.lastErr= satVia()==='proxy'? 'tiles not loading (proxy needs the ESRI_KEY secret, or no signal)' : 'tiles not loading (check the key, its privileges and the source, or the signal)'; setTimeout(()=>SAT.img.delete(key),60e3); };
+    const ok=()=>{ t.ok=true; SAT.ok++; SAT.lastErr=''; clearTimeout(SAT.rt); SAT.rt=setTimeout(()=>{ if(MAP.last) drawMap(...MAP.last); },120); };
+    const bad=()=>{ t.bad=true; SAT.err++; SAT.lastErr= satVia()==='proxy'? 'tiles not loading (proxy needs the ESRI_KEY secret, or no signal)' : 'tiles not loading (check the key, its privileges and the source, or the signal)'; setTimeout(()=>SAT.img.delete(key),60e3); };
     if(satVia()==='proxy') im.crossOrigin='anonymous';   // CORS from the proxy: the service worker can store it, the canvas stays clean
-    im.src=satUrl(src,z,y,x); }
+    im.src=satUrl(src,z,y,x);
+    // decode() decodes the JPEG off the main thread before the tile is used; with onload, the first drawImage decoded it on the
+    // main thread in the middle of a map redraw (the benchmark's first satellite pan at 10 NM ran at 8 frames/s on the phone).
+    // A rejected decode of an image that did load (some browsers) still counts as loaded.
+    im.decode().then(ok,()=>{ if(im.complete&&im.naturalWidth>0) ok(); else bad(); }); }
   return t; }
 function drawSat(g,W,Hh,P,inv,la,cosl,sc){
   if(!SAT.on||!satVia()) return false;
@@ -2175,9 +2179,9 @@ async function radPoll(force){ if(!RAD.on||RAD.busy||!navigator.onLine) return; 
 setInterval(()=>radPoll(),60e3);
 function radTile(z,x,y){ const key=z+'/'+x+'/'+y; let t=RAD.img.get(key);
   if(!t){ const im=new Image(); t={im,ok:false}; RAD.img.set(key,t); im.crossOrigin='anonymous';
-    im.onload=()=>{ t.ok=true; clearTimeout(RAD.rt); RAD.rt=setTimeout(()=>{ if(MAP.last) drawMap(...MAP.last); },150); };
-    im.onerror=()=>{ setTimeout(()=>RAD.img.delete(key),60e3); };
-    im.src=`${RAD.host}${RAD.fr.path}/256/${z}/${x}/${y}/2/1_0.png`; }   // colour scheme 2 (Universal Blue, the only one left), smoothed, no snow
+    const ok=()=>{ t.ok=true; clearTimeout(RAD.rt); RAD.rt=setTimeout(()=>{ if(MAP.last) drawMap(...MAP.last); },150); };
+    im.src=`${RAD.host}${RAD.fr.path}/256/${z}/${x}/${y}/2/1_0.png`;   // colour scheme 2 (Universal Blue, the only one left), smoothed, no snow
+    im.decode().then(ok,()=>{ if(im.complete&&im.naturalWidth>0) ok(); else setTimeout(()=>RAD.img.delete(key),60e3); }); }   // decoded off the main thread (see satTile)
   return t; }
 function drawRadar(g,W,Hh,P,inv,cosl,sc){ if(!RAD.on) return;
   const lab=(tx,warn)=>{ g.font='600 10.5px "IBM Plex Mono", monospace'; g.textAlign='left'; const y=Hh-(MAP.traffic?24:8); g.lineWidth=3; g.strokeStyle=cssv('--bg'); g.strokeText(tx,8,y); g.fillStyle= warn? cssv('--warn') : cssv('--ink'); g.fillText(tx,8,y); };
