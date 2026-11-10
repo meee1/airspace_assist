@@ -35,6 +35,27 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
  await p.selectOption('#fpCoastGap','0'); await p.waitForFunction(()=>FP.pts.find(q=>q.via==='coast')?.cgap===0||/No coast route/.test($('fpCoastStat').textContent),undefined,{timeout:60000});
  const r4=await far(); console.log('1000 ft, no hops:', JSON.stringify(r4), '·', await p.textContent('#fpCoastStat')); if(!(r4.D>r2.D+3&&r4.minFt>=750)) errs.push('no hops: '+JSON.stringify(r4));
  await p.selectOption('#fpCoastGap','2'); await p.selectOption('#fpCoastOff','500'); await p.waitForFunction(()=>FP.pts.find(q=>q.via==='coast')?.coff===500&&FP.pts.find(q=>q.via==='coast')?.cgap===2,undefined,{timeout:60000});
+ // share link: the coast flag and the leg's settings, not the turn points; opening it works the leg out again with the
+ // link's settings (here 500 ft / 2 NM, while the phone that opens it is set to 300 ft / no hops)
+ const link=await p.evaluate(()=>planLink(FP.name,FP.pts)), arr=await p.evaluate(l=>JSON.parse(new TextDecoder().decode(b64u.dec(l.split('#plan=')[1]))),link);
+ console.log('share link:', link.length, 'chars', JSON.stringify(arr)); if(arr[2].length!==2||JSON.stringify(arr[2][1][6])!=='[500,2]') errs.push('share link: '+JSON.stringify(arr));
+ { const p2=await ctx.newPage(); p2.on('pageerror',e=>errs.push(e.message)); p2.on('dialog',d=>{ console.log('  confirm:', d.message().replace(/\n+/g,' | ')); d.accept(); });
+   await p2.addInitScript(()=>{ try{ localStorage.setItem('rc_coastOff','300'); localStorage.setItem('rc_coastGap','0'); }catch(e){} });
+   await p2.goto(link.replace(/^[^#]*/,'http://localhost:8811/index.html?sim=YMMB&alt=1500&trk=000&gs=0'));
+   await p2.waitForFunction(()=>typeof FP!=='undefined'&&FP&&FP.pts.some(q=>q.cg),undefined,{timeout:30000});
+   const got=await p2.evaluate(()=>{ const e=FP.pts.find(q=>q.via==='coast'); return {n:FP.pts.length, off:e.coff, gap:e.cgap, settings:[COAST.off,COAST.gap], route:fplRoute(FP.pts)}; });
+   console.log('  opened:', JSON.stringify(got)); if(got.off!==500||got.gap!==2||got.n<50) errs.push('opened link: '+JSON.stringify(got)); await p2.close(); }
+ // reversed (the Reverse button, and a saved plan loaded backwards): the coast flag moves to the new end, the turn points run
+ // the other way and are renumbered; Reverse twice gives the plan back
+ { const before=await p.evaluate(()=>JSON.stringify(FP.pts.map(q=>[q.n,q.la,q.lo,q.via||'',q.cg||'']))); await p.click('#fpRev'); await p.waitForTimeout(200);
+   const r=await p.evaluate(()=>{ const P=FP.pts, e=P[P.length-1], k=P.findIndex(q=>q.via==='coast'); return {first:P[0].c||P[0].n, last:e.c||e.n, coastAt:k, n:P.length, cst1:P[1].n, desc:P[1].desc, cstLast:P[P.length-2].n, firstVia:P[0].via||'', share:JSON.stringify(JSON.parse(new TextDecoder().decode(b64u.dec(planEncode('r',P))))[2])}; });
+   console.log('reversed:', JSON.stringify(r));
+   if(r.first!=='YBRS'||r.last!=='YMMB'||r.coastAt!==r.n-1||r.cst1!=='CST1'||r.cstLast!=='CST'+(r.n-2)||!/to YMMB/.test(r.desc)||r.firstVia) errs.push('reversed: '+JSON.stringify(r));
+   await p.click('#fpRev'); await p.waitForTimeout(200); const back=await p.evaluate(()=>JSON.stringify(FP.pts.map(q=>[q.n,q.la,q.lo,q.via||'',q.cg||''])));
+   if(back!==before) errs.push('reverse twice differs'); else console.log('reverse twice: same plan');
+   const sv=await p.evaluate(()=>{ fplSaveCur('Bay coast'); const id=PLANS.find(x=>x.name==='Bay coast').id; fplLoad(id,true); const P=FP.pts; return [P[0].c, P[P.length-1].c, P[P.length-1].via, P.filter(q=>q.cg).length]; });
+   console.log('saved plan loaded backwards:', JSON.stringify(sv)); if(sv[0]!=='YBRS'||sv[2]!=='coast') errs.push('fplLoad rev: '+JSON.stringify(sv));
+   await p.evaluate(()=>{ const id=PLANS.find(x=>x.name==='Bay coast').id; fplLoad(id,false); FP_EDIT=true; render(); }); }
  // back to direct
  await p.click('#fpLegs li[data-k="'+(await p.evaluate(()=>FP.pts.length-1))+'"] [data-a="cst"]'); await p.waitForTimeout(300);
  console.log('direct again:', await p.evaluate(()=>FP.pts.map(q=>q.c||q.n).join(' ')+' via '+(FP.pts[1].via||'direct')));

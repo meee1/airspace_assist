@@ -1214,7 +1214,7 @@ function parseGPX(xml){
 function fpSet(fp){ FP=fp; ls.set('fp',FP); if(FP) fpGo(); render(); }
 /* ---------- saved flight plans (rc_plans: [{id, name, t (saved ms), pts:[{n, c, la, lo, desc, alt, land, ...}]}], newest first) ---------- */
 let PLANS=ls.get('plans',[]); if(!Array.isArray(PLANS)) PLANS=[];
-const fplRoute=pts=>pts.map(p=>p.c||p.n||'WP').join(' → ');
+const fplRoute=pts=>pts.filter(p=>!p.cg).map(p=>p.c||p.n||'WP').join(' → ');   // a coast leg's turn points aren't part of the route's name
 const fplDist=pts=>{ let D=0; for(let k=1;k<pts.length;k++) D+=distBrg(pts[k-1].la,pts[k-1].lo,pts[k].la,pts[k].lo)[0]; return D; };
 const fplPts=pts=>JSON.parse(JSON.stringify(pts.map(p=>{ const q={...p}; delete q.seq; return q; })));   // a copy without run-time state
 const fplSame=(a,b)=>a.length===b.length&&a.every((p,k)=>Math.abs(p.la-b[k].la)<1e-6&&Math.abs(p.lo-b[k].lo)<1e-6&&(p.alt??null)===(b[k].alt??null)&&!!p.land===!!b[k].land);
@@ -1225,9 +1225,20 @@ function fplSaveCur(name){ if(!FP||FP.pts.length<2) return 'Build or import a pl
   const e={id:old?old.id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, t:Date.now(), pts:fplPts(FP.pts)};
   PLANS=[e,...PLANS.filter(x=>x!==old)]; ls.set('plans',PLANS); FP.name=name; FP.plan=e.id; ls.set('fp',FP); render();
   return `Saved "${name}".`; }
+// a plan backwards (in place): a coast leg's flag and settings sit on the leg's end point, so each moves to the point
+// the leg started from (now its end); its turn points are renumbered from the new start and say the new end
+function fpReverse(pts){ const legs=[], F=['via','cgid','coff','cgap'];
+  pts.forEach((p,k)=>{ if(p.via!=='coast') return; let j=k-1; while(j>=0&&p.cgid&&pts[j].cg===p.cgid) j--;
+    if(j>=0) legs.push({from:pts[j], end:p, f:Object.fromEntries(F.filter(x=>p[x]!==undefined).map(x=>[x,p[x]]))}); });
+  for(const L of legs) for(const x of F) delete L.end[x];
+  for(const L of legs) Object.assign(L.from,L.f);
+  pts.reverse(); const n={};
+  for(const p of pts) if(p.cg){ n[p.cg]=(n[p.cg]||0)+1; p.n='CST'+n[p.cg]; const L=legs.find(l=>l.f.cgid===p.cg);
+    if(L&&p.desc) p.desc=p.desc.replace(/^Coast route to [^,]*/,'Coast route to '+(L.from.c||L.from.n)); }
+  return pts; }
 function fplLoad(id,rev){ const e=PLANS.find(x=>x.id===id); if(!e) return;
   if(FP&&FP.pts.length>1&&FP.plan!==e.id&&!PLANS.some(x=>fplSame(x.pts,FP.pts))&&!confirm('Replace the current plan? It isn\'t saved.')) return;
-  const pts=fplPts(e.pts); if(rev) pts.reverse();
+  const pts=fplPts(e.pts); if(rev) fpReverse(pts);
   $('fpToggle').setAttribute('aria-expanded','true'); FP_EDIT=false;
   fpSet({name:rev? e.name+' (reversed)' : e.name, kind:'saved', plan:rev? null : e.id, pts, i:pts.length>1?1:0});
   e.used=Date.now(); ls.set('plans',PLANS); $('plDlg').close(); }
@@ -1444,23 +1455,29 @@ async function coastRoute(a,b,offFt,gapNm){ await coastIndex(); const off=offFt*
   return null; }
 const coastId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 // make the leg into the point with id-less index k (the point itself, found again by reference after the await) coastal or direct
-async function fpCoastSet(end,on){ if(!FP) return; const P_=FP.pts, st_=$('fpCoastStat');
+async function fpCoastSet(end,on,set){ if(!FP) return; const P_=FP.pts, st_=$('fpCoastStat');   // set: {off, gap} for this leg (a shared plan's), else the settings
   // flying this leg (heading for one of its turn points or its end): the active waypoint moves to its end before the turn
   // points go, and to the first new turn point after
   const onLeg=()=>{ const c=FP.pts[FP.i]; return !FP.dct&&!!c&&(c===end||(!!end.cgid&&c.cg===end.cgid)); };
   const strip=()=>{ if(!end.cgid) return; if(onLeg()) FP.i=FP.pts.indexOf(end); const gid=end.cgid; fpEdit(P=>{ for(let j=P.length-1;j>=0;j--) if(P[j].cg===gid) P.splice(j,1); }); };
   if(!on){ strip(); delete end.via; delete end.cgid; delete end.coff; delete end.cgap; fpEdit(()=>{}); st_.textContent=''; return; }
   let k=P_.indexOf(end); if(k<1) return; const fly=onLeg(); strip(); k=FP.pts.indexOf(end);
-  const a=FP.pts[k-1], off=COAST.off, gp=COAST.gap, how=`${off} ft off the shore${gp?`, hops up to ${gp} NM`:''}`; st_.textContent=`Working out a route to ${end.c||end.n}, ${how}…`;
-  let r; try{ r=await coastRoute(a,end,off,gp); }catch(e){ st_.textContent='No coast route: '+e.message+'.'; return; }
+  const a=FP.pts[k-1], off=set?set.off:COAST.off, gp=set?set.gap:COAST.gap, how=`${off} ft off the shore${gp?`, hops up to ${gp} NM`:''}`; st_.textContent=`Working out a route to ${end.c||end.n}, ${how}…`;
+  let r; try{ r=await coastRoute(a,end,off,gp); }catch(e){ st_.textContent='No coast route: '+e.message+'.'; return false; }
   k=FP.pts.indexOf(end); if(k<1||FP.pts[k-1]!==a){ st_.textContent=''; return; }   // the plan changed meanwhile
-  if(!r){ st_.textContent=`No coast route from ${a.c||a.n} to ${end.c||end.n} (${how}): try longer hops.`; return; }
+  if(!r){ st_.textContent=`No coast route from ${a.c||a.n} to ${end.c||end.n} (${how}): try longer hops.`; return false; }
   const gid=coastId(), D0=distBrg(a.la,a.lo,end.la,end.lo)[0];
   const ins=r.pts.map((q,i)=>({n:'CST'+(i+1), la:+q.la.toFixed(5), lo:+q.lo.toFixed(5), desc:`Coast route to ${end.c||end.n}, ${how}`, cg:gid}));
   fpEdit(P=>{ P.splice(k,0,...ins); end.via='coast'; end.cgid=gid; end.coff=off; end.cgap=gp; delete end.cnm; });
   if(fly&&ins.length&&FP.pts[FP.i]===end) fpPick(FP.pts.indexOf(ins[0]));
   let D=0, L=[a,...ins,end]; for(let i=1;i<L.length;i++) D+=distBrg(L[i-1].la,L[i-1].lo,L[i].la,L[i].lo)[0];
-  st_.textContent=`${a.c||a.n} → ${end.c||end.n} along the coast, ${how}: ${D.toFixed(1)} NM (direct ${D0.toFixed(1)}), ${ins.length} turn point${ins.length===1?'':'s'}.`; }
+  st_.textContent=`${a.c||a.n} → ${end.c||end.n} along the coast, ${how}: ${D.toFixed(1)} NM (direct ${D0.toFixed(1)}), ${ins.length} turn point${ins.length===1?'':'s'}.`; return true; }
+// a shared plan's coast legs (the link has the flag and settings, not the turn points): work them out here
+async function fpCoastLinked(){ if(!FP) return; const bad=[];
+  for(const p of FP.pts.filter(q=>q.via==='coast'&&!q.cgid)){ const ok=await fpCoastSet(p,true,{off:p.coff,gap:p.cgap});
+    if(!ok){ bad.push(p.c||p.n); delete p.via; delete p.coff; delete p.cgap; } }
+  if(bad.length){ $('fpErr').textContent=`The shared plan's coast leg${bad.length>1?'s':''} to ${bad.join(', ')} ${bad.length>1?'are':'is'} direct for now: ${$('fpCoastStat').textContent}`; $('fpErr').hidden=false; ls.set('fp',FP); }
+  render(); }
 // a new distance: every coast leg again
 async function fpCoastAll(){ if(!FP) return; for(const p of FP.pts.filter(q=>q.via==='coast')) await fpCoastSet(p,true); }
 function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGoRaw({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
@@ -5382,7 +5399,7 @@ $('fpSave').onclick=()=>{ if(!FP||!FP.pts.length) return; const P_=FP.pts, nm=q=
 $('fpLog').onclick=()=>{ const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
   const fx=TLOG.pts.filter(p=>p[1]!=='ev'), tr=TRLOG.filter(r=>r[0]>=fx[0][0]-60e3&&r[0]<=fx[fx.length-1][0]+60e3);
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(TLOG.pts,undefined,tr)],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
-$('fpRev').onclick=()=>{ if(!FP) return; FP.pts.reverse(); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
+$('fpRev').onclick=()=>{ if(!FP) return; fpReverse(FP.pts); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
 $('fpClear').onclick=()=>{ FP_EDIT=false; fpSet(null); setGo(null); };
 $('fpLegs').addEventListener('change',e=>{ const t=e.target.closest('.altin'); if(!t||!FP) return; const k=+t.dataset.k, v=t.value.trim().toUpperCase();
   let ft=null; const m=/^(A|FL)?\s*(\d{1,5})$/.exec(v);
@@ -5485,11 +5502,13 @@ $('clBody').addEventListener('keydown',e=>{ if((e.key===' '||e.key==='Enter')&&e
 $('fpCl').onclick=clOpen; $('clClose').onclick=()=>$('clDlg').close();
 /* ---------- share a plan: a link with the plan inside it (…/app/#plan=<base64url>), also drawn as a QR code ----------
    The part after # never leaves the phone that opens it. Packed as JSON [1, name, [[label, lat×1e5, lon×1e5, alt or 0,
-   land (0 = default, 1 = land, 2 = overfly), 1 if the label is an AIP code], …]]; descriptions are rebuilt on arrival
-   from the AIP data, as for a GPX import. A link is someone else's text: every field is checked and cut to size. */
+   land (0 = default, 1 = land, 2 = overfly), 1 if the label is an AIP code, [ft off the shore, hop NM] if the leg to it
+   is a coast leg], …]]; descriptions are rebuilt on arrival from the AIP data, as for a GPX import. A coast leg's turn
+   points aren't in the link (they'd fill it): the phone that opens it works them out again (fpCoastLinked). A link is someone else's text: every field is checked and cut to size. */
 const b64u={ enc:b=>{ let s=''; for(const x of b) s+=String.fromCharCode(x); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); },
   dec:s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0)) };
-function planEncode(name,pts){ const P_=pts.map(p=>{ const a=[String(p.c||p.n||'WP').slice(0,24),Math.round(p.la*1e5),Math.round(p.lo*1e5),p.alt!=null?p.alt:0,p.land==null?0:p.land?1:2,p.c?1:0];
+function planEncode(name,pts){ const P_=pts.filter(p=>!p.cg).map(p=>{ const a=[String(p.c||p.n||'WP').slice(0,24),Math.round(p.la*1e5),Math.round(p.lo*1e5),p.alt!=null?p.alt:0,p.land==null?0:p.land?1:2,p.c?1:0,
+      p.via==='coast'? [p.coff||COAST.off, p.cgap??COAST.gap] : 0];
     while(a.length>3&&!a[a.length-1]) a.pop(); return a; });
   return b64u.enc(new TextEncoder().encode(JSON.stringify([1,String(name||'').slice(0,40),P_]))); }
 const planLink=(name,pts)=>location.origin+location.pathname+'#plan='+planEncode(name,pts);
@@ -5499,6 +5518,7 @@ function planDecode(s){ let o; try{ o=JSON.parse(new TextDecoder().decode(b64u.d
     const la=a[1]/1e5, lo=a[2]/1e5; if(Math.abs(la)>90||Math.abs(lo)>180) return null;
     const n=a[0].replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,24)||'WP', p={n,la,lo};
     if(Number.isFinite(a[3])&&a[3]>0&&a[3]<=60000) p.alt=Math.round(a[3]); if(a[4]===1) p.land=true; else if(a[4]===2) p.land=false;
+    if(pts.length&&Array.isArray(a[6])&&a[6].length===2&&Number.isFinite(a[6][0])&&a[6][0]>=100&&a[6][0]<=12000&&Number.isFinite(a[6][1])&&a[6][1]>=0&&a[6][1]<=10){ p.via='coast'; p.coff=Math.round(a[6][0]); p.cgap=+a[6][1]; }
     const m= a[5]===1? findPoint(n) : null, uw=WPTS.find(w=>w.n===n.toUpperCase()&&distBrg(la,lo,w.la,w.lo)[0]<0.5);
     if(m&&m.k!=='USR'&&distBrg(la,lo,m.la,m.lo)[0]<2){ p.c=m.c; p.n=m.c; p.desc=ptDesc(m); }
     else if(uw) p.desc=uw.note||'Your waypoint';
@@ -5511,13 +5531,15 @@ function planFromHash(){ const m=/[#&]plan=([A-Za-z0-9_-]+)/.exec(location.hash)
   history.replaceState(null,'',location.pathname+location.search);
   const fp=planDecode(m[1]); if(!fp){ $('fpErr').textContent='That flight plan link is damaged or incomplete.'; $('fpErr').hidden=false; return; }
   const unsaved=FP&&FP.pts.length>1&&!PLANS.some(x=>fplSame(x.pts,FP.pts));
-  if(!confirm(`Load the shared flight plan "${fp.name}"?\n\n${fplRoute(fp.pts)}\n${fp.pts.length} points, ${Math.round(fplDist(fp.pts))} NM`+(unsaved?'\n\nIt replaces the current plan, which isn\'t saved.':''))) return;
-  $('fpErr').hidden=true; $('fpToggle').setAttribute('aria-expanded','true'); FP_EDIT=false; fpSet(fp); }
+  const nc=fp.pts.filter(p=>p.via==='coast').length;
+  if(!confirm(`Load the shared flight plan "${fp.name}"?\n\n${fplRoute(fp.pts)}\n${fp.pts.length} points, ${Math.round(fplDist(fp.pts))} NM${nc?` direct (${nc} coast leg${nc>1?'s':''}, worked out on loading)`:''}`+(unsaved?'\n\nIt replaces the current plan, which isn\'t saved.':''))) return;
+  $('fpErr').hidden=true; $('fpToggle').setAttribute('aria-expanded','true'); FP_EDIT=false; fpSet(fp); if(nc) fpCoastLinked(); }
 window.addEventListener('hashchange',planFromHash);
 let SH=null;
 async function shOpen(name,pts){ if(!pts||!pts.length) return; SH={name:name||fplRoute([pts[0],pts[pts.length-1]]),pts};
   const link=planLink(SH.name,pts), cv=$('shQr'); $('shLink').value=link; $('shStat').textContent=''; $('shShare').hidden=!navigator.share;
-  $('shSum').textContent=`${SH.name} · ${fplRoute(pts)} · ${pts.length} point${pts.length>1?'s':''} · ${Math.round(fplDist(pts))} NM`;
+  const nw=pts.filter(p=>!p.cg).length, nc=pts.filter(p=>p.via==='coast').length;
+  $('shSum').textContent=`${SH.name} · ${fplRoute(pts)} · ${nw} point${nw>1?'s':''}${nc?` (${nc} coast leg${nc>1?'s':''})`:''} · ${Math.round(fplDist(pts))} NM`;
   cv.hidden=true; if(!$('shDlg').open) $('shDlg').showModal();
   if(link.length>2300){ $('shStat').textContent='This plan is too long for a QR code: send the link or the GPX file.'; return; }
   try{ if(!window.qrcode) await loadScript('lib/qrcode/qrcode.js');
