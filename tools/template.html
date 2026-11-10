@@ -3300,6 +3300,7 @@ $('perfBox').addEventListener('click',e=>{ const b=e.target.closest('[data-pf]')
      pan  : a drag animation for 1.5 s, one drawMap per frame: frames per second (the real smoothness, GPU work included)
             and drawMap's own ms per frame (JavaScript and drawing calls; the GPU's part shows only in the frame rate)
      zoom : the range changes each frame, so every cached picture is rebuilt: the worst case (a zoom step)
+   It won't start while moving (over 5 kt, outside the simulator) and stops if you start to: traffic is off while it runs.
    Then a WebGL probe: the chart picture drawn as a textured 9×9 mesh panning in WebGL for 1.5 s (frames per second and ms
    per frame) against the same picture through the 2D canvas (drawCache, mesh forced), and the texture upload's cost.
    Nothing is read back from the map canvas (Chrome stops using the GPU for a canvas that's read often). */
@@ -3308,6 +3309,9 @@ async function benchRun(){
   const sleep=t=>new Promise(r=>setTimeout(r,t)), raf=()=>new Promise(r=>requestAnimationFrame(r)), med=a=>{ const q=[...a].sort((x,y)=>x-y); return q.length? q[Math.floor(q.length/2)] : 0; };
   const show=m=>{ BN.msg=m; pfShow(true); };
   if(!MAP.last){ show('Benchmark: the map has not been drawn yet'); return; }
+  // not in flight: for two minutes the live map isn't drawn and traffic (and its alerts) is off
+  const moving=()=>!st.sim&&st.gs!=null&&st.gs>5;
+  if(moving()){ show('Benchmark: not while moving (it stops the live map and traffic alerts for about two minutes). Run it on the ground or in the simulator.'); return; }
   const S0={range:MAP.range, pan:MAP.pan, ter:MAP.ter, ch:CH.on, sat:SAT.on, op:SAT.op, ctaf:MAP.ctaf, rad:RAD.on, tr:MAP.traffic, wire:PL.on, last:MAP.last.slice()};
   BN.on=true; BN.res=''; const L=[], f1=v=>v.toFixed(1);
   L.push(`Map benchmark · ${new Date().toISOString()} · build ${APP_BUILT?new Date(APP_BUILT).toISOString().slice(0,16):'?'}`); L.push(navigator.userAgent);
@@ -3321,6 +3325,7 @@ async function benchRun(){
   try{
     let k=0; const total=sets.length*3;
     for(const [nm,o] of sets) for(const rg of [10,40,320]){
+      if(moving()) throw new Error('you started moving: the live map and traffic are back on');
       show(`Benchmark ${++k}/${total}: ${nm}, ${rg} NM…`);
       Object.assign(MAP,{range:rg, pan:null, ctaf:!!o.ctaf, ter:!!o.ter, traffic:false}); CH.on=!!o.ch; SAT.on=!!o.sat; SAT.op=o.op||S0.op; RAD.on=false; PL.on=false; CHC.key='';
       MAP.last=S0.last.slice(); drawMap(...MAP.last);
@@ -3349,7 +3354,8 @@ async function benchRun(){
     L.push(...await benchGl(src,raf));
   }catch(e){ L.push('stopped: '+(e&&e.message||e)); }
   finally{
-    Object.assign(MAP,{range:S0.range, pan:S0.pan, ter:S0.ter, ctaf:S0.ctaf, traffic:S0.traffic}); CH.on=S0.ch; SAT.on=S0.sat; SAT.op=S0.op; RAD.on=S0.rad; PL.on=S0.wire; CHC.key=''; MAP.last=S0.last;
+    Object.assign(MAP,{range:S0.range, pan:S0.pan, ter:S0.ter, ctaf:S0.ctaf, traffic:S0.tr}); if(MAP.traffic){ TR.t=0; trPoll(); }   // traffic back on, with fresh data
+    CH.on=S0.ch; SAT.on=S0.sat; SAT.op=S0.op; RAD.on=S0.rad; PL.on=S0.wire; CHC.key=''; MAP.last=S0.last;
     BN.on=false; BN.msg=''; BN.res=L.join('\n'); PF.st.clear(); render(); pfShow(true); }
 }
 // The WebGL side of the probe: the picture as a texture on a 9×9 grid (the shape drawCache uses when it has to bend the
