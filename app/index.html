@@ -112,6 +112,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.fq small.who{flex:1 1 0;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .st.cls .cap{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim)}
 .st{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:7px 8px;min-width:0}
+.st[data-zb]{z-index:70;box-shadow:0 8px 28px rgba(0,0,0,.4);transition:transform .12s ease-out;border-color:var(--accent)}   /* a tapped tile, enlarged for a few seconds (tzOn) */
 .st b{display:block;font:600 17px/1.15 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
 .st small.agl{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);color:var(--accent);text-transform:none;letter-spacing:0}
 .st small{font:500 11px/1 var(--f-label);letter-spacing:.05em;color:var(--dim);text-transform:uppercase}
@@ -160,6 +161,13 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .measbox b{font:700 16px var(--f-mono)} .measbox .mb-b{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap} .measbox .btn{padding:6px 9px;font-size:11px;min-height:32px} .measbox small{color:var(--dim)}
 body.fsm .measbox{position:fixed;bottom:calc(var(--fsH,64px) + 10px);left:10px;right:auto;width:min(calc(100vw - 110px),420px)}
 .pl-save{display:flex;gap:6px;margin:8px 0} .pl-save input,.pl-filter input{flex:1;min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .pl-filter input{width:100%;box-sizing:border-box;margin-bottom:6px}
+.wp-form{display:grid;gap:6px;margin:8px 0} .wp-form label{display:grid;grid-template-columns:70px 1fr;align-items:center;gap:8px;font-size:12px;color:var(--dim)} .wp-form input,#shLink,.cl-ed input,.cl-ed select,.cl-ed textarea{min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);box-sizing:border-box;width:100%}
+.sh-qr{display:flex;justify-content:center;margin:10px 0} .sh-qr canvas{background:#fff;border-radius:8px;image-rendering:pixelated;max-width:100%} #shLink{font-size:12px;margin-bottom:8px}
+.cl-ed{display:grid;gap:8px;margin:8px 0} .cl-ed textarea{min-height:44vh;font-size:14px;line-height:1.45;resize:vertical} .cl-ed label{font-size:12px;color:var(--dim);display:grid;gap:3px}
+.cl-run{list-style:none;margin:8px 0;padding:0} .cl-run li.h{font:700 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding:12px 2px 4px} .cl-run li.i{display:flex;align-items:center;gap:10px;padding:11px 8px;border-top:1px solid var(--rule);cursor:pointer;font-size:16px;min-height:44px;box-sizing:border-box;user-select:none;-webkit-user-select:none}
+.cl-run li.i::before{content:'';flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--dim);box-sizing:border-box} .cl-run li.i.on::before{background:var(--ok);border-color:var(--ok);content:'✓';color:var(--bg);font:700 15px/18px var(--f-body);text-align:center}
+.cl-run li.i .c{flex:1;min-width:0} .cl-run li.i .r{font:600 15px var(--f-mono);text-align:right;max-width:55%} .cl-run li.i.on{color:var(--dim)} .cl-run li.i.on .c{text-decoration:line-through} .cl-run li.i.next{background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:8px}
+.cl-bar{display:flex;align-items:center;gap:8px;margin:6px 0;position:sticky;top:0;background:var(--panel);padding:6px 0;z-index:1} .cl-bar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .cl-bar .mono{font-weight:700} .cl-done{margin:8px 0;padding:10px;border-radius:8px;background:color-mix(in srgb,var(--ok) 16%,transparent);font-weight:700;text-align:center}
 .pl-list{list-style:none;margin:0;padding:0} .pl-list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--rule)} .pl-list li>span{flex:1;min-width:0} .pl-list li small{color:var(--dim);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pl-list li.cur b::after{content:' · loaded';font-weight:500;color:var(--dim);font-size:12px} .pl-list .btn{padding:6px 8px;font-size:11px}
 .tag{display:inline-block;font:600 10px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:3px 5px;border-radius:4px;background:var(--chip);color:var(--dim);margin-left:4px;vertical-align:1px}
 .tag.w{color:var(--accent)}
@@ -389,7 +397,8 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 .rw .rh{color:var(--accent);font-weight:600;font-family:var(--f-mono);font-size:11px}
 .rwnote{grid-column:1/-1;font-size:11.5px;color:var(--dim);line-height:1.35;white-space:normal}
 .fp{background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--wp);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:8px}
-.fp-h{display:flex;align-items:center;gap:8px}
+.fp-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}   /* five buttons: they wrap under the title on a phone */
+.fp-h>.sim-toggle{flex:1 1 150px;min-width:0} .fp-h label.btn{display:flex;align-items:center;align-self:stretch}
 .fp-h .btn{padding:6px 8px;font-size:11px;white-space:nowrap}
 .fp-add{margin:6px 0}.fp-add .go-row{display:flex;gap:6px;align-items:center}.fp-add input{flex:1;min-width:0}.fp-add select{max-width:118px}
 .fp-add .sugg{margin-top:4px}
@@ -509,6 +518,7 @@ body.fsm.fsm-bar .fsbar-x{display:block;grid-column:1/-1;font:700 13px var(--f-l
 #hudA{left:max(8px,env(safe-area-inset-left,0px));width:min(60vw,330px);top:var(--hudAT,160px)}
 #hud .st{background:color-mix(in srgb,var(--panel) 87%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 9px rgba(0,0,0,.2);padding:5px 8px;margin:0;cursor:pointer;min-width:0}
 #hud{-webkit-user-select:none;user-select:none}
+#hud .st[data-zb]{background:var(--panel)} #hudL:has(.st[data-zb]),#hudR:has(.st[data-zb]),#hudA:has(.st[data-zb]){z-index:26}   /* an enlarged tile: solid, and its column above the other two */
 #hud .st.fq{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 7px} #hud .st.fq>b{font-size:23px} #hud .st.fq small.nx b{font-size:inherit}
 #hud .st.nxcls span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 body.fsm .mapmenu{z-index:9}
@@ -679,6 +689,8 @@ body.fsm.fsm-tab #fsSheet{left:300px}
       <button class="sim-toggle" id="fpToggle" aria-expanded="true" aria-controls="fpBody"><span class="lbl">Flight plan</span><span class="fp-sum mono" id="fpSum"></span><span class="fold-i" aria-hidden="true"></span></button>
       <button class="btn" id="fpNew" title="Build a flight plan by searching for points">New plan</button>
       <button class="btn" id="fpPlans" aria-haspopup="dialog" title="Your saved flight plans: save this one, or load one">Plans</button>
+      <button class="btn" id="fpWpts" aria-haspopup="dialog" title="Your own waypoints: spots you saved from the map">Waypoints</button>
+      <button class="btn" id="fpCl" aria-haspopup="dialog" title="Your checklists, per aircraft">Checklists</button>
       <label class="btn" for="fpFile" id="fpImport">Import GPX</label>
       <input type="file" id="fpFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
     </div>
@@ -697,7 +709,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <div class="fp-pinfo" id="fpPInfo"></div></div>
       <ol class="fp-legs" id="fpLegs"></ol>
       <details class="notams" id="fpNotam" hidden></details>
-      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpCheck" title="Frequencies, airspace, areas, NOTAMs, obstacles and LSALT along the whole plan, in order">Plan check</button><button class="btn" id="fpWb" title="Weight and balance for your aircraft: take-off, landing and zero-fuel CG, most fuel you can carry, fixes">Weight &amp; balance</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
+      <div class="ctl"><button class="btn" id="fpPrev">◀ Prev</button><button class="btn" id="fpSkip">Next ▶</button><button class="btn" id="fpEdit" aria-pressed="false" title="Move or delete waypoints">Edit</button><button class="btn" id="fpCheck" title="Frequencies, airspace, areas, NOTAMs, obstacles and LSALT along the whole plan, in order">Plan check</button><button class="btn" id="fpWb" title="Weight and balance for your aircraft: take-off, landing and zero-fuel CG, most fuel you can carry, fixes">Weight &amp; balance</button><button class="btn" id="fpRev">Reverse</button><button class="btn" id="fpShare" title="A link or QR code that loads this plan on another phone">Share</button><button class="btn" id="fpClear">Remove</button><button class="btn" id="fpSave" title="Download this flight plan, with your edits, as a GPX route (opens in OzRunways, AvPlan, or here with Import)">Save GPX</button><button class="btn" id="fpLog" title="Download the GPS log of the last 6 hours (GPX), including when each waypoint was sequenced">Flight log</button></div>
       <div class="hint">Imports the route (rtept) from a GPX file, e.g. from OzRunways or AvPlan; if there's no route it uses the waypoints (wpt), then a track (trkpt). Points whose names match an aerodrome, VFR waypoint or navaid are labelled from the AIP. The next waypoint advances automatically within 0.5 NM or once you pass it, and drives Go to. The profile shows SRTM terrain and DAH airspace along the straight legs: tap it for details. It is for awareness, not obstacle clearance. In simulation, Fly follows the route. Save GPX downloads the plan as it is now, edits included. Edit (or New plan) adds waypoints by name or code with the same search as Go to (at the end, where they fit best, or as the next waypoint); ▲ ▼ move them, ✕ deletes and ⇄ replaces one with the next point you search for or pick from the map; press and hold the map (right-click on a computer) to add a point to the plan, or to start one.</div>
     </div>
   </section>
@@ -798,6 +810,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl" style="margin-top:10px">Top bar tiles</div>
     <div class="opts-list"><label style="cursor:default"><span><b>Flash CTAF and AREA when they change</b><br><small>The tile pulses when its frequency changes, so a new CTAF or area frequency catches your eye. 0 = off.</small></span><select id="optFlash" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)"><option value="0">0 (off)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select><span class="meta">pulses</span></label></div>
     <div class="opts-list opts-tiles" id="optsTiles"></div>
+    <div class="opts-list"><label><input type="checkbox" id="optTileZoom"><span><b>Tap a tile to enlarge it</b><br><small>The first tap makes a tile bigger for five seconds, so it's easier to read on a small screen. Tap it again while it's big for what the tile normally does (the whole top bar, the fuel timer, your clearance notes…).</small></span></label></div>
     <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optFs"><span><b>Full-screen map</b><br><small>The map fills the screen. Phone: CTAF, AREA, ALT, TRK, GS, CLASS and the alerts float over it (tap them for the whole top bar). Tablet in landscape: the top bar is a column on the left. Everything else is in the sheet at the bottom: drag it up or tap a tab. Also the ⤢ button on the map.</small></span></label>
@@ -819,7 +832,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
 
   <dialog class="opts pcdlg" id="pcDlg" aria-labelledby="pcTitle">
     <div class="opts-head"><b id="pcTitle">Pre-flight brief</b><button class="btn" id="pcClose" aria-label="Close">✕</button></div>
-    <div class="pc-in"><label>Altitude ft <input id="pcAlt" type="number" inputmode="numeric" step="100" min="0"></label><label>GS kt <input id="pcGs" type="number" inputmode="numeric" step="5" min="20"></label><label>Departure (local) <input id="pcDep" type="time"></label><label>Burn L/h <input id="pcBurn" type="number" inputmode="decimal" step="1" min="0" placeholder="e.g. 100"></label><label>Fuel L <input id="pcFuel" type="number" inputmode="decimal" step="1" min="0" placeholder="on board"></label><label title="Final reserve in minutes. Empty: CASA Part 91 MOS 19.02 by category and day/night (helicopter 20/30, aeroplane 30/45)">Reserve min <input id="pcRes" type="number" inputmode="numeric" step="5" min="0" max="180" placeholder="CASA"></label><button class="btn" id="pcRun">Check</button></div>
+    <div class="pc-in"><label>Altitude ft <input id="pcAlt" type="number" inputmode="numeric" step="100" min="0"></label><label><span id="pcGsLbl">GS kt</span> <input id="pcGs" type="number" inputmode="numeric" step="5" min="20"></label><label title="Wind for the times, headings and fuel. Entered: one wind for the whole route, read from the grid point wind chart. Nearest TAF: each leg takes the surface wind forecast for the closest aerodrome with a TAF in the loaded NAIPS briefing, at the time you'd be there">Wind <select id="pcWsrc"><option value="none">none</option><option value="set">entered</option><option value="taf">nearest TAF</option></select></label><label id="pcWdirL" hidden>From °T <input id="pcWdir" type="number" inputmode="numeric" step="10" min="0" max="360" placeholder="240"></label><label id="pcWktL" hidden>kt <input id="pcWkt" type="number" inputmode="numeric" step="5" min="0" max="99" placeholder="15"></label><label>Departure (local) <input id="pcDep" type="time"></label><label>Burn L/h <input id="pcBurn" type="number" inputmode="decimal" step="1" min="0" placeholder="e.g. 100"></label><label>Fuel L <input id="pcFuel" type="number" inputmode="decimal" step="1" min="0" placeholder="on board"></label><label title="Final reserve in minutes. Empty: CASA Part 91 MOS 19.02 by category and day/night (helicopter 20/30, aeroplane 30/45)">Reserve min <input id="pcRes" type="number" inputmode="numeric" step="5" min="0" max="180" placeholder="CASA"></label><button class="btn" id="pcRun">Check</button></div>
     <div class="vnote" id="pcStat"></div>
     <div id="pcOut"></div>
     <div class="ctl"><button class="btn" id="pcCopy">Copy text</button><button class="btn" id="pcPrint">Print / PDF</button></div>
@@ -859,6 +872,32 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="pl-filter" id="plFilterRow" hidden><input id="plFilter" type="search" autocomplete="off" spellcheck="false" placeholder="Find a plan (name or point)" aria-label="Find a saved plan"></div>
     <ul class="pl-list" id="plList"></ul>
     <div class="vnote">Kept on this device, with your edits (altitudes, land / overfly). They're in the settings backup and the settings file, so they move to another phone with those.</div>
+  </dialog>
+  <dialog class="opts" id="wpDlg" aria-labelledby="wpTitle">
+    <div class="opts-head"><b id="wpTitle">My waypoints</b><button class="btn" id="wpClose" aria-label="Close">✕</button></div>
+    <div class="wp-form" id="wpForm" hidden>
+      <label>Name <input id="wpName" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="FUEL DRUM"></label>
+      <label>Note <input id="wpNote" maxlength="80" autocomplete="off" placeholder="what's there, hazards, who to call"></label>
+      <label>Position <input id="wpLL" autocomplete="off" spellcheck="false" inputmode="text" placeholder="-38.1234, 144.5678"></label>
+      <div class="ctl"><button class="btn primary" id="wpSave">Save waypoint</button><button class="btn" id="wpCancel">Cancel</button></div>
+    </div>
+    <div class="vnote" id="wpStat"></div>
+    <div class="ctl" id="wpAddRow"><button class="btn" id="wpHere">Add where I am</button><button class="btn" id="wpNew">Add by position</button></div>
+    <ul class="pl-list" id="wpList"></ul>
+    <div class="vnote">Press and hold the map to save a spot. Your waypoints show on the map (★), come up in search and Go to, and can go in flight plans. They're in the settings backup and the settings file, and combine across your phones through Google Drive.</div>
+  </dialog>
+  <dialog class="opts" id="clDlg" aria-labelledby="clTitle">
+    <div class="opts-head"><b id="clTitle">Checklists</b><button class="btn" id="clClose" aria-label="Close">✕</button></div>
+    <div id="clBody"></div>
+  </dialog>
+  <dialog class="opts" id="shDlg" aria-labelledby="shTitle">
+    <div class="opts-head"><b id="shTitle">Share flight plan</b><button class="btn" id="shClose" aria-label="Close">✕</button></div>
+    <div class="vnote" id="shSum"></div>
+    <div class="sh-qr"><canvas id="shQr" width="8" height="8" aria-label="QR code of the link to this plan"></canvas></div>
+    <input id="shLink" readonly aria-label="Link to this plan">
+    <div class="ctl"><button class="btn primary" id="shCopy">Copy link</button><button class="btn" id="shShare" hidden>Share…</button><button class="btn" id="shGpx" title="A GPX route file, for OzRunways, AvPlan or another app">Save GPX</button></div>
+    <div class="vnote" id="shStat"></div>
+    <div class="vnote">Opening the link, or scanning the code with a phone's camera, loads this plan in Radio Calls AU: the points, your leg altitudes and land / overfly. Nothing is uploaded: the plan is inside the link.</div>
   </dialog>
   <dialog class="opts" id="mycDlg" aria-labelledby="mycTitle">
     <div class="opts-head"><b id="mycTitle">Your wording</b><button class="btn" id="mycClose" aria-label="Close">✕</button></div>
@@ -941,7 +980,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=5b932b8330';
+    const s=document.createElement('script'); s.src='app.js?v=6d2bbcd32f';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

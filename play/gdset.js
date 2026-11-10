@@ -36,13 +36,18 @@ const plan=(id,name,t)=>({id,name,t,pts:[{n:'A',c:'YBRS',la:-38.258,lo:144.425},
  console.log('phone 2 connects, says Cancel: asked', JSON.stringify(P2.asked), '· Drive backup still', JSON.stringify(backup()), '· phone 2 plans', await P2.p.evaluate(()=>PLANS.map(p=>p.name).join(',')||'none'));
  console.log('  status:', await P2.p.evaluate(()=>$('gdStat').innerText.split('\n')[0].slice(0,190)));
  await P2.p.evaluate(T=>{ PLANS.unshift({id:'p3',name:'Tyabb',t:T,pts:[{n:'A',c:'YTYA',la:-38.27,lo:145.18},{n:'B',c:'YMMB',la:-37.976,lo:145.102}]}); ls.set('plans',PLANS); },T);
+ await P2.p.evaluate(T=>{ WPTS=[{id:'w1',n:'FUEL DRUM',note:'',la:-38.2,lo:144.5,t:T},{id:'w2',n:'PAD',note:'',la:-38.1,lo:144.6,t:T}]; wpStore(); CL=[{id:'c1',name:'Before start',ac:'',items:['Belts .... on'],t:T}]; clStore(); },T);   // waypoints and a checklist, to follow the plans across
  await P2.p.click('#gdNow'); await P2.p.waitForTimeout(1200);
  console.log('phone 2 Save now: Drive backup', JSON.stringify(backup()), '· phone 2 plans', await P2.p.evaluate(()=>PLANS.map(p=>p.name).sort().join(',')));
  await P1.p.evaluate(()=>{ $('bOpts').click(); }); await P1.p.evaluate(()=>{ fplOpen(); }); await P1.p.click('#plList li[data-id="p2"] [data-a="del"]'); await P1.p.evaluate(()=>$('plDlg').close());
  await P1.p.click('#gdNow'); await P1.p.waitForTimeout(1200);
+ const own1=await P1.p.evaluate(()=>WPTS.map(w=>w.n).sort().join(',')+' | '+CL.map(c=>c.name).join(','));
+ console.log('  phone 1 now also has phone 2\'s waypoints and checklist:', own1); if(own1!=='FUEL DRUM,PAD | Before start') P1.errs.push('waypoints / checklists did not merge');
+ await P1.p.evaluate(()=>{ wpDelete('w2'); }); await P1.p.click('#gdNow'); await P1.p.waitForTimeout(1200);
  console.log('phone 1 deletes Coast, Save now: phone 1 plans', await P1.p.evaluate(()=>PLANS.map(p=>p.name).sort().join(',')), '· Drive backup', JSON.stringify(backup()));
  await P2.p.click('#gdNow'); await P2.p.waitForTimeout(1200);
  console.log('phone 2 Save now: phone 2 plans', await P2.p.evaluate(()=>PLANS.map(p=>p.name).sort().join(',')));
+ const own2=await P2.p.evaluate(()=>WPTS.map(w=>w.n).join(',')); console.log('  phone 2 waypoints after phone 1 deleted PAD:', own2); if(own2!=='FUEL DRUM') P2.errs.push('waypoint deletion did not carry over');
  const P3=await phone(b,'phone3',`ls.set('gdAuto',false); GD.auto=false;`,true);
  console.log('phone 3 connects, says OK: asked', JSON.stringify(P3.asked), '· aircraft', await P3.p.evaluate(()=>ls.get('aircraftTest')), '· plans', await P3.p.evaluate(()=>PLANS.map(p=>p.name).sort().join(',')), '· still connected', await P3.p.evaluate(()=>gdOn()));
  console.log([...P1.errs,...P2.errs,...P3.errs]); await b.close(); })();

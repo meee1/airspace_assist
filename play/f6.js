@@ -8,7 +8,8 @@ const fs=require('fs'); const {chromium}=require('playwright'); const {PX9}=requ
  // ---- 1+2: approaching Moorabbin from the west, Go to YMMB
  await p.evaluate(()=>{ const a=DATA.ap.find(x=>x.i==='YMMB'); setGo({k:'AD',c:'YMMB',n:a.n,la:a.la,lo:a.lo}); $('simPos').value='-38.02,145.20'; $('simTrk').value='290'; simApply(); render(); render(); });
  console.log('NEXT before', await p.evaluate(()=>$('sNxCls').innerText.replace(/\n/g,' ')));
- await p.click('#sNxCls'); await p.waitForTimeout(300);
+ await p.click('#sNxCls'); await p.waitForTimeout(200); if(await p.evaluate(()=>$('sNxCls').hasAttribute('data-zb'))) await p.click('#sNxCls');   // the first tap enlarges the tile
+ await p.waitForTimeout(300);
  console.log('dialog', await p.evaluate(()=>$('clrDlg').open+' '+$('clrAtisLbl').textContent+' letters '+$('clrAtis').children.length));
  await p.click('#clrAtis [data-l="C"]'); await p.fill('#clrSq','4123'); await p.fill('#clrLvl','A015'); await p.fill('#clrRt','via CARR, report BTO');
  await (await p.$('#clrDlg')).screenshot({path:'play/f6_dlg.png'}); await p.click('#clrOk');

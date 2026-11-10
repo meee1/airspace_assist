@@ -1,11 +1,14 @@
 // Pixel 9 Pro: 1280x2856 at DPR 3 -> 427x952 CSS px; Chrome on Android, with ~70 px of browser chrome (installed app: full height)
 const {chromium}=require('playwright');
-const PX9={viewport:{width:427,height:880},screen:{width:427,height:952},deviceScaleFactor:3,isMobile:true,hasTouch:true,
+// TEST_DPR (set to 1 by play/run-all.js): the device pixel ratio for both profiles. Headless Chromium paints in software, so the
+// phone's 3x costs nine times the pixels of 1x for the same checks; run a test on its own (no TEST_DPR) for full-density screenshots.
+const DPR=+process.env.TEST_DPR||0;
+const PX9={viewport:{width:427,height:880},screen:{width:427,height:952},deviceScaleFactor:DPR||3,isMobile:true,hasTouch:true,
   userAgent:'Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
   storageState:{cookies:[],origins:[{origin:'http://localhost:8811',localStorage:[{name:'rc_fsMap',value:'false'}]}]}};   // older tests: classic page layout (play/fsmap.js turns full screen on)
 // Michael's tablet, a Lenovo Tab 10.1" (TB311XU) (10 Nov 2026): the render timing panel's viewport line reads 1470x970 @1.5 (CSS px, landscape, after browser bars) ->
 // ~2205x1455 device px. Android Chrome, touch; full-screen map uses the tablet layout here (fsTab: landscape, >=800 wide).
-const TAB={viewport:{width:1470,height:970},screen:{width:1470,height:970},deviceScaleFactor:1.5,isMobile:true,hasTouch:true,
+const TAB={viewport:{width:1470,height:970},screen:{width:1470,height:970},deviceScaleFactor:DPR||1.5,isMobile:true,hasTouch:true,
   userAgent:'Mozilla/5.0 (Linux; Android 14; TB311XU) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
   storageState:{cookies:[],origins:[{origin:'http://localhost:8811',localStorage:[{name:'rc_fsMap',value:'false'}]}]}};
 module.exports={PX9,TAB};
