@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794271625975;
+const APP_BUILT=1794289244917;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1329,8 +1329,14 @@ function areaLL(AS,b){ if(!AS||!b||!(b.k==='G'||b.k==='E')||!b.f) return '';
   const A=AS.bands.filter(q=>(q.k==='G'||q.k==='E')&&q.f), fs=new Set(A.map(q=>q.f)); if(fs.size<2) return '';
   const L=Math.min(...A.filter(q=>q.f===b.f).map(q=>q.L));   // where this frequency starts (135.3: G from A085, then E above)
   return 'LL '+(L<=0?'SFC':limTxt(L)); }
+// where the Go to comes from: the flight plan's active waypoint, a direct-to that pauses the plan, or a plain Go to
+function goSrc(){ if(!GO) return null;
+  if(FP&&FP.dct) return {t:'DIRECT', c:'dct', tip:`Direct to ${GO.c}: the flight plan is paused (Go to → Resume plan, or Clear)`};
+  if(FP&&GO.k==='FP') return {t:`PLAN ${FP.i+1}/${FP.pts.length}`, c:'plan', tip:`Flight plan "${FP.name||''}": waypoint ${FP.i+1} of ${FP.pts.length}`};
+  return {t:'GO TO', c:'go', tip:`Go to ${GO.c} (no flight plan)`}; }
+function srcChip(el,S){ if(!el) return; el.hidden=!S; if(!S) return; el.textContent=S.t; el.className='src '+S.c; el.title=S.tip||''; }
 function renderGoTiles(here,curF,altFt){
-  const g=goTarget(), hide=()=>{ $('gCtafBox').hidden=$('gAreaBox').hidden=true; renderCtl(null,0,0,0,'gCtl'); };
+  const g=goTarget(), hide=()=>{ $('gCtafBox').hidden=$('gAreaBox').hidden=true; renderCtl(null,0,0,0,'gCtl'); }, S=goSrc(); srcChip($('gCtafSrc'),S); srcChip($('gAreaSrc'),S);
   if(!g||g.d<0.3){ hide(); return; }
   const dd=g.d<10?g.d.toFixed(1):Math.round(g.d), eta=st.gs>20? new Date(Date.now()+g.d/st.gs*3600e3) : null;
   // area/ATC over the Go to point at your altitude
@@ -1346,7 +1352,7 @@ function renderGoTiles(here,curF,altFt){
     const ete=eta? (g.d/st.gs*60<90? Math.round(g.d/st.gs*60)+' min' : (g.d/st.gs).toFixed(1)+' h') : '';
     $('gCtafNx').textContent=(g.ad.i!==GO.c? `${GO.c} ${dd} NM · ${g.ad.i} ${g.dA.toFixed(1)} NM from it` : `${dd} NM`+(ete?' · '+ete:''))+(r.ts&&eta&&r.tp&&twrStatus(g.ad).on!==r.ts.on?(r.ts.on?' · TWR open at ETA':' · TWR closed at ETA'):'');   // tower hours at your ETA
     $('gCtafBox').hidden=false;
-    if(g.ad!==here){ renderCtl(g.ad,r.tp,r.open,r.ts,'gCtl'); $('gCtl').dataset.ad=g.ad.i; const s0=$('gCtl').querySelector('small'); if(s0) s0.textContent='→ '+s0.textContent; } else renderCtl(null,0,0,0,'gCtl'); }
+    if(g.ad!==here){ renderCtl(g.ad,r.tp,r.open,r.ts,'gCtl'); $('gCtl').dataset.ad=g.ad.i; const s0=$('gCtl').querySelector('small'); if(s0&&!s0.textContent.startsWith('→')) s0.textContent='→ '+s0.textContent; } else renderCtl(null,0,0,0,'gCtl'); }
   else { $('gCtafLbl').textContent='→ CTAF'; $('gCtaf').textContent='—'; $('gCtafAd').textContent=''; $('gCtafNx').textContent=`${GO.c} ${dd} NM · no aerodrome within 10 NM`; $('gCtafBox').hidden=false; renderCtl(null,0,0,0,'gCtl'); }
 }
 function setGo(p){
@@ -3530,8 +3536,8 @@ function render0(){
     const fpT=FP&&!FP.dct&&FP.pts[FP.i], tg=fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO;
     if(tg){ const b=distBrg(la,lo,tg.la,tg.lo)[1]; $('sPlan').textContent=fmt3(b-varE);
       let turn=''; if(h){ const d=((b-h.deg+540)%360)-180; turn= Math.abs(d)<3? 'on track' : (d<0?'L ':'R ')+Math.round(Math.abs(d))+'°'; }
-      $('sPlanTo').textContent='→ '+(tg.c||''); $('sPlanTurn').textContent=turn; $('sPlanTurn').classList.toggle('off', !!h && Math.abs(((b-h.deg+540)%360)-180)>=10); }
-    else { $('sPlan').textContent='—'; $('sPlanTo').textContent=''; $('sPlanTurn').textContent=''; }
+      $('sPlanTo').textContent='→ '+(tg.c||''); { const S=goSrc(); $('sPlanLbl').textContent= fpT? 'PLAN' : S&&S.c==='dct'? 'DIRECT' : 'GO TO'; $('sPlanLbl').title= S? S.tip : ''; } $('sPlanTurn').textContent=turn; $('sPlanTurn').classList.toggle('off', !!h && Math.abs(((b-h.deg+540)%360)-180)>=10); }
+    else { $('sPlan').textContent='—'; $('sPlanTo').textContent=''; $('sPlanTurn').textContent=''; $('sPlanLbl').textContent='PLAN'; }
   }
 
   const cands=candidates();
@@ -3542,7 +3548,7 @@ function render0(){
   if(!pick){ const f=fpAerodrome(la,lo); if(f){ pick=f; fpWhy=f.why; } }
   if(!pick){ pick=[...cands].sort((x,y)=>score(x,h)-score(y,h))[0]; }
   $('adMode').textContent = st.pin?'Selected aerodrome': fpWhy ? fpWhy : (st.ahead&&h?'Closest ahead':'Closest aerodrome');
-  $('unpin').hidden=!st.pin;
+  $('unpin').hidden=!st.pin; $('adMode').classList.toggle('pinned',!!st.pin);
 
   const a=pick.a;
   $('adId').textContent=a.i;
@@ -3581,6 +3587,9 @@ function render0(){
     if(prev&&prev.a!==herePk.a&&prev.d<=10&&distBrg(hold.la,hold.lo,la,lo)[0]<5&&!(herePk.d<=3||adPlanned(herePk.a))&&!ctafSplitPair(prev.a,herePk.a)) herePk=prev;
     st.ctafHold={i:herePk.a.i,la,lo}; }
   const here=herePk.a; st.ntHere=here;
+  // the card and radio calls are for another aerodrome than this tile's: say which, and why (selected by you / the plan's)
+  srcChip($('sCtafSrc'), st.pin? {t:(pick.a===here?'SELECTED':'CARD '+pick.a.i)+' ✕', c:'pin', tip:`${pick.a.i} is selected: the aerodrome card and radio calls are for it instead of the closest aerodrome. Tap to go back to automatic.`}
+    : fpWhy&&pick.a!==here? {t:'CARD '+pick.a.i, c:'fp', tip:`The aerodrome card and radio calls are for ${pick.a.i}: ${fpWhy}`} : null);
   { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here;
     if(nearPk.a!==here&&twrOpenNow(nearPk.a)&&nearPk.d<=10){ const r2=twrPick(nearPk.a,nearPk), ts2=twrStatus(nearPk.a); renderCtl(nearPk.a,r2,true,ts2); st.ctlAd=nearPk.a; }   // a towered field you're near but not in: its ATIS / TWR row still shows
     else { renderCtl(here,r.tp,r.open,r.ts); st.ctlAd= here.a||(here.x||[]).some(x=>x[0]==='TWR')? here : null; } }
@@ -4213,6 +4222,7 @@ function mapMenu(px,py){ if(document.body.classList.contains('fsm')&&FS.s!=='pee
 
 }
 $('unpin').onclick=()=>{st.pin=null;render()};
+$('sCtafSrc').addEventListener('click',e=>{ if(!st.pin) return; e.stopPropagation(); st.pin=null; render(); });   // the SELECTED chip: back to the closest aerodrome
 
 
 /* ---------- CTAF radio call guide ---------- */

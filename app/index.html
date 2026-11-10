@@ -106,6 +106,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .st.fq small.nx:empty{display:none}
 .st.fq small.cn{flex-basis:100%;order:0;font:700 13px/1.2 var(--f-sans,system-ui,sans-serif);text-transform:none;letter-spacing:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .st.fq small.cn:empty{display:none}
 .st.fq b{margin-top:0;color:var(--freq);font-size:18px;flex:none} .st.fq>small:first-child{flex:none}
+.st small.src{order:1;flex:none;align-self:center;font:700 9.5px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:2px 4px;border-radius:3px;border:1px solid currentColor;white-space:nowrap}
+.st.fq small.nx{order:1} .st.fq:has(>small.src:not([hidden])) small.nx{flex:1 1 0;min-width:0}   /* the badge shares the last line with the "next" text, so the tile doesn't grow and the codes on the first line stay visible */
+.ad-mode #adMode.pinned{color:var(--accent);font-weight:700} .st small.src.plan{color:var(--wp)} .st small.src.dct{color:var(--accent)} .st small.src.go{color:var(--dim)} .st small.src.pin{color:var(--accent);cursor:pointer} .st small.src.fp{color:var(--wp)}
 .st.fq small.who{flex:1 1 0;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .st.cls .cap{display:block;margin-top:3px;font:600 11px/1 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim)}
 .st{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:7px 8px;min-width:0}
@@ -542,14 +545,14 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b><i id="gpsAge"></i></div>
     <div class="st t" id="sHdgBox"><small id="hdgLbl">TRK</small><b id="sHdg">—</b><small id="sWind" class="agl" title="Wind estimated from GPS while you turn (ground speed vectors around a circle): direction it blows from, °M / kt"></small></div>
     <div class="st t" id="sGsBox"><small>GS kt</small><b id="sGs">—</b><small id="sLast" class="agl" title="Last light: end of evening civil twilight here (sun 6° below the horizon), the end of VFR day"></small></div>
-    <div class="st t plan" id="sPlanBox" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small>PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
+    <div class="st t plan" id="sPlanBox" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small id="sPlanLbl">PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st t" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st t cls" id="sClsBox" title="Airspace class at your position and altitude, and the restricted or danger area you're in"><small>CLASS</small><b id="sCls">—</b><small id="sClsP" class="cap"></small></div>
     <div class="st t lims" id="sLimBox" title="This band of airspace: CAP = its top (where the next class starts), LL = its lower limit"><div class="ln"><small>CAP</small><b id="sCap">—</b></div><div class="ln"><small>LL</small><b id="sLL">—</b></div></div>
-    <div class="st fq l" id="sCtafBox" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small id="sCtafCn" class="cn"></small><small id="sCtafNx" class="nx"></small></div>
+    <div class="st fq l" id="sCtafBox" title="CTAF of the aerodrome on screen; during tower hours its tower frequency (for split towers, the one for your side)"><small id="sCtafLbl">CTAF</small><b id="sCtaf">—</b><small id="sCtafAd" class="who"></small><small class="src" id="sCtafSrc" hidden></small><small id="sCtafCn" class="cn"></small><small id="sCtafNx" class="nx"></small></div>
     <div class="st fq" id="sAreaBox" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
-    <div class="st fq gt l" id="gCtafBox" hidden title="Go to: CTAF of the aerodrome at (or nearest within 10 NM of) the Go to point or flight plan waypoint; tower hours at your ETA"><small id="gCtafLbl">→ CTAF</small><b id="gCtaf">—</b><small id="gCtafAd" class="who"></small><small id="gCtafCn" class="cn"></small><small id="gCtafNx" class="nx"></small></div>
-    <div class="st fq gt" id="gAreaBox" hidden title="Go to: area or ATC frequency over the Go to point at your current altitude"><small id="gAreaLbl">→ AREA</small><b id="gArea">—</b><small id="gAreaWho" class="who"></small><small id="gAreaNx" class="nx"></small></div>
+    <div class="st fq gt l" id="gCtafBox" hidden title="Go to: CTAF of the aerodrome at (or nearest within 10 NM of) the Go to point or flight plan waypoint; tower hours at your ETA"><small id="gCtafLbl">→ CTAF</small><b id="gCtaf">—</b><small id="gCtafAd" class="who"></small><small class="src" id="gCtafSrc" hidden></small><small id="gCtafCn" class="cn"></small><small id="gCtafNx" class="nx"></small></div>
+    <div class="st fq gt" id="gAreaBox" hidden title="Go to: area or ATC frequency over the Go to point at your current altitude"><small id="gAreaLbl">→ AREA</small><b id="gArea">—</b><small class="src" id="gAreaSrc" hidden></small><small id="gAreaWho" class="who"></small><small id="gAreaNx" class="nx"></small></div>
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
@@ -938,7 +941,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=0adf6fa990';
+    const s=document.createElement('script'); s.src='app.js?v=6a5b3c0857';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
