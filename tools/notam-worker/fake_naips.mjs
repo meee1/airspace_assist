@@ -1,4 +1,4 @@
-// a fake NAIPS website for tests: login (session + anti-forgery token), Area briefing form, briefing result in <pre>
+// a fake NAIPS website for tests: login (session + anti-forgery token), Area briefing form (no token needed), briefing result in <pre>
 // fakeNaips(url, opts, brief) -> Response; NAIPS_FAKE.MODE 'ok' | 'blocked' | 'changed'; user pilot1 / secret99
 export const NAIPS_FAKE={MODE:'ok', seen:[]};
 const page=(body,title='NAIPS')=>`<!DOCTYPE html><html><head><title>${title}</title></head><body>${body}</body></html>`;
@@ -16,7 +16,7 @@ export async function fakeNaips(url,o={},BRIEF){ url=String(url); const m=o.meth
     return new Response(page(`<form action="/naips/Briefing/Area" method="post"><input name="__RequestVerificationToken" type="hidden" value="tok2" /><input name="BriefingArea1" type="text" /><input name="Validity" type="text" value="12"/></form>`),H()); }
   if(url.endsWith('/naips/Briefing/Area')&&m==='POST'){ if(!/\.ASPXAUTH=auth1/.test(ck)) return new Response('',{status:302,headers:{location:'/naips/Account/LogOn'}});
     if(MODE==='changed') return new Response(page('<form action="/naips/Briefing/NewArea"><input name="Areas"/></form>','Area Briefing'),H());
-    const okq=P.get('__RequestVerificationToken')==='tok2'&&P.get('BriefingArea1')&&P.getAll('Notam')[0]==='true';
+    const okq=P.get('BriefingArea1')&&P.getAll('Notam')[0]==='true';   // the area form's own token isn't required (the Worker posts the area form without its hidden fields)
     return new Response(page(okq?`<h2>Area Briefing Results</h2><pre>${esc(BRIEF)}</pre>`:'bad request '+body,'Area Briefing Results'),H()); }
   if(url.endsWith('/naips/Account/LogOff')) return new Response('',{status:302,headers:{location:'/naips/Account/LogOn'}});
   return new Response('?',{status:404}); }
