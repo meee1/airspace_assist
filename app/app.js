@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794367118533;
+const APP_BUILT=1794368318182;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -3324,7 +3324,7 @@ const CMPA={s:0,c:0,n:0};   // compass readings since the last fix (onOri), magn
 function cmpTrue(){ const v=st.pos?variation(st.pos[0],st.pos[1]):0; return st.compassMag? st.compass+v : st.compass; }
 function cmpLearn(){
   const now=performance.now(), A={...CMPA}; CMPA.s=CMPA.c=CMPA.n=0;
-  const why= st.sim? 'not in simulation' : st.compass==null? 'no compass readings (tap Start, or this phone has no compass)'
+  const why= st.sim? 'not in simulation' : st.compass==null? cmpNoneWhy()
     : now-(st.compassT||0)>2000? 'compass paused (Android sends it only to the app in front: not in split screen)'
     : st.trk==null? 'waiting for a GPS track' : !(st.gs>=20)? 'waiting for 20 kt or more' : '';
   if(why){ cmpPrev=null; cmpWhy(why); return; }
@@ -3342,7 +3342,7 @@ function cmpLearn(){
   CMP.off=Math.atan2(CMP.s,CMP.c)/R;
   if(CMP.n%10===0||CMP.n===CMP_MIN) ls.set('cmp',CMP);
   cmpSync(); }
-const CMP_SHORT=[[/^no compass/,'no compass'],[/^compass paused/,'compass paused'],[/^waiting for a GPS/,'no GPS track'],[/20 kt/,'under 20 kt'],[/^compass unsteady/,'compass unsteady'],[/straight/,'not steady'],[/simulation/,'simulation']];
+const CMP_SHORT=[[/blocks the sensors/,'sensors blocked'],[/tilt but not north/,'browser has no compass'],[/^no compass/,'no compass'],[/^compass paused/,'compass paused'],[/^waiting for a GPS/,'no GPS track'],[/20 kt/,'under 20 kt'],[/^compass unsteady/,'compass unsteady'],[/straight/,'not steady'],[/simulation/,'simulation']];
 function cmpWhy(w){ if(CMP.why===w) return; CMP.why=w; cmpSync(); }
 function cmpSync(){ const b=$('bCmp'); if(!b) return;
   b.textContent= CMP.n>=CMP_MIN? `Compass aligned ${CMP.off>=0?'+':'−'}${Math.abs(Math.round(CMP.off))}°` : (CMP.n? `Compass: aligning ${Math.round(100*CMP.n/CMP_MIN)}%` : 'Compass: not aligned')+(CMP.why? ` · ${CMP_SHORT.find(([re])=>re.test(CMP.why))?.[1]||''}`:'');
@@ -4243,23 +4243,52 @@ function tiltHeading(al,be,ga,so){
   const a=al*R,b=(be||0)*R,g=(ga||0)*R, ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b),cg=Math.cos(g),sg=Math.sin(g);
   // R = Rz(a) Rx(b) Ry(g); columns are the device x, y, z axes in earth coordinates
   const X=[ca*cg-sa*sb*sg, sa*cg+ca*sb*sg, -cb*sg], Y=[-sa*cb, ca*cb, sb], Z=[ca*sg+sa*sb*cg, sa*sg-ca*sb*cg, cb*cg];
+  return axesHeading(X,Y,Z,so); }
+// heading from the phone's axes in earth coordinates (x East, y North, z up); also used with the sensor API's quaternion
+function axesHeading(X,Y,Z,so){
   const u=so*R, top=[0,1,2].map(i=>Math.sin(u)*X[i]+Math.cos(u)*Y[i]), back=Z.map(v=>-v);
   // the back of the phone once it's tilted more than about 30° from flat (sin 30° = 0.5; 0.45/0.55 either way so it
   // doesn't flip at the edge); flat, the top of the screen. Not "whichever is more horizontal": upright in landscape with
   // the rotation locked, the top of the screen is horizontal too (pointing sideways), and that flipped the heading 90°.
-  const bh=Math.hypot(back[0],back[1]); tiltHeading.back= bh>(tiltHeading.back?0.45:0.55);
-  const v= tiltHeading.back? back : top;
+  const bh=Math.hypot(back[0],back[1]); axesHeading.back= bh>(axesHeading.back?0.45:0.55);
+  const v= axesHeading.back? back : top;
   return norm(Math.atan2(v[0],v[1])/R); }
 let lastOri=0;
-function onOri(e){
-  const so=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
-  let h=null, mag=true;
-  if(e.webkitCompassHeading!=null){ h=norm(e.webkitCompassHeading+so); mag=true; }      // iOS: magnetic, tilt-compensated
-  else if(e.absolute && e.alpha!=null){ h=tiltHeading(e.alpha,e.beta,e.gamma,so); mag=true; }   // Android: magnetometer north
-  if(h==null) return;
-  st.compass=h; st.compassMag=mag; st.compassT=performance.now(); CMPA.s+=Math.sin(h*R); CMPA.c+=Math.cos(h*R); CMPA.n++;
-  const now=performance.now(); if(now-lastOri>400){lastOri=now; render();}
-}
+/* What the browser has sent, so "no compass" can say why (CMP.why): orientation events at all, empty ones (no values:
+   Chrome's site setting Motion sensors blocked, or no sensor), ones not tied to north (Firefox's deviceorientation), and
+   the sensor API fallback's error. */
+const CMPD={ev:0, empty:0, rel:0, src:'', err:'', perm:''};
+const scrAngle=()=>(screen.orientation&&screen.orientation.angle)||window.orientation||0;
+function compassSet(h,src){ CMPD.src=src; st.compass=h; st.compassMag=true; st.compassT=performance.now(); CMPA.s+=Math.sin(h*R); CMPA.c+=Math.cos(h*R); CMPA.n++;
+  const now=performance.now(); if(now-lastOri>400){lastOri=now; render();} }
+function onOri(e){ CMPD.ev++;
+  const so=scrAngle();
+  if(e.webkitCompassHeading!=null) return compassSet(norm(e.webkitCompassHeading+so),'ios');   // iOS: magnetic, tilt-compensated
+  if(e.alpha==null){ CMPD.empty++; return; }
+  if(!e.absolute){ CMPD.rel++; return; }   // not tied to north: no use as a compass
+  if(CMPD.src==='sensor') return;           // the sensor API is already giving headings
+  compassSet(tiltHeading(e.alpha,e.beta,e.gamma,so),'event'); }   // Android: magnetometer north
+/* Fallback: the Generic Sensor API (AbsoluteOrientationSensor: Chrome on Android, from the same magnetometer, gyroscope
+   and accelerometer), if the orientation events have given no heading 3 s after start. Its quaternion turns the
+   phone's axes into earth axes (x East, y North, z up), the same frame as the events. An error says why (NotAllowedError:
+   Motion sensors blocked for the site; NotReadableError: no sensor). */
+let CMPS=null;
+function cmpFallback(){ if(st.compass!=null||CMPS||typeof AbsoluteOrientationSensor!=='function') return;
+  try{ CMPS=new AbsoluteOrientationSensor({frequency:20, referenceFrame:'device'});
+    CMPS.addEventListener('reading',()=>{ const q=CMPS.quaternion; if(!q) return; const [x,y,z,w]=q;
+      const X=[1-2*(y*y+z*z), 2*(x*y+w*z), 2*(x*z-w*y)], Y=[2*(x*y-w*z), 1-2*(x*x+z*z), 2*(y*z+w*x)], Z=[2*(x*z+w*y), 2*(y*z-w*x), 1-2*(x*x+y*y)];
+      compassSet(axesHeading(X,Y,Z,scrAngle()),'sensor'); });
+    CMPS.addEventListener('error',e=>{ CMPD.err=(e.error&&e.error.name)||'error'; CMPS=null; cmpSync(); });
+    CMPS.start(); }
+  catch(e){ CMPD.err=e.name||'error'; CMPS=null; }
+  if(navigator.permissions) navigator.permissions.query({name:'magnetometer'}).then(r=>{ CMPD.perm=r.state; }).catch(()=>{}); }
+// "no compass": the most likely reason from what came in
+function cmpNoneWhy(){
+  if(CMPD.err==='NotAllowedError'||CMPD.perm==='denied'||CMPD.empty&&!CMPD.rel) return 'no compass readings: the browser blocks the sensors for this site (Chrome: the lock or ⓘ by the address, or Settings → Site settings → Motion sensors: allow)';
+  if(CMPD.rel) return 'no compass readings: this browser gives the phone\'s tilt but not north (use Chrome or Safari)';
+  if(!CMPD.ev&&CMPD.err==='NotReadableError') return 'no compass readings: the phone reports no compass sensor';
+  if(!CMPD.ev) return 'no compass readings from the browser yet (tap Start GPS & compass; Chrome: Site settings → Motion sensors: allow)';
+  return 'no compass readings (tap Start, or this phone has no compass)'; }
 async function start(){
   if(!('geolocation' in navigator)){ $('startBox').firstElementChild.textContent='This browser has no location support.'; return; }
   wakeAcquire();
@@ -4270,6 +4299,7 @@ async function start(){
       else throw new Error('compass');
     }else if('ondeviceorientationabsolute' in window){ addEventListener('deviceorientationabsolute',onOri); }
     else addEventListener('deviceorientation',onOri);
+    setTimeout(cmpFallback,3000);   // no heading from the events by then: try the sensor API
   }catch(e){
     $('startBox').hidden=false; $('startBox').firstElementChild.textContent='GPS is running. Tap to enable the compass, so arrows work while stationary.';
     $('startBtn').textContent='Enable compass'; ls.set('started',true); return;
