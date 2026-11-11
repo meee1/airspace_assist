@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794377267627;
+const APP_BUILT=1794391479456;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1699,7 +1699,9 @@ function drawAdMap(a,pick,h){
 /* ---------- map ---------- */
 const MAP={hide:new Set(ls.get('mapHide',[])), range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), rotF:ls.get('mapRotF',0), cyF:ls.get('mapCyF',0.5), hold:null, rotNow:0, ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
-const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
+// CTAF frequency colours: no reds, oranges or magenta (0, 30, 345, then 320 were taken out, 11 Nov 2026, Michael: "Ctaf frequency colours red and
+// orange need to be removed, they clash with danger and restricted zones"): R areas are red, D/Q orange (--as-r, --as-q)
+const CTAF_HUES=[210,130,275,185,55,240,160,95];   // magenta (320) out too: too close to the R areas' red
 let CTAF_OD=1;   // CTAF layer offscreen density cap (px per CSS px): 1 is ~5x faster than the screen's 2.6 on a phone, edges a little softer
 let ctafPal=new Map();       // frequency -> palette slot, kept while the frequency stays in view
 function ctafAssign(freqs){  // stable hash slot, bumped to a free slot so frequencies in view never share a colour
