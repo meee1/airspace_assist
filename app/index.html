@@ -417,7 +417,7 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 .fp-legs .n{font:600 11px var(--f-mono);color:var(--dim)} .fp-legs .w b{font-family:var(--f-mono)} .fp-legs .w span{color:var(--dim);font-size:12px}
 .fp-legs .m{font:500 12px var(--f-mono);color:var(--dim);text-align:right}
 .fp-legs.edit li{grid-template-columns:22px 1fr auto;align-items:center;cursor:default}.fp-legs.edit .m{display:none}
-.fp-coast{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:6px 0 2px;font-size:12px;color:var(--dim)} .fp-coast select{font:600 13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .fp-coast .vnote{margin:0}
+.fp-coast{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:6px 0 2px;font-size:12px;color:var(--dim)} .fp-coast select{font:600 13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .fp-coast .vnote{margin:0} .fp-coast .fp-coff{flex-basis:100%} .fp-coast .fp-coff b.ok{color:var(--ok,#1a7f37)} .fp-coast .fp-coff b.no{color:var(--warn,#b45309)}
 .fp-legs .cstt{font:700 9.5px var(--f-label);letter-spacing:.06em;font-style:normal;color:var(--as-c);border:1px solid currentColor;border-radius:3px;padding:0 3px} .fp-legs .ed .btn.cst.on{background:var(--as-c);color:#fff;border-color:var(--as-c)}
 .fp-legs li.cgh{display:none}   /* a coast leg's turn points: shown only while one is the active waypoint */
 .fp-legs .ed{display:none;gap:4px}.fp-legs.edit .ed{display:flex}.fp-legs .ed .btn{min-height:36px;min-width:34px;padding:4px 6px;font-size:14px} .fp-legs .ed .btn.landb{font-size:10.5px;letter-spacing:.03em;padding:4px 5px} .fp-legs .ed .altin{width:56px}
@@ -703,7 +703,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <select id="fpAddAt" aria-label="Where to add it"><option value="end">at end</option><option value="best">best fit</option><option value="next">as next</option></select></div>
       <ul class="sugg" id="fpAddList" hidden></ul>
       <div class="err" id="fpAddErr" hidden></div>
-      <div class="fp-coast"><span>≈ Coast legs:</span><label><select id="fpCoastOff" aria-label="Coast legs: distance off the shore"><option value="300">300 ft</option><option value="500">500 ft</option><option value="1000">1,000 ft</option><option value="1500">1,500 ft</option><option value="3000">0.5 NM</option><option value="6000">1 NM</option></select> off the shore</label><label>hops up to <select id="fpCoastGap" aria-label="Coast legs: longest hop over open water (river mouths, bay entrances, to islands)"><option value="0">none</option><option value="0.5">0.5 NM</option><option value="1">1 NM</option><option value="2">2 NM</option><option value="3">3 NM</option><option value="5">5 NM</option></select></label><span class="vnote" id="fpCoastStat" role="status"></span></div>
+      <div class="fp-coast"><span>≈ Coast legs:</span><label><select id="fpCoastOff" aria-label="Coast legs: distance off the shore"><option value="300">300 ft</option><option value="500">500 ft</option><option value="1000">1,000 ft</option><option value="1500">1,500 ft</option><option value="3000">0.5 NM</option><option value="6000">1 NM</option></select> off the shore</label><label>hops up to <select id="fpCoastGap" aria-label="Coast legs: longest hop over open water (river mouths, bay entrances, to islands)"><option value="0">none</option><option value="0.5">0.5 NM</option><option value="1">1 NM</option><option value="2">2 NM</option><option value="3">3 NM</option><option value="5">5 NM</option></select></label><span class="vnote" id="fpCoastStat" role="status"></span><span class="vnote fp-coff" id="fpCoastOffl"></span><button class="btn" type="button" id="fpCoastStore" hidden>Store all</button></div>
     </div>
     <div id="fpBody" hidden>
       <div class="fp-dct" id="fpDct" hidden></div>
@@ -984,7 +984,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=68ed6deb57';
+    const s=document.createElement('script'); s.src='app.js?v=033524c34e';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

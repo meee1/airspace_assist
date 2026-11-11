@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794352662555;
+const APP_BUILT=1794357320455;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -403,9 +403,49 @@ const COAST={idx:null, tiles:new Map(), off:ls.get('coastOff',500), gap:ls.get('
 async function coastIndex(){ if(COAST.idx) return COAST.idx;
   const r=await fetch('coast/index.json',{cache:'no-cache'}).catch(()=>null); if(!r||!r.ok) throw new Error('the coastline data isn\'t on this device yet (it needs a connection the first time)');
   const j=await r.json(); COAST.c=new Set(j.c||[]); COAST.l=new Set(j.l||[]); COAST.idx=j; return j; }
+const coastUrl=n=>'coast/'+n+'.json?v='+encodeURIComponent(COAST.idx.built||'');
 function coastTile(n){ let p=COAST.tiles.get(n); if(p) return p;
-  p=fetch('coast/'+n+'.json?v='+encodeURIComponent(COAST.idx.built||'')).then(r=>{ if(!r.ok) throw new Error('coastline tile '+n+' not loaded'); return r.json(); }).then(j=>j.p||[]);
+  p=fetch(coastUrl(n)).catch(()=>null).then(r=>{ if(!r||!r.ok) throw new Error(navigator.onLine? `the coastline for ${n} didn't load` : `the coastline for ${n} isn't stored on this phone yet and there's no signal (the whole coastline downloads the next time there is)`); return r.json(); }).then(j=>j.p||[]);
   COAST.tiles.set(n,p); p.catch(()=>COAST.tiles.delete(n)); return p; }
+/* What of the coastline this phone keeps for offline use. The service worker keeps each tile it fetches (in the terrain
+   cache, keyed with ?v=<build>); the turn points of a coast leg are stored with the plan, so flying one needs no coastline:
+   it's needed to make or change a coast leg, or to open a shared plan with one, without signal. All of it is kept
+   (coastAuto); this shows how far that has got. */
+function coastLegTiles(P_){ const need=new Set();   // the tiles round each coast leg (its route + 6 NM, the first area tried)
+  P_.forEach((e,k)=>{ if(e.via!=='coast') return; let j=k-1; while(j>0&&P_[j].cg&&P_[j].cg===e.cgid) j--; const L=P_.slice(Math.max(0,j),k+1);
+    const la=L.map(q=>q.la), lo=L.map(q=>q.lo), m=0.1, ml=0.1/Math.cos(la[0]*R);
+    for(let a=Math.floor(Math.min(...la)-m);a<=Math.floor(Math.max(...la)+m);a++) for(let o=Math.floor(Math.min(...lo)-ml);o<=Math.floor(Math.max(...lo)+ml);o++){ const n=tName(a,o); if(COAST.c.has(n)) need.add(n); } });
+  return need; }
+async function coastStored(){   // {sw, have: Set of stored tile names (this build)}; drops tiles from older builds
+  const sw=!!(navigator.serviceWorker&&navigator.serviceWorker.controller&&window.caches); if(!sw) return {sw, have:new Set()};
+  const have=new Set(), c=await caches.open('radio-au-terrain'), v=encodeURIComponent(COAST.idx.built||'');
+  for(const k of await c.keys()){ const m=/\/coast\/([SN]\d\d[EW]\d{3})\.json\?v=([^&]*)/.exec(k.url); if(!m) continue; if(m[2]===v) have.add(m[1]); else c.delete(k); }
+  return {sw, have}; }
+async function coastOffl(){ const el=$('fpCoastOffl'), bt=$('fpCoastStore'); if(!el) return;
+  try{ await coastIndex(); }catch(e){ el.innerHTML=`Coastline: <b class="no">not on this phone yet</b>${navigator.onLine?'':' · no signal'}: it downloads with signal as you make coast legs.`; bt.hidden=true; return; }
+  if(COAST.storing) return;
+  let st; try{ st=await coastStored(); }catch(e){ st={sw:false,have:new Set()}; }
+  const all=COAST.c.size, n=st.have.size, kb=COAST.idx.kb||0, need=FP? [...coastLegTiles(FP.pts)] : [], miss=need.filter(t=>!st.have.has(t)), off=!navigator.onLine;
+  if(!st.sw){ el.innerHTML=`Coastline: <b class="no">not kept for offline use</b> in this browser (it needs the installed app, over https)${off?' · <b class="no">no signal</b>':''}.`; bt.hidden=true; return; }
+  el.innerHTML=`Coastline stored: <b class="${n>=all?'ok':''}">${n>=all?'all':n+' of '+all} areas</b>${n>=all?' (coast legs can be made anywhere without signal)':''}`+
+    (need.length? ` · this plan's coast legs: <b class="${miss.length?'no':'ok'}">${need.length-miss.length}/${need.length} areas</b>${miss.length?' (needed only to change them without signal)':''}` : '')+
+    (off?' · <b class="no">no signal</b>':'')+'.';
+  if(n<all) el.insertAdjacentText('beforeend',` The rest downloads in the background with signal (${(kb/1024).toFixed(1)} MB in all).`);
+  bt.hidden=n>=all; bt.disabled=off; bt.textContent='Store now'; bt.title=off?'Needs signal':'Download the rest of the coastline now'; }
+// the whole coastline is small (about 1.6 MB), so it's all kept: downloaded in the background with signal after the app
+// starts (and again when a rebuilt coastline replaces it, or when signal comes back with some missing)
+async function coastAuto(){ if(!navigator.onLine||COAST.storing||!(navigator.serviceWorker&&navigator.serviceWorker.controller&&window.caches)) return;
+  try{ await coastIndex(); const st=await coastStored(); if(st.have.size<COAST.c.size) await coastStoreAll(); }catch(e){} }
+async function coastStoreAll(){ const el=$('fpCoastOffl'), bt=$('fpCoastStore'); if(COAST.storing) return;
+  try{ await coastIndex(); }catch(e){ el.textContent='Coastline: '+e.message+'.'; return; }
+  const st=await coastStored(), todo=[...COAST.c].filter(n=>!st.have.has(n)); let done=0, bad=0; COAST.storing=true; bt.disabled=true;
+  const say=()=>{ el.textContent=`Storing the coastline: ${st.have.size+done} of ${COAST.c.size} areas…`; };
+  say(); let i=0;
+  const c=await caches.open('radio-au-terrain');   // stored here too, not only by the service worker (which stores after answering), so the count after is right
+  await Promise.all(Array.from({length:6},async()=>{ while(i<todo.length){ const n=todo[i++]; try{ const r=await fetch(coastUrl(n)); if(!r.ok) throw 0; await c.put(coastUrl(n),r); done++; }catch(e){ bad++; } say(); } }));
+  COAST.storing=false; await coastOffl(); offlineStatus(); if(bad) el.insertAdjacentText('beforeend',` ${bad} area${bad>1?'s':''} didn't download: try again with signal.`); }
+$('fpCoastStore').onclick=coastStoreAll;
+addEventListener('online',()=>{ coastOffl(); setTimeout(coastAuto,3000); }); addEventListener('offline',()=>coastOffl());
 // exact squared Euclidean distance transform (Felzenszwalb & Huttenlocher): f = 0 on land, BIG on water; in place, cells²
 const EDT_BIG=1e20;
 function edt2(f,W,H){ const n=Math.max(W,H), v=new Int32Array(n), z=new Float64Array(n+1), g=new Float64Array(n), d=new Float64Array(n);
@@ -522,7 +562,7 @@ async function fpCoastSet(end,on,set){ if(!FP) return; const P_=FP.pts, st_=$('f
   fpEdit(P=>{ P.splice(k,0,...ins); end.via='coast'; end.cgid=gid; end.coff=off; end.cgap=gp; delete end.cnm; });
   if(fly&&ins.length&&FP.pts[FP.i]===end) fpPick(FP.pts.indexOf(ins[0]));
   let D=0, L=[a,...ins,end]; for(let i=1;i<L.length;i++) D+=distBrg(L[i-1].la,L[i-1].lo,L[i].la,L[i].lo)[0];
-  st_.textContent=`${a.c||a.n} → ${end.c||end.n} along the coast, ${how}: ${D.toFixed(1)} NM (direct ${D0.toFixed(1)}), ${ins.length} turn point${ins.length===1?'':'s'}.`; return true; }
+  st_.textContent=`${a.c||a.n} → ${end.c||end.n} along the coast, ${how}: ${D.toFixed(1)} NM (direct ${D0.toFixed(1)}), ${ins.length} turn point${ins.length===1?'':'s'}.`; coastOffl(); return true; }
 // a shared plan's coast legs (the link has the flag and settings, not the turn points): work them out here
 async function fpCoastLinked(){ if(!FP) return; const bad=[];
   for(const p of FP.pts.filter(q=>q.via==='coast'&&!q.cgid)){ const ok=await fpCoastSet(p,true,{off:p.coff,gap:p.cgap});
@@ -3264,27 +3304,41 @@ function candidates(){
    20 kt or more, the difference between GPS track and compass is averaged (about a 30 s time constant) and then
    added to the compass whenever the app falls back to it (slow, hovering, on the ground). The learnt offset also
    takes in the wind correction angle at the time, so it's best learnt into wind or in light wind. Kept on the
-   phone until reset (the cradle usually stays put). */
+   phone until reset (the cradle usually stays put).
+   Each GPS fix is compared with the compass averaged over the time since the previous fix (all the readings, as a
+   vector mean), not one reading, so vibration doesn't throw samples out; a fix counts when the track and that average
+   each moved less than about 3°/s, and the readings in between agreed (spread under about 25°). While it isn't
+   aligned the button says what it's waiting for (CMP.why). */
 const CMP_MIN=20;   // samples (about 20 s of fixes) before the offset is used
-const CMP=Object.assign({off:0,n:0,s:0,c:0}, ls.get('cmp',{}));
+const CMP=Object.assign({off:0,n:0,s:0,c:0}, ls.get('cmp',{}), {why:''});
 let cmpPrev=null;
+const CMPA={s:0,c:0,n:0};   // compass readings since the last fix (onOri), magnetic or true as the sensor gives
 function cmpTrue(){ const v=st.pos?variation(st.pos[0],st.pos[1]):0; return st.compassMag? st.compass+v : st.compass; }
 function cmpLearn(){
-  const now=performance.now();
-  if(st.sim||st.compass==null||st.trk==null||!(st.gs>=20)||now-(st.compassT||0)>2000){ cmpPrev=null; return; }
-  const raw=cmpTrue(), d=((st.trk-raw+540)%360)-180;
-  // steady: track and compass each changed less than about 3 deg/s since the last fix
-  const ok=cmpPrev && now-cmpPrev.t<5000 && Math.abs(((st.trk-cmpPrev.trk+540)%360)-180)<3*(now-cmpPrev.t)/1000+3
-    && Math.abs(((raw-cmpPrev.raw+540)%360)-180)<3*(now-cmpPrev.t)/1000+6;   // compass jitters more than GPS track
+  const now=performance.now(), A={...CMPA}; CMPA.s=CMPA.c=CMPA.n=0;
+  const why= st.sim? 'not in simulation' : st.compass==null? 'no compass readings (tap Start, or this phone has no compass)'
+    : now-(st.compassT||0)>2000? 'compass paused (Android sends it only to the app in front: not in split screen)'
+    : st.trk==null? 'waiting for a GPS track' : !(st.gs>=20)? 'waiting for 20 kt or more' : '';
+  if(why){ cmpPrev=null; cmpWhy(why); return; }
+  const v=st.pos?variation(st.pos[0],st.pos[1]):0, mean=A.n? Math.atan2(A.s,A.c)/R : st.compass, spread=A.n>1? Math.hypot(A.s,A.c)/A.n : 1;
+  const raw=norm(mean+(st.compassMag?v:0)), d=((st.trk-raw+540)%360)-180;
+  // steady: track and (averaged) compass each changed less than about 3 deg/s since the last fix, and the readings agreed
+  const dt=cmpPrev? (now-cmpPrev.t)/1000 : 0;
+  const ok=cmpPrev && dt<5 && Math.abs(((st.trk-cmpPrev.trk+540)%360)-180)<3*dt+3
+    && Math.abs(((raw-cmpPrev.raw+540)%360)-180)<3*dt+6 && spread>0.9;   // 0.9: readings within about ±25°
+  if(cmpPrev&&!ok) cmpWhy(spread<=0.9? 'compass unsteady (vibration or a magnetic source near the phone?)' : 'waiting for straight, steady flight');
   cmpPrev={t:now,trk:st.trk,raw};
-  if(!ok) return;
+  if(!ok) return; CMP.why='';
   const a=1/Math.min(30,CMP.n+1);   // running mean at first, then a 30-sample EMA
   CMP.s=CMP.s*(1-a)+Math.sin(d*R)*a; CMP.c=CMP.c*(1-a)+Math.cos(d*R)*a; CMP.n++;
   CMP.off=Math.atan2(CMP.s,CMP.c)/R;
   if(CMP.n%10===0||CMP.n===CMP_MIN) ls.set('cmp',CMP);
   cmpSync(); }
+const CMP_SHORT=[[/^no compass/,'no compass'],[/^compass paused/,'compass paused'],[/^waiting for a GPS/,'no GPS track'],[/20 kt/,'under 20 kt'],[/^compass unsteady/,'compass unsteady'],[/straight/,'not steady'],[/simulation/,'simulation']];
+function cmpWhy(w){ if(CMP.why===w) return; CMP.why=w; cmpSync(); }
 function cmpSync(){ const b=$('bCmp'); if(!b) return;
-  b.textContent= CMP.n>=CMP_MIN? `Compass aligned ${CMP.off>=0?'+':'−'}${Math.abs(Math.round(CMP.off))}°` : CMP.n? `Compass: aligning ${Math.round(100*CMP.n/CMP_MIN)}%` : 'Compass: not aligned';
+  b.textContent= CMP.n>=CMP_MIN? `Compass aligned ${CMP.off>=0?'+':'−'}${Math.abs(Math.round(CMP.off))}°` : (CMP.n? `Compass: aligning ${Math.round(100*CMP.n/CMP_MIN)}%` : 'Compass: not aligned')+(CMP.why? ` · ${CMP_SHORT.find(([re])=>re.test(CMP.why))?.[1]||''}`:'');
+  b.title= (CMP.n<CMP_MIN&&CMP.why? 'Now: '+CMP.why+'. ' : '')+'The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.';
   b.setAttribute('aria-pressed', CMP.n>=CMP_MIN); }
 const unitShort=u=>titleCase(u||'').replace(/\s*\(E Frequency\)/i,' E').replace(/\s*\([^)]*\)/g,'').replace(/ Centre$/,' Ctr').replace(/ Approach$/,' App').replace(/ Departures?$/,' Dep').replace(/ Tower$/,' Twr').replace(/ Ground$/,' Gnd');
 /* Expected next CTAF and area frequency, with the distance to where each changes. The path ahead is the rest of
@@ -3430,6 +3484,11 @@ async function routeReady(P_,t0,t1){ const out=[], ok_=(y,txt,fix)=>out.push({y,
     if(!per.length&&!unticked.size) ok_(true,'Charts: none on this route (no sheet covers it)','');
     if(unticked.size) out.push({y:null, txt:`Not downloaded (not ticked in Options): ${[...unticked].join(', ')}`, fix:'tick them in Options → Chart downloads if you want them'}); }
   catch(e){ ok_(false,'Charts: couldn\'t check the stored tiles','' ); }
+  // coast legs: their turn points are in the plan; the coastline is only needed to change them
+  if(P_.some(p=>p.via==='coast')){ try{ await coastIndex(); const need=[...coastLegTiles(P_)], have=(await coastStored()).have, h=need.filter(n=>have.has(n)).length;
+      out.push({y:true, txt:'Coast legs: turn points stored with the plan'});
+      if(h<need.length) out.push({y:null, txt:`Coastline round the coast legs: ${h}/${need.length} areas stored`, fix:'only needed to change a coast leg without signal: Store all under ≈ Coast legs (Edit)'}); }
+    catch(e){ out.push({y:true, txt:'Coast legs: turn points stored with the plan'}); } }
   // briefing
   if(!NTN) ok_(false,'No NAIPS briefing loaded','load one before you lose signal');
   else { const age=(Date.now()-NTN.issued)/3600e3; ok_(age<=6&&(!NTN.validTo||NTN.validTo>=t1), `NAIPS briefing ${age.toFixed(1)} h old${NTN.validTo?', valid to '+hhmmZ(NTN.validTo):''}`, NTN.validTo&&NTN.validTo<t1? 'it ends before you arrive: get a new one' : 'get a fresh one'); }
@@ -4177,7 +4236,11 @@ function tiltHeading(al,be,ga,so){
   // R = Rz(a) Rx(b) Ry(g); columns are the device x, y, z axes in earth coordinates
   const X=[ca*cg-sa*sb*sg, sa*cg+ca*sb*sg, -cb*sg], Y=[-sa*cb, ca*cb, sb], Z=[ca*sg+sa*sb*cg, sa*sg-ca*sb*cg, cb*cg];
   const u=so*R, top=[0,1,2].map(i=>Math.sin(u)*X[i]+Math.cos(u)*Y[i]), back=Z.map(v=>-v);
-  const v= Math.hypot(top[0],top[1])>=Math.hypot(back[0],back[1]) ? top : back;
+  // the back of the phone once it's tilted more than about 30° from flat (sin 30° = 0.5; 0.45/0.55 either way so it
+  // doesn't flip at the edge); flat, the top of the screen. Not "whichever is more horizontal": upright in landscape with
+  // the rotation locked, the top of the screen is horizontal too (pointing sideways), and that flipped the heading 90°.
+  const bh=Math.hypot(back[0],back[1]); tiltHeading.back= bh>(tiltHeading.back?0.45:0.55);
+  const v= tiltHeading.back? back : top;
   return norm(Math.atan2(v[0],v[1])/R); }
 let lastOri=0;
 function onOri(e){
@@ -4186,7 +4249,7 @@ function onOri(e){
   if(e.webkitCompassHeading!=null){ h=norm(e.webkitCompassHeading+so); mag=true; }      // iOS: magnetic, tilt-compensated
   else if(e.absolute && e.alpha!=null){ h=tiltHeading(e.alpha,e.beta,e.gamma,so); mag=true; }   // Android: magnetometer north
   if(h==null) return;
-  st.compass=h; st.compassMag=mag; st.compassT=performance.now();
+  st.compass=h; st.compassMag=mag; st.compassT=performance.now(); CMPA.s+=Math.sin(h*R); CMPA.c+=Math.cos(h*R); CMPA.n++;
   const now=performance.now(); if(now-lastOri>400){lastOri=now; render();}
 }
 async function start(){
@@ -4469,7 +4532,7 @@ $('fpLegs').addEventListener('click',e=>{ if(e.target.closest('.altin')) return;
   $('fpLegs').scrollTop=at; });
 $('fpCoastOff').value=String(COAST.off); $('fpCoastGap').value=String(COAST.gap);
 for(const id of ['fpCoastOff','fpCoastGap']) $(id).onchange=()=>{ COAST.off=+$('fpCoastOff').value; COAST.gap=+$('fpCoastGap').value; ls.set('coastOff',COAST.off); ls.set('coastGap',COAST.gap); renderFP.legs=''; fpCoastAll().then(()=>render()); };
-$('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; FP_REPL=null; $('fpAddErr').hidden=true; render(); };
+$('fpEdit').onclick=()=>{ FP_EDIT=!FP_EDIT; FP_REPL=null; $('fpAddErr').hidden=true; render(); if(FP_EDIT) coastOffl(); };
 $('fpNew').onclick=()=>{ FP_EDIT=true; render(); $('fpAddIn').focus(); };
 $('bFuel').onclick=fuOpen; $('sFuel').onclick=fuOpen; $('fuClose').onclick=()=>$('fuDlg').close();
 $('fuSet').onclick=()=>{ const f=parseFloat($('fuFob').value), b=parseFloat($('fuBurn').value), r=$('fuRes').value.trim();
@@ -5630,7 +5693,7 @@ if(ls.get('started',false) && navigator.permissions){
 terInit();
 // the loader in index.html registers the service worker; once it's active, top up the terrain cache and report
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')){
-  navigator.serviceWorker.ready.then(r=>{ if(r.active) r.active.postMessage('precache'); setTimeout(offlineStatus,4000); }).catch(()=>{}); }
+  navigator.serviceWorker.ready.then(r=>{ if(r.active) r.active.postMessage('precache'); setTimeout(offlineStatus,4000); setTimeout(coastAuto,6000); }).catch(()=>{}); }
 // footer: is everything needed offline stored on this device?
 async function offlineStatus(){
   const el=$('offl'); if(!el) return;
@@ -5638,6 +5701,7 @@ async function offlineStatus(){
   try{ const ks=(await caches.keys()).filter(k=>/^radio-au-[0-9a-f]{10}$/.test(k)); let app=false;
     for(const k of ks){ const c=await caches.open(k); if(await c.match('data.json',{ignoreSearch:true}) && await c.match('app.js',{ignoreSearch:true}) && await c.match('urban.json',{ignoreSearch:true}) && (!META.next || await c.match('data-next.json',{ignoreSearch:true}))) app=true; }
     const tc=await caches.open('radio-au-terrain'), n=(await tc.keys()).filter(k=>/\.bin\.z$/.test(k.url)).length, want=TER.have.size;
-    el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${CH.need?`, charts ${CH.have}/${CH.need} tiles`:''}${app&&(!TER.ok||n>=want)&&CH.have>=CH.need?' — ready to fly without signal.':'.'}`;
+    let cst=''; try{ await coastIndex(); const h=(await coastStored()).have.size; cst=`, coastline ${h>=COAST.c.size?'all':h+'/'+COAST.c.size} areas`; }catch(e){}
+    el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${CH.need?`, charts ${CH.have}/${CH.need} tiles`:''}${cst}${app&&(!TER.ok||n>=want)&&CH.have>=CH.need?' — ready to fly without signal.':'.'}`;
   }catch(e){ el.textContent=''; } }
 window.__boot&&window.__boot.ready();   // app started: hide the loading screen
