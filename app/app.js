@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794370348528;
+const APP_BUILT=1794377267627;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -914,10 +914,12 @@ function ntSrcTxt(){ const a=[]; if(NTN) a.push(`NAIPS ${esc(NTN.title.replace(/
   return a.join(' · '); }
 /* ---------- ADS-B traffic (via the proxy's /traffic: adsb.lol, adsb.fi fallback) ---------- */
 const TR={t:0, ac:[], err:null, busy:false, said:new Map(), sel:null};   // sel: hex of the target tapped on the map
+const TRS={k:+ls.get('trSize',1)||1};   // traffic symbol size (Options → ADS-B traffic)
 const trVoiceOn=()=>ls.get('trVoice',true);
 function trOwnId(){ const v=(typeof decodeSpoken==='function'? decodeSpoken($('cSign').value||'') : $('cSign').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''); return v.replace(/^VH/,''); }
 // ADS-B fetch radius (Options → ADS-B traffic; rc_trNm, default 25 NM; the proxy allows up to 100, older proxies 40)
 const TR_NM=[10,15,25,40,60,100], trNm=()=>{ const v=+ls.get('trNm',25); return TR_NM.includes(v)? v : 25; };
+$('optTrSize').value=String(TRS.k); $('optTrSize').addEventListener('change',()=>{ TRS.k=+$('optTrSize').value; ls.set('trSize',TRS.k); render(); });
 $('optTrNm').value=String(trNm()); $('optTrNm').addEventListener('change',()=>{ ls.set('trNm',+$('optTrNm').value); TR.t=0; trPoll(); });
 async function trPoll(){
   const u=ntUrl(); if(!MAP.traffic||!u||!st.pos||TR.busy||!navigator.onLine||document.hidden) return;
@@ -983,11 +985,13 @@ function drawTraffic(g,P,C,W,Hh,sc){
   const T=trTargets(), stale=TR.t? (Date.now()-TR.t)/1000 : null;
   g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='center';
   MAP.trHits=[]; let selT=null, selXY=null; const warn=[];
-  const one=(t,x,y)=>{
+  const one=(t,X,Y)=>{
     const col= t.lvl===3? TR_RED : t.lvl===2? '#00b8d9' : C.dim, big=t.lvl===3; g.globalAlpha= stale>30? .45 : 1;
-    if(t.a.trk!=null&&!t.a.gnd){ const an=t.a.trk*R, [xa,ya]=P(t.la+0.05*Math.cos(an),t.lo+0.05*Math.sin(an)/Math.cos(t.la*R)), L=Math.hypot(xa-x,ya-y)||1;   // direction: a fixed 15 px stick along the track
-      t.ux=(xa-x)/L; t.uy=(ya-y)/L; g.strokeStyle=col; g.lineWidth=big?3.5:2; g.beginPath(); g.moveTo(x+t.ux*(big?10:6),y+t.uy*(big?10:6)); g.lineTo(x+t.ux*(big?26:15),y+t.uy*(big?26:15)); g.stroke(); }
-    if(t.lvl>=2&&t.a.gs>30&&t.a.trk!=null){ const an=t.a.trk*R, s=t.a.gs/60/60, [x2,y2]=P(t.la+s*Math.cos(an),t.lo+s*Math.sin(an)/Math.cos(t.la*R)); g.strokeStyle=col; g.lineWidth=big?2.5:1.5; g.beginPath(); g.moveTo(x,y); g.lineTo(x2,y2); g.stroke(); }   // 1 min ahead
+    if(t.lvl>=2&&t.a.gs>30&&t.a.trk!=null){ const an=t.a.trk*R, s=t.a.gs/60/60, [x2,y2]=P(t.la+s*Math.cos(an),t.lo+s*Math.sin(an)/Math.cos(t.la*R)); g.strokeStyle=col; g.lineWidth=big?2.5:1.5; g.beginPath(); g.moveTo(X,Y); g.lineTo(x2,y2); g.stroke(); }   // 1 min ahead (true to the map: not scaled)
+    // the symbol, its stick and its label at the chosen size (Options → ADS-B traffic → Traffic symbol size): drawn about 0,0, scaled
+    g.save(); g.translate(X,Y); g.scale(TRS.k,TRS.k); const x=0, y=0;
+    if(t.a.trk!=null&&!t.a.gnd){ const an=t.a.trk*R, [xa,ya]=P(t.la+0.05*Math.cos(an),t.lo+0.05*Math.sin(an)/Math.cos(t.la*R)), L=Math.hypot(xa-X,ya-Y)||1;   // direction: a fixed 15 px stick along the track
+      t.ux=(xa-X)/L; t.uy=(ya-Y)/L; g.strokeStyle=col; g.lineWidth=big?3.5:2; g.beginPath(); g.moveTo(x+t.ux*(big?10:6),y+t.uy*(big?10:6)); g.lineTo(x+t.ux*(big?26:15),y+t.uy*(big?26:15)); g.stroke(); }
     g.lineWidth=2; g.strokeStyle=col; g.fillStyle=col;
     if(big){ g.beginPath(); g.arc(x,y,10,0,2*Math.PI); g.fill(); g.lineWidth=2.5; g.strokeStyle='#fff'; g.stroke();   // red disc, white edge, red ring: stands out on any chart
       g.beginPath(); g.arc(x,y,15,0,2*Math.PI); g.lineWidth=2.5; g.strokeStyle=col; g.stroke(); g.lineWidth=2; }
@@ -995,7 +999,8 @@ function drawTraffic(g,P,C,W,Hh,sc){
     if(t.dA!=null){ const v=Math.round(t.dA/100), txt=(v>0?'+':v<0?'−':'')+String(Math.abs(v)).padStart(2,'0')+(t.a.vs>500?'↑':t.a.vs<-500?'↓':''), ty= t.dA>0? y-10 : y+18;
       const ty2= big? (t.dA>0? y-19 : y+29) : ty; if(big) g.font='700 14px "IBM Plex Mono", monospace';
       g.lineWidth=big?4:3; g.strokeStyle=C.bg; g.strokeText(txt,x,ty2); g.fillStyle=col; g.fillText(txt,x,ty2); if(big) g.font='700 10px "IBM Plex Mono", monospace'; }
-    else if(t.a.gnd){ g.fillStyle=C.dim; g.fillText('GND',x,y+18); } };
+    else if(t.a.gnd){ g.fillStyle=C.dim; g.fillText('GND',x,y+18); }
+    g.restore(); };
   for(const t of [...T].reverse()){ const [x,y]=P(t.la,t.lo); if(x<-12||y<-12||x>W+12||y>Hh+12) continue;
     MAP.trHits.push({x,y,hex:t.a.hex});
     if(TR.sel&&t.a.hex===TR.sel){ selT=t; selXY=[x,y]; }
@@ -2869,6 +2874,24 @@ satUI();
 $('mapChart').onclick=()=>{ if(!CH.idx.length){ $('chartBox').open=true; fsShow($('chartBox'),{block:'nearest'}); return; } CH.on=!CH.on; ls.set('mapCharts',CH.on); chartUI(); render(); };
 if(window.caches) chartIndexLoad();
 
+/* Your aircraft on the map (Options → Map → Your aircraft): arrow, a 2-blade helicopter or a fixed wing, at a size
+   (OWN, rc_ownIcon / rc_ownSize). Drawn in the aircraft's frame (forward is -y), about the GPS position; outlined in the
+   map background so it shows on any chart. */
+const OWN={icon:ls.get('ownIcon','arrow'), size:+ls.get('ownSize',1)||1};
+function ownIcon(g,fr,bg,icon,k){ g.save(); g.scale(k,k); g.lineJoin='round'; g.lineCap='round';
+  const body=new Path2D(); let rotor=null;
+  if(icon==='heli'){ body.ellipse(0,-1,4.6,7,0,0,2*Math.PI); body.rect(-1.1,4,2.2,11); body.rect(-3.6,13.6,7.2,2);   // cabin, tail boom, tail rotor
+    rotor=new Path2D(); rotor.moveTo(-13,-1); rotor.lineTo(13,-1); }   // two blades across
+  else if(icon==='fw'){ body.moveTo(0,-12); body.bezierCurveTo(1.8,-11,1.8,-8,1.8,-5); body.lineTo(1.4,9); body.lineTo(-1.4,9); body.lineTo(-1.8,-5); body.bezierCurveTo(-1.8,-8,-1.8,-11,0,-12); body.closePath();   // fuselage
+    body.moveTo(-13,-2.5); body.lineTo(13,-2.5); body.lineTo(12.5,1.5); body.lineTo(-12.5,1.5); body.closePath();   // wings
+    body.moveTo(-5.5,7); body.lineTo(5.5,7); body.lineTo(5,9.6); body.lineTo(-5,9.6); body.closePath(); }   // tailplane
+  else { body.moveTo(0,-11); body.lineTo(7,8); body.lineTo(0,4); body.lineTo(-7,8); body.closePath(); }
+  g.strokeStyle=bg; g.lineWidth=icon==='arrow'?2:3; g.stroke(body); g.fillStyle=fr; g.fill(body);
+  if(rotor){ g.lineWidth=4.5; g.strokeStyle=bg; g.stroke(rotor); g.lineWidth=2; g.strokeStyle=fr; g.stroke(rotor); g.beginPath(); g.arc(0,-1,1.6,0,2*Math.PI); g.fillStyle=bg; g.fill(); }
+  g.restore(); }
+$('optOwnIcon').value=OWN.icon; $('optOwnSize').value=String(OWN.size);
+$('optOwnIcon').addEventListener('change',()=>{ OWN.icon=$('optOwnIcon').value; ls.set('ownIcon',OWN.icon); render(); });
+$('optOwnSize').addEventListener('change',()=>{ OWN.size=+$('optOwnSize').value; ls.set('ownSize',OWN.size); render(); });
 function drawLead(g,sc,C){   // in the ownship frame: forward is -y, 1 NM = sc px. Orange dashed, a cross line each NM, every 2nd numbered
   const L=10*sc, halo=C.bg, acc=C.acc;
   g.lineCap='round';
@@ -3274,9 +3297,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   // lead line: 10 NM out along your track/heading, a cross line every 1 NM
   { const hd=heading(); if(hd&&MAP.lead){ g.save(); g.translate(ox,oy); g.rotate((hd.deg-rot)*R); drawLead(g,sc,C); g.restore(); } }
   // ownship
-  { const hd=heading(); g.save(); g.translate(ox,oy); g.rotate(((hd?hd.deg:0)-rot)*R); }
-  g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,4); g.lineTo(-7,8); g.closePath();
-  g.fillStyle=C.fr; g.strokeStyle=C.bg; g.lineWidth=2; g.stroke(); g.fill(); g.restore();
+  { const hd=heading(); g.save(); g.translate(ox,oy); g.rotate(((hd?hd.deg:0)-rot)*R); ownIcon(g,C.fr,C.bg,OWN.icon,OWN.size); g.restore(); }
   // its magnetic bearing and distance from you, on the line (up to 95 px out from your arrow, so it clears the tiles and buttons over the map; drawn over the lead line)
   if(st.pos&&pick.d!=null&&pick.b!=null&&Math.hypot(sx-ox,sy-oy)>60){ const W_=g.canvas.clientWidth||g.canvas.width, H_=g.canvas.clientHeight||g.canvas.height;
     const t0=0; let t1=1;
@@ -4025,7 +4046,13 @@ function measUI(){ const box=$('measBox'); $('mapMeas').setAttribute('aria-press
   else if(!L.length) h=`From <b style="font:inherit">${esc(nmP(MEAS.pts[0]))}</b> <small>· tap the next point</small>`;
   else h=`<b>${nm(tot)} NM</b> ${L.length===1?measM(L[0].m):''} · ${ete(tot/gs*60)} at ${Math.round(gs)} kt${L.length>1?`<br><small>${L.map(l=>`${esc(l.b.n||'')}${l.b.n?' ':''}${nm(l.d)} ${measM(l.m)}`).join(' · ')}</small>`:''}`;
   if(st.pos&&MEAS.pts.length&&!(MEAS.pts[0].me)){ const q=MEAS.pts[MEAS.pts.length-1], [d,br]=distBrg(st.pos[0],st.pos[1],q.la,q.lo); h+=`<br><small>You to ${esc(nmP(q))}: ${nm(d)} NM ${measM((br-variation(st.pos[0],st.pos[1])+720)%360)}</small>`; }
-  $('measTxt').innerHTML=h; $('measUndo').disabled=!MEAS.pts.length; $('measClr').disabled=!MEAS.pts.length; }
+  $('measTxt').innerHTML=h; $('measUndo').disabled=!MEAS.pts.length; $('measClr').disabled=!MEAS.pts.length; measPlace(); }
+// Not in full screen the box sits at the foot of the map, which can be below the bottom of the screen (a phone on its
+// side: the map is taller than the screen): lift it into the part of the map you can see (on show, scroll and resize)
+function measPlace(){ const box=$('measBox'); if(!box||box.hidden) return; if(document.body.classList.contains('fsm')){ box.style.bottom=''; return; }
+  const m=box.parentElement.getBoundingClientRect(), h=box.offsetHeight, lift=Math.max(0,m.bottom-innerHeight);
+  box.style.bottom= lift? Math.min(lift+8, Math.max(8,m.height-h-8))+'px' : ''; }
+addEventListener('scroll',()=>{ if(MEAS.on) measPlace(); },{passive:true}); addEventListener('resize',()=>{ if(MEAS.on) measPlace(); });
 function measAdd(q){ MEAS.pts.push(q); measUI(); if(MAP.last) drawMap(...MAP.last); }
 function measSet(on){ MEAS.on=on; if(!on) MEAS.pts=[]; measUI(); render(); }
 function fuUI(){ const S=fuState(), u=fuUnit(); $('fuU').textContent=u; $('fuBU').textContent=u;
@@ -4782,7 +4809,7 @@ const mapRotSave=()=>{ ls.set('mapUp',MAP.up); ls.set('mapRotF',MAP.rotF); ls.se
     const r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
     if(MEAS.on&&MAP.inv){ let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){ bd=q; best=it.p; } }   // measuring: a tap adds a point (snapped to an aerodrome or waypoint)
       if(best) measAdd({la:best.la, lo:best.lo, n:best.c||best.n}); else { const [la,lo]=MAP.inv(x,y); measAdd({la,lo}); } return; }
-    if(MAP.traffic){ let tb=null, td=24; for(const h of (MAP.trHits||[])){ const q=Math.hypot(h.x-x,h.y-y); if(q<td){ td=q; tb=h.hex; } }   // tap a traffic symbol: select / deselect it
+    if(MAP.traffic){ let tb=null, td=24*Math.max(1,TRS.k); for(const h of (MAP.trHits||[])){ const q=Math.hypot(h.x-x,h.y-y); if(q<td){ td=q; tb=h.hex; } }   // tap a traffic symbol: select / deselect it
       if(tb){ TR.sel= TR.sel===tb? null : tb; if(MAP.last) drawMap(...MAP.last); return; }
       if(TR.sel){ TR.sel=null; if(MAP.last) drawMap(...MAP.last); return; } }   // a tap elsewhere clears the selection
     let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
