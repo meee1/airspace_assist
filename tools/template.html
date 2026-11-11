@@ -1520,7 +1520,11 @@ async function fpCoastLinked(){ if(!FP) return; const bad=[];
   render(); }
 // a new distance: every coast leg again
 async function fpCoastAll(){ if(!FP) return; for(const p of FP.pts.filter(q=>q.via==='coast')) await fpCoastSet(p,true); }
-function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(p) setGoRaw({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo}); }
+function fpGo(){ if(!FP) return; const p=FP.pts[FP.i]; if(!p) return;
+  // a coast leg's turn point: its aerodrome is the leg's end (if that's an aerodrome), not whatever is nearest the turn point,
+  // so the Go to tile and the 10 NM inbound call are the destination's all along the leg (adc, goTarget)
+  const end= p.cg? FP.pts.find(q=>q.cgid===p.cg) : null, ea= end? fpAd(end) : null;
+  setGoRaw({k:'FP',c:p.c||p.n,n:p.desc?p.desc:'Flight plan waypoint',la:p.la,lo:p.lo,adc: p.cg? (ea? ea.i : '-') : undefined}); }
 function xte(la,lo,a,b){ // cross-track (NM, + = right of course) and along-track remaining
   const [d13,b13]=distBrg(a.la,a.lo,la,lo), [,b12]=distBrg(a.la,a.lo,b.la,b.lo);
   const x=Math.asin(Math.sin(d13/NM)*Math.sin((b13-b12)*R))*NM; return x;
@@ -1998,7 +2002,7 @@ function fpLogGpx(rows=TLOG.pts,title,tr=[]){ const fx=rows.filter(p=>p[1]!=='ev
 //  3. the aerodrome you just left or overflew, within 5 NM (departure calls)
 const RPTS=new Map(); for(const a of DATA.ap){ const r=a.keys&&a.keys.rpts; if(r) for(const c of r.split(/,\s*|\s+or\s+/)) RPTS.set(c.trim()+'>'+a.i,a); }
 const FPAD=new Map();   // fpAd memo: "CODE|lat|lon" -> aerodrome or null (DATA doesn't change while the app runs)
-function fpAd(p){ if(!p) return null; const c=(p.c||p.n||'').toUpperCase(), k=c+'|'+p.la+'|'+p.lo; if(FPAD.has(k)) return FPAD.get(k);
+function fpAd(p){ if(!p||p.cg) return null; const c=(p.c||p.n||'').toUpperCase(), k=c+'|'+p.la+'|'+p.lo; if(FPAD.has(k)) return FPAD.get(k);
   const a= DATA.ap.find(a=>a.i===c) || DATA.ap.find(a=>Math.abs(a.la-p.la)<0.01 && distBrg(a.la,a.lo,p.la,p.lo)[0]<0.5) || null;
   if(FPAD.size>2000) FPAD.clear(); FPAD.set(k,a); return a; }
 function fpAerodrome(la,lo){
@@ -2512,6 +2516,7 @@ function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i], AQ=NTN&&NTN
 function goTarget(){ // the Go to point (flight plan waypoints set it too) and its aerodrome: the point itself, or the nearest within 10 NM
   if(!GO||!st.pos) return null;
   let ad=GO.k==='AD'? DATA.ap.find(x=>x.i===GO.c) : null, dA=0;
+  if(GO.adc){ ad= GO.adc==='-'? null : DATA.ap.find(x=>x.i===GO.adc)||null; if(ad) dA=distBrg(GO.la,GO.lo,ad.la,ad.lo)[0]; const [d,b]=distBrg(st.pos[0],st.pos[1],GO.la,GO.lo); return {ad,dA,d,b}; }   // a coast leg's turn point (fpGo)
   if(!ad){ for(const x of DATA.ap){ if(x.t==='H'&&!st.heli) continue; if(!st.all&&x.s!=='E'&&x.t!=='H') continue; if(Math.abs(x.la-GO.la)>0.17||Math.abs(x.lo-GO.lo)>0.22) continue;
     const d=distBrg(GO.la,GO.lo,x.la,x.lo)[0]; if(d<=10&&(!ad||d<dA)){ ad=x; dA=d; } } }
   const [d,b]=distBrg(st.pos[0],st.pos[1],GO.la,GO.lo); return {ad,dA,d,b}; }
@@ -2555,7 +2560,7 @@ function setGo(p){
   else if(FP&&!p&&FP.dct){ fpResume(); return; }   // clearing a direct-to goes back to the plan
   setGoRaw(p); }
 function fpResume(){ if(!FP) return; FP.dct=null; FP.man=null; ls.set('fp',FP); fpGo(); }   // back to the plan's active waypoint; normal sequencing (incl. catch-up) takes it on from there
-function setGoRaw(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
+function setGoRaw(p){ GO=p?{k:p.k,c:p.c,n:p.n,la:p.la,lo:p.lo,t:p.t,f:p.f,ste:p.ste,adc:p.adc}:null; ls.set('goto',GO); $('goIn').value=GO?GO.c:''; $('goErr').hidden=true; render(); }
 function renderGo(h,varE){
   $('goClr').hidden=!GO||!!(FP&&FP.dct); $('goResume').hidden=!(FP&&FP.dct); $('goRes').hidden=!GO||!st.pos;
   if(!GO||!st.pos) return;
@@ -3040,7 +3045,10 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
     if(d>12) INB.armed[a.i]=true;
     const closing= prev!=null? d<prev-0.002 : st.gs>30, stop=adStop(a);
     if(!stop&&twrOpen(a)) continue;   // passing a towered field: a clearance (NEXT CLASS / Radio calls), not a CTAF call
-    if(!INB.on&&INB.armed[a.i]&&d<=10.2&&d>3&&closing&&st.gs>30&&(!hit||d<hit.d)) hit={a,d,stop}; }
+    // one row at a time, but the inbound call for where you're landing takes over from a transit call (a coast leg into
+    // Moorabbin runs within 10 NM of Tyabb till 7 NM out)
+    const free=!INB.on||(stop&&INB.kind==='trn'&&INB.on!==a.i);
+    if(free&&INB.armed[a.i]&&d<=10.2&&d>3&&closing&&st.gs>30&&(!hit||d<hit.d||stop&&!hit.stop)) hit={a,d,stop}; }
   if(hit){ INB.armed[hit.a.i]=false; INB.on=hit.a.i; INB.kind=hit.stop?'inb':'trn'; INB.t=Date.now();
     const el=$(hit.a===tgt?'gCtafBox':'sCtafBox'); if(el&&FQF.n>0){ el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); el.addEventListener('animationend',()=>el.classList.remove('fqflash'),{once:true}); } }
   const ad=INB.on&&DATA.ap.find(a=>a.i===INB.on); if(!ad){ box.hidden=true; INB.on=null; return; }
