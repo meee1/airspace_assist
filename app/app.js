@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794391479456;
+const APP_BUILT=1794428086728;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -278,11 +278,11 @@ function fplSaveCur(name){ if(!FP||FP.pts.length<2) return 'Build or import a pl
   return `Saved "${name}".`; }
 // a plan backwards (in place): a coast leg's flag and settings sit on the leg's end point, so each moves to the point
 // the leg started from (now its end); its turn points are renumbered from the new start and say the new end
-function fpReverse(pts){ const legs=[], F=['via','cgid','coff','cgap'];
+function fpReverse(pts){ const legs=[], F=['via','cgid','coff','cgap','cfrom','cto'];
   pts.forEach((p,k)=>{ if(p.via!=='coast') return; let j=k-1; while(j>=0&&p.cgid&&pts[j].cg===p.cgid) j--;
     if(j>=0) legs.push({from:pts[j], end:p, f:Object.fromEntries(F.filter(x=>p[x]!==undefined).map(x=>[x,p[x]]))}); });
   for(const L of legs) for(const x of F) delete L.end[x];
-  for(const L of legs) Object.assign(L.from,L.f);
+  for(const L of legs){ Object.assign(L.from,L.f); if(L.f.cfrom){ L.from.cfrom=[L.end.la,L.end.lo]; L.from.cto=[L.from.la,L.from.lo]; } }   // the leg now runs end → start
   pts.reverse(); const n={};
   for(const p of pts) if(p.cg){ n[p.cg]=(n[p.cg]||0)+1; p.n='CST'+n[p.cg]; const L=legs.find(l=>l.f.cgid===p.cg);
     if(L&&p.desc) p.desc=p.desc.replace(/^Coast route to [^,]*/,'Coast route to '+(L.from.c||L.from.n)); }
@@ -369,7 +369,7 @@ let FP_EDIT=false, FP_REPL=null;   // FP_REPL: index of the waypoint the Add box
 function fpPt(p){ // a flight plan point from a map or AIP point
   return p.k==='USR'? {n:p.c,la:p.la,lo:p.lo,desc:p.n} : p.k==='TOWN'? {n:p.n,la:p.la,lo:p.lo,desc:ptDesc(p)} : {n:p.c,c:p.c,la:p.la,lo:p.lo,desc:ptDesc(p)}; }
 function fpEdit(fn){ // change the point list, keeping the active waypoint where it went
-  if(!FP) return; const cur=FP.pts[FP.i]; fn(FP.pts); FP.rev=(FP.rev||0)+1;
+  if(!FP) return; const cur=FP.pts[FP.i]; fn(FP.pts); FP.rev=(FP.rev||0)+1; fpCoastSoon();   // a coast leg the change touched is worked out again
   if(!FP.pts.length){ FP_EDIT=false; fpSet(null); setGo(null); return; }
   let i=FP.pts.indexOf(cur); if(i<0) i=Math.min(FP.i,FP.pts.length-1);
   if(FP.dct){ FP.i=i; ls.set('fp',FP); render(); return; }   // editing during a direct-to keeps it
@@ -546,23 +546,55 @@ async function coastRoute(a,b,offFt,gapNm){ await coastIndex(); const off=offFt*
   return null; }
 const coastId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 // make the leg into the point with id-less index k (the point itself, found again by reference after the await) coastal or direct
-async function fpCoastSet(end,on,set){ if(!FP) return; const P_=FP.pts, st_=$('fpCoastStat');   // set: {off, gap} for this leg (a shared plan's), else the settings
+async function fpCoastSet(end,on,set){ COAST.busy=(COAST.busy||0)+1; try{ return await fpCoastSet0(end,on,set); } finally{ COAST.busy--; } }
+async function fpCoastSet0(end,on,set){ if(!FP) return; const P_=FP.pts, st_=$('fpCoastStat');   // set: {off, gap} for this leg (a shared plan's), else the settings
   // flying this leg (heading for one of its turn points or its end): the active waypoint moves to its end before the turn
   // points go, and to the first new turn point after
   const onLeg=()=>{ const c=FP.pts[FP.i]; return !FP.dct&&!!c&&(c===end||(!!end.cgid&&c.cg===end.cgid)); };
   const strip=()=>{ if(!end.cgid) return; if(onLeg()) FP.i=FP.pts.indexOf(end); const gid=end.cgid; fpEdit(P=>{ for(let j=P.length-1;j>=0;j--) if(P[j].cg===gid) P.splice(j,1); }); };
-  if(!on){ strip(); delete end.via; delete end.cgid; delete end.coff; delete end.cgap; fpEdit(()=>{}); st_.textContent=''; return; }
+  if(!on){ strip(); for(const x of ['via','cgid','coff','cgap','cfrom','cto']) delete end[x]; fpEdit(()=>{}); st_.textContent=''; return; }
   let k=P_.indexOf(end); if(k<1) return; const fly=onLeg(); strip(); k=FP.pts.indexOf(end);
   const a=FP.pts[k-1], off=set?set.off:COAST.off, gp=set?set.gap:COAST.gap, how=`${off} ft off the shore${gp?`, hops up to ${gp} NM`:''}`; st_.textContent=`Working out a route to ${end.c||end.n}, ${how}…`;
   let r; try{ r=await coastRoute(a,end,off,gp); }catch(e){ st_.textContent='No coast route: '+e.message+'.'; return false; }
   k=FP.pts.indexOf(end); if(k<1||FP.pts[k-1]!==a){ st_.textContent=''; return; }   // the plan changed meanwhile
   if(!r){ st_.textContent=`No coast route from ${a.c||a.n} to ${end.c||end.n} (${how}): try longer hops.`; return false; }
   const gid=coastId(), D0=distBrg(a.la,a.lo,end.la,end.lo)[0];
-  const ins=r.pts.map((q,i)=>({n:'CST'+(i+1), la:+q.la.toFixed(5), lo:+q.lo.toFixed(5), desc:`Coast route to ${end.c||end.n}, ${how}`, cg:gid}));
-  fpEdit(P=>{ P.splice(k,0,...ins); end.via='coast'; end.cgid=gid; end.coff=off; end.cgap=gp; delete end.cnm; });
+  const ins=r.pts.map((q,i)=>({n:'CST'+(i+1), la:+q.la.toFixed(5), lo:+q.lo.toFixed(5), desc:`Coast route to ${end.c||end.n}, ${how}`, cg:gid, coff:off, cgap:gp}));
+  fpEdit(P=>{ P.splice(k,0,...ins); end.via='coast'; end.cgid=gid; end.coff=off; end.cgap=gp; end.cfrom=[a.la,a.lo]; end.cto=[end.la,end.lo]; delete end.cnm; });
   if(fly&&ins.length&&FP.pts[FP.i]===end) fpPick(FP.pts.indexOf(ins[0]));
   let D=0, L=[a,...ins,end]; for(let i=1;i<L.length;i++) D+=distBrg(L[i-1].la,L[i-1].lo,L[i].la,L[i].lo)[0];
   st_.textContent=`${a.c||a.n} → ${end.c||end.n} along the coast, ${how}: ${D.toFixed(1)} NM (direct ${D0.toFixed(1)}), ${ins.length} turn point${ins.length===1?'':'s'}.`; coastOffl(); return true; }
+/* After any change to the plan (fpEdit: a waypoint added, inserted, moved, replaced or deleted), each coast leg is checked
+   and worked out again where it no longer fits (11 Nov 2026, Michael: "When adding a waypoint, the coast check needs to
+   rerun as the WP might adjust the coast path"), with its own settings:
+   - its start or end isn't where it was when it was worked out (cfrom / cto), or its turn points aren't all together
+     just before its end;
+   - a waypoint now sits among its turn points (Add puts one where it fits best): the leg is split there, and both parts
+     follow the coast (the new waypoint becomes a coast leg's end too);
+   - its end was replaced (⇄): the turn points have no end, so the waypoint after them becomes the coast leg's end.
+   Legs saved before cfrom existed get it now, without being worked out again. */
+function fpCoastSoon(){ if(typeof COAST==='undefined'||COAST.busy||!FP||!FP.pts.some(p=>p.cg||p.via==='coast')) return; clearTimeout(COAST.chk); COAST.chk=setTimeout(fpCoastCheck,30); }
+async function fpCoastCheck(){ if(!FP||COAST.busy){ if(COAST.busy) fpCoastSoon(); return; }
+  const P_=FP.pts, same=(q,ll)=>!!ll&&Math.abs(q.la-ll[0])<1e-7&&Math.abs(q.lo-ll[1])<1e-7, redo=[];
+  const gids=new Set(); for(const p of P_){ if(p.cg) gids.add(p.cg); if(p.via==='coast'&&p.cgid) gids.add(p.cgid); }
+  for(const p of P_) if(p.via==='coast'&&!p.cgid) redo.push(p);   // a coast end with no turn points yet (shared plan not worked out, or a failed try)
+  for(const gid of gids){
+    let e=P_.find(q=>q.via==='coast'&&q.cgid===gid); const idx=[]; P_.forEach((q,k)=>{ if(q.cg===gid) idx.push(k); });
+    const set=e? {off:e.coff, gap:e.cgap} : idx.length? {off:P_[idx[0]].coff, gap:P_[idx[0]].cgap} : null;
+    let forced=false;
+    if(!e){ forced=true; const after=idx.length? P_.slice(idx[idx.length-1]+1).find(q=>!q.cg) : null;   // its end was replaced: the waypoint after the turn points
+      if(after&&after.via!=='coast'){ e=after; Object.assign(e,{via:'coast', cgid:gid, coff:set&&set.off!=null?set.off:COAST.off, cgap:set&&set.gap!=null?set.gap:COAST.gap}); }
+      else { fpEdit(P=>{ for(let j=P.length-1;j>=0;j--) if(P[j].cg===gid) P.splice(j,1); }); continue; } }   // nothing to attach them to: they go
+    const k=P_.indexOf(e), first=idx.length? idx[0] : k, startK=first-1;
+    const inside=P_.slice(first,k).filter(q=>!q.cg);   // waypoints now among its turn points
+    const together= idx.length? (idx[idx.length-1]===k-1&&idx.length===k-first&&!inside.length) : true;
+    if(!forced&&e.cfrom==null&&together&&startK>=0){ e.cfrom=[P_[startK].la,P_[startK].lo]; e.cto=[e.la,e.lo]; continue; }   // a leg from before cfrom: take it as it is
+    if(!forced&&together&&startK>=0&&same(P_[startK],e.cfrom)&&same(e,e.cto||[e.la,e.lo])) continue;   // still fits
+    for(const w of inside) if(w.via!=='coast') Object.assign(w,{via:'coast', coff:e.coff, cgap:e.cgap});   // split: the inserted waypoint ends a coast leg too
+    fpEdit(P=>{ for(let j=P.length-1;j>=0;j--) if(P[j].cg===gid) P.splice(j,1); });
+    for(const w of inside){ delete w.cgid; redo.push(w); } delete e.cgid; redo.push(e); }
+  for(const e of redo){ if(!FP||!FP.pts.includes(e)||FP.pts.indexOf(e)<1) continue; await fpCoastSet(e,true,{off:e.coff??COAST.off, gap:e.cgap??COAST.gap}); }
+  if(redo.length){ ls.set('fp',FP); render(); } }
 // a shared plan's coast legs (the link has the flag and settings, not the turn points): work them out here
 async function fpCoastLinked(){ if(!FP) return; const bad=[];
   for(const p of FP.pts.filter(q=>q.via==='coast'&&!q.cgid)){ const ok=await fpCoastSet(p,true,{off:p.coff,gap:p.cgap});

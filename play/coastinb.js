@@ -4,6 +4,7 @@
 // land takes over from a transit call (the coast route is within 10 NM of Tyabb till about 7 NM from Moorabbin).
 const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
 (async()=>{ const b=await chromium.launch(); const ctx=await b.newContext({...PX9,serviceWorkers:'block'}); const errs=[];
+ await ctx.addInitScript(()=>{ const T=Date.parse('2026-10-30T01:00:00Z'), o=Date.now, off=T-o.call(Date); Date.now=()=>o.call(Date)+off; });   // midday in Melbourne: Moorabbin Tower open (the test ran into tower hours before 0730 local)
  for(const coast of [false,true]){ const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(e.message));
   await p.goto('http://localhost:8811/index.html?sim=YBRS&alt=1500&trk=090&gs=0'); await p.waitForFunction(()=>typeof render==='function'); await p.waitForTimeout(500);
   await p.evaluate(()=>{ ls.set('coastOff',500); ls.set('coastGap',2); COAST.off=500; COAST.gap=2; fpSet({name:'t',kind:'map',pts:[fpPt(findPoint('YBRS')),fpPt(findPoint('YMMB'))],i:1}); });
