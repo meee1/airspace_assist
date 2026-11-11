@@ -814,7 +814,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl" style="margin-top:10px">Top bar tiles</div>
     <div class="opts-list"><label style="cursor:default"><span><b>Flash CTAF and AREA when they change</b><br><small>The tile pulses when its frequency changes, so a new CTAF or area frequency catches your eye. 0 = off.</small></span><select id="optFlash" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)"><option value="0">0 (off)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select><span class="meta">pulses</span></label></div>
     <div class="opts-list opts-tiles" id="optsTiles"></div>
-    <div class="opts-list"><label><input type="checkbox" id="optTileZoom"><span><b>Tap a tile to enlarge it</b><br><small>The first tap makes a tile bigger for five seconds, so it's easier to read on a small screen. Tap it again while it's big for what the tile normally does (the whole top bar, the fuel timer, your clearance notes…).</small></span></label></div>
+    <div class="opts-list"><label><input type="checkbox" id="optTileZoom"><span><b>Tap a tile to enlarge it</b><br><small>The first tap makes a tile bigger, so it's easier to read on a small screen; it stays big until you tap somewhere else. Tap it again while it's big for what the tile normally does (the whole top bar, the fuel timer, your clearance notes…).</small></span></label></div>
     <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optFs"><span><b>Full-screen map</b><br><small>The map fills the screen. Phone: CTAF, AREA, ALT, TRK, GS, CLASS and the alerts float over it (tap them for the whole top bar). Tablet in landscape: the top bar is a column on the left. Everything else is in the sheet at the bottom: drag it up or tap a tab. Also the ⤢ button on the map.</small></span></label>
@@ -2641,7 +2641,7 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={hide:new Set(ls.get('mapHide',[])), range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
+const MAP={hide:new Set(ls.get('mapHide',[])), range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), rotF:ls.get('mapRotF',0), cyF:ls.get('mapCyF',0.5), hold:null, rotNow:0, ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 const CTAF_HUES=[210,0,130,275,30,185,320,55,240,160,345,95];
 let CTAF_OD=1;   // CTAF layer offscreen density cap (px per CSS px): 1 is ~5x faster than the screen's 2.6 on a phone, edges a little softer
@@ -3365,17 +3365,28 @@ function drawWires(g,P,C,W,Hh,la,lo,reach,cosl,sc){
 $('mapWire').setAttribute('aria-pressed',PL.on);
 $('mapWire').onclick=()=>{ PL.on=!PL.on; ls.set('mapWire',PL.on); $('mapWire').setAttribute('aria-pressed',PL.on); if(PL.on){ if(PL.err&&PL.err!=='none') PL.err=''; plLoad(); } render(); };
 /* ---------- tap a tile to enlarge it (Options → Tiles, on by default; rc_tileZoom) ----------
-   For reading a small screen: the first tap on a tile scales it up in place (kept inside the screen) for TZ.ms; a tap on it
-   while it's big goes through to whatever the tile normally does. The handler is on the document's capture phase, so it
+   For reading a small screen: the first tap on a tile scales it up in place (kept inside the screen) until a tap anywhere
+   else (Michael: "Keep it large untill clicking outside"); a tap on it while it's big goes through to whatever the tile
+   normally does. The handler is on the document's capture phase, so it
    comes before every tile's own click handler. A tile that can't grow by a quarter (a full-width alert row) isn't
-   intercepted. Marked with data-zb and an inline transform, not a class: several tiles have their className rewritten. */
-const TZ={on:ls.get('tileZoom',true), el:null, t:0, ms:5000};
-function tzOff(){ clearTimeout(TZ.t); if(TZ.el){ TZ.el.removeAttribute('data-zb'); TZ.el.style.transform=''; TZ.el=null; } }
+   intercepted. Marked with data-zb and an inline transform, not a class: several tiles have their className rewritten.
+   On the tablet's full-screen map the tile column clips, so there the tile is lifted out (tzClipped) to pop in front of
+   the map. */
+const TZ={on:ls.get('tileZoom',true), el:null, t:0};
+// a tile in a column that scrolls (the tablet's full-screen map: the tiles are a 300 px column with overflow:auto) would be
+// clipped by it, so it's lifted out: position:fixed where it was, with a gap of its size left in the column (TZ.ph)
+function tzOff(){ if(TZ.el){ const e=TZ.el; e.removeAttribute('data-zb'); e.style.transform='';
+    if(TZ.ph){ for(const k of ['position','left','top','width','height','margin','transformOrigin']) e.style[k]=''; TZ.ph.remove(); TZ.ph=null; }
+    TZ.el=null; } }
+function tzClipped(el){ for(let p=el.parentElement;p&&p!==document.body;p=p.parentElement){ const o=getComputedStyle(p); if(o.overflow!=='visible'||o.overflowX!=='visible'||o.overflowY!=='visible') return true; } return false; }
 function tzOn(el){ tzOff(); const r=el.getBoundingClientRect(), vw=innerWidth, vh=innerHeight, m=6; if(!r.width||!r.height) return false;
   const s=Math.min(1.9,(vw-2*m)/r.width,(vh-2*m)/r.height); if(s<1.25) return false;
   const w=r.width*s, h=r.height*s, L=r.left+r.width/2-w/2, T=r.top+r.height/2-h/2;   // grown about its middle, then pushed back inside the screen
   const dx= L<m? m-L : L+w>vw-m? vw-m-(L+w) : 0, dy= T<m? m-T : T+h>vh-m? vh-m-(T+h) : 0;
-  el.setAttribute('data-zb',''); el.style.transform=`translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) scale(${s.toFixed(3)})`; TZ.el=el; TZ.t=setTimeout(tzOff,TZ.ms); return true; }
+  if(tzClipped(el)){ const ph=document.createElement('div'), cs=getComputedStyle(el);
+    ph.style.cssText=`grid-column:${cs.gridColumn};height:${r.height}px;order:${cs.order};margin:${cs.margin}`; ph.setAttribute('aria-hidden','true'); el.after(ph); TZ.ph=ph;
+    Object.assign(el.style,{position:'fixed', left:r.left+'px', top:r.top+'px', width:r.width+'px', height:r.height+'px', margin:'0', transformOrigin:'50% 50%'}); }
+  el.setAttribute('data-zb',''); el.style.transform=`translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) scale(${s.toFixed(3)})`; TZ.el=el; return true; }   // big till a tap outside it (or on it: its own action)
 document.addEventListener('click',e=>{ if(!TZ.on||!e.target.closest) return; const el=e.target.closest('.st');
   if(!el||!el.id||el.id==='fsBarX'||el.closest('#optsTiles')){ tzOff(); return; }   // a tap anywhere else puts it back
   if(TZ.el===el){ tzOff(); return; }   // big already: the tile's own action goes ahead
@@ -3902,8 +3913,9 @@ function drawMap(...a){ if(!PF.on) return drawMap0(...a); pfStart('map'); try{ r
 function drawMap0(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
   MAP.last=[la,lo,h,pick,AS,altFt];
-  // panned: the view is centred on MAP.pan (fixed lat/lon, north up); otherwise on you
-  const own=[la,lo]; if(MAP.pan){ la=MAP.pan[0]; lo=MAP.pan[1]; h=null; }
+  // panned: the view is centred on MAP.pan (a fixed lat/lon) and holds the orientation it had (track up: the rotation when
+  // the pan began, MAP.hold, not following your track); otherwise centred on you
+  const own=[la,lo]; if(MAP.pan){ la=MAP.pan[0]; lo=MAP.pan[1]; if(MAP.up==='trk'&&MAP.hold==null) MAP.hold=MAP.rotNow||0; } else MAP.hold=null;
   $('mapHome').hidden=!MAP.pan;
   // size from the ResizeObserver below (reading clientWidth here forced a layout of the page HTML render() had just written)
   if(MAP.W==null){ MAP.W=cv.clientWidth; MAP.H=cv.clientHeight; }
@@ -3911,8 +3923,10 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   if(!W||!Hh) return;   // map not laid out (hidden tab/pane): nothing to draw
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(Hh*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(Hh*dpr); }
   const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
-  const rot = MAP.up==='trk' && h ? h.deg : 0;
-  const cx=W/2, cy= MAP.up==='trk'&&h ? Hh*0.62 : Hh/2;
+  // orientation: north up; track (or heading) up; or turned by hand with two fingers (free: MAP.rotF, kept)
+  const trkUp=MAP.up==='trk'&&(MAP.pan? true : !!h);
+  const rot = MAP.up==='free'? MAP.rotF : MAP.up==='trk'? (MAP.pan? MAP.hold : h? h.deg : 0) : 0; MAP.rotNow=rot;
+  const cx=W/2, cy= trkUp ? Hh*0.62 : MAP.up==='free'? Hh*MAP.cyF : Hh/2;
   const sc=Math.min(W,Hh)*0.46/MAP.range, cosl=Math.cos(la*R), cr=Math.cos(rot*R), sr=Math.sin(rot*R);   // +rot: your heading ends up pointing up the screen
   const [pF,pI]=projMake(la,lo);
   const P=(pla,plo)=>{ const [x,y]=pF(pla,plo); return [cx+(x*cr-y*sr)*sc, cy-(x*sr+y*cr)*sc]; };
@@ -4233,7 +4247,8 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   // north pointer
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';
   g.beginPath(); g.moveTo(0,-11); g.lineTo(4,-3); g.lineTo(-4,-3); g.closePath(); g.fill(); g.fillText('N',0,8); g.restore();
-  $('mapUp').textContent = MAP.pan ? 'North up' : MAP.up==='trk'&&h ? (h.src==='TRK'?'Track up':'Heading up') : 'North up';
+  { const hd=heading(); $('mapUp').textContent = MAP.up==='free'? `${String(Math.round(norm(rot))%360).padStart(3,'0')}° up` : MAP.up==='trk'&&(h||MAP.pan) ? ((hd&&hd.src!=='TRK')?'Heading up':'Track up') : 'North up';
+    $('mapUp').title= MAP.up==='free'? 'Turned with two fingers: tap for north up' : MAP.pan&&MAP.up==='trk'? 'Track up, held while the map is moved off your position: tap for north up' : 'Tap to switch between north up and track up; turn the map with two fingers'; }
   $('mapRng').textContent=rngTxt(MAP.range);
   $('terLeg').hidden=!TER.ok;
 }
@@ -5438,7 +5453,10 @@ $('mapTraffic').onclick=()=>{ MAP.traffic=!MAP.traffic; ls.set('mapTraffic',MAP.
   if(MAP.traffic){ TR.t=0; TR.ac=[]; trPoll(); } render(); };
 $('trVoice').checked=trVoiceOn(); $('trVoice').onchange=()=>ls.set('trVoice',$('trVoice').checked);
 setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within ${TR.nm||trNm()} NM${TR.nm&&TR.nm<trNm()?' (the proxy limits it: redeploy it for '+trNm()+' NM)':''} from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+((TR.skip||[]).length?` Skipped first: ${TR.skip.join('; ')}.`:'')+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
-$('mapUp').onclick=()=>{ MAP.up=MAP.up==='trk'?'north':'trk'; ls.set('mapUp',MAP.up); render(); };
+// north up <-> track up (a map turned by hand goes to north up); moved off your position, track up holds the track of the
+// moment you tap it
+$('mapUp').onclick=()=>{ MAP.up= MAP.up==='north'? 'trk' : 'north'; ls.set('mapUp',MAP.up);
+  MAP.hold= MAP.up==='trk'&&MAP.pan? (heading()?heading().deg:0) : null; render(); };
 addEventListener('resize',()=>render());
 $('goIn').value=GO?GO.c:'';
 $('goIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preventDefault(); const p=findPoint($('goIn').value);
@@ -5676,31 +5694,36 @@ suggest($('fpAddIn'),$('fpAddList'),fpAddPick);
 $('fpAddIn').addEventListener('focus',()=>{ if(document.body.classList.contains('fsm')) fsSheet('full'); setTimeout(()=>$('fpAddRow').scrollIntoView({block:'start',behavior:'smooth'}),250); });   // keep the list above the keyboard
 $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preventDefault(); const v=$('fpAddIn').value.trim(); if(!v) return; const p=findPoint(v);
   if(p) fpAddPick(p); else { $('fpAddErr').textContent=`${v.toUpperCase()} not found. Use a VFR waypoint code (CARR), navaid ident (AV), IFR waypoint, aerodrome code or a place name.`; $('fpAddErr').hidden=false; } });
+const mapRotSave=()=>{ ls.set('mapUp',MAP.up); ls.set('mapRotF',MAP.rotF); ls.set('mapCyF',MAP.cyF); };
 // tap the map to pick a waypoint, navaid or aerodrome as go-to
-// drag to pan (one finger or mouse); pinch with two fingers to zoom; a tap without movement still picks a point
+// drag to pan (one finger or mouse); pinch with two fingers to zoom, turn them to rotate; a tap without movement still picks a point
 { const cv=$('map'); let drag=null, raf=0, pinch=null; const ptr=new Map();
   const redraw=()=>{ raf=0; if(MAP.last) drawMap(...MAP.last); };
   const zoomTo=r=>{ MAP.range=Math.min(320,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
   const spread=()=>{ const [a,b]=[...ptr.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
+  const twist=()=>{ const [a,b]=[...ptr.values()]; return Math.atan2(b.y-a.y,b.x-a.x)/R; };   // the line between the fingers, degrees (clockwise on screen)
+  // turning the fingers turns the map with them, once they've turned 12° (so a pinch to zoom doesn't turn it): free rotation
+  const turnTo=p=>{ const da=((twist()-p.a0+540)%360)-180; if(p.turn==null){ if(Math.abs(da)<12) return; p.turn=da; }
+    MAP.up='free'; MAP.cyF=p.cy0; MAP.rotF=norm(p.rot0-(da-p.turn)); if(MAP.pan) MAP.hold=null; if(!raf) raf=requestAnimationFrame(redraw); };
   let lpT=null; const lpCancel=()=>{ clearTimeout(lpT); lpT=null; };
   const startDrag=e=>{ const c=MAP.pan||[MAP.last[0],MAP.last[1]]; drag={x:e.clientX,y:e.clientY,c,moved:false,id:e.pointerId,inv:MAP.inv,cx:MAP.cx,cy:MAP.cy};
     // press and hold (550 ms without moving): options for that point
     lpCancel(); const r=cv.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
     lpT=setTimeout(()=>{ lpT=null; if(!drag||drag.moved||ptr.size!==1) return; drag.long=true; mmGuardOn(); mapMenu(px,py); if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){} },550); };
   cv.addEventListener('pointerdown',e=>{ if(!MAP.last) return; cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(ptr.size===2){ lpCancel(); pinch={d0:spread(), r0:MAP.range}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom, no pan or tap
+    if(ptr.size===2){ lpCancel(); pinch={d0:spread(), r0:MAP.range, a0:twist(), rot0:MAP.rotNow, cy0:MAP.cy/(MAP.H||1), turn:null}; if(drag) drag.moved=true; drag=null; return; }   // two fingers: zoom and turn, no pan or tap
     if(ptr.size>2) return;
-    // start from the current view centre (your position if not panned); dragging always works north up
+    // start from the current view centre (your position if not panned); the drag works in the map's frame as drawn
     startDrag(e); });
   cv.addEventListener('pointermove',e=>{ if(ptr.has(e.pointerId)) ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pinch && ptr.size>=2){ zoomTo(pinch.r0*pinch.d0/spread()); return; }
+    if(pinch && ptr.size>=2){ zoomTo(pinch.r0*pinch.d0/spread()); turnTo(pinch); return; }
     if(!drag||e.pointerId!==drag.id) return;
     const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(!drag.moved && Math.hypot(dx,dy)<6) return;
     drag.moved=true; lpCancel(); if(!$('mapMenu').hidden) mapMenuClose(); const sc=MAP.sc, cosl=MAP.cosl||1;
     MAP.pan= drag.inv&&drag.cx!=null? drag.inv(drag.cx-dx, drag.cy-dy) : [drag.c[0]+dy/sc/60, drag.c[1]-dx/sc/(60*cosl)];   // the point now under the centre, in the frame the drag began in
     if(!raf) raf=requestAnimationFrame(redraw); });
   const end=e=>{ ptr.delete(e.pointerId); lpCancel();
-    if(pinch){ if(ptr.size<2){ pinch=null; ls.set('mapRange',MAP.range); render(); drag=null; } return; }   // lift both fingers before panning again
+    if(pinch){ if(ptr.size<2){ if(pinch.turn!=null) mapRotSave(); pinch=null; ls.set('mapRange',MAP.range); render(); drag=null; } return; }   // lift both fingers before panning again
     if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
     if(d.long) return;   // the press-and-hold menu is open
     if(d.moved){ render(); return; }
@@ -5716,7 +5739,7 @@ $('fpAddIn').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; e.preve
       setGo(best); } };
   cv.addEventListener('contextmenu',e=>{ e.preventDefault(); if(e.pointerType==='touch') return; const r=cv.getBoundingClientRect(); if(MAP.inv) mapMenu(e.clientX-r.left,e.clientY-r.top); });   // right-click on a computer
   cv.addEventListener('pointerup',end);
-  const lost=e=>{ ptr.delete(e.pointerId); lpCancel(); if(pinch&&ptr.size<2){ pinch=null; ls.set('mapRange',MAP.range); render(); } if(!ptr.size) pinch=null; drag=null; };
+  const lost=e=>{ ptr.delete(e.pointerId); lpCancel(); if(pinch&&ptr.size<2){ if(pinch.turn!=null) mapRotSave(); pinch=null; ls.set('mapRange',MAP.range); render(); } if(!ptr.size) pinch=null; drag=null; };
   cv.addEventListener('pointercancel',lost); cv.addEventListener('lostpointercapture',e=>{ if(!ptr.has(e.pointerId)) return; lost(e); });
   // mouse wheel / trackpad pinch on a computer
   let wheelT=null;

@@ -1,0 +1,13 @@
+// An enlarged tile (tap a tile) in landscape is in front of the map across its whole width, on the tablet's full-screen
+// map (a 300 px tile column that scrolls and used to clip it: the tile is lifted out with a gap left), the tablet's
+// classic layout and a phone on its side, full-screen map or not; still big after 5 s; a tap elsewhere puts it back where it was and the gap is gone.
+const {chromium}=require('playwright'); const {PX9,TAB}=require('./px9.js');
+(async()=>{ const b=await chromium.launch(); const errs=[];
+ const cases=[['tab-fs',{...TAB},true],['tab-classic',{...TAB},false],['phone-land-fs',{...PX9,viewport:{width:PX9.viewport.height,height:PX9.viewport.width}},true],['phone-land',{...PX9,viewport:{width:PX9.viewport.height,height:PX9.viewport.width}},false]];
+ for(const [nm,prof,fs] of cases){ const ctx=await b.newContext({...prof}); await ctx.addInitScript(fs=>{ try{ localStorage.setItem('rc_fsMap',JSON.stringify(fs)); }catch(e){} },fs);
+  const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(e.message)); await p.goto('http://localhost:8811/index.html?sim=YMMB&alt=1500&trk=090&gs=80'); await p.waitForFunction(()=>typeof render==='function'); await p.waitForTimeout(1200);
+  const info=await p.evaluate(()=>{ const el=$('sAreaBox'); const r=el.getBoundingClientRect(); return {body:document.body.className, vis:r.width>0, r:[r.left,r.top,r.width,r.height].map(Math.round)}; });
+  await p.click('#sAreaBox',{force:true}); await p.waitForTimeout(300); if(nm==='tab-fs') await p.screenshot({path:'play/tzland.png',clip:{x:0,y:150,width:800,height:350}});
+  const after=await p.evaluate(()=>{ const el=$('sAreaBox'), r=el.getBoundingClientRect(), at=f=>{ const t=document.elementFromPoint(Math.max(1,Math.min(innerWidth-2,r.left+r.width*f)),r.top+r.height/2); return t&&(t.closest('.st')?.id||t.id||t.tagName); }; return {zb:el.hasAttribute('data-zb'), r:[r.left,r.top,r.width,r.height].map(Math.round), at:[at(.1),at(.5),at(.9)]}; }); await p.waitForTimeout(5200); const still=await p.evaluate(()=>$('sAreaBox').hasAttribute('data-zb')); await p.evaluate(()=>document.body.click()); await p.waitForTimeout(150); const back=await p.evaluate(()=>{ const r=$('sAreaBox').getBoundingClientRect(); return [r.left,r.top,r.width,r.height].map(Math.round).join(',')+(document.querySelector('[aria-hidden=true][style*=grid-column]')?' placeholder left':''); }); after.back=back; after.still=still;
+  console.log(nm, JSON.stringify(info), JSON.stringify(after)); if(!after.zb||after.at.some(x=>x!=='sAreaBox')||!after.still||after.back!==info.r.join(',')) errs.push(nm+': '+JSON.stringify(after)); await ctx.close(); }
+ console.log(errs); await b.close(); })();

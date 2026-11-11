@@ -814,7 +814,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl" style="margin-top:10px">Top bar tiles</div>
     <div class="opts-list"><label style="cursor:default"><span><b>Flash CTAF and AREA when they change</b><br><small>The tile pulses when its frequency changes, so a new CTAF or area frequency catches your eye. 0 = off.</small></span><select id="optFlash" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)"><option value="0">0 (off)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select><span class="meta">pulses</span></label></div>
     <div class="opts-list opts-tiles" id="optsTiles"></div>
-    <div class="opts-list"><label><input type="checkbox" id="optTileZoom"><span><b>Tap a tile to enlarge it</b><br><small>The first tap makes a tile bigger for five seconds, so it's easier to read on a small screen. Tap it again while it's big for what the tile normally does (the whole top bar, the fuel timer, your clearance notes…).</small></span></label></div>
+    <div class="opts-list"><label><input type="checkbox" id="optTileZoom"><span><b>Tap a tile to enlarge it</b><br><small>The first tap makes a tile bigger, so it's easier to read on a small screen; it stays big until you tap somewhere else. Tap it again while it's big for what the tile normally does (the whole top bar, the fuel timer, your clearance notes…).</small></span></label></div>
     <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label><input type="checkbox" id="optFs"><span><b>Full-screen map</b><br><small>The map fills the screen. Phone: CTAF, AREA, ALT, TRK, GS, CLASS and the alerts float over it (tap them for the whole top bar). Tablet in landscape: the top bar is a column on the left. Everything else is in the sheet at the bottom: drag it up or tap a tab. Also the ⤢ button on the map.</small></span></label>
@@ -984,7 +984,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=2023afe2e7';
+    const s=document.createElement('script'); s.src='app.js?v=f005f27fa3';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
