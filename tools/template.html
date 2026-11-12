@@ -3287,7 +3287,7 @@ function chartTile(e,L,i,j){ const k=e.dir+'/'+L+'/'+i+'_'+j, v=CH.imgs.get(k); 
     // tiles were dropped, reloaded and repainted in turn, and the chart flickered between detailed and coarse/blank (56 NM on a phone)
     const keep=new Set([...(CH.keep||[]),...(V3.on&&V3.keep||[])]), cap=Math.max(180,keep.size+40);   // the map's picture and the 3D view's
     if(CH.imgs.size>cap){ for(const [kk,vv] of CH.imgs){ if(CH.imgs.size<=cap-30) break; if(keep.has(kk)||vv==='loading') continue; if(vv&&vv.close) vv.close(); CH.imgs.delete(kk); } }
-    if(img) CHC.dirty=true;   // the chart cache is repainted with it on the next redraw (at most every 400 ms)
+    if(img){ CHC.dirty=true; if(CHC.fresh) CHC.fresh.add(k); }   // drawn into the chart picture where it goes on the next redraw (drawCharts)
     if(!chartTile.raf) chartTile.raf=requestAnimationFrame(()=>{ chartTile.raf=0; if(MAP.last) drawMap(...MAP.last); });
   }).catch(()=>CH.imgs.set(k,'none'));
   return null; }
@@ -3474,7 +3474,7 @@ $('mapRadar').onclick=()=>{ RAD.on=!RAD.on; ls.set('mapRadar',RAD.on); $('mapRad
 // canvas around the view (about 1.25× the screen diagonal, so any rotation fits) in the map's own flat projection, and each
 // redraw lays that cache on the map with one affine (shift + rotation). It's repainted when the view leaves it, the scale or
 // size changes, the chart set changes, or new tiles have arrived (at most every 400 ms).
-const CHC={cv:null, key:'', la0:0, lo0:0, cosl0:1, sc0:0, S:0, dc:1, t:0, dirty:false, drew:false, n:0};
+const CHC={cv:null, key:'', la0:0, lo0:0, cosl0:1, sc0:0, S:0, dc:1, t:0, dirty:false, drew:false, n:0, ni:0, N:4, boxes:null, fresh:null};
 /* A cache canvas (chart or terrain picture in the map's projection about the cache's own centre, north up) onto the map.
    About the same centre that's a rotation + scale (one affine). Once the map has moved on (panning, flying) the two
    stereographic projections differ a little, more the further out: at 320 NM one affine was visibly out (the chart
@@ -3509,21 +3509,36 @@ function drawCharts(g0,W,Hh,inv,P){
   const invC=(u,v)=>cI((u-CHC.S/2)/CHC.sc0,(CHC.S/2-v)/CHC.sc0);
   let ok= CHC.cv && CHC.key===key;
   if(ok){ for(const [px,py] of [[0,0],[W,0],[0,Hh],[W,Hh]]){ const [u,v]=toC(...inv(px,py)); if(u<2||v<2||u>CHC.S-2||v>CHC.S-2){ ok=false; break; } } }   // the screen still inside the cache?
-  if(ok&&CHC.dirty&&now-CHC.t<=400&&!CHC.later) CHC.later=setTimeout(()=>{ CHC.later=0; if(MAP.last) drawMap(...MAP.last); },420-(now-CHC.t));   // tiles came in just after a repaint
-  if(!ok || (CHC.dirty&&now-CHC.t>400)){
+  const zoomKeep= !ok&&MAP.zooming&&CHC.cv&&CHC.drew&&CHC.key.split('|').slice(1,3).join('|')===key.split('|').slice(1,3).join('|');   // zooming: keep the picture (stretched), rebuilt when it stops
+  // tiles that came in since the picture was painted: drawn into it where they go (CHC.boxes: where each tile is used in
+  // the picture), not a whole new picture (70 ms on a desktop, 150+ ms on a phone, every 0.4 s while tiles stream in)
+  if(ok&&CHC.dirty&&CHC.fresh&&CHC.fresh.size&&CHC.boxes){ const rs=[];
+    for(const k of CHC.fresh){ const b=CHC.boxes.get(k); if(!b) continue; const r=[Math.max(0,Math.floor(b[0]-2)),Math.max(0,Math.floor(b[1]-2)),Math.min(CHC.S,Math.ceil(b[2]+2)),Math.min(CHC.S,Math.ceil(b[3]+2))];
+      const o=rs.find(q=>!(r[2]<q[0]||r[0]>q[2]||r[3]<q[1]||r[1]>q[3]));   // overlapping one already listed: one area for both
+      if(o){ o[0]=Math.min(o[0],r[0]); o[1]=Math.min(o[1],r[1]); o[2]=Math.max(o[2],r[2]); o[3]=Math.max(o[3],r[3]); } else rs.push(r); }
+    CHC.fresh.clear();
+    if(!rs.length) CHC.dirty=false;
+    else if(rs.reduce((t,r)=>t+(r[2]-r[0])*(r[3]-r[1]),0)<0.6*CHC.S*CHC.S){ const g=CHC.cv.getContext('2d'); g.setTransform(CHC.dc,0,0,CHC.dc,0,0);
+      for(const r of rs){ g.save(); g.beginPath(); g.rect(r[0],r[1],r[2]-r[0],r[3]-r[1]); g.clip(); g.clearRect(r[0],r[1],r[2]-r[0],r[3]-r[1]);
+        if(chartsPaint(g,CHC.S,CHC.S,invC,CHC.N,CHC.dc,{rect:r, boxes:CHC.boxes})) CHC.drew=true; g.restore(); }
+      CHC.dirty=false; CHC.ni=(CHC.ni||0)+1; } }   // else most of the picture is new: a whole new one (below, at most every 0.4 s)
+  if(!zoomKeep&&(!ok || (CHC.dirty&&now-CHC.t>400))){
     const [la0,lo0]=inv(W/2,Hh/2); Object.assign(CHC,{key,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,t:now,dirty:false}); CHC.n++; [cF,cI]=projMake(la0,lo0);
     CHC.dc=Math.min(dpr,2,4096/S);   // at most 2 px per CSS px: a 3x cache (3,500 px square in full screen) took ~200 ms to draw each frame at CPU x4; 2x is ~2,300 px
     const cv=CHC.cv||(CHC.cv=document.createElement('canvas')), px=Math.round(S*CHC.dc); if(cv.width!==px||cv.height!==px){ cv.width=px; cv.height=px; }
     const g=cv.getContext('2d'); g.setTransform(CHC.dc,0,0,CHC.dc,0,0); g.clearRect(0,0,S,S);
     const N0= MAP.range>=40? 6 : MAP.range>=15? 4 : 2, N=Math.ceil(N0*S/Math.max(W,Hh));   // same grid density per screen as before
-    CH.use=new Set(); CHC.drew=chartsPaint(g,S,S,invC,N,CHC.dc); CH.keep=CH.use; CH.use=null; }
+    CHC.N=N; CHC.boxes=new Map(); CHC.fresh=new Set();
+    CH.use=new Set(); CHC.drew=chartsPaint(g,S,S,invC,N,CHC.dc,{boxes:CHC.boxes}); CH.keep=CH.use; CH.use=null; }
   if(!CHC.drew) return false;
   // cache css -> screen css (one affine, or a grid of them once the map has moved away from the cache's centre)
   g0.save(); g0.globalAlpha=CH.op; g0.imageSmoothingEnabled=true;
   drawCache(g0,CHC.cv,CHC.S,CHC.dc,(u,v)=>P(...invC(u,v)),(x,y)=>toC(...inv(x,y)),W,Hh,dpr); g0.restore();
   return true; }
 // paint the charts warped onto a W×H (css px) context g whose view is given by inv (px -> lat/lon); dens = device px per css px
-function chartsPaint(g,W,Hh,inv,N,dens){
+// opt.boxes: Map tile key -> [x0,y0,x1,y1], the area of g where each tile (or its stand-in) is used (filled in);
+// opt.rect: only the triangles that touch this area (an incremental repaint, clipped to it by the caller)
+function chartsPaint(g,W,Hh,inv,N,dens,opt){ const BX=opt&&opt.boxes, RC=opt&&opt.rect;
   // The map is a local flat projection and the charts are Lambert conformal: one affine for the whole area is up to
   // ~15 px out at the edges when zoomed out to 80 NM. So it's cut into a grid of triangles, each with its own
   // exact affine from its three corners (piecewise linear, no seams): under 0.5 px at any zoom.
@@ -3547,6 +3562,9 @@ function chartsPaint(g,W,Hh,inv,N,dens){
     const tris=[]; for(let r=0;r<N;r++) for(let c=0;c<N;c++){ const A=[c,r],B=[c+1,r],C_=[c,r+1],D=[c+1,r+1]; tris.push([A,B,C_],[B,D,C_]); }
     for(const tri of tris){
       const scr=tri.map(([c,r])=>[GX[c],GY[r]]), chp=tri.map(([c,r])=>pc[r][c]);
+      const tb=[Math.min(...scr.map(q=>q[0]))-1,Math.min(...scr.map(q=>q[1]))-1,Math.max(...scr.map(q=>q[0]))+1,Math.max(...scr.map(q=>q[1]))+1];
+      if(RC&&(tb[2]<RC[0]||tb[0]>RC[2]||tb[3]<RC[1]||tb[1]>RC[3])) continue;
+      const mark=k=>{ if(!BX) return; const b=BX.get(k); if(!b) BX.set(k,tb.slice()); else { b[0]=Math.min(b[0],tb[0]); b[1]=Math.min(b[1],tb[1]); b[2]=Math.max(b[2],tb[2]); b[3]=Math.max(b[3],tb[3]); } };
       let u0=Math.max(cu0,Math.min(...chp.map(q=>q[0]))), u1=Math.min(cu1,Math.max(...chp.map(q=>q[0]))), v0=Math.max(cv0,Math.min(...chp.map(q=>q[1]))), v1=Math.min(cv1,Math.max(...chp.map(q=>q[1])));
       if(u0>=u1||v0>=v1) continue;
       // clip to the triangle, grown by ~0.6 px so neighbours overlap instead of leaving hairlines
@@ -3558,12 +3576,12 @@ function chartsPaint(g,W,Hh,inv,N,dens){
       for(let j=Math.max(0,Math.floor(v0/ts)); j<=Math.min(hi_.rows-1,Math.floor(v1/ts)); j++)
         for(let i=Math.max(0,Math.floor(u0/ts)); i<=Math.min(hi_.cols-1,Math.floor(u1/ts)); i++){
           if(hi_.tset && !hi_.tset.has(i+'_'+j)) continue;      // site tiles outside every panel were never made
-          let img=chartTile(stx,hi_.L,i,j);
+          mark(stx.dir+'/'+hi_.L+'/'+i+'_'+j); let img=chartTile(stx,hi_.L,i,j);
           if(img){ g.drawImage(img,i*ts,j*ts,img.width/hi_.s,img.height/hi_.s); drew=true; continue; }
           if(hi_===lo_) continue;
           // stand-in: the coarse tile(s) covering this detailed tile's area
           for(let jj=Math.floor(j*ts/tsL); jj<=Math.min(lo_.rows-1,Math.floor(((j+1)*ts-1e-6)/tsL)); jj++) for(let ii=Math.floor(i*ts/tsL); ii<=Math.min(lo_.cols-1,Math.floor(((i+1)*ts-1e-6)/tsL)); ii++){
-            if(lo_.tset && !lo_.tset.has(ii+'_'+jj)) continue; const im=chartTile(stx,lo_.L,ii,jj);
+            if(lo_.tset && !lo_.tset.has(ii+'_'+jj)) continue; mark(stx.dir+'/'+lo_.L+'/'+ii+'_'+jj); const im=chartTile(stx,lo_.L,ii,jj);
             if(im){ g.save(); g.beginPath(); g.rect(i*ts,j*ts,ts,ts); g.clip(); g.drawImage(im,ii*tsL,jj*tsL,im.width/lo_.s,im.height/lo_.s); g.restore(); drew=true; } } }
       g.restore(); }
   }
@@ -3643,7 +3661,7 @@ function pfShow(force){ const box=$('perfBox'); if(!PF.on){ box.hidden=true; ret
 function pfText(){ const R=pfRows(), f=v=>v.toFixed(1), L=[];
   L.push(`Radio Calls AU render timing · ${new Date().toISOString()} · build ${APP_BUILT?new Date(APP_BUILT).toISOString().slice(0,16):'?'}`);
   L.push(`${navigator.userAgent}`); L.push(`viewport ${innerWidth}x${innerHeight} @${window.devicePixelRatio} · canvas ${$('map').width}x${$('map').height} · full screen ${document.body.classList.contains('fsm')}`);
-  if(CH.on) L.push(`charts: picture rebuilt ${CHC.n}× · ${CH.keep?CH.keep.size:0} tiles in it · ${[...CH.imgs.values()].filter(v=>v&&typeof v!=='string').length} in memory, ${[...CH.imgs.values()].filter(v=>v==='loading').length} loading`);
+  if(CH.on) L.push(`charts: picture rebuilt ${CHC.n}×, tiles added in place ${CHC.ni}× · ${CH.keep?CH.keep.size:0} tiles in it · ${[...CH.imgs.values()].filter(v=>v&&typeof v!=='string').length} in memory, ${[...CH.imgs.values()].filter(v=>v==='loading').length} loading`);
   L.push(`map range ${MAP.range} NM · up ${MAP.up} · layers: ${[['ctaf',MAP.ctaf],['terrain',MAP.ter],['sat',SAT.on],['charts',CH.on],['wires',PL.on],['radar',RAD.on],['traffic',MAP.traffic],['log',MAP.log],['lead',MAP.lead]].filter(x=>x[1]).map(x=>x[0]).join(', ')||'none'} · sim ${!!st.sim} · GS ${st.gs!=null?Math.round(st.gs):'-'}`);
   for(const [t,title] of [['render','render'],['map','drawMap']]){ const T=R.tot(t); if(!T) continue; L.push(''); L.push(`${title}: avg ${f(T.avg)} last ${f(T.last)} max60 ${f(T.max)} ms · ${R.rate(t).toFixed(1)}/s · n ${T.n}`);
     for(const s of R.parts(t)) L.push(`  ${s.name.padEnd(26)} avg ${f(s.avg).padStart(6)}  last ${f(s.last).padStart(6)}  max60 ${f(s.max).padStart(6)}`); }
@@ -3928,7 +3946,8 @@ function drawTerrain(g0,W,Hh,inv,P,sc,altFt,chartsShown,dpr){
   const invC=(u,v)=>tI((u-TRC.S/2)/TRC.sc0,(TRC.S/2-v)/TRC.sc0);
   const gkey=[sc.toFixed(6),S,TER.ver||0,TER.sea.size].join('|');
   let ok= TRC.hts && TRC.gkey===gkey;
-  if(ok){ for(const [px,py] of [[0,0],[W,0],[0,Hh],[W,Hh]]){ const [u,v]=toC(...inv(px,py)); if(u<0||v<0||u>TRC.S||v>TRC.S){ ok=false; break; } } }
+  if(!ok&&MAP.zooming&&TRC.hts&&TRC.gkey.split('|').slice(1).join('|')===gkey.split('|').slice(1).join('|')) ok='zoom';   // zooming: only the scale changed, keep it (stretched)
+  if(ok===true){ for(const [px,py] of [[0,0],[W,0],[0,Hh],[W,Hh]]){ const [u,v]=toC(...inv(px,py)); if(u<0||v<0||u>TRC.S||v>TRC.S){ ok=false; break; } } }
   if(!ok){ const [la0,lo0]=inv(W/2,Hh/2); Object.assign(TRC,{gkey,la0,lo0,cosl0:Math.cos(la0*R),sc0:sc,S,key:''}); TRC.n++; [tF,tI]=projMake(la0,lo0);
     const nx=Math.ceil(S/step), ny=nx, hts=new Float32Array(nx*ny);
     for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){ const [qa,qo]=invC(i*step+step/2,j*step+step/2), t=terrainFt(qa,qo); hts[j*nx+i]= t==null? NaN : t; }
@@ -3977,6 +3996,14 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   // panned: the view is centred on MAP.pan (a fixed lat/lon) and holds the orientation it had (track up: the rotation when
   // the pan began, MAP.hold, not following your track); otherwise centred on you
   const own=[la,lo]; if(MAP.pan){ la=MAP.pan[0]; lo=MAP.pan[1]; if(MAP.up==='trk'&&MAP.hold==null) MAP.hold=MAP.rotNow||0; } else MAP.hold=null;
+  // zooming (a range change within 0.4 s of the last: a pinch, the wheel, taps in a row): the terrain and chart pictures
+  // keep the ones they have, stretched to the new range, and are rebuilt once it stops (0.38 s after the last change).
+  // A single change still rebuilds at once. (Desktop render timing: terrain took 130-160 ms per zoom step.)
+  // MAP.zoomT is when the previous zoomed frame finished (set at the end of this function), so a slow rebuild doesn't make
+  // the next step look like a new zoom; a pinch or the wheel (MAP.gestT, zoomTo) counts as zooming from its first step
+  let zoomed=false;
+  if(MAP.range!==MAP.rLast){ const t=performance.now(); MAP.zooming= MAP.rLast!=null&&(t-(MAP.zoomT||-1e9)<400||t-(MAP.gestT||-1e9)<400); MAP.rLast=MAP.range; zoomed=true;
+    if(MAP.zooming){ clearTimeout(MAP.zoomLater); MAP.zoomLater=setTimeout(()=>{ MAP.zooming=false; if(MAP.last) drawMap(...MAP.last); },380); } }
   $('mapHome').hidden=!MAP.pan;
   // size from the ResizeObserver below (reading clientWidth here forced a layout of the page HTML render() had just written)
   if(MAP.W==null){ MAP.W=cv.clientWidth; MAP.H=cv.clientHeight; }
@@ -4312,6 +4339,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   { const hd=heading(); $('mapUp').textContent = MAP.up==='free'? `${String(Math.round(norm(rot))%360).padStart(3,'0')}° up` : MAP.up==='trk'&&(h||MAP.pan) ? ((hd&&hd.src!=='TRK')?'Heading up':'Track up') : 'North up';
     $('mapUp').title= MAP.up==='free'? 'Turned with two fingers: tap for north up' : MAP.pan&&MAP.up==='trk'? 'Track up, held while the map is moved off your position: tap for north up' : 'Tap to switch between north up and track up; turn the map with two fingers'; }
   $('mapRng').textContent=rngTxt(MAP.range);
+  if(zoomed) MAP.zoomT=performance.now();
   $('terLeg').hidden=!TER.ok;
 }
 
@@ -5767,7 +5795,7 @@ const mapRotSave=()=>{ ls.set('mapUp',MAP.up); ls.set('mapRotF',MAP.rotF); ls.se
 // drag to pan (one finger or mouse); pinch with two fingers to zoom, turn them to rotate; a tap without movement still picks a point
 { const cv=$('map'); let drag=null, raf=0, pinch=null; const ptr=new Map();
   const redraw=()=>{ raf=0; if(MAP.last) drawMap(...MAP.last); };
-  const zoomTo=r=>{ MAP.range=Math.min(320,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };
+  const zoomTo=r=>{ MAP.gestT=performance.now(); MAP.range=Math.min(320,Math.max(2.5,r)); if(!raf) raf=requestAnimationFrame(redraw); };   // a pinch or the wheel: zooming (see drawMap0)
   const spread=()=>{ const [a,b]=[...ptr.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
   const twist=()=>{ const [a,b]=[...ptr.values()]; return Math.atan2(b.y-a.y,b.x-a.x)/R; };   // the line between the fingers, degrees (clockwise on screen)
   // turning the fingers turns the map with them, once they've turned 12° (so a pinch to zoom doesn't turn it): free rotation
