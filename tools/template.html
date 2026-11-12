@@ -1434,7 +1434,7 @@ const NM_M=1852;
    distance field (marching squares at off); its pieces are chained into lines, each point knowing how far along its line it
    is. Graph: each point to the next along its line; hops over open water up to `gap` (staying at least 85% of the offset off
    the land) where the hop saves at least half of the way round (or joins two different lines: an island, the far side of a
-   river mouth); each end joined in a straight leg to the line's points within 5 NM of its nearest. Dijkstra, then the path
+   river mouth); each end joined in a straight leg to the line's points within 5 NM of its nearest, the join counting 3x its length. Dijkstra, then the path
    is simplified (Douglas-Peucker, a fifth of the offset) into turn points. */
 async function coastTry(a,b,off,gap,M){
   const G=await coastGrid(a,b,M,Math.max(15,off/4)), {W,H,cell,dist}=G, L=off-0.4*cell;   // touched cells count as land, which puts the line about 0.7 cell further out: aim a little in (measured against the polygons, play/coastleg.js)
@@ -1475,8 +1475,11 @@ async function coastTry(a,b,off,gap,M){
   const iA=n, iB=n+1;
   for(const [P,ie] of [[G.A,iA],[G.B,iB]]){ let dmin=Infinity; const dd=new Float64Array(n); for(let k=0;k<n;k++){ dd[k]=Math.hypot(nx[k]-P[0],ny[k]-P[1]); if(dd[k]<dmin) dmin=dd[k]; }
     if(M<48&&dmin>M*NM_M/2){ COAST.why='end '+(ie-n)+' far from the coast: '+(dmin/NM_M).toFixed(1)+' NM'; return 'grow'; }   // an inland end whose nearest coast may be outside the area (Bankstown: Botany Bay)
+    // the joins (straight, over land if the end is inland) count 3x their length in the search, so the route meets the coast near
+    // the end rather than cutting across to a point further along (from Moorabbin it went straight to Carrum, missing the coast
+    // past Mordialloc); still any point within 5 NM of the nearest, so it can choose the right side of an estuary or headland
     const cand=[]; for(let k=0;k<n;k++) if(dd[k]<=dmin+5*NM_M) cand.push(k); const step=Math.max(1,Math.floor(cand.length/400));
-    for(let c=0;c<cand.length;c++) if(c%step===0||dd[cand[c]]===dmin) add(ie,cand[c],dd[cand[c]]); }
+    for(let c=0;c<cand.length;c++) if(c%step===0||dd[cand[c]]===dmin) add(ie,cand[c],3*dd[cand[c]]); }
   // Dijkstra
   const D=new Float64Array(n+2).fill(Infinity), par=new Int32Array(n+2).fill(-1), hp=[], hk=[];
   const push=(i,k)=>{ hp.push(i); hk.push(k); let c=hp.length-1; while(c>0){ const p=(c-1)>>1; if(hk[p]<=hk[c]) break; [hp[p],hp[c]]=[hp[c],hp[p]]; [hk[p],hk[c]]=[hk[c],hk[p]]; c=p; } };
@@ -2682,7 +2685,11 @@ function drawAdMap(a,pick,h){
 }
 
 /* ---------- map ---------- */
-const MAP={hide:new Set(ls.get('mapHide',[])), range:ls.get('mapRange',10), up:ls.get('mapUp','trk'), rotF:ls.get('mapRotF',0), cyF:ls.get('mapCyF',0.5), hold:null, rotNow:0, ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
+// rc_mapRange is the map's range (NM). The Range circle was saved under the same name (true/false), so every zoom (a
+// number) switched the circle on, and turning it off put the map back to 10 NM (Michael: "As I zoom out range turns
+// itself back on"). The circle is rc_rangeRing now; a true/false left in rc_mapRange moves there.
+{ const v=ls.get('mapRange',10); if(typeof v==='boolean'){ ls.set('rangeRing',v); ls.set('mapRange',10); } }
+const MAP={hide:new Set(ls.get('mapHide',[])), range:(v=>typeof v==='number'&&v>0? v : 10)(ls.get('mapRange',10)), up:ls.get('mapUp','trk'), rotF:ls.get('mapRotF',0), cyF:ls.get('mapCyF',0.5), hold:null, rotNow:0, ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 // CTAF frequency colours: no reds, oranges or magenta (0, 30, 345, then 320 were taken out, 11 Nov 2026, Michael: "Ctaf frequency colours red and
 // orange need to be removed, they clash with danger and restricted zones"): R areas are red, D/Q orange (--as-r, --as-q)
@@ -4237,7 +4244,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
       if(Math.hypot(x2-x1,y2-y1)<g.measureText(t).width+16) return; g.save(); g.translate((x1+x2)/2,(y1+y2)/2); g.rotate(a); g.strokeStyle=C.bg; g.fillStyle=col; g.strokeText(t,0,-6); g.fillText(t,0,-6); g.restore(); });
     g.restore(); }
   // range circle (fuel timer): to the reserve at your groundspeed (solid), out and back (dashed), round you
-  if(ls.get('mapRange',false)){ const S=fuState(); if(S&&S.rangeNM>0){ const W_=S.wind&&S.wind.kt<S.wind.tas*0.8? S.wind : null, hrs=S.endMin/60;
+  if(ls.get('rangeRing',false)){ const S=fuState(); if(S&&S.rangeNM>0){ const W_=S.wind&&S.wind.kt<S.wind.tas*0.8? S.wind : null, hrs=S.endMin/60;
       g.save(); g.strokeStyle=C.acc; g.lineWidth=2.2; g.globalAlpha=.9; let lab;
       if(W_){ // with a wind the range isn't a circle: further downwind, less into it. One way: TAS × time, carried downwind.
         // Out and back: on each bearing, the distance you can fly out and still get home (slower one way than the other).
@@ -5642,8 +5649,8 @@ $('fuSet').onclick=()=>{ const f=parseFloat($('fuFob').value), b=parseFloat($('f
 $('fuRun').onclick=()=>{ FUEL.on? fuStop() : fuStart(); fuTick(); render(); };
 $('fuAuto').onchange=()=>{ FUEL.auto=$('fuAuto').checked; fuSave(); };
 $('fuRem').onchange=()=>{ FUEL.rem=+$('fuRem').value; FUEL.remT=Date.now(); fuSave(); };
-$('mapRange').setAttribute('aria-pressed',!!ls.get('mapRange',false));
-$('mapRange').onclick=()=>{ const on=!ls.get('mapRange',false); if(on&&!fuState()){ fuOpen(); return; } ls.set('mapRange',on); $('mapRange').setAttribute('aria-pressed',on); render(); };
+$('mapRange').setAttribute('aria-pressed',!!ls.get('rangeRing',false));
+$('mapRange').onclick=()=>{ const on=!ls.get('rangeRing',false); if(on&&!fuState()){ fuOpen(); return; } ls.set('rangeRing',on); $('mapRange').setAttribute('aria-pressed',on); render(); };
 $('mapMeas').onclick=()=>measSet(!MEAS.on);
 $('measDone').onclick=()=>measSet(false); $('measClr').onclick=()=>{ MEAS.pts=[]; measUI(); render(); }; $('measUndo').onclick=()=>{ MEAS.pts.pop(); measUI(); render(); };
 $('measFrom').onclick=()=>{ if(!st.pos) return; MEAS.pts=[{la:st.pos[0],lo:st.pos[1],n:'You',me:true}]; measUI(); render(); };

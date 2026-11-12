@@ -19,7 +19,7 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
  console.log('after 1 h:', await p.evaluate(()=>$('sFuel').innerText.replace(/\n/g,' ')), '· reminder fired', await p.evaluate(()=>Date.now()-FUEL.remT<10e3), '· spoken', JSON.stringify(spoken.slice(-1)));
  await p.evaluate(()=>{ $('mapRange').click(); MAP.range=160; MAP.up='north'; CH.on=false; render(); }); await p.waitForTimeout(500);
  const m=await p.$('#map'); await m.scrollIntoViewIfNeeded(); await m.screenshot({path:'play/fuel_range.png'});
- console.log('range on:', await p.evaluate(()=>ls.get('mapRange')), '· range NM', await p.evaluate(()=>Math.round(fuState().rangeNM)));
+ console.log('range on:', await p.evaluate(()=>ls.get('rangeRing')), '· range NM', await p.evaluate(()=>Math.round(fuState().rangeNM)));
  // 50 more min: amber, then below reserve
  await p.evaluate(()=>{ __adv(50*60e3); fuTick(); }); console.log('after 1:50:', await p.evaluate(()=>$('sFuel').className+' | '+$('sFuel').innerText.replace(/\n/g,' ')));
  await p.evaluate(()=>{ __adv(20*60e3); fuTick(); }); console.log('after 2:10:', await p.evaluate(()=>$('sFuel').className+' | '+$('sFuel').innerText.replace(/\n/g,' ')));

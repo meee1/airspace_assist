@@ -37,7 +37,7 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js'); const f
  await p.screenshot({path:'play/planwind_taf.png'});
  await p.click('#pcClose');
  // Range ring with the entered wind: further downwind (240°T) than upwind (060°T)
- await p.evaluate(()=>{ ls.set('pcWsrc','set'); fuSet(200,100); ls.set('mapRange',true); MAP.range=160; MAP.up='north'; CH.on=false; MAP.ctaf=false; render(); });
+ await p.evaluate(()=>{ ls.set('pcWsrc','set'); fuSet(200,100); ls.set('rangeRing',true); MAP.range=160; MAP.up='north'; CH.on=false; MAP.ctaf=false; render(); });
  console.log('range:', await p.evaluate(()=>{ const S=fuState(), h=S.endMin/60, W=S.wind; return JSON.stringify({wind:W, down:Math.round(windTri(240,W.tas,W.dir,W.kt).gs*h), up:Math.round(windTri(60,W.tas,W.dir,W.kt).gs*h), still:Math.round(S.rangeNM)}); }));
  await (await p.$('#map')).scrollIntoViewIfNeeded(); await (await p.$('.mapwrap')).screenshot({path:'play/planwind_range.png'});
  console.log(errs); await b.close(); })();
