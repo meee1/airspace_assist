@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794428086728;
+const APP_BUILT=1794458615657;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -3140,14 +3140,17 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue;
     const [x,y]=P(ad.la,ad.lo); if(x<-10||y<-10||x>W+10||y>Hh+10) continue;
     const sel=ad===pick.a;
-    g.beginPath(); g.arc(x,y,sel?5:MAP.range>80?1.6:MAP.range>40?2.3:3,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.fill();   // smaller dots zoomed far out
-    if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+6,y+3); }
+    // dots (12 Nov 2026, Michael: "make the aerodrome dots larger": about 1.5x, outlined in the map background so they show
+    // on charts and satellite); smaller zoomed far out
+    const rd=sel?7:MAP.range>80?2.5:MAP.range>40?3.5:4.5;
+    g.beginPath(); g.arc(x,y,rd,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.lineWidth=1.5; g.strokeStyle=C.bg; g.stroke(); g.fill();
+    if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+rd+4,y+3); }
   }
   if(MAP.ctaf && MAP.range<=40){ // frequency under each aerodrome, in its group colour
     g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='left';
     for(const [ad,x,y,f,lab] of ctafAt){ if(x<-10||y<-10||x>W+10||y>Hh+10) continue; if(f==='126.7' && MAP.range>10 && ad!==pick.a) continue;
-      const tw=g.measureText(lab).width; g.globalAlpha=.85; g.fillStyle=C.bg; g.fillRect(x+5,y+5,tw+4,12); g.globalAlpha=1;
-      g.fillStyle=ctafColour(f); g.fillText(lab,x+7,y+15); }
+      const tw=g.measureText(lab).width; g.globalAlpha=.85; g.fillStyle=C.bg; g.fillRect(x+6,y+6,tw+4,12); g.globalAlpha=1;
+      g.fillStyle=ctafColour(f); g.fillText(lab,x+8,y+16); }
   }
   if(MAP.range<=5){ // runways at close range
     g.lineCap='butt';
