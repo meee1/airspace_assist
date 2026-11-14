@@ -349,7 +349,7 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 .mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog,.mapctl #mapWire,.mapctl #mapRadar{font-size:12px;flex:1 1 0;min-width:66px;padding:8px 4px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog,.mapctl #mapWire,.mapctl #mapRadar,.mapctl #mapMeas,.mapctl #mapRange{font-size:11px;flex:1 1 0;min-width:58px;padding:6px 3px 5px;flex-direction:column;gap:3px;justify-content:center}   /* the layer row: icon over label */
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -500,6 +500,17 @@ body.fsm #mapSec .mapctl #mapTraffic{margin-left:0!important}
 body.fsm #mapSec .mapctl .btn{min-width:46px;min-height:40px;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 body.fsm #mapSec .mapctl .btn:not([aria-pressed=true]),body.fsm #mapRng{background:color-mix(in srgb,var(--panel) 90%,transparent)}
 body.fsm #mapRng{padding:5px 7px;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+/* map buttons with an outline icon and a label (14 Nov 2026, Michael chose "Outline with label"): inline on the classic
+   page, icon over label over the full-screen map and in the Layers grid */
+.icob{display:inline-flex;align-items:center;gap:5px} .icob svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.icob svg .fl{fill:currentColor}
+body.fsm #mapSec .mapctl .icob,#layPop .icob{flex-direction:column;gap:2px;min-width:54px;padding:5px 4px 4px} body.fsm #mapSec .mapctl .icob svg,#layPop .icob svg{width:22px;height:22px}
+body.fsm #mapSec .mapctl .icob .il,#layPop .icob .il{font:700 8.5px/1 var(--f-label);letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}
+#mapLayers{display:none} body.fsm #mapLayers{display:inline-flex}
+body.fsm #mapLayers[aria-expanded=true]{background:var(--freq)!important;border-color:var(--freq);color:#fff}
+.laypop{display:none} body.fsm .laypop:not([hidden]){display:grid;position:absolute;z-index:8;grid-template-columns:repeat(5,58px);gap:6px;padding:8px;border-radius:12px;background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--rule);box-shadow:0 6px 22px rgba(0,0,0,.28)}
+.laypop .btn{min-height:52px;justify-content:center;margin:0}
+@media (max-width:420px){ body.fsm .laypop:not([hidden]){grid-template-columns:repeat(4,58px)} }
 body.fsm #fsSheet{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;height:var(--fsH,64px);z-index:30;background:var(--bg);border-top:1px solid var(--rule);border-radius:14px 14px 0 0;box-shadow:0 -6px 22px rgba(0,0,0,.2);transition:height .18s ease-out}
 #fsSheet.drag{transition:none}
 #fsHead{flex:none;touch-action:none;cursor:grab;padding-bottom:6px}
@@ -612,6 +623,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <span class="maphint" id="mapHint" title="Press and hold (or right-click) anywhere on the map: what's there (town, R/D areas, NOTAMs, terrain), Go to, and add it to the flight plan">Hold map<br>for menu</span>
         <button class="btn" id="mapTraffic" style="margin-left:auto" aria-pressed="false" title="ADS-B traffic from the internet through your proxy (about 5–10 s old): grey = other traffic, cyan = within 6 NM and ±1,200 ft, amber = within 2.5 NM and ±600 ft">Traffic</button>
         <button class="btn" id="mapUp">Track up</button>
+        <button class="btn" id="mapLayers" aria-expanded="false" aria-controls="layPop" title="Map layers: CTAF, terrain, satellite, charts, lead line, power lines, radar, measure, range, log">Layers</button>
         <button class="btn" id="fsBtn" title="Full-screen map: the map fills the screen, key tiles float over it (phone) or sit in a column (tablet), everything else is in the sheet at the bottom">⤢</button><button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
         <button class="btn sosb" id="sosBtn" title="Emergency: MAYDAY / PAN PAN call with your position, the frequency, squawk 7700, and the nearest places to land">SOS</button>
         <span class="brk"></span>
@@ -626,6 +638,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <button class="btn" id="mapRange" aria-pressed="false" title="Range circle: how far you can fly at your groundspeed before reaching your fuel reserve (from the fuel timer); dashed: out and back">Range</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
+      <div class="laypop" id="layPop" hidden role="group" aria-label="Map layers"></div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <details class="chartbox" id="chartBox">
         <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
@@ -3006,9 +3019,9 @@ function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NE
 function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud=want&&!tab&&!FS.bar;
   document.body.classList.toggle('fsm',want); document.body.classList.toggle('fsm-tab',tab); document.body.classList.toggle('fsm-bar',want&&!tab&&FS.bar);
   $('fsBtn').textContent= FS.on? '⤡' : '⤢'; $('fsBtn').title= FS.on? 'Exit the full-screen map (classic page)' : 'Full-screen map';
-  if(want){ for(const id of FS_LAY) fsMove($(id),$('fsLayBtns')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
+  if(want){ for(const id of FS_LAY) fsMove($(id),$('layPop')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
     for(const el of fsSecs()) fsMove(el,$('fsBody')); }
-  else for(const el of [...FS.marks.keys()]) if(!FS_HUD.includes(el.id)) fsBack(el);
+  else { for(const el of [...FS.marks.keys()]) if(!FS_HUD.includes(el.id)) fsBack(el); layPopShow(false); }
   if(hud){ for(const id of FS_HUD_L) fsMove($(id),$('hudL')); for(const id of FS_HUD_R) fsMove($(id),$('hudR')); for(const id of FS_HUD_A) fsMove($(id),$('hudA')); }
   else for(const id of FS_HUD) fsBack($(id));
   if(!$('fsTabs').children.length) $('fsTabs').innerHTML=FS_TABS.map(([l,id])=>`<button type="button" role="tab" data-fs="${id}">${l}</button>`).join('');
@@ -4343,7 +4356,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   // north pointer
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';
   g.beginPath(); g.moveTo(0,-11); g.lineTo(4,-3); g.lineTo(-4,-3); g.closePath(); g.fill(); g.fillText('N',0,8); g.restore();
-  { const hd=heading(); $('mapUp').textContent = MAP.up==='free'? `${String(Math.round(norm(rot))%360).padStart(3,'0')}° up` : MAP.up==='trk'&&(h||MAP.pan) ? ((hd&&hd.src!=='TRK')?'Heading up':'Track up') : 'North up';
+  { const hd=heading(); icoLbl('mapUp', MAP.up==='free'? `${String(Math.round(norm(rot))%360).padStart(3,'0')}° up` : MAP.up==='trk'&&(h||MAP.pan) ? ((hd&&hd.src!=='TRK')?'Heading up':'Track up') : 'North up');
     $('mapUp').title= MAP.up==='free'? 'Turned with two fingers: tap for north up' : MAP.pan&&MAP.up==='trk'? 'Track up, held while the map is moved off your position: tap for north up' : 'Tap to switch between north up and track up; turn the map with two fingers'; }
   $('mapRng').textContent=rngTxt(MAP.range);
   if(zoomed) MAP.zoomT=performance.now();
@@ -5556,6 +5569,33 @@ $('mapTraffic').onclick=()=>{ MAP.traffic=!MAP.traffic; ls.set('mapTraffic',MAP.
   if(MAP.traffic){ TR.t=0; TR.ac=[]; trPoll(); } render(); };
 $('trVoice').checked=trVoiceOn(); $('trVoice').onchange=()=>ls.set('trVoice',$('trVoice').checked);
 setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within ${TR.nm||trNm()} NM${TR.nm&&TR.nm<trNm()?' (the proxy limits it: redeploy it for '+trNm()+' NM)':''} from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+((TR.skip||[]).length?` Skipped first: ${TR.skip.join('; ')}.`:'')+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
+/* ---------- map button icons (outline, 24-unit grid; .fl parts filled) and the full-screen Layers grid ---------- */
+const ICO={
+  ctaf:'<path d="M12 9v13M8 22l4-13 4 13M9.5 17h5"/><circle cx="12" cy="7" r="1.6"/><path d="M8.6 3.6a5 5 0 0 0 0 6.8M15.4 3.6a5 5 0 0 1 0 6.8M6.2 1.6a8 8 0 0 0 0 10.8M17.8 1.6a8 8 0 0 1 0 10.8"/>',
+  ter:'<path d="M2 20 9 7l4.5 7.5L16 10.5 22 20Z"/><path d="M7.2 10.3 9 11.6l1.8-1.3"/>',
+  sat:'<g transform="rotate(-40 12 12)"><rect x="9.5" y="8.5" width="5" height="7" rx="1"/><rect x="1.5" y="9.5" width="6" height="5"/><rect x="16.5" y="9.5" width="6" height="5"/><path d="M7.5 12h2M14.5 12h2M12 15.5v3"/></g><path d="M4 18.5a4.5 4.5 0 0 0 4.5 3"/>',
+  chart:'<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z"/><path d="M9 4v13.5M15 6.5V20"/>',
+  lead:'<path d="M12 21V4M7.5 8.5 12 3.5l4.5 5"/><path d="M8.5 17h7M9.5 13h5"/>',
+  wire:'<path d="M12 2 7 22M12 2l5 20M5 7h14M6.8 12h10.4M8.5 12l7 5.5M15.5 12l-7 5.5"/><path d="M5 7v2.5M19 7v2.5"/>',
+  radar:'<path d="M7 15.5h10a3.6 3.6 0 0 0 .4-7.2A5.5 5.5 0 0 0 6.7 9.6 3 3 0 0 0 7 15.5Z"/><path d="M8.5 18.5 7.6 21M12.5 18.5l-.9 2.5M16.5 18.5l-.9 2.5"/>',
+  meas:'<circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="5" r="2.2"/><path d="M6.6 17.4 17.4 6.6" stroke-dasharray="2.4 2.2"/><path d="M14 17h7M17.5 15v4"/>',
+  range:'<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5" stroke-dasharray="2.5 2"/><path d="M12 9.6v4.8M10 11.4l2-1.8 2 1.8"/>',
+  log:'<path d="M5 20c3-6 9-2 11-8s3-6 3-8" stroke-dasharray="2.6 2.4"/><circle cx="5" cy="20" r="1.8"/><path d="M16.5 3.5 19 1.8l1.6 2.6"/>',
+  trf:'<path d="M12 2.5c.9 0 1.4.9 1.4 2v4.7l7.6 4.3v2l-7.6-2.3v4.6l2.4 1.8V21L12 20l-3.8 1v-1.4l2.4-1.8v-4.6L3 15.5v-2l7.6-4.3V4.5c0-1.1.5-2 1.4-2Z"/>',
+  up:'<circle cx="12" cy="12" r="9.5"/><path class="fl" d="M12 4.8 15 13l-3-1.4L9 13Z"/><path d="M12 15.5v3"/>',
+  home:'<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>',
+  layers:'<path d="M12 3 2.5 8 12 13l9.5-5Z"/><path d="M2.5 12 12 17l9.5-5M2.5 16 12 21l9.5-5"/>'
+};
+function icoBtn(id,k,label){ const b=$(id); if(!b) return; b.classList.add('icob'); b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg><span class="il"></span>`; b.querySelector('.il').textContent=label; }
+function icoLbl(id,t){ const s=$(id)&&$(id).querySelector('.il'); if(s){ if(s.textContent!==t) s.textContent=t; } else if($(id)) $(id).textContent=t; }
+for(const [id,k,l] of [['mapCtaf','ctaf','CTAF'],['mapTer','ter','Terrain'],['mapSat','sat','Sat'],['mapChart','chart','Charts'],['mapLead','lead','Lead'],['mapWire','wire','Wires'],['mapRadar','radar','Radar'],['mapMeas','meas','Measure'],['mapRange','range','Range'],['mapLog','log','Log'],['mapTraffic','trf','Traffic'],['mapUp','up','Track up'],['mapHome','home','Centre'],['mapLayers','layers','Layers']]) icoBtn(id,k,l);
+// full-screen map: the ten layer buttons are in a grid over the map, opened by Layers (next to the other map buttons);
+// it stays open while you switch layers and closes on a tap anywhere else
+function layPopShow(on){ const pop=$('layPop'), b=$('mapLayers'); if(!pop||!b) return; pop.hidden=!on; b.setAttribute('aria-expanded',on);
+  if(!on) return; const sec=$('mapSec').getBoundingClientRect(), r=b.getBoundingClientRect(), w=pop.offsetWidth, h=pop.offsetHeight;
+  pop.style.left=Math.max(8,r.left-sec.left-w-8)+'px'; pop.style.top=Math.max(8,Math.min(r.bottom-sec.top-h, sec.height-h-8))+'px'; }
+$('mapLayers').onclick=()=>layPopShow($('layPop').hidden);
+document.addEventListener('pointerdown',e=>{ const pop=$('layPop'); if(!pop||pop.hidden) return; if(e.target.closest('#layPop,#mapLayers')) return; layPopShow(false); },true);
 // north up <-> track up (a map turned by hand goes to north up); moved off your position, track up holds the track of the
 // moment you tap it
 $('mapUp').onclick=()=>{ MAP.up= MAP.up==='north'? 'trk' : 'north'; ls.set('mapUp',MAP.up);

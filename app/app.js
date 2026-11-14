@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794473165948;
+const APP_BUILT=1794636322423;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2053,9 +2053,9 @@ function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NE
 function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud=want&&!tab&&!FS.bar;
   document.body.classList.toggle('fsm',want); document.body.classList.toggle('fsm-tab',tab); document.body.classList.toggle('fsm-bar',want&&!tab&&FS.bar);
   $('fsBtn').textContent= FS.on? '⤡' : '⤢'; $('fsBtn').title= FS.on? 'Exit the full-screen map (classic page)' : 'Full-screen map';
-  if(want){ for(const id of FS_LAY) fsMove($(id),$('fsLayBtns')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
+  if(want){ for(const id of FS_LAY) fsMove($(id),$('layPop')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
     for(const el of fsSecs()) fsMove(el,$('fsBody')); }
-  else for(const el of [...FS.marks.keys()]) if(!FS_HUD.includes(el.id)) fsBack(el);
+  else { for(const el of [...FS.marks.keys()]) if(!FS_HUD.includes(el.id)) fsBack(el); layPopShow(false); }
   if(hud){ for(const id of FS_HUD_L) fsMove($(id),$('hudL')); for(const id of FS_HUD_R) fsMove($(id),$('hudR')); for(const id of FS_HUD_A) fsMove($(id),$('hudA')); }
   else for(const id of FS_HUD) fsBack($(id));
   if(!$('fsTabs').children.length) $('fsTabs').innerHTML=FS_TABS.map(([l,id])=>`<button type="button" role="tab" data-fs="${id}">${l}</button>`).join('');
@@ -3390,7 +3390,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   // north pointer
   g.save(); g.translate(W-18,18); g.rotate(-rot*R); g.fillStyle=C.ink; g.font='700 11px "Barlow Condensed", sans-serif'; g.textAlign='center';
   g.beginPath(); g.moveTo(0,-11); g.lineTo(4,-3); g.lineTo(-4,-3); g.closePath(); g.fill(); g.fillText('N',0,8); g.restore();
-  { const hd=heading(); $('mapUp').textContent = MAP.up==='free'? `${String(Math.round(norm(rot))%360).padStart(3,'0')}° up` : MAP.up==='trk'&&(h||MAP.pan) ? ((hd&&hd.src!=='TRK')?'Heading up':'Track up') : 'North up';
+  { const hd=heading(); icoLbl('mapUp', MAP.up==='free'? `${String(Math.round(norm(rot))%360).padStart(3,'0')}° up` : MAP.up==='trk'&&(h||MAP.pan) ? ((hd&&hd.src!=='TRK')?'Heading up':'Track up') : 'North up');
     $('mapUp').title= MAP.up==='free'? 'Turned with two fingers: tap for north up' : MAP.pan&&MAP.up==='trk'? 'Track up, held while the map is moved off your position: tap for north up' : 'Tap to switch between north up and track up; turn the map with two fingers'; }
   $('mapRng').textContent=rngTxt(MAP.range);
   if(zoomed) MAP.zoomT=performance.now();
@@ -4603,6 +4603,33 @@ $('mapTraffic').onclick=()=>{ MAP.traffic=!MAP.traffic; ls.set('mapTraffic',MAP.
   if(MAP.traffic){ TR.t=0; TR.ac=[]; trPoll(); } render(); };
 $('trVoice').checked=trVoiceOn(); $('trVoice').onchange=()=>ls.set('trVoice',$('trVoice').checked);
 setInterval(()=>{ $('trStat').textContent= !MAP.traffic? 'Traffic is off (map button).' : TR.err? 'Traffic: '+TR.err : TR.t? `Traffic: ${TR.ac.length} aircraft within ${TR.nm||trNm()} NM${TR.nm&&TR.nm<trNm()?' (the proxy limits it: redeploy it for '+trNm()+' NM)':''} from ${TR.src}, updated ${Math.round((Date.now()-TR.t)/1000)} s ago.`+((TR.skip||[]).length?` Skipped first: ${TR.skip.join('; ')}.`:'')+(TROWN.hex?` Own aircraft ignored: ${String(TROWN.hex.h).toUpperCase()}${TROWN.hex.reg?' '+TROWN.hex.reg.trim():''}.`:'') : 'Traffic: waiting for the first answer.'; },2000);
+/* ---------- map button icons (outline, 24-unit grid; .fl parts filled) and the full-screen Layers grid ---------- */
+const ICO={
+  ctaf:'<path d="M12 9v13M8 22l4-13 4 13M9.5 17h5"/><circle cx="12" cy="7" r="1.6"/><path d="M8.6 3.6a5 5 0 0 0 0 6.8M15.4 3.6a5 5 0 0 1 0 6.8M6.2 1.6a8 8 0 0 0 0 10.8M17.8 1.6a8 8 0 0 1 0 10.8"/>',
+  ter:'<path d="M2 20 9 7l4.5 7.5L16 10.5 22 20Z"/><path d="M7.2 10.3 9 11.6l1.8-1.3"/>',
+  sat:'<g transform="rotate(-40 12 12)"><rect x="9.5" y="8.5" width="5" height="7" rx="1"/><rect x="1.5" y="9.5" width="6" height="5"/><rect x="16.5" y="9.5" width="6" height="5"/><path d="M7.5 12h2M14.5 12h2M12 15.5v3"/></g><path d="M4 18.5a4.5 4.5 0 0 0 4.5 3"/>',
+  chart:'<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z"/><path d="M9 4v13.5M15 6.5V20"/>',
+  lead:'<path d="M12 21V4M7.5 8.5 12 3.5l4.5 5"/><path d="M8.5 17h7M9.5 13h5"/>',
+  wire:'<path d="M12 2 7 22M12 2l5 20M5 7h14M6.8 12h10.4M8.5 12l7 5.5M15.5 12l-7 5.5"/><path d="M5 7v2.5M19 7v2.5"/>',
+  radar:'<path d="M7 15.5h10a3.6 3.6 0 0 0 .4-7.2A5.5 5.5 0 0 0 6.7 9.6 3 3 0 0 0 7 15.5Z"/><path d="M8.5 18.5 7.6 21M12.5 18.5l-.9 2.5M16.5 18.5l-.9 2.5"/>',
+  meas:'<circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="5" r="2.2"/><path d="M6.6 17.4 17.4 6.6" stroke-dasharray="2.4 2.2"/><path d="M14 17h7M17.5 15v4"/>',
+  range:'<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5" stroke-dasharray="2.5 2"/><path d="M12 9.6v4.8M10 11.4l2-1.8 2 1.8"/>',
+  log:'<path d="M5 20c3-6 9-2 11-8s3-6 3-8" stroke-dasharray="2.6 2.4"/><circle cx="5" cy="20" r="1.8"/><path d="M16.5 3.5 19 1.8l1.6 2.6"/>',
+  trf:'<path d="M12 2.5c.9 0 1.4.9 1.4 2v4.7l7.6 4.3v2l-7.6-2.3v4.6l2.4 1.8V21L12 20l-3.8 1v-1.4l2.4-1.8v-4.6L3 15.5v-2l7.6-4.3V4.5c0-1.1.5-2 1.4-2Z"/>',
+  up:'<circle cx="12" cy="12" r="9.5"/><path class="fl" d="M12 4.8 15 13l-3-1.4L9 13Z"/><path d="M12 15.5v3"/>',
+  home:'<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>',
+  layers:'<path d="M12 3 2.5 8 12 13l9.5-5Z"/><path d="M2.5 12 12 17l9.5-5M2.5 16 12 21l9.5-5"/>'
+};
+function icoBtn(id,k,label){ const b=$(id); if(!b) return; b.classList.add('icob'); b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg><span class="il"></span>`; b.querySelector('.il').textContent=label; }
+function icoLbl(id,t){ const s=$(id)&&$(id).querySelector('.il'); if(s){ if(s.textContent!==t) s.textContent=t; } else if($(id)) $(id).textContent=t; }
+for(const [id,k,l] of [['mapCtaf','ctaf','CTAF'],['mapTer','ter','Terrain'],['mapSat','sat','Sat'],['mapChart','chart','Charts'],['mapLead','lead','Lead'],['mapWire','wire','Wires'],['mapRadar','radar','Radar'],['mapMeas','meas','Measure'],['mapRange','range','Range'],['mapLog','log','Log'],['mapTraffic','trf','Traffic'],['mapUp','up','Track up'],['mapHome','home','Centre'],['mapLayers','layers','Layers']]) icoBtn(id,k,l);
+// full-screen map: the ten layer buttons are in a grid over the map, opened by Layers (next to the other map buttons);
+// it stays open while you switch layers and closes on a tap anywhere else
+function layPopShow(on){ const pop=$('layPop'), b=$('mapLayers'); if(!pop||!b) return; pop.hidden=!on; b.setAttribute('aria-expanded',on);
+  if(!on) return; const sec=$('mapSec').getBoundingClientRect(), r=b.getBoundingClientRect(), w=pop.offsetWidth, h=pop.offsetHeight;
+  pop.style.left=Math.max(8,r.left-sec.left-w-8)+'px'; pop.style.top=Math.max(8,Math.min(r.bottom-sec.top-h, sec.height-h-8))+'px'; }
+$('mapLayers').onclick=()=>layPopShow($('layPop').hidden);
+document.addEventListener('pointerdown',e=>{ const pop=$('layPop'); if(!pop||pop.hidden) return; if(e.target.closest('#layPop,#mapLayers')) return; layPopShow(false); },true);
 // north up <-> track up (a map turned by hand goes to north up); moved off your position, track up holds the track of the
 // moment you tap it
 $('mapUp').onclick=()=>{ MAP.up= MAP.up==='north'? 'trk' : 'north'; ls.set('mapUp',MAP.up);

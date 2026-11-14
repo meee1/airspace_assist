@@ -15,7 +15,8 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js'); require
   // drag the sheet up to full
   const hb=await p.$('#fsHead'); const bb=await hb.boundingBox(); await p.mouse.move(bb.x+bb.width/2,bb.y+5); await p.mouse.down(); await p.mouse.move(bb.x+bb.width/2,60,{steps:8}); await p.mouse.up(); await p.waitForTimeout(400);
   console.log(dn,'drag', await p.evaluate(()=>FS.s+' '+Math.round($('fsSheet').getBoundingClientRect().height)));
-  await p.click('#fsTabs [data-fs="fsLayers"]'); await p.waitForTimeout(500); await p.click('#mapLog'); console.log(dn,'layer btn works', await p.evaluate(()=>$('mapLog').getAttribute('aria-pressed')));
+  await p.evaluate(()=>fsSheet('peek')); await p.waitForTimeout(300); await p.click('#mapLayers'); await p.waitForTimeout(200); await p.click('#mapLog'); console.log(dn,'layer btn works (Layers grid over the map)', await p.evaluate(()=>$('mapLog').getAttribute('aria-pressed'))); await p.evaluate(()=>layPopShow(false));
+  await p.click('#fsTabs [data-fs="fsLayers"]'); await p.waitForTimeout(500);
   await p.click('#fsTabs [data-fs="fsLayers"]'); await p.waitForTimeout(400); console.log(dn,'tap again ->', await p.evaluate(()=>FS.s));
   // map menu
   await p.evaluate(()=>{ const r=$('map').getBoundingClientRect(); mapMenu(r.width/2,r.height/2); }); await p.waitForTimeout(300); await p.screenshot({path:`play/fs/${dn}_menu.png`}); await p.evaluate(()=>mapMenuClose());

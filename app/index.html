@@ -349,7 +349,7 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 .mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog,.mapctl #mapWire,.mapctl #mapRadar{font-size:12px;flex:1 1 0;min-width:66px;padding:8px 4px}
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog,.mapctl #mapWire,.mapctl #mapRadar,.mapctl #mapMeas,.mapctl #mapRange{font-size:11px;flex:1 1 0;min-width:58px;padding:6px 3px 5px;flex-direction:column;gap:3px;justify-content:center}   /* the layer row: icon over label */
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -500,6 +500,17 @@ body.fsm #mapSec .mapctl #mapTraffic{margin-left:0!important}
 body.fsm #mapSec .mapctl .btn{min-width:46px;min-height:40px;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 body.fsm #mapSec .mapctl .btn:not([aria-pressed=true]),body.fsm #mapRng{background:color-mix(in srgb,var(--panel) 90%,transparent)}
 body.fsm #mapRng{padding:5px 7px;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+/* map buttons with an outline icon and a label (14 Nov 2026, Michael chose "Outline with label"): inline on the classic
+   page, icon over label over the full-screen map and in the Layers grid */
+.icob{display:inline-flex;align-items:center;gap:5px} .icob svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.icob svg .fl{fill:currentColor}
+body.fsm #mapSec .mapctl .icob,#layPop .icob{flex-direction:column;gap:2px;min-width:54px;padding:5px 4px 4px} body.fsm #mapSec .mapctl .icob svg,#layPop .icob svg{width:22px;height:22px}
+body.fsm #mapSec .mapctl .icob .il,#layPop .icob .il{font:700 8.5px/1 var(--f-label);letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}
+#mapLayers{display:none} body.fsm #mapLayers{display:inline-flex}
+body.fsm #mapLayers[aria-expanded=true]{background:var(--freq)!important;border-color:var(--freq);color:#fff}
+.laypop{display:none} body.fsm .laypop:not([hidden]){display:grid;position:absolute;z-index:8;grid-template-columns:repeat(5,58px);gap:6px;padding:8px;border-radius:12px;background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--rule);box-shadow:0 6px 22px rgba(0,0,0,.28)}
+.laypop .btn{min-height:52px;justify-content:center;margin:0}
+@media (max-width:420px){ body.fsm .laypop:not([hidden]){grid-template-columns:repeat(4,58px)} }
 body.fsm #fsSheet{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;height:var(--fsH,64px);z-index:30;background:var(--bg);border-top:1px solid var(--rule);border-radius:14px 14px 0 0;box-shadow:0 -6px 22px rgba(0,0,0,.2);transition:height .18s ease-out}
 #fsSheet.drag{transition:none}
 #fsHead{flex:none;touch-action:none;cursor:grab;padding-bottom:6px}
@@ -612,6 +623,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <span class="maphint" id="mapHint" title="Press and hold (or right-click) anywhere on the map: what's there (town, R/D areas, NOTAMs, terrain), Go to, and add it to the flight plan">Hold map<br>for menu</span>
         <button class="btn" id="mapTraffic" style="margin-left:auto" aria-pressed="false" title="ADS-B traffic from the internet through your proxy (about 5–10 s old): grey = other traffic, cyan = within 6 NM and ±1,200 ft, amber = within 2.5 NM and ±600 ft">Traffic</button>
         <button class="btn" id="mapUp">Track up</button>
+        <button class="btn" id="mapLayers" aria-expanded="false" aria-controls="layPop" title="Map layers: CTAF, terrain, satellite, charts, lead line, power lines, radar, measure, range, log">Layers</button>
         <button class="btn" id="fsBtn" title="Full-screen map: the map fills the screen, key tiles float over it (phone) or sit in a column (tablet), everything else is in the sheet at the bottom">⤢</button><button class="btn" id="mapHome" hidden title="Back to your position">◎ Centre</button>
         <button class="btn sosb" id="sosBtn" title="Emergency: MAYDAY / PAN PAN call with your position, the frequency, squawk 7700, and the nearest places to land">SOS</button>
         <span class="brk"></span>
@@ -626,6 +638,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
         <button class="btn" id="mapRange" aria-pressed="false" title="Range circle: how far you can fly at your groundspeed before reaching your fuel reserve (from the fuel timer); dashed: out and back">Range</button>
         <button class="btn" id="mapLog" aria-pressed="false" title="Flight log: the track you've flown in the last 6 hours (fades with age), with a marker where each waypoint was sequenced">Log</button>
       </div>
+      <div class="laypop" id="layPop" hidden role="group" aria-label="Map layers"></div>
       <div class="legend ctafleg" id="ctafLeg" hidden></div>
       <details class="chartbox" id="chartBox">
         <summary><span class="lbl">Chart underlay</span><span class="mono" id="chartSum"></span></summary>
@@ -988,7 +1001,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=e02603ece9';
+    const s=document.createElement('script'); s.src='app.js?v=bbcfb6973e';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
