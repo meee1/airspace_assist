@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794636322423;
+const APP_BUILT=1794773879076;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2005,7 +2005,7 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['traffic','TRAFFIC alert',['sTraffic']]];
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -2034,6 +2034,8 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`,
   wires:`<div class="st traffic wires"><b>WIRES</b><span>0.8 NM ahead · 220 kV power line · you're 350 ft above terrain</span></div>`,
+  sar:`<div class="st nxcls sar amber"><small>SARTIME</small><b style="color:var(--accent)">0430Z</b><span>in 0:25 · with ATS · tap when cancelled</span></div>`,
+  chk:`<div class="st nxcls amber chk"><small>CHECKLIST</small><b>Pre-landing</b><span>Before landing · tap to open</span></div>`,
   fuel:`<div class="st nxcls fuel"><small>FUEL</small><b style="color:var(--ink)">145 L</b><span>1:05 to reserve · 103 NM at 95 kt · reserve 20 min</span></div>`};
 // ---------- full-screen map. FS.on = rc_fsMap (default on); applied while the map is shown. Elements are moved, not copied, so
 // every render/handler keeps working: a comment marker is left where each one came from and fsBack puts it back.
@@ -2045,8 +2047,8 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
-const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog'];
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
 function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
@@ -2146,7 +2148,7 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
     // Moorabbin runs within 10 NM of Tyabb till 7 NM out)
     const free=!INB.on||(stop&&INB.kind==='trn'&&INB.on!==a.i);
     if(free&&INB.armed[a.i]&&d<=10.2&&d>3&&closing&&st.gs>30&&(!hit||d<hit.d||stop&&!hit.stop)) hit={a,d,stop}; }
-  if(hit){ INB.armed[hit.a.i]=false; INB.on=hit.a.i; INB.kind=hit.stop?'inb':'trn'; INB.t=Date.now();
+  if(hit){ INB.armed[hit.a.i]=false; INB.on=hit.a.i; INB.kind=hit.stop?'inb':'trn'; INB.t=Date.now(); if(hit.stop) phEvent('inb',hit.a);
     const el=$(hit.a===tgt?'gCtafBox':'sCtafBox'); if(el&&FQF.n>0){ el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); el.addEventListener('animationend',()=>el.classList.remove('fqflash'),{once:true}); } }
   const ad=INB.on&&DATA.ap.find(a=>a.i===INB.on); if(!ad){ box.hidden=true; INB.on=null; return; }
   const [d,b]=distBrg(la,lo,ad.la,ad.lo);
@@ -3169,6 +3171,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   g.fillText(rngTxt(MAP.range),ox+MAP.range*sc*0.707+3,oy-MAP.range*sc*0.707);
   // aerodromes
   g.font='600 10px "IBM Plex Mono", monospace';
+  const wxOn=MAP.wx&&NTN&&NTN.met, wxE=wxOn&&st.pos? wxEtas(st.pos[0],st.pos[1]) : new Map(); let wxN=0, wxEt=0;
   for(const ad of DATA.ap){
     if(ad.t==='H'&&!st.heli) continue;
     if(Math.abs(ad.la-la)>reach||Math.abs(ad.lo-lo)>reach/cosl) continue;
@@ -3177,9 +3180,13 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     // dots (12 Nov 2026, Michael: "make the aerodrome dots larger": about 1.5x, outlined in the map background so they show
     // on charts and satellite); smaller zoomed far out
     const rd=sel?7:MAP.range>80?2.5:MAP.range>40?3.5:4.5;
+    if(wxOn&&NTN.met[ad.i]){ const et=wxE.get(ad.i), r=wxCatAt(ad.i,et||Date.now());   // weather: flight category ring (ETA for plan aerodromes)
+      if(r){ wxN++; if(et) wxEt++; g.lineWidth=3.5; g.strokeStyle=WX_COL[r.c]; g.beginPath(); g.arc(x,y,rd+4.5,0,2*Math.PI); g.stroke();
+        if(r.tmp){ g.lineWidth=2; g.setLineDash([3,2.5]); g.strokeStyle=WX_COL[r.tmp]; g.beginPath(); g.arc(x,y,rd+8.5,0,2*Math.PI); g.stroke(); g.setLineDash([]); } } }
     g.beginPath(); g.arc(x,y,rd,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.lineWidth=1.5; g.strokeStyle=C.bg; g.stroke(); g.fill();
     if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+rd+4,y+3); }
   }
+  { const L=$('wxLeg'); if(L){ L.hidden=!wxN; $('wxLegT').textContent= wxEt? '· plan aerodromes at ETA' : ''; } MAP.wxN=wxN; }
   if(MAP.ctaf && MAP.range<=40){ // frequency under each aerodrome, in its group colour
     g.font='700 10px "IBM Plex Mono", monospace'; g.textAlign='left';
     for(const [ad,x,y,f,lab] of ctafAt){ if(x<-10||y<-10||x>W+10||y>Hh+10) continue; if(f==='126.7' && MAP.range>10 && ad!==pick.a) continue;
@@ -3999,7 +4006,9 @@ function clsNext(dd){   // alert row: controlled (A/C/D) or restricted airspace 
     if(sp){ f=sp[2]; who=unitShort(sp[1]||n.b.unit)+' '+sp[4][0]; } }
   const atisAd= !R_&&n.b? (ca&&ca.ad || (n.b.k==='CTR'? ctrApp(n.b).ad : null)) : null, atis= atisAd&&atisAd.a&&atisAd.a[0]? ` · ATIS ${atisAd.a[0]}${atisOf(atisAd.i)?' ('+atisOf(atisAd.i)+')':''}` : '';   // the zone's aerodrome ATIS, to listen to before calling
   box.hidden=false;
-  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?(()=>{ const s_=suaStatus(n.prd.n.split(' ')[0]); return s_&&s_.s==='act'? ' · ACTIVE'+(s_.until?' →'+hhmmZ(s_.until):'')+' · clearance' : ' · restricted, check status'; })():(who?' · '+esc(who):'')+(f?' '+f:'')+atis+' · clearance'}</span>`; }
+  box.innerHTML=`<small>NEXT CLASS</small><b style="color:${R_?'var(--as-r)':clsCol(n.k)}">${esc(tgt)}</b><span>${lim} in <b style="font:inherit;font-weight:700">${dd(n.d)} NM</b>${R_?(()=>{ const s_=suaStatus(n.prd.n.split(' ')[0]); return s_&&s_.s==='act'? ' · ACTIVE'+(s_.until?' →'+hhmmZ(s_.until):'')+' · clearance' : ' · restricted, check status'; })():(who?' · '+esc(who):'')+(f?' '+f:'')+atis+' · clearance'}</span>`;
+  if(SAY.cls){ const nm=Math.max(1,Math.round(n.d));
+    say('cls|'+(R_?n.prd.n:n.key), `${R_?'Restricted area '+sayCode(tgt):'Class '+n.k} ahead, ${nm} mile${nm>1?'s':''}${!R_&&f?', '+sayUnit(who)+', '+sayFreq(f):''}`, 10*60e3); } }
 function nextFreqs(la,lo,altFt,ctafNow,adNow,cur,clsNow){
   const key=[NTN?NTN.t:0,Math.floor(Date.now()/300e3),la.toFixed(2),lo.toFixed(2),Math.round(altFt/100),FP?FP.i+':'+FP.pts.length+':'+FP.name+':'+FP.pts[FP.pts.length-1].la+':'+(FP.rev||0):'-',TER.tiles.size,FP?'':Math.round((st.trk||0)/5)+(st.gs>5?'m':''),ctafNow,adNow.i,cur&&cur.f,clsNow,st.heli,st.all].join('|');
   if(key!==NX.key){ NX.key=key; NX.ctaf=null; NX.area=null; NX.cls=null;
@@ -4106,6 +4115,209 @@ function fuTick(){ const t=Date.now();
     if('speechSynthesis' in window){ try{ const m=Math.max(0,Math.round(S.endMin)); speechSynthesis.speak(new SpeechSynthesisUtterance(`Fuel check. ${Math.round(S.left)} ${u==='L'?'litres':'gallons'}. ${Math.floor(m/60)?Math.floor(m/60)+' hour'+(Math.floor(m/60)>1?'s ':' '):''}${m%60} minutes to reserve.`)); }catch(e){} } }
   if($('fuDlg').open) fuUI(); }
 setInterval(()=>{ try{ fuTick(); }catch(e){} },5000);
+/* ---------- spoken alerts (Options → Spoken alerts; rc_say {cls, sig, fq, sar, chk}) ----------
+   say(key, text, gap): spoken once per key within gap ms. SAY.log keeps the last few (tests, diagnostics). */
+const SAY=Object.assign({cls:true,sig:true,fq:false,sar:true,chk:true},ls.get('say',{})); SAY.log=[];
+const SAYT=new Map();
+const SAY_D=['zero','one','two','three','four','five','six','seven','eight','niner'];
+const sayFreq=f=>String(f).split('').map(c=>c==='.'?'decimal':/\d/.test(c)?SAY_D[+c]:'').filter(Boolean).join(' ');
+const sayCode=c=>String(c).replace(/(\d)/g,' $1').trim();
+const sayUnit=u=>titleCase(String(u||'')).replace(/\s*\([^)]*\)/g,'').replace(/\bCtr\b/,'Centre').replace(/\bApp\b/,'Approach').replace(/\bTwr\b/,'Tower').replace(/\bDep\b/,'Departures').replace(/\bGnd\b/,'Ground').replace(/ E$/,' East').replace(/ W$/,' West').trim();
+const SAY_WX={SEV:'severe',MOD:'moderate',TURB:'turbulence',ICE:'icing',MTW:'mountain waves',TS:'thunderstorms',TSGR:'thunderstorms with hail',EMBD:'embedded',OBSC:'obscured',FRQ:'frequent',SQL:'squall line',ISOL:'isolated',OCNL:'occasional',CB:'cumulonimbus',VA:'volcanic ash',DS:'dust storm',SS:'sand storm',RDOACT:'radioactive',CLD:'cloud',FZRA:'freezing rain',BKN:'broken',OVC:'overcast',SFC:'surface',VIS:'visibility',HVY:'heavy',WIND:'wind'};
+const sayWx=w=>String(w||'').split(/\s+/).map(x=>SAY_WX[x]||x.toLowerCase()).join(' ');
+function say(key,txt,gap=0){ const t=Date.now(), last=SAYT.get(key); if(last!=null&&(!gap||t-last<gap)) return false; SAYT.set(key,t);
+  SAY.log.push({t,key,txt}); if(SAY.log.length>40) SAY.log.shift();
+  if(!('speechSynthesis' in window)) return false;
+  try{ const u=new SpeechSynthesisUtterance(txt); u.rate=1.05; speechSynthesis.speak(u); return true; }catch(e){ return false; } }
+// new CTAF / AREA frequency: a value that has held for 3 s and differs from the last one spoken (the first one isn't spoken)
+const SAYF={};
+function sayFqTick(){ if(!st.pos) return; const t=Date.now();
+  for(const [id,lbl,val,who] of [['sCtafBox','sCtafLbl','sCtaf','sCtafCn'],['sAreaBox','sAreaLbl','sArea','sAreaWho']]){
+    const box=$(id), f=($(val).textContent||'').trim(); if(!box||!/^\d{3}\.\d{1,3}$/.test(f)) continue;
+    const lab=$(lbl).textContent.trim(), v=lab+'|'+f, S=SAYF[id]||(SAYF[id]={v:null,t:0,said:null});
+    if(v!==S.v){ S.v=v; S.t=t; if(S.said==null) S.said=v; continue; }
+    if(S.said===v||t-S.t<3000) continue; S.said=v;
+    if(!SAY.fq||box.hidden||box.classList.contains('off')) continue;
+    const name=sayUnit(($(who).textContent||'').split(' · ')[0]);
+    say('fq|'+id+'|'+v, `${name||lab}, ${lab==='CTAF'||lab==='AREA'||!name?'':lab.replace(/^TWR /,'tower ')+', '}${sayFreq(f)}`.replace(/, ,/g,','), 60e3); } }
+setInterval(()=>{ try{ sayFqTick(); }catch(e){} },1000);
+function sayOpts(){ for(const el of document.querySelectorAll('#optsSay [data-say]')) el.checked=!!SAY[el.dataset.say];
+  $('saySt').textContent= 'speechSynthesis' in window? 'Uses the phone\'s text-to-speech, through the speaker or your headset (Bluetooth / audio cable). Turn the media volume up.' : 'This browser has no text-to-speech: nothing will be spoken.'; }
+$('optsSay').addEventListener('change',e=>{ const k=e.target.dataset&&e.target.dataset.say; if(!k) return; SAY[k]=e.target.checked; const {log,...o}=SAY; ls.set('say',o); });
+$('sayTest').onclick=()=>{ SAYT.delete('test'); say('test','Class D ahead, 3 miles, Moorabbin Tower, '+sayFreq('123.0')); };
+sayOpts();
+
+/* ---------- phase of flight from groundspeed: 'move' (starts moving after 60 s+ stopped), 'land' (stopped 30 s after flying
+   at 30 kt+), 'inb' (the 10 NM inbound call for where you land, from inboundUI). Feeds SARTIME and the checklists. ---------- */
+const PH={fly:false, stop0:0, last:null};
+function phEvent(k,ad){ PH.last={k,t:Date.now(),ad:ad&&ad.i}; try{ sarPhase(k); }catch(e){} try{ clOffer(k); }catch(e){} }
+function phTick(){ const t=Date.now(), gs=st.gs; if(gs==null||!st.pos) return;
+  if(gs>=30) PH.fly=true;
+  if(gs<5){ if(!PH.stop0) PH.stop0=t; if(PH.fly&&t-PH.stop0>=30e3){ PH.fly=false; phEvent('land'); } }
+  else { if(PH.stop0&&t-PH.stop0>=60e3&&!PH.fly) phEvent('move'); PH.stop0=0; } }
+setInterval(()=>{ try{ phTick(); sarTick(); chkUI(); }catch(e){} },2000);
+
+/* ---------- SARTIME / flight note (rc_sar {t, w 'ats'|'fn', who, set, cnx, land}) ---------- */
+let SAR=Object.assign({t:0,w:'ats',who:'',set:0,cnx:0,land:0},ls.get('sar',{}));
+const sarSave=()=>{ const {vib,...o}=SAR; ls.set('sar',o); };
+const sarHM=m=>{ const n=Math.max(0,Math.round(Math.abs(m))); return Math.floor(n/60)+':'+String(n%60).padStart(2,'0'); };
+const sarLocal=t=>new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
+// "0430", "430", "04:30", "0430Z" (UTC) -> the next such time (up to an hour ago counts as today: it has passed)
+function sarParse(v,ref=Date.now()){ const m=/^\s*(\d{1,2}):?(\d{2})\s*z?\s*$/i.exec(v||''); if(!m||+m[1]>23||+m[2]>59) return null;
+  const d=new Date(ref); let t=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),+m[1],+m[2]); if(t<ref-60*60e3) t+=864e5; else if(t>ref+23*3600e3) t-=864e5; return t; }
+const sarZ=t=>{ const d=new Date(t); return String(d.getUTCHours()).padStart(2,'0')+String(d.getUTCMinutes()).padStart(2,'0'); };
+const sarCall=()=>SAR.w==='fn'? (SAR.who?'call '+SAR.who:'call your responsible person') : 'cancel with ATS';
+function sarTick(){ const row=$('sSar'); if(!SAR.t||SAR.cnx){ row.hidden=true; return; }
+  const t=Date.now(), m=(SAR.t-t)/60e3, past=m<0, landed=!!SAR.land, hot=past||landed||m<=30;
+  row.hidden=false; rowCls(row,'st nxcls sar'+(past?' warn':hot?' amber':''));
+  row.innerHTML=`<small>${SAR.w==='fn'?'FLIGHT NOTE':'SARTIME'}</small><b style="color:${past?'var(--warn)':hot?'var(--accent)':'var(--ink)'}">${hhmmZ(SAR.t)}</b><span>${past?`<b style="font:inherit;font-weight:700">passed ${sarHM(m)} ago: ${esc(sarCall())} now</b>`:`in ${sarHM(m)}`}${landed&&!past?` · <b style="font:inherit;font-weight:700">landed: ${esc(sarCall())}</b>`:''}${!landed&&!past?' · '+(SAR.w==='fn'?esc(SAR.who||'responsible person'):'with ATS'):''} · tap when cancelled</span>`;
+  if(SAY.sar){ if(past) say('sar|past|'+SAR.t,`${SAR.w==='fn'?'Flight note time':'SARTIME'} passed. ${SAR.w==='fn'?'Call your responsible person':'Cancel your SARTIME'} now.`,5*60e3);
+    else if(m<=15&&!landed&&PH.fly) say('sar|15|'+SAR.t,`SARTIME in ${Math.max(1,Math.round(m))} minutes.`,864e5); }
+  if(past&&SAR.vib!==SAR.t){ SAR.vib=SAR.t; try{ navigator.vibrate&&navigator.vibrate([300,150,300,150,300]); }catch(e){} }
+  if($('sarDlg').open) sarUI(); }
+function sarPhase(k){ if(!SAR.t||SAR.cnx) return;
+  if(k==='land'){ SAR.land=Date.now(); sarSave(); try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){}
+    if(SAY.sar) say('sar|land|'+SAR.land, SAR.w==='fn'? 'Landed. Call your responsible person to close your flight note.' : 'Landed. Remember to cancel your SARTIME.'); }
+  else if(k==='move'&&SAR.land){ SAR.land=0; sarSave(); }
+  sarTick(); }
+function sarPlanEta(){ if(!FP||!st.pos) return null; const gs=st.gs>=40? st.gs : (+ls.get('pcGs',90)||90); let D=0, pa=st.pos[0], po=st.pos[1];
+  for(let k=FP.dct?FP.pts.length:FP.i;k<FP.pts.length;k++){ const p=FP.pts[k]; D+=distBrg(pa,po,p.la,p.lo)[0]; pa=p.la; po=p.lo; }
+  if(FP.dct&&GO) D=distBrg(pa,po,GO.la,GO.lo)[0];
+  return Date.now()+D/gs*3600e3; }
+function sarUI(){ const t=Date.now(), v=sarParse($('sarZ').value);
+  $('sarNow').innerHTML= !SAR.t? '<small>No SARTIME set.</small>' : SAR.cnx? `Cancelled<small>at ${hhmmZ(SAR.cnx)} (${sarLocal(SAR.cnx)}) · it was ${hhmmZ(SAR.t)}</small>`
+    : `${hhmmZ(SAR.t)} <small>${sarLocal(SAR.t)} local · ${SAR.t<t? '<b class="w">passed '+sarHM((SAR.t-t)/60e3)+' ago</b>' : 'in '+sarHM((SAR.t-t)/60e3)}${SAR.land?' · landed '+hhmmZ(SAR.land):''}</small>`;
+  $('sarLoc').textContent= v? `${sarZ(v)}Z is ${sarLocal(v)} local, ${v<t?'already passed':'in '+sarHM((v-t)/60e3)}.` : $('sarZ').value? 'Type the time in UTC as four digits, e.g. 0430.' : '';
+  $('sarWhoRow').hidden=$('sarWith').value!=='fn'; $('sarEta').disabled=!(FP&&st.pos);
+  $('sarCnx').disabled=!SAR.t||!!SAR.cnx; $('sarClr').disabled=!SAR.t; }
+function sarOpen(){ $('sarZ').value= SAR.t&&!SAR.cnx? sarZ(SAR.t) : ''; $('sarWith').value=SAR.w||'ats'; $('sarWho').value=SAR.who||''; $('sarStat').textContent=''; sarUI(); if(!$('sarDlg').open) $('sarDlg').showModal(); }
+$('bSar').onclick=sarOpen; $('sarClose').onclick=()=>$('sarDlg').close(); $('sSar').addEventListener('click',sarOpen);
+for(const id of ['sarZ','sarWith','sarWho']) $(id).addEventListener('input',sarUI);
+$('sarAdd').addEventListener('click',e=>{ const b=e.target.closest('[data-add]'); if(!b) return; let t;
+  if(b.dataset.add==='eta'){ const e_=sarPlanEta(); if(!e_) return; t=Math.ceil((e_+30*60e3)/300e3)*300e3; }
+  else t=(sarParse($('sarZ').value)||Math.ceil(Date.now()/300e3)*300e3)+(+b.dataset.add)*60e3;
+  $('sarZ').value=sarZ(t); sarUI(); });
+$('sarSet').onclick=()=>{ const t=sarParse($('sarZ').value); if(!t){ $('sarStat').textContent='Type the time in UTC as four digits, e.g. 0430.'; return; }
+  SAR={t, w:$('sarWith').value, who:$('sarWho').value.trim().slice(0,60), set:Date.now(), cnx:0, land:0}; sarSave();
+  $('sarStat').textContent= t<Date.now()? 'That time has already passed.' : ''; sarTick(); sarUI(); };
+$('sarCnx').onclick=()=>{ if(!SAR.t) return; SAR.cnx=Date.now(); sarSave(); sarTick(); sarUI(); };
+$('sarClr').onclick=()=>{ SAR={t:0,w:SAR.w,who:SAR.who,set:0,cnx:0,land:0}; sarSave(); sarTick(); sarUI(); };
+sarTick();
+
+/* ---------- checklists offered by phase of flight (a checklist's "Offer it": c.ph = move | inb | land) ----------
+   The lists that match the phase (and this aircraft) have their ticks cleared and the CHECKLIST row shows for up to 10 min,
+   until they're complete; tap it to open them. */
+const PH_NAME={move:'Before take-off',inb:'Pre-landing',land:'After landing'};
+const CHK={k:null, ids:[], t:0};
+function clOffer(k){ const cur=typeof wbCur==='function'&&wbCur(), L=CL.filter(c=>c.ph===k&&(!c.ac||(cur&&c.ac===cur.id))); if(!L.length) return;
+  for(const c of L) delete CLT[c.id]; ls.set('clTick',CLT);
+  CHK.k=k; CHK.ids=L.map(c=>c.id); CHK.t=Date.now(); chkUI();
+  if(SAY.chk) say('chk|'+k, L.map(c=>c.name).join(', ')+(L.length>1?' checklists':' checklist'), 60e3);
+  if($('clDlg').open) clRender(); }
+function chkUI(){ const row=$('sChk'); if(!CHK.k) { row.hidden=true; return; }
+  const L=CHK.ids.map(id=>CL.find(c=>c.id===id)).filter(Boolean);
+  if(Date.now()-CHK.t>10*60e3||!L.length||L.every(c=>{ const [d,n]=clCount(c); return n&&d===n; })){ CHK.k=null; row.hidden=true; return; }
+  row.hidden=false; row.innerHTML=`<small>CHECKLIST</small><b>${esc(PH_NAME[CHK.k])}</b><span>${L.map(c=>{ const [d,n]=clCount(c); return esc(c.name)+(d?` (${d}/${n})`:''); }).join(' · ')} · tap to open</span>`; }
+$('sChk').addEventListener('click',()=>{ const L=CHK.ids.filter(id=>CL.some(c=>c.id===id)); if(L.length===1){ CLV.v='run'; CLV.id=L[0]; clRender(); if(!$('clDlg').open) $('clDlg').showModal(); } else clOpen(); });
+
+/* ---------- weather rings on the map (Wx layer, rc_mapWx): flight category from the briefing's METAR (now, under 90 min old)
+   or TAF at the time (your ETA for flight plan aerodromes); dashed outer ring when a TEMPO / INTER / PROB is worse ---------- */
+MAP.wx=ls.get('mapWx',true);
+$('mapWx').setAttribute('aria-pressed',MAP.wx);
+$('mapWx').onclick=()=>{ MAP.wx=!MAP.wx; ls.set('mapWx',MAP.wx); $('mapWx').setAttribute('aria-pressed',MAP.wx); if(MAP.last) drawMap(...MAP.last); };
+const WXC=new Map(), WX_COL={VFR:'#2e9d4a',MVFR:'#2f6fd0',IFR:'#c8202f',LIFR:'#9b2fb8'};
+function wxCatAt(icao,t){ const M=NTN&&NTN.met&&NTN.met[icao]; if(!M) return null;
+  const k=(NTN.t||0)+'|'+icao+'|'+Math.round(t/600e3)+'|'+Math.round(Date.now()/600e3); if(WXC.has(k)) return WXC.get(k); if(WXC.size>3000) WXC.clear();
+  let r=null; const now=Date.now();
+  try{
+    if(M.metar&&M.metar.raw&&t-now<60*60e3&&(!M.metar.t||now-M.metar.t<90*60e3)){
+      const T=naipsWx(M.metar.raw).replace(/=\s*$/,'').split(/\s+/), cut=T.findIndex(x=>/^(RMK|TEMPO|BECMG|INTER|NOSIG)$/.test(x)), c=tafCond(T.slice(2,cut<0?T.length:cut));
+      if(c) r={c:tafCat(c),src:'METAR'}; }
+    if(!r&&M.taf&&M.taf.raw){ const D=tafDecode(M.taf.raw,M.taf.t);
+      if(D&&!D.nil&&!D.cnl&&t>=D.from&&t<D.to){ const a=tafAt(D,t), c=tafCat(a.s); let w=null;
+        for(const g of a.tmp){ const q=tafCat({...a.s,...g.c, cl:g.c.clSet?g.c.cl:a.s.cl, wx:g.c.wxSet?g.c.wx:a.s.wx, vis:g.c.vis!=null?g.c.vis:a.s.vis}); if(TAF_RANK[q]>TAF_RANK[c]&&(!w||TAF_RANK[q]>TAF_RANK[w])) w=q; }
+        r={c,tmp:w,src:'TAF'}; } }
+  }catch(e){ r=null; }
+  WXC.set(k,r); return r; }
+// ETA at each flight plan aerodrome still ahead (your groundspeed, else Plan check's)
+function wxEtas(la,lo){ const E=new Map(); if(!FP||FP.dct) return E; const gs=st.gs>=40? st.gs : (+ls.get('pcGs',90)||90); let D=0, pa=la, po=lo; const t=Date.now();
+  for(let k=FP.i;k<FP.pts.length;k++){ const p=FP.pts[k]; D+=distBrg(pa,po,p.la,p.lo)[0]; pa=p.la; po=p.lo; const c=(p.c||'').toUpperCase(); if(c&&!E.has(c)) E.set(c,t+D/gs*3600e3); }
+  return E; }
+
+/* ---------- side view (map button Side, rc_mapSide): terrain and airspace along the next 20 NM of the flight plan, or of your
+   track (heading when stopped), with your altitude. Sampled every 0.5 NM (nxPath); worked out again when you've moved,
+   turned, climbed or the plan changed, at most once a second. Hidden while measuring. */
+const SIDE={on:ls.get('mapSide',false), key:'', t:0, W:0, H:0, NM:20, S:null, tm:null, n:0};
+function gcDest(la,lo,brg,d){ const a=d/60*R, b=brg*R, p1=la*R, l1=lo*R, p2=Math.asin(Math.sin(p1)*Math.cos(a)+Math.cos(p1)*Math.sin(a)*Math.cos(b));
+  return [p2/R,(l1+Math.atan2(Math.sin(b)*Math.sin(a)*Math.cos(p1),Math.cos(a)-Math.sin(p1)*Math.sin(p2)))/R]; }
+function sideSamples(la,lo){ let path=nxPath(la,lo).filter(q=>q[2]<=SIDE.NM+0.01), how='';
+  if(FP&&FP.dct&&GO) how='direct '+(GO.c||'');
+  else if(FP&&FP.pts[FP.i]) how='plan → '+(FP.pts[FP.i].c||FP.pts[FP.i].n||'');
+  if(!path.length){ const h=heading(); if(!h) return null; for(let D=0.5;D<=SIDE.NM+0.01;D+=0.5){ const [a,o]=gcDest(la,lo,h.deg,D); path.push([a,o,D]); } how=h.src.toLowerCase()+' '+fmt3(h.deg-variation(la,lo))+'°M'; }
+  else if(!how) how='track '+fmt3((st.trk||0)-variation(la,lo))+'°M';
+  const S=[]; for(const [a,o,D] of [[la,lo,0],...path]){ const t=terrainFt(a,o), AS=airStack(a,o,t||0);
+    S.push({D, t, b:AS.bands.filter(x=>x.k!=='G').map(x=>({k:x.k==='CTR'?(x.ctrCls||'D'):x.k, L:x.L, H:x.H, n:x.n})),
+      p:AS.prd.filter(x=>!(x.st&&x.st.s==='off')).map(x=>({k:x.k==='P'?'R':x.k, L:x.L, H:x.H, n:x.n}))}); }
+  return {S, how, tot:S[S.length-1].D}; }
+function sideUI(){ const box=$('sideBox'); $('mapSide').setAttribute('aria-pressed',SIDE.on);
+  const show=SIDE.on&&!!st.pos&&!MEAS.on; if(box.hidden!==!show) box.hidden=!show; if(!show) return;
+  const cv=$('sideCv');
+  if(!SIDE.ro&&window.ResizeObserver){ SIDE.ro=new ResizeObserver(e=>{ const r=e[0].contentRect; if(r.width!==SIDE.W||r.height!==SIDE.H){ SIDE.W=r.width; SIDE.H=r.height; SIDE.key=''; sideUI(); } }); SIDE.ro.observe(cv); }
+  const W=SIDE.W||cv.clientWidth, H=SIDE.H||cv.clientHeight; if(!W||!H) return;
+  const [la,lo]=st.pos, h=heading(), dpr=window.devicePixelRatio||1, alt=st.alt;
+  const key=[la.toFixed(3),lo.toFixed(3),alt==null?'-':Math.round(alt/100),FP?FP.i+':'+FP.pts.length+':'+(FP.rev||0)+':'+(FP.dct?1:0):'-',h?Math.round(h.deg/3):'-',st.gs>5?1:0,TER.tiles.size,NTN?NTN.t:0,W,H,dpr,themeKey()].join('|');
+  if(key===SIDE.key) return;
+  const now=Date.now(); if(now-SIDE.t<1000){ if(!SIDE.tm) SIDE.tm=setTimeout(()=>{ SIDE.tm=null; sideUI(); },1000-(now-SIDE.t)); return; }
+  SIDE.key=key; SIDE.t=now; SIDE.n++;
+  const R_=sideSamples(la,lo); SIDE.S=R_;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const C={ink:cssv('--ink'),dim:cssv('--dim'),rule:cssv('--rule'),acc:cssv('--accent'),warn:cssv('--warn'),A:cssv('--as-c'),C:cssv('--as-c'),D:cssv('--as-d'),E:cssv('--as-e'),R:cssv('--as-r'),Q:cssv('--as-q'),mono:cssv('--f-mono')};
+  g.font='10px '+C.mono; g.textBaseline='middle';
+  if(!R_){ $('sideTxt').textContent='Side view: needs a track, heading or flight plan'; g.fillStyle=C.dim; g.textAlign='center'; g.fillText('No track yet: start moving or load a flight plan',W/2,H/2); return; }
+  const S=R_.S, tot=SIDE.NM, maxT=Math.max(0,...S.map(q=>q.t||0));
+  let top=Math.max(maxT+1500,alt!=null?alt+2000:0,3000); top=Math.min(Math.ceil(top/1000)*1000,20000);
+  const l=30, r=4, t=4, b=13, x=d=>l+d/tot*(W-l-r), y=f=>t+(1-Math.min(Math.max(f,0),top)/top)*(H-t-b);
+  // altitude grid
+  const gs=top>12000?4000:top>6000?2000:1000; g.textAlign='right';
+  for(let f=0;f<=top;f+=gs){ g.strokeStyle=C.rule; g.lineWidth=1; g.beginPath(); g.moveTo(l,y(f)); g.lineTo(W-r,y(f)); g.stroke(); g.fillStyle=C.dim; g.fillText(f?(f/1000)+'k':'0',l-3,y(f)); }
+  // airspace: runs of samples with the same band drawn as one rectangle, base edge solid, class and base at the run's start
+  const xA=i=>x(i?(S[i-1].D+S[i].D)/2:S[i].D), xB=i=>x(i<S.length-1?(S[i].D+S[i+1].D)/2:S[i].D), runs=[], open=new Map();
+  for(let i=0;i<S.length;i++){ const seen=new Set();
+    for(const a of S[i].b.concat(S[i].p)){ if(a.L>=top) continue; const k=a.k+'|'+a.L+'|'+a.H+'|'+a.n; seen.add(k); const o=open.get(k); if(o) o.i1=i; else open.set(k,{a,i0:i,i1:i}); }
+    for(const [k,o] of open) if(!seen.has(k)){ runs.push(o); open.delete(k); } }
+  runs.push(...open.values());
+  const labs=[];
+  for(const {a,i0,i1} of runs){ const x0=xA(i0), w=Math.max(1,xB(i1)-x0), c=C[a.k]||C.C, rq=a.k==='R'||a.k==='Q';
+    g.globalAlpha=rq?.18:a.k==='E'?.1:.15; g.fillStyle=c; g.fillRect(x0,y(a.H),w,y(a.L)-y(a.H));
+    g.globalAlpha=.9; if(a.L>0) g.fillRect(x0,y(a.L)-1,w,2); g.globalAlpha=1;
+    if(w>16) labs.push({x:x0+3,y:a.L>0?y(a.L)-7:(y(Math.min(a.H,top))+y(0))/2,c,txt:(rq?a.n.split(' ')[0]:a.k)+(a.L>0&&w>40?' '+limTxt(a.L):'')}); }
+  // terrain, red where it's within 500 ft of your altitude or above it
+  g.fillStyle=PROF_TERR; g.globalAlpha=.8; g.beginPath(); g.moveTo(x(0),y(0)); for(const q of S) g.lineTo(x(q.D),y(q.t||0)); g.lineTo(x(S[S.length-1].D),y(0)); g.closePath(); g.fill(); g.globalAlpha=1;
+  let terHit=null;
+  if(alt!=null){ g.fillStyle=C.warn; for(let i=0;i<S.length;i++){ const q=S[i]; if(q.t==null||q.t<alt-500) continue; if(q.D>0&&!terHit) terHit=q; g.fillRect(xA(i),y(q.t)-1.5,Math.max(2,xB(i)-xA(i)),3); } }
+  g.textAlign='left'; g.font='600 10px '+C.mono; const used=[];
+  for(const L of labs){ if(used.some(u=>Math.abs(u[0]-L.x)<34&&Math.abs(u[1]-L.y)<10)) continue; used.push([L.x,L.y]); g.fillStyle=L.c; g.fillText(L.txt,L.x,L.y); }
+  // distance ticks
+  g.font='10px '+C.mono; g.fillStyle=C.dim; g.textAlign='center'; g.textBaseline='alphabetic';
+  for(let d=5;d<=tot;d+=5) g.fillText(d+(d===tot?' NM':''),Math.min(W-r-12,x(d)),H-2);
+  // where your altitude enters controlled (A/C/D) or restricted airspace
+  let into=null;
+  if(alt!=null){ const inside=q=>{ const z=q.b.find(a=>/^(A|C|D)$/.test(a.k)&&alt>=a.L-50&&alt<a.H)||q.p.find(a=>a.k==='R'&&alt>=a.L-50&&alt<a.H); return z? z.k+'|'+z.n : null; };
+    const here=inside(S[0]); for(const q of S){ const k=inside(q); if(k&&k!==here){ into={q,k:k.split('|')[0],n:k.split('|')[1]}; break; } } }
+  if(into){ const X=x(into.q.D); g.strokeStyle=C[into.k]||C.warn; g.lineWidth=1.5; g.setLineDash([3,2]); g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke(); g.setLineDash([]); }
+  // your altitude
+  if(alt!=null){ const Y=y(alt); g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,3]); g.beginPath(); g.moveTo(l,Y); g.lineTo(W-r,Y); g.stroke(); g.setLineDash([]);
+    g.fillStyle=C.acc; g.beginPath(); g.moveTo(l+9,Y); g.lineTo(l,Y-4.5); g.lineTo(l,Y+4.5); g.closePath(); g.fill(); }
+  const dd=d=>d<10?d.toFixed(1):Math.round(d), bits=['Side view · '+R_.how];
+  if(alt==null) bits.push('altitude unknown');
+  if(into) bits.push(`${into.k==='R'?into.n.split(' ')[0]:'class '+into.k} in ${dd(into.q.D)} NM`);
+  if(terHit) bits.push(`terrain ${Math.round(terHit.t/100)*100} ft in ${dd(terHit.D)} NM`);
+  $('sideTxt').textContent=bits.join(' · ');
+  box.classList.toggle('warn',!!(into||terHit)); }
+$('mapSide').onclick=()=>{ SIDE.on=!SIDE.on; ls.set('mapSide',SIDE.on); SIDE.key=''; sideUI(); };
+$('sideX').onclick=()=>{ SIDE.on=false; ls.set('mapSide',false); sideUI(); };
+
 /* ---------- measure (map button): tap points; legs with distance, magnetic bearing and time at your groundspeed ---------- */
 const MEAS={on:false, pts:[]};   // pts: [{la, lo, n (name when snapped)}]
 function measLegs(){ const L=[]; let tot=0; for(let k=1;k<MEAS.pts.length;k++){ const a=MEAS.pts[k-1], b=MEAS.pts[k], [d,br]=distBrg(a.la,a.lo,b.la,b.lo), m=(br-variation(a.la,a.lo)+720)%360; tot+=d; L.push({a,b,d,m}); } return {L,tot}; }
@@ -4272,6 +4484,7 @@ function render0(){
     for(const z of sigAt(la,lo)){ if(z.lo!=null&&z.hi!=null&&!(altFt>=z.lo-50&&altFt<z.hi)) continue;   // SIGMET / AIRMET area at your altitude
       rows.push({h:`<div title="${esc(z.raw)}"><small>IN</small><b style="color:var(--as-q)">${esc(z.kind)}</b><span>${esc(z.ids.map(i=>i.split(' ')[1]).join('/'))} · ${esc(sigLine(z))}</span></div>`}); }
     for(const h of sigAhead(la,lo,altFt,st.trk,st.gs)){ const z=h.z;   // SIGMET / AIRMET ahead on the plan (or your track) at that level
+      if(SAY.sig) say('sig|'+z.name, `${z.kind} ahead, ${Math.max(1,Math.round(h.D))} miles, ${sayWx(z.wx)}`, 30*60e3);
       rows.push({h:`<div title="${esc(z.raw)}"><small>AHEAD</small><b style="color:var(--as-q)">${esc(z.kind)}</b><span>${esc(z.name.split(' ')[1])} in ${h.D<10?h.D.toFixed(1):Math.round(h.D)} NM · ${h.min} min · ${esc(sigLine(z))}</span></div>`}); }
     box.hidden=!rows.length; box.classList.toggle('warn',rows.some(r=>!r.off)); box.classList.toggle('quiet',rows.length>0&&rows.every(r=>r.off));
     box.innerHTML=rows.map(r=>r.h).join(''); }
@@ -4305,7 +4518,8 @@ function render0(){
   }
   pfMark('alerts + tiles');
   plUI(); pfMark('power line check');   // power line warning (before the map: it marks the crossing)
-  if(!BN.on) drawMap(la,lo,h,pick,AS,altFt); pfMark('map (all)');   // not while the benchmark is drawing the map itself
+  if(!BN.on) drawMap(la,lo,h,pick,AS,altFt); pfMark('map (all)');
+  sideUI(); pfMark('side view');   // not while the benchmark is drawing the map itself
   $('stack').innerHTML=html;
 
   // list
@@ -4618,11 +4832,13 @@ const ICO={
   trf:'<path d="M12 2.5c.9 0 1.4.9 1.4 2v4.7l7.6 4.3v2l-7.6-2.3v4.6l2.4 1.8V21L12 20l-3.8 1v-1.4l2.4-1.8v-4.6L3 15.5v-2l7.6-4.3V4.5c0-1.1.5-2 1.4-2Z"/>',
   up:'<circle cx="12" cy="12" r="9.5"/><path class="fl" d="M12 4.8 15 13l-3-1.4L9 13Z"/><path d="M12 15.5v3"/>',
   home:'<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>',
-  layers:'<path d="M12 3 2.5 8 12 13l9.5-5Z"/><path d="M2.5 12 12 17l9.5-5M2.5 16 12 21l9.5-5"/>'
+  layers:'<path d="M12 3 2.5 8 12 13l9.5-5Z"/><path d="M2.5 12 12 17l9.5-5M2.5 16 12 21l9.5-5"/>',
+  wx:'<path d="M7.5 19h9a3.6 3.6 0 0 0 .4-7.2A5.3 5.3 0 0 0 6.6 13a3 3 0 0 0 .9 6Z"/><path d="M15 5.2a3.6 3.6 0 0 1 5.3 3.6M17.6 1.6v1.6M22.4 6.5h-1.6M21 3l-1.1 1.1"/>',
+  side:'<path d="M2 20h20"/><path d="M2 20l4.5-6 3.5 3.5 4-6.5 4 5 4-3V20" class="fl" style="opacity:.35"/><path d="M2 7h11" stroke-dasharray="2.4 2"/><path d="M14 7l-3-2.2v4.4Z" class="fl"/>'
 };
 function icoBtn(id,k,label){ const b=$(id); if(!b) return; b.classList.add('icob'); b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg><span class="il"></span>`; b.querySelector('.il').textContent=label; }
 function icoLbl(id,t){ const s=$(id)&&$(id).querySelector('.il'); if(s){ if(s.textContent!==t) s.textContent=t; } else if($(id)) $(id).textContent=t; }
-for(const [id,k,l] of [['mapCtaf','ctaf','CTAF'],['mapTer','ter','Terrain'],['mapSat','sat','Sat'],['mapChart','chart','Charts'],['mapLead','lead','Lead'],['mapWire','wire','Wires'],['mapRadar','radar','Radar'],['mapMeas','meas','Measure'],['mapRange','range','Range'],['mapLog','log','Log'],['mapTraffic','trf','Traffic'],['mapUp','up','Track up'],['mapHome','home','Centre'],['mapLayers','layers','Layers']]) icoBtn(id,k,l);
+for(const [id,k,l] of [['mapCtaf','ctaf','CTAF'],['mapTer','ter','Terrain'],['mapSat','sat','Sat'],['mapChart','chart','Charts'],['mapLead','lead','Lead'],['mapWire','wire','Wires'],['mapRadar','radar','Radar'],['mapMeas','meas','Measure'],['mapRange','range','Range'],['mapLog','log','Log'],['mapWx','wx','Wx'],['mapSide','side','Side'],['mapTraffic','trf','Traffic'],['mapUp','up','Track up'],['mapHome','home','Centre'],['mapLayers','layers','Layers']]) icoBtn(id,k,l);
 // full-screen map: the ten layer buttons are in a grid over the map, opened by Layers (next to the other map buttons);
 // it stays open while you switch layers and closes on a tap anywhere else
 function layPopShow(on){ const pop=$('layPop'), b=$('mapLayers'); if(!pop||!b) return; pop.hidden=!on; b.setAttribute('aria-expanded',on);
@@ -4762,13 +4978,14 @@ function clRender(){ const B=$('clBody'), cur=typeof wbCur==='function'&&wbCur()
     $('clTitle').textContent=c?'Edit checklist':'New checklist';
     B.innerHTML=`<div class="cl-ed"><label>Name <input id="clName" maxlength="40" autocomplete="off" value="${esc(c?c.name:'')}" placeholder="Before start"></label>`+
       `<label>Aircraft <select id="clAc"><option value="">Every aircraft</option>${profs.map(p=>`<option value="${esc(p.id)}"${(c?c.ac:(cur&&cur.id))===p.id?' selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`+
+      `<label>Offer it <select id="clPh">${[['','Only when I open it'],['move','Before take-off: when you start moving after a stop'],['inb','Pre-landing: at the 10 NM inbound call'],['land','After landing: stopped 30 s after flying']].map(([v,t])=>`<option value="${v}"${(c&&c.ph||'')===v?' selected':''}>${t}</option>`).join('')}</select></label>`+
       `<label>Items, one per line <textarea id="clText" spellcheck="false" autocapitalize="sentences" placeholder="# Cabin&#10;Seat belts .... fastened&#10;Doors .... closed and latched">${esc(c?c.items.join('\n'):'')}</textarea></label></div>`+
       `<div class="vnote">Type or paste it from the aircraft's flight manual: the app has no checklists of its own. A line starting with # is a heading. "Item .... response" puts the response on the right.</div>`+
       `<div class="vnote w" id="clStat"></div><div class="ctl"><button class="btn primary" data-a="save">Save</button><button class="btn" data-a="cancel">Cancel</button>${c?'<button class="btn" data-a="del">Delete checklist</button>':''}</div>`;
     return; }
   $('clTitle').textContent='Checklists';
   const mine=CL.filter(c=>!c.ac||(cur&&c.ac===cur.id)), other=CL.filter(c=>!mine.includes(c));
-  const row=c=>{ const [d,n]=clCount(c); return `<li data-id="${esc(c.id)}"><span data-a="run" style="cursor:pointer"><b>${esc(c.name)}</b><small>${esc(clAcName(c.ac))} · ${n} item${n===1?'':'s'}${d? ` · ${d===n?'complete':d+' ticked'}` : ''}</small></span><button class="btn primary" data-a="run">Open</button><button class="btn" data-a="ed">Edit</button></li>`; };
+  const row=c=>{ const [d,n]=clCount(c); return `<li data-id="${esc(c.id)}"><span data-a="run" style="cursor:pointer"><b>${esc(c.name)}</b><small>${esc(clAcName(c.ac))}${c.ph&&PH_NAME[c.ph]?' · '+PH_NAME[c.ph].toLowerCase():''} · ${n} item${n===1?'':'s'}${d? ` · ${d===n?'complete':d+' ticked'}` : ''}</small></span><button class="btn primary" data-a="run">Open</button><button class="btn" data-a="ed">Edit</button></li>`; };
   B.innerHTML=(cur&&profsMany()? `<div class="vnote">Aircraft: <b>${esc(cur.name)}</b> (chosen in Weight &amp; balance).</div>` : '')+
     `<ul class="pl-list">${mine.length? mine.map(row).join('') : '<li><span class="vnote">No checklists yet. Add one and type or paste the items from your flight manual.</span></li>'}</ul>`+
     (other.length? `<details class="notams"><summary>For your other aircraft (${other.length})</summary><ul class="pl-list">${other.map(row).join('')}</ul></details>` : '')+
@@ -4789,7 +5006,7 @@ $('clBody').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'), 
   else if(a==='resetall'){ CLT={}; ls.set('clTick',CLT); clRender(); }
   else if(a==='save'){ const name=$('clName').value.trim().slice(0,40), items=$('clText').value.split(/\r?\n/).map(x=>x.trim().slice(0,200)).filter(Boolean).slice(0,300);
     if(!name){ $('clStat').textContent='Give the checklist a name.'; return; }
-    const old=CL.find(x=>x.id===CLV.id), e={id:old?old.id:newId(), name, ac:$('clAc').value, items, t:Date.now()};
+    const old=CL.find(x=>x.id===CLV.id), e={id:old?old.id:newId(), name, ac:$('clAc').value, items, t:Date.now()}; if(PH_NAME[$('clPh').value]) e.ph=$('clPh').value;
     if(old&&old.items.join('\n')!==items.join('\n')) delete CLT[e.id];   // the items changed: its ticks no longer mean anything
     CL=old? CL.map(x=>x===old?e:x) : [...CL,e]; clStore(); ls.set('clTick',CLT); CLV.v='list'; clRender(); }
   else if(a==='del'){ const c=CL.find(x=>x.id===CLV.id); if(!c||!confirm(`Delete the checklist "${c.name}"?`)) return;
