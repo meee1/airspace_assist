@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794773879076;
+const APP_BUILT=1794774588365;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2205,7 +2205,7 @@ function clrOpen(ad){ ad=ad||atisAdNow(); const d=$('clrDlg'); d.dataset.ad=ad?a
   const cur=ad&&atisOf(ad.i);
   $('clrAtis').innerHTML= ad&&ad.a? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c=>`<button type="button" class="btn${cur===c?' on':''}" data-l="${c}">${c}</button>`).join('') : '';
   $('clrSq').value=CLR.sq||''; $('clrLvl').value=CLR.lvl||''; $('clrRt').value=CLR.rt||'';
-  if(d.showModal) d.showModal(); else d.setAttribute('open',''); }
+  if(d.showModal) d.showModal(); else d.setAttribute('open',''); requestAnimationFrame(padDraw); }
 function clrSave(){ ls.set('atis',ATIS); ls.set('clr',CLR); }
 $('clrAtis').addEventListener('click',e=>{ const b=e.target.closest('[data-l]'); if(!b) return; const ad=$('clrDlg').dataset.ad; if(!ad) return;
   if(atisOf(ad)===b.dataset.l) delete ATIS[ad]; else ATIS[ad]={l:b.dataset.l,t:Date.now()}; clrSave();
@@ -2217,12 +2217,45 @@ $('clrClear').onclick=()=>{ for(const k of Object.keys(CLR)) delete CLR[k]; cons
 $('sNxCls').addEventListener('click',()=>clrOpen());
 $('sClr').addEventListener('click',()=>clrOpen());
 $('cAtis').onclick=()=>{ const a=st.cardAd; clrOpen(a&&a.a? a : atisAdNow()); };   // the card's aerodrome if it has an ATIS, else the nearest relevant one (or none: notes only)
-function clrUI(cur){ const box=$('sClr'), ctl=cur&&!(cur.k==='G'||cur.k==='E'), has=CLR.sq||CLR.lvl||CLR.rt;
+function clrUI(cur){ const box=$('sClr'), ctl=cur&&!(cur.k==='G'||cur.k==='E'), has=CLR.sq||CLR.lvl||CLR.rt||(CLR.ink&&CLR.ink.length);
   if(ctl){ CLR.was=true; CLR.leftT=0; } else if(CLR.was&&has){ if(!CLR.leftT){ CLR.leftT=Date.now(); clrSave(); } else if(Date.now()-CLR.leftT>120e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); } }
   if(has&&!CLR.was&&CLR.t&&Date.now()-CLR.t>45*60e3){ for(const k of Object.keys(CLR)) delete CLR[k]; clrSave(); }
   const ad=atisAdNow(), l=ad&&atisOf(ad.i);
-  if(!(CLR.sq||CLR.lvl||CLR.rt)){ box.hidden=true; return; }
-  box.hidden=false; box.innerHTML=`<small>CLEARANCE</small>${CLR.sq?`<b>${esc(CLR.sq)}</b>`:''}<span>${[CLR.lvl,CLR.rt,l?'ATIS '+l:''].filter(Boolean).map(esc).join(' · ')}</span>`; }
+  const ink=CLR.ink&&CLR.ink.length? padImg() : '';
+  if(!(CLR.sq||CLR.lvl||CLR.rt||ink)){ box.hidden=true; return; }
+  box.hidden=false; box.innerHTML=`<small>CLEARANCE</small>${CLR.sq?`<b>${esc(CLR.sq)}</b>`:''}${ink?`<img class="ink" alt="read-back pad" src="${ink}">`:''}<span>${[CLR.lvl,CLR.rt,l?'ATIS '+l:''].filter(Boolean).map(esc).join(' · ')}</span>`; }
+/* ---------- read-back pad (in #clrDlg): finger writing kept in CLR.ink = strokes [x0,y0,x1,y1,…] as fractions of the pad's
+   width (so it redraws at any size), CLR.inkV counts changes. Cleared with the rest of CLR (2 min after leaving controlled
+   airspace, Clear all). One finger only: a second touch (a palm) is ignored. */
+const PAD={st:null, id:null, img:'', imgV:-1};
+function padSize(){ const cv=$('clrPad'), dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  if(W&&(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr))){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); } return {cv,W,H,dpr}; }
+function padStroke(g,s,W){ if(s.length<2) return; g.beginPath(); g.moveTo(s[0]*W,s[1]*W); if(s.length===2) g.lineTo(s[0]*W+0.1,s[1]*W); for(let i=2;i<s.length;i+=2) g.lineTo(s[i]*W,s[i+1]*W); g.stroke(); }
+function padInk(g,W){ g.strokeStyle=cssv('--ink'); g.lineWidth=Math.max(2.5,W/150); g.lineCap='round'; g.lineJoin='round'; for(const s of CLR.ink||[]) padStroke(g,s,W); }
+function padDraw(){ const {cv,W,H,dpr}=padSize(); if(!W) return; const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  g.strokeStyle=cssv('--rule'); g.lineWidth=1; for(let y=44;y<H;y+=44){ g.beginPath(); g.moveTo(10,y); g.lineTo(W-10,y); g.stroke(); }   // writing lines
+  padInk(g,W); $('clrUndo').disabled=$('clrWipe').disabled=!(CLR.ink&&CLR.ink.length); }
+// a picture of the pad for the CLEARANCE row: cropped to the writing, redrawn only when it changes
+function padImg(){ if(PAD.imgV===CLR.inkV&&PAD.img) return PAD.img; let x0=1,y0=1e9,x1=0,y1=0;
+  for(const s of CLR.ink) for(let i=0;i<s.length;i+=2){ x0=Math.min(x0,s[i]); x1=Math.max(x1,s[i]); y0=Math.min(y0,s[i+1]); y1=Math.max(y1,s[i+1]); }
+  const S=600, pad=0.02, w=Math.max(0.05,x1-x0+2*pad), h=Math.max(0.05,y1-y0+2*pad), sc=S/Math.max(w,h*2.5), c=document.createElement('canvas');
+  c.width=Math.ceil(w*sc); c.height=Math.ceil(h*sc); const g=c.getContext('2d'); g.translate(-(x0-pad)*sc,-(y0-pad)*sc);
+  g.strokeStyle=cssv('--ink'); g.lineWidth=Math.max(3,sc/120); g.lineCap='round'; g.lineJoin='round'; for(const s of CLR.ink) padStroke(g,s,sc);
+  PAD.img=c.toDataURL('image/png'); PAD.imgV=CLR.inkV; return PAD.img; }
+function padChanged(){ CLR.inkV=(CLR.inkV||0)+1; CLR.t=Date.now(); CLR.leftT=0; clrSave(); padDraw(); render(); }
+{ const cv=$('clrPad'), pt=e=>{ const r=cv.getBoundingClientRect(), W=r.width||1; return [Math.round((e.clientX-r.left)/W*1000)/1000, Math.round((e.clientY-r.top)/W*1000)/1000]; };
+  cv.addEventListener('pointerdown',e=>{ if(PAD.id!=null) return; e.preventDefault(); PAD.id=e.pointerId; try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+    if(!CLR.ink) CLR.ink=[]; if(CLR.ink.reduce((n,s)=>n+s.length,0)>12000) return; PAD.st=pt(e); CLR.ink.push(PAD.st); padDraw(); });
+  cv.addEventListener('pointermove',e=>{ if(e.pointerId!==PAD.id||!PAD.st) return; e.preventDefault();
+    const {W,dpr}=padSize(), g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.strokeStyle=cssv('--ink'); g.lineWidth=Math.max(2.5,W/150); g.lineCap='round'; g.lineJoin='round';
+    for(const ev of (e.getCoalescedEvents?e.getCoalescedEvents():[])[0]? e.getCoalescedEvents() : [e]){ const q=pt(ev), s=PAD.st, n=s.length;
+      if(Math.abs(q[0]-s[n-2])+Math.abs(q[1]-s[n-1])<0.002) continue; g.beginPath(); g.moveTo(s[n-2]*W,s[n-1]*W); g.lineTo(q[0]*W,q[1]*W); g.stroke(); s.push(q[0],q[1]); } });
+  const up=e=>{ if(e.pointerId!==PAD.id) return; PAD.id=null; if(PAD.st){ PAD.st=null; padChanged(); } };
+  cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+  $('clrUndo').onclick=()=>{ if(CLR.ink&&CLR.ink.length){ CLR.ink.pop(); padChanged(); } };
+  $('clrWipe').onclick=()=>{ CLR.ink=[]; padChanged(); };
+  $('bPad').onclick=()=>clrOpen();
+  addEventListener('resize',()=>{ if($('clrDlg').open) padDraw(); }); }
 // ---------- flight replay: a GPX track (file, or a flight from Options → Flight logs) played through the app at 1–10×, as the
 // simulator (so nothing is logged). Position interpolated between fixes; GS and track from the fixes; altitude from <ele>.
 // The app's clock is not shifted: tower hours, last light and NOTAM times are for now, not for the flight.

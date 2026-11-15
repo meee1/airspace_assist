@@ -310,6 +310,9 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 #sNxCls{cursor:pointer}
 .atis-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:5px;margin:4px 0 10px} .atis-grid .btn{padding:8px 0;justify-content:center;font:700 15px var(--f-mono)} .atis-grid .btn.on{background:var(--freq);color:#fff;border-color:var(--freq)}
 .clrdlg input{font:600 16px var(--f-mono)} .clrdlg .pc-in input{width:150px}
+.rbpad{position:relative;margin:4px 0 8px} .rbpad canvas{display:block;width:100%;height:min(42vh,320px);touch-action:none;background:var(--bg);border:1px solid var(--rule);border-radius:8px;cursor:crosshair}
+.rbpad .rb-btn{position:absolute;right:6px;top:6px;display:flex;gap:6px} .rbpad .rb-btn .btn{min-height:30px;padding:3px 9px;font-size:11px;opacity:.9}
+.st.clr img.ink{height:34px;max-width:55%;flex:none;border-radius:4px;background:var(--bg);border:1px solid var(--rule)} #hud .st.clr img.ink{height:42px;max-width:100%}
 .rpbox{display:flex;flex-direction:column;gap:6px;margin-top:6px} .rpbox select{font:600 14px var(--f-mono);padding:6px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
 .logtot{flex-basis:100%;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;margin-top:4px} .logtot b{font-weight:700}
 .opts-list .legs .lg{display:block} .opts-list .legs .lg .btn{padding:2px 7px;font-size:11px;margin-left:4px} .opts-list .legs .lg.del{opacity:.5;text-decoration:line-through}
@@ -800,6 +803,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <button class="btn" id="bCmp" title="The compass is lined up with your GPS track automatically while you fly straight at 20 kt or more, so the heading is right when you slow down or hover. Tap to reset.">Compass: not aligned</button>
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
     <button class="btn" id="bFuel" aria-haspopup="dialog" title="Fuel timer: fuel on board, burn rate, start/stop, reminders">Fuel timer</button>
+    <button class="btn" id="bPad" aria-haspopup="dialog" title="Read-back pad: write down a clearance with your finger, with the squawk, level and ATIS letter">Read-back pad</button>
     <button class="btn" id="bSar" aria-haspopup="dialog" title="SARTIME or flight note: countdown, and a reminder to cancel it once you've landed">SARTIME</button>
     <button class="btn" id="bLog" aria-haspopup="dialog" title="Your logbook: legs from the GPS log, totals, and CSV export for your logbook app">Logbook</button>
     <button class="btn" id="bOpts" aria-haspopup="dialog" title="Which VNC / VTC charts to download and keep on this device">Options</button>
@@ -813,9 +817,11 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="opts-head"><b id="clrTitle">ATIS and clearance</b><button class="btn" id="clrClose" aria-label="Close">✕</button></div>
     <div class="lbl" id="clrAtisLbl">ATIS</div>
     <div class="atis-grid" id="clrAtis"></div>
+    <div class="lbl" style="margin-top:8px">Read-back pad <small style="text-transform:none;letter-spacing:0;font-weight:500">write it down with your finger</small></div>
+    <div class="rbpad"><canvas id="clrPad" aria-label="Read-back pad: write the clearance with your finger"></canvas><div class="rb-btn"><button type="button" class="btn" id="clrUndo">Undo</button><button type="button" class="btn" id="clrWipe">Wipe pad</button></div></div>
     <div class="pc-in"><label>Squawk <input id="clrSq" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"></label><label>Level <input id="clrLvl" autocomplete="off" placeholder="A015, not above 1500"></label></div>
     <div class="pc-in"><label style="flex:1">Route / instructions <input id="clrRt" autocomplete="off" placeholder="via CARR, report BTO" style="width:100%"></label></div>
-    <div class="vnote">Shown as the CLEARANCE row while you're in (or about to enter) controlled airspace; cleared 2 min after you leave it. The ATIS letter goes into the tower and clearance calls for 60 min.</div>
+    <div class="vnote">Shown as the CLEARANCE row (with a picture of the pad) while you're in (or about to enter) controlled airspace; the pad and the notes are cleared 2 min after you leave it. The ATIS letter goes into the tower and clearance calls for 60 min.</div>
     <div class="ctl"><button class="btn" id="clrClear">Clear all</button><button class="btn primary" id="clrOk">Done</button></div>
   </dialog>
   <dialog class="opts" id="optsDlg" aria-labelledby="optsTitle">
@@ -1032,7 +1038,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=360571175b';
+    const s=document.createElement('script'); s.src='app.js?v=96bf817c3c';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
