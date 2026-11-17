@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794945760187;
+const APP_BUILT=1794954305388;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2378,8 +2378,8 @@ function chPoly(g,L,P){ g.beginPath(); L.forEach(([la,lo],i)=>{ const [x,y]=P(la
 function chSheet(g,id,P,W,H,on,hi,lw=1.5){ const acc=cssv('--accent'), dim=cssv('--dim');
   for(const p of sheetPans(id)){ const L=panLL(p), c=L.reduce((a,q)=>[a[0]+q[0]/L.length,a[1]+q[1]/L.length],[0,0]), [cx,cy]=P(c[0],c[1]);
     if(cx<0||cx>W||cy<0||cy>H){ const x=Math.min(W-5,Math.max(5,cx)), y=Math.min(H-5,Math.max(5,cy)); g.fillStyle=on||hi?acc:dim; g.beginPath(); g.arc(x,y,hi?5:3.5,0,7); g.fill(); continue; }
-    chPoly(g,L,P); g.lineWidth=hi?lw+1.5:lw; g.setLineDash(on||hi?[]:[3,2.5]);
-    if(on||hi){ g.globalAlpha=hi?.45:.22; g.fillStyle=acc; g.fill(); g.globalAlpha=1; g.strokeStyle=acc; } else { g.strokeStyle=dim; if(sheetKind(id)==='WAC'){ g.globalAlpha=.4; g.lineWidth=1; } }
+    chPoly(g,L,P); g.lineWidth=hi?lw+1.5:lw; g.setLineDash(on?[]:hi?[5,3]:[3,2.5]);   // highlighted but not ticked: a bold dashed outline, no fill (a fill would look ticked)
+    if(on){ g.globalAlpha=hi?.45:.22; g.fillStyle=acc; g.fill(); g.globalAlpha=1; g.strokeStyle=acc; } else if(hi) g.strokeStyle=acc; else { g.strokeStyle=dim; if(sheetKind(id)==='WAC'){ g.globalAlpha=.4; g.lineWidth=1; } }
     g.stroke(); g.setLineDash([]); g.globalAlpha=1; } }
 function chCanvas(cv){ const dpr=window.devicePixelRatio||1, W=cv.clientWidth||cv.width, H=cv.clientHeight||cv.height;
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
@@ -2417,7 +2417,8 @@ $('chView').onclick=()=>{ const L=chartsInView(chKindNow())||[], sel=chartSel();
 $('chOnly').onclick=()=>{ const L=chartsInView(chKindNow())||[], sel=chartSel(), keep=new Set([...sel].filter(id=>L.includes(id)||!CH.site.some(s=>s.sheet===id))); for(const id of L) keep.add(id);
   const gone=[...sel].filter(id=>!keep.has(id)); if(gone.length&&!confirm(`Untick ${gone.length} chart${gone.length>1?'s':''} outside this view? Their stored tiles are removed from this device.`)) return; chartSetSel(keep); };
 { const cv=$('chOv'); const xy=e=>{ const r=cv.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; };
-  cv.addEventListener('click',e=>{ const id=chOvPick(...xy(e)); if(!id) return; const sel=chartSel(); if(sel.has(id)) sel.delete(id); else sel.add(id); CHV.hi=id; chartSetSel(sel); });
+  cv.addEventListener('click',e=>{ const id=chOvPick(...xy(e)); if(!id) return; const sel=chartSel(); if(sel.has(id)) sel.delete(id); else sel.add(id); CHV.hi=id; chartSetSel(sel); chOvDraw();
+    clearTimeout(CHV.hiT); CHV.hiT=setTimeout(()=>{ if(CHV.hi===id){ CHV.hi=null; chOvDraw(); } },2500); });   // a touch has no pointerleave: the tap's highlight (and name) go after 2.5 s
   cv.addEventListener('pointermove',e=>{ if(e.pointerType==='touch') return; const id=chOvPick(...xy(e)); if(id!==CHV.hi){ CHV.hi=id; chOvDraw(); } });
   cv.addEventListener('pointerleave',()=>{ if(CHV.hi){ CHV.hi=null; chOvDraw(); } });
   const rowHi=e=>{ const r=e.target.closest('label[data-row]'); const id=r? r.dataset.row : null; if(id!==CHV.hi){ CHV.hi=id; for(const l of $('optsCharts').querySelectorAll('label.hi')) l.classList.remove('hi'); if(r) r.classList.add('hi'); chOvDraw(); } };

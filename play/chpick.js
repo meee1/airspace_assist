@@ -32,8 +32,11 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   await p.click('#chOv',{position:{x:xy[0],y:xy[1]}}); await p.waitForTimeout(300);
   r=await p.evaluate(b=>[...chartSel()].filter(x=>!b.includes(x)),before);
   ok(r.length===1&&/SYD/i.test(r[0])&&/VTC/.test(r[0]),'tap on Sydney ticks '+r.join(','));
+  const px=()=>p.evaluate(xy=>{ const c=$('chOv'), k=c.width/c.clientWidth, d=c.getContext('2d').getImageData(Math.round(xy[0]*k),Math.round(xy[1]*k),1,1).data; return [d[0],d[1],d[2]]; },xy);
   await p.click('#chOv',{position:{x:xy[0],y:xy[1]}}); await p.waitForTimeout(300);
   ok((await p.evaluate(b=>[...chartSel()].length===b.length,before)),'tap again unticks it');
+  const c1=await px(); await p.waitForTimeout(2700); const c2=await px();
+  ok(Math.abs(c1[0]-c2[0])+Math.abs(c1[1]-c2[1])+Math.abs(c1[2]-c2[2])<12&&(await p.evaluate(()=>CHV.hi===null)),'unticked by a tap: not drawn filled, highlight gone after 2.5 s ('+c1+' / '+c2+')');
   // only this view
   await p.evaluate(()=>{ const s=chartSel(); s.add('PERTH-VNC'); chartSetSel(s); }); await p.waitForTimeout(200);
   await p.click('#chOnly'); await p.waitForTimeout(300);
