@@ -292,7 +292,10 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 .chmap{margin:6px 0 4px} .chmap canvas{display:block;width:100%;aspect-ratio:1.1;border:1px solid var(--rule);border-radius:8px;background:color-mix(in srgb,#5b8fc7 14%,var(--panel));cursor:pointer;touch-action:manipulation}
 .chmap-k{display:flex;flex-wrap:wrap;gap:4px 12px;font:500 11px var(--f-label);color:var(--dim);margin:4px 2px} .chmap-k i{display:inline-block;width:14px;height:9px;margin-right:4px;vertical-align:-1px;border-radius:2px}
 .chmap-k .k-on{background:color-mix(in srgb,var(--accent) 35%,transparent);border:1.5px solid var(--accent)} .chmap-k .k-off{border:1.5px dashed var(--dim)} .chmap-k .k-view{border:2px solid #d22}
-.chmap .ctl select{font:600 13px var(--f-label);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+.chfilt{display:flex;flex-direction:column;gap:6px;margin-top:8px} .chtabs{display:flex;flex-wrap:wrap;gap:4px} .chtabs .btn{min-height:32px;padding:4px 10px;font-size:12px}
+.chtabs .btn[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)} .chtabs .btn small{opacity:.7;margin-left:4px;font:inherit}
+.chfilt input{font:500 14px var(--f-label);padding:9px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+button.chgo{flex:none;padding:0;border:0;background:none;position:relative;cursor:zoom-in;line-height:0} button.chgo::after{content:'⌖';position:absolute;right:-2px;bottom:-3px;font:700 13px/1 var(--f-label);color:var(--accent);background:var(--panel);border-radius:50%;padding:1px 2px}
 .opts-list canvas.chth{flex:none;width:58px;height:50px;border-radius:5px;border:1px solid var(--rule);background:color-mix(in srgb,#5b8fc7 14%,var(--panel))}
 #optsCharts label.hi{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
@@ -837,8 +840,10 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl">Chart downloads (VNC / VTC / WAC)</div>
     <div class="chmap" id="chMapBox"><canvas id="chOv" aria-label="Map of Australia with each chart's area: filled = ticked, dashed = not ticked, red = the map view now. Tap a chart's area to tick or untick it"></canvas>
       <div class="chmap-k"><span><i class="k-on"></i>ticked</span><span><i class="k-off"></i>not ticked</span><span><i class="k-view"></i>map view now</span><span class="dim">tap an area to tick or untick it</span></div>
-      <div class="ctl"><button type="button" class="btn" id="chView">Tick charts in this map view</button><button type="button" class="btn" id="chOnly">Only charts in this view</button><select id="chKind" aria-label="Which kinds of chart"><option value="">All kinds</option><option value="VTC">VTC</option><option value="VNC">VNC</option><option value="WAC">WAC</option></select></div>
-      <div class="vnote" id="chViewNote"></div></div>
+      <div class="ctl"><button type="button" class="btn" id="chView">Tick charts in this map view</button><button type="button" class="btn" id="chOnly">Only charts in this view</button><button type="button" class="btn" id="chPlan">Tick charts along the flight plan</button></div>
+      <div class="vnote" id="chViewNote"></div>
+      <div class="chfilt"><div class="chtabs" id="chTabs" role="tablist"></div><input id="chFind" type="search" autocomplete="off" spellcheck="false" placeholder="Find a chart: name or a place (YMMB, Mildura)" aria-label="Find a chart by name or by a place on it"></div>
+      <div class="vnote" id="chFindNote"></div></div>
     <div class="opts-list" id="optsCharts"></div>
     <div class="vnote" id="optsNote"></div>
     <div class="lbl" style="margin-top:10px" id="optsLogsLbl">Logbook and flight logs (kept 90 days)</div>
@@ -2946,12 +2951,12 @@ function chartSel(){ let sel=ls.get('chartSel',null), known=ls.get('chartKnown',
 function chartMerge(){ const sel=chartSel(); CH.idx=CH.site.filter(s=>sel.has(s.sheet)&&!CH.local.some(l=>l.sheet===s.sheet)).concat(CH.local); }
 function optsRender(){
   const sel=chartSel(), loc=new Set(CH.local.map(l=>l.sheet));
-  $('optsCharts').innerHTML= CH.site.length? CH.site.map(s=>`<label data-row="${esc(s.sheet)}"><input type="checkbox" data-sheet="${esc(s.sheet)}"${sel.has(s.sheet)?' checked':''}><canvas class="chth" data-th="${esc(s.sheet)}" width="116" height="100" aria-hidden="true"></canvas>`+
+  $('optsCharts').innerHTML= CH.site.length? CH.site.map(s=>`<label data-row="${esc(s.sheet)}"><input type="checkbox" data-sheet="${esc(s.sheet)}"${sel.has(s.sheet)?' checked':''}><button type="button" class="chgo" data-go="${esc(s.sheet)}" title="Show ${esc(s.name)} on the map" aria-label="Show ${esc(s.name)} on the map"><canvas class="chth" data-th="${esc(s.sheet)}" width="116" height="100" aria-hidden="true"></canvas></button>`+
       `<span><b>${esc(s.name)}</b>${CH.newSheets.includes(s.sheet)?'<span class="new">NEW</span>':''}<br><small class="mono">${esc(s.ed||'')}</small></span>`+
       `<span class="meta">${(s.bytes/1048576).toFixed(1)} MB${loc.has(s.sheet)?'<br>imported copy in use':''}</span></label>`).join('')
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
-  chThumbs(); chOvDraw(); chViewUI();
+  chThumbs(); chOvDraw(); chViewUI(); chFilter();
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
 $('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); chThumbs(); chOvDraw();
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
@@ -3369,7 +3374,8 @@ function panLL(pan){ if(pan.ll) return pan.ll; const pr=pan.proj||[-36,-39,-37.8
 const sheetPans=id=>{ const sh=CHART_SHEETS.find(s=>s.sheet===id); return sh? sh.panels.filter(p=>p.clip&&(p.aff||p.sim)) : []; };
 function llIn(poly,la,lo){ let c=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const [ai,oi]=poly[i], [aj,oj]=poly[j];
   if((ai>la)!==(aj>la)&&lo<(oj-oi)*(la-ai)/(aj-ai)+oi) c=!c; } return c; }
-const sheetHas=(id,la,lo)=>sheetPans(id).some(p=>llIn(panLL(p),la,lo));
+const panBB=p=>{ if(p.bb) return p.bb; const L=panLL(p); let a0=90,a1=-90,o0=360,o1=-360; for(const [a,o] of L){ a0=Math.min(a0,a); a1=Math.max(a1,a); o0=Math.min(o0,o); o1=Math.max(o1,o); } return p.bb=[a0,a1,o0,o1]; };
+const sheetHas=(id,la,lo)=>sheetPans(id).some(p=>{ const b=panBB(p); return la>=b[0]&&la<=b[1]&&lo>=b[2]&&lo<=b[3]&&llIn(panLL(p),la,lo); });
 const sheetArea=id=>sheetPans(id).reduce((t,p)=>{ const L=panLL(p); let a=0; for(let i=0,j=L.length-1;i<L.length;j=i++) a+=(L[j][1]+L[i][1])*(L[j][0]-L[i][0]); return t+Math.abs(a/2); },0);
 // the map view now: its four corners (and a 9 x 9 grid of points across it) in lat/lon
 function chViewPts(){ if(!MAP.inv||!MAP.W||!MAP.H||!st.pos) return null; const pts=[]; for(let j=0;j<9;j++) for(let i=0;i<9;i++) pts.push(MAP.inv(MAP.W*i/8,MAP.H*j/8)); return pts; }
@@ -3419,7 +3425,7 @@ function chOvPick(x,y){ const cv=$('chOv'), W=cv.clientWidth, H=cv.clientHeight,
   const P=chProj(W,H,fr); for(const s of CH.site) for(const p of sheetPans(s.sheet)){ const L=panLL(p), c=L.reduce((a,q)=>[a[0]+q[0]/L.length,a[1]+q[1]/L.length],[0,0]), [cx,cy]=P(c[0],c[1]);   // an island sheet's edge marker
     if((cx<0||cx>W||cy<0||cy>H)&&Math.hypot(Math.min(W-5,Math.max(5,cx))-x,Math.min(H-5,Math.max(5,cy))-y)<12) return s.sheet; }
   return null; }
-function chViewUI(){ const k=$('chKind').value, L=chartsInView(k), sel=chartSel(), mb=ids=>(ids.reduce((t,id)=>t+((CH.site.find(s=>s.sheet===id)||{}).bytes||0),0)/1048576).toFixed(0);
+function chViewUI(){ chPlanUI(); const k=chKindNow(), L=chartsInView(k), sel=chartSel(), mb=ids=>(ids.reduce((t,id)=>t+((CH.site.find(s=>s.sheet===id)||{}).bytes||0),0)/1048576).toFixed(0);
   $('chView').disabled=$('chOnly').disabled=!L;
   if(!L){ $('chViewNote').textContent='The map view buttons need the map: once there is a GPS position (or the simulator), they use what the map shows.'; return; }
   const add=L.filter(id=>!sel.has(id)), out=[...sel].filter(id=>!L.includes(id)&&CH.site.some(s=>s.sheet===id));
@@ -3427,9 +3433,8 @@ function chViewUI(){ const k=$('chKind').value, L=chartsInView(k), sel=chartSel(
   $('chView').disabled=!add.length; $('chOnly').disabled=!out.length&&!add.length;
   $('chOnly').textContent= out.length? `Only this view (untick ${out.length}, −${mb(out)} MB)` : 'Only charts in this view';
   $('chViewNote').textContent= L.length? `In this map view (${rngTxt(MAP.range)} range): ${L.map(id=>(CH.site.find(s=>s.sheet===id)||{}).name||id).join(', ')}.` : 'No chart covers this map view.'; }
-$('chKind').onchange=()=>chViewUI();
-$('chView').onclick=()=>{ const L=chartsInView($('chKind').value)||[], sel=chartSel(); for(const id of L) sel.add(id); chartSetSel(sel); };
-$('chOnly').onclick=()=>{ const L=chartsInView($('chKind').value)||[], sel=chartSel(), keep=new Set([...sel].filter(id=>L.includes(id)||!CH.site.some(s=>s.sheet===id))); for(const id of L) keep.add(id);
+$('chView').onclick=()=>{ const L=chartsInView(chKindNow())||[], sel=chartSel(); for(const id of L) sel.add(id); chartSetSel(sel); };
+$('chOnly').onclick=()=>{ const L=chartsInView(chKindNow())||[], sel=chartSel(), keep=new Set([...sel].filter(id=>L.includes(id)||!CH.site.some(s=>s.sheet===id))); for(const id of L) keep.add(id);
   const gone=[...sel].filter(id=>!keep.has(id)); if(gone.length&&!confirm(`Untick ${gone.length} chart${gone.length>1?'s':''} outside this view? Their stored tiles are removed from this device.`)) return; chartSetSel(keep); };
 { const cv=$('chOv'); const xy=e=>{ const r=cv.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; };
   cv.addEventListener('click',e=>{ const id=chOvPick(...xy(e)); if(!id) return; const sel=chartSel(); if(sel.has(id)) sel.delete(id); else sel.add(id); CHV.hi=id; chartSetSel(sel); });
@@ -3438,6 +3443,50 @@ $('chOnly').onclick=()=>{ const L=chartsInView($('chKind').value)||[], sel=chart
   const rowHi=e=>{ const r=e.target.closest('label[data-row]'); const id=r? r.dataset.row : null; if(id!==CHV.hi){ CHV.hi=id; for(const l of $('optsCharts').querySelectorAll('label.hi')) l.classList.remove('hi'); if(r) r.classList.add('hi'); chOvDraw(); } };
   $('optsCharts').addEventListener('pointerover',rowHi); $('optsCharts').addEventListener('focusin',rowHi);
   if(window.ResizeObserver) new ResizeObserver(()=>{ if($('optsDlg').open) chOvDraw(); }).observe(cv); }
+/* ---------- chart list: kind tabs and search (CHV.kind '' | VTC | VNC | WAC | 'on' = ticked; CHV.q), charts along the plan,
+   and Show on the map (the thumbnail button). The view and plan buttons follow the tab (Ticked counts as all kinds). */
+CHV.kind=''; CHV.q='';
+const chKindNow=()=>/^(VTC|VNC|WAC)$/.test(CHV.kind)? CHV.kind : '';
+const chOfKind=(id,k)=>!k||sheetKind(id)===k||(CH.site.find(s=>s.sheet===id)||{}).kind===k;
+// a place typed in the search box (aerodrome, waypoint, town): the point, if the text names one
+function chFindPlace(q){ if(q.length<3) return null; try{ return findPoint(q.toUpperCase()); }catch(e){ return null; } }
+function chFilter(){ const sel=chartSel(), q=CHV.q.trim(), Q=q.toLowerCase(), pl=q? chFindPlace(q) : null;
+  const byName=id=>{ const s=CH.site.find(x=>x.sheet===id)||{}; return (s.name||'').toLowerCase().includes(Q)||id.toLowerCase().includes(Q); };
+  const tabs=[['','All'],['VTC','VTC'],['VNC','VNC'],['WAC','WAC'],['on','Ticked']];
+  const cnt=k=>CH.site.filter(s=>k==='on'? sel.has(s.sheet) : chOfKind(s.sheet,k)).length;
+  $('chTabs').innerHTML=tabs.filter(([k])=>!k||k==='on'||cnt(k)).map(([k,t])=>`<button type="button" class="btn" role="tab" data-k="${k}" aria-selected="${CHV.kind===k}">${t}<small>${cnt(k)}</small></button>`).join('');
+  let shown=0, viaPlace=0;
+  for(const l of $('optsCharts').querySelectorAll('label[data-row]')){ const id=l.dataset.row;
+    const kOk= CHV.kind==='on'? sel.has(id) : chOfKind(id,CHV.kind), nm=!q||byName(id), at=!!(pl&&sheetHas(id,pl.la,pl.lo)), on=kOk&&(nm||at);
+    l.hidden=!on; if(on){ shown++; if(at&&!nm) viaPlace++; } }
+  $('chFindNote').textContent= !q&&!CHV.kind? '' : shown? `${shown} chart${shown>1?'s':''}${pl?` (covering ${pl.c||''}${pl.n&&pl.n!==pl.c?' '+titleCase(String(pl.n)):''}${viaPlace?'':''})`:''}` : `No chart${q?' matches "'+q+'"':''}${CHV.kind?' in this tab':''}.`; }
+$('chTabs').addEventListener('click',e=>{ const b=e.target.closest('[data-k]'); if(!b) return; CHV.kind=b.dataset.k; chFilter(); chViewUI(); });
+{ let t=0; $('chFind').addEventListener('input',()=>{ clearTimeout(t); t=setTimeout(()=>{ CHV.q=$('chFind').value; chFilter(); },150); }); }
+// charts the flight plan crosses (the legs and 3 NM either side)
+function chartsOnPlan(kind){ if(!FP||FP.pts.length<2) return null; const S=routeSamples(FP.pts);
+  return CH.site.filter(s=>chOfKind(s.sheet,kind)&&S.some(([la,lo])=>sheetHas(s.sheet,la,lo))).map(s=>s.sheet); }
+function chPlanUI(){ const L=chartsOnPlan(chKindNow()), sel=chartSel(), b=$('chPlan'); if(!L){ b.hidden=true; return; } b.hidden=false;
+  const add=L.filter(id=>!sel.has(id)), mb=(add.reduce((t,id)=>t+((CH.site.find(s=>s.sheet===id)||{}).bytes||0),0)/1048576).toFixed(0);
+  b.disabled=!add.length; b.textContent= add.length? `Tick ${add.length} along the flight plan (+${mb} MB)` : `All ${L.length} charts along the plan are ticked`;
+  b.title='The plan crosses: '+L.map(id=>(CH.site.find(s=>s.sheet===id)||{}).name||id).join(', '); }
+function chPlanTick(){ const L=chartsOnPlan(chKindNow())||[], sel=chartSel(); for(const id of L) sel.add(id); chartSetSel(sel); }
+$('chPlan').onclick=chPlanTick;
+$('pcOut').addEventListener('click',e=>{ if(!e.target.closest('[data-chplan]')) return; const L=chartsOnPlan('')||[], sel=chartSel(); for(const id of L) sel.add(id); chartSetSel(sel); setTimeout(pcRun,50); });
+// show a chart's area on the map: centred on it, zoomed to fit, its outline drawn for 10 s
+function chartShow(id){ const pans=sheetPans(id), s=CH.site.find(x=>x.sheet===id)||{}; if(!pans.length) return;
+  if(!st.pos){ $('chFindNote').textContent='The map shows once there is a GPS position (or the simulator).'; return; }
+  let a0=90,a1=-90,o0=360,o1=-360; for(const p of pans){ const b=panBB(p); a0=Math.min(a0,b[0]); a1=Math.max(a1,b[1]); o0=Math.min(o0,b[2]); o1=Math.max(o1,b[3]); }
+  // fit: the map's range is the distance from the centre to the edge of the shorter side (scale = min(W,H)·0.46/range); track up puts
+  // the centre at 62% of the height; turned (track up / by hand), the sheet can be at any angle, so fit its half diagonal
+  const ca=(a0+a1)/2, co=(o0+o1)/2, h=(a1-a0)*30, w=(o1-o0)*30*Math.cos(ca*R), W=MAP.W||300, H=MAP.H||300, m=Math.min(W,H)*0.46;
+  const cyf= MAP.up==='trk'? 0.62 : MAP.up==='free'? (MAP.cyF||0.5) : 0.5, hW=W/2, hH=Math.min(cyf,1-cyf)*H;
+  const rg= MAP.up==='north'? Math.max(w*m/hW, h*m/hH) : Math.hypot(w,h)*m/Math.min(hW,hH);
+  MAP.pan=[ca,co]; MAP.range=Math.min(320,Math.max(2.5,rg*1.05)); ls.set('mapRange',MAP.range);
+  MAP.chHi={id,name:s.name||id,t:Date.now()}; clearTimeout(chartShow.t); chartShow.t=setTimeout(()=>{ MAP.chHi=null; if(MAP.last) drawMap(...MAP.last); },10100);
+  if($('optsDlg').open) $('optsDlg').close(); if($('chartBox').open) $('chartBox').open=false;
+  if(!document.body.classList.contains('fsm')) $('mapSec').scrollIntoView({block:'start'});
+  render(); }
+$('optsCharts').addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(!b) return; e.preventDefault(); e.stopPropagation(); chartShow(b.dataset.go); });
 // chart underlay pop-up: every chart covering this view on (downloads them), or Options at the chart list
 function chartViewBtn(){ const L=chartsInView(''), sel=chartSel(); const add=L? L.filter(id=>!sel.has(id)) : [];
   $('chartView').disabled=!add.length; $('chartView').textContent= !L? 'Turn on every chart in this view' : add.length? `Turn on every chart in this view (+${add.length})` : 'Every chart in this view is on';
@@ -4311,6 +4360,9 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   g.setLineDash([]); g.globalAlpha=1;
   g.fillStyle=C.dim; g.font='500 10px "IBM Plex Mono", monospace'; g.textAlign='left';
   g.fillText(rngTxt(MAP.range),ox+MAP.range*sc*0.707+3,oy-MAP.range*sc*0.707);
+  if(MAP.chHi&&Date.now()-MAP.chHi.t<10e3){ g.save(); g.strokeStyle=C.acc; g.lineWidth=3; g.setLineDash([9,5]);   // Options → a chart's Show on the map
+    for(const pn of sheetPans(MAP.chHi.id)){ g.beginPath(); panLL(pn).forEach(([a,o],i)=>{ const [x,y]=P(a,o); if(i) g.lineTo(x,y); else g.moveTo(x,y); }); g.closePath(); g.stroke(); }
+    g.setLineDash([]); g.restore(); }
   // aerodromes
   g.font='600 10px "IBM Plex Mono", monospace';
   const wxOn=MAP.wx&&NTN&&NTN.met, wxE=wxOn&&st.pos? wxEtas(st.pos[0],st.pos[1]) : new Map(); let wxN=0, wxEt=0;
@@ -4534,6 +4586,8 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     const ax=dir*(tw/2-8); g.beginPath(); g.moveTo(ax+dir*4.5,0); g.lineTo(ax-dir*3.5,-4.5); g.lineTo(ax-dir*3.5,4.5); g.closePath(); g.fill();
     g.restore(); g.textAlign='left'; g.textBaseline='alphabetic'; }
   pfMark('go to, lead, ownship');
+  if(MAP.chHi&&Date.now()-MAP.chHi.t<10e3){ g.save(); g.font='700 13px '+cssv('--f-label'); const t=MAP.chHi.name+' area', tw=g.measureText(t).width;   // its name, on top of everything
+    g.fillStyle=C.bg; g.globalAlpha=.92; g.fillRect(W/2-tw/2-9,Hh-34,tw+18,24); g.globalAlpha=1; g.strokeStyle=C.acc; g.lineWidth=1.5; g.strokeRect(W/2-tw/2-9,Hh-34,tw+18,24); g.fillStyle=C.acc; g.textAlign='center'; g.fillText(t,W/2,Hh-17); g.restore(); }
   if(MAP.traffic&&MAP.trWarn) MAP.trWarn();
   if(MAP.traffic&&MAP.trBox) MAP.trBox();   // selected traffic details, on top
   // north pointer
@@ -4724,10 +4778,13 @@ function pcBrief(dep,gs,r,tAt){ let h=''; const P_=FP.pts, tm=D=>tAt? tAt(D) : D
 /* ---------- offline readiness for a route: app + AIP data, terrain tiles, chart tiles of the ticked sheets the route crosses
    (centre line and 3 NM either side, both levels), the NAIPS briefing. Also names site sheets the route crosses that aren't
    ticked for download. -> {ok, html, txt} */
-async function routeReady(P_,t0,t1){ const out=[], ok_=(y,txt,fix)=>out.push({y,txt,fix});
-  const S=[]; for(let k=1;k<P_.length;k++){ const a=P_[k-1], b=P_[k], [L,br]=distBrg(a.la,a.lo,b.la,b.lo), n=Math.max(1,Math.ceil(L));
+// points along a route: every NM on the legs, and 3 NM either side
+function routeSamples(P_){ const S=[]; for(let k=1;k<P_.length;k++){ const a=P_[k-1], b=P_[k], [L,br]=distBrg(a.la,a.lo,b.la,b.lo), n=Math.max(1,Math.ceil(L));
     for(let j=0;j<=n;j++){ const f=j/n, la=a.la+(b.la-a.la)*f, lo=a.lo+(b.lo-a.lo)*f; S.push([la,lo]);
       for(const off of [-3,3]){ const bb=(br+90)*R, d=off/60; S.push([la+d*Math.cos(bb), lo+d*Math.sin(bb)/Math.cos(la*R)]); } } }
+  return S; }
+async function routeReady(P_,t0,t1){ const out=[], ok_=(y,txt,fix)=>out.push({y,txt,fix});
+  const S=routeSamples(P_);
   // app and AIP data
   let app=false; try{ for(const k of (await caches.keys()).filter(k=>/^radio-au-[0-9a-f]{10}$/.test(k))){ const c=await caches.open(k); if(await c.match('data.json',{ignoreSearch:true})&&await c.match('app.js',{ignoreSearch:true})) app=true; } }catch(e){}
   ok_(app, app?'App and AIP data stored':'App not stored for offline use yet', 'open the app once online over https');
@@ -4747,7 +4804,7 @@ async function routeReady(P_,t0,t1){ const out=[], ok_=(y,txt,fix)=>out.push({y,
       per.push({n:sh.name||sh.sheet, need:need.size, have:[...need].filter(u=>keys.has(u)).length}); }
     for(const x of per) ok_(x.have>=x.need, `Chart ${x.n}: ${x.have}/${x.need} tiles along the route`, 'download it (Options) with signal');
     if(!per.length&&!unticked.size) ok_(true,'Charts: none on this route (no sheet covers it)','');
-    if(unticked.size) out.push({y:null, txt:`Not downloaded (not ticked in Options): ${[...unticked].join(', ')}`, fix:'tick them in Options → Chart downloads if you want them'}); }
+    if(unticked.size) out.push({y:null, txt:`Not downloaded (not ticked in Options): ${[...unticked].join(', ')}`, fix:'tick them in Options → Chart downloads if you want them', btn:'<button type="button" class="btn" data-chplan="1">Tick them</button>'}); }
   catch(e){ ok_(false,'Charts: couldn\'t check the stored tiles','' ); }
   // coast legs: their turn points are in the plan; the coastline is only needed to change them
   if(P_.some(p=>p.via==='coast')){ try{ await coastIndex(); const need=[...coastLegTiles(P_)], have=(await coastStored()).have, h=need.filter(n=>have.has(n)).length;
@@ -4759,7 +4816,7 @@ async function routeReady(P_,t0,t1){ const out=[], ok_=(y,txt,fix)=>out.push({y,
   else { const age=(Date.now()-NTN.issued)/3600e3; ok_(age<=6&&(!NTN.validTo||NTN.validTo>=t1), `NAIPS briefing ${age.toFixed(1)} h old${NTN.validTo?', valid to '+hhmmZ(NTN.validTo):''}`, NTN.validTo&&NTN.validTo<t1? 'it ends before you arrive: get a new one' : 'get a fresh one'); }
   const bad=out.filter(x=>x.y===false), ok=!bad.length;
   const html=`<div class="pc-ready ${ok?'ok':'bad'}"><b>${ok?'Ready to fly without signal.':bad.length+' thing'+(bad.length>1?'s':'')+' to fix before you lose signal:'}</b>`+
-    out.map(x=>`<div>${x.y===true?'✓':x.y===false?'✗':'·'} ${esc(x.txt)}${x.y===false&&x.fix?` <small>(${esc(x.fix)})</small>`:''}${x.y===null&&x.fix?` <small>(${esc(x.fix)})</small>`:''}</div>`).join('')+'</div>';
+    out.map(x=>`<div>${x.y===true?'✓':x.y===false?'✗':'·'} ${esc(x.txt)}${x.y===false&&x.fix?` <small>(${esc(x.fix)})</small>`:''}${x.y===null&&x.fix?` <small>(${esc(x.fix)})</small>`:''}${x.btn||''}</div>`).join('')+'</div>';
   return {ok, out, html, txt:(ok?'READY OFFLINE':'OFFLINE: '+bad.length+' to fix')+'\n'+out.map(x=>(x.y===true?'ok ':x.y===false?'NO ':'-  ')+x.txt).join('\n')}; }
 function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vnote">Load or build a flight plan first.</div>'; return; }
   const alt=+$('pcAlt').value||1500, gs=Math.max(20,+$('pcGs').value||90), tv=$('pcDep').value||'';

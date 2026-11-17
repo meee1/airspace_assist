@@ -292,7 +292,10 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 .chmap{margin:6px 0 4px} .chmap canvas{display:block;width:100%;aspect-ratio:1.1;border:1px solid var(--rule);border-radius:8px;background:color-mix(in srgb,#5b8fc7 14%,var(--panel));cursor:pointer;touch-action:manipulation}
 .chmap-k{display:flex;flex-wrap:wrap;gap:4px 12px;font:500 11px var(--f-label);color:var(--dim);margin:4px 2px} .chmap-k i{display:inline-block;width:14px;height:9px;margin-right:4px;vertical-align:-1px;border-radius:2px}
 .chmap-k .k-on{background:color-mix(in srgb,var(--accent) 35%,transparent);border:1.5px solid var(--accent)} .chmap-k .k-off{border:1.5px dashed var(--dim)} .chmap-k .k-view{border:2px solid #d22}
-.chmap .ctl select{font:600 13px var(--f-label);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+.chfilt{display:flex;flex-direction:column;gap:6px;margin-top:8px} .chtabs{display:flex;flex-wrap:wrap;gap:4px} .chtabs .btn{min-height:32px;padding:4px 10px;font-size:12px}
+.chtabs .btn[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)} .chtabs .btn small{opacity:.7;margin-left:4px;font:inherit}
+.chfilt input{font:500 14px var(--f-label);padding:9px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+button.chgo{flex:none;padding:0;border:0;background:none;position:relative;cursor:zoom-in;line-height:0} button.chgo::after{content:'⌖';position:absolute;right:-2px;bottom:-3px;font:700 13px/1 var(--f-label);color:var(--accent);background:var(--panel);border-radius:50%;padding:1px 2px}
 .opts-list canvas.chth{flex:none;width:58px;height:50px;border-radius:5px;border:1px solid var(--rule);background:color-mix(in srgb,#5b8fc7 14%,var(--panel))}
 #optsCharts label.hi{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
@@ -837,8 +840,10 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="lbl">Chart downloads (VNC / VTC / WAC)</div>
     <div class="chmap" id="chMapBox"><canvas id="chOv" aria-label="Map of Australia with each chart's area: filled = ticked, dashed = not ticked, red = the map view now. Tap a chart's area to tick or untick it"></canvas>
       <div class="chmap-k"><span><i class="k-on"></i>ticked</span><span><i class="k-off"></i>not ticked</span><span><i class="k-view"></i>map view now</span><span class="dim">tap an area to tick or untick it</span></div>
-      <div class="ctl"><button type="button" class="btn" id="chView">Tick charts in this map view</button><button type="button" class="btn" id="chOnly">Only charts in this view</button><select id="chKind" aria-label="Which kinds of chart"><option value="">All kinds</option><option value="VTC">VTC</option><option value="VNC">VNC</option><option value="WAC">WAC</option></select></div>
-      <div class="vnote" id="chViewNote"></div></div>
+      <div class="ctl"><button type="button" class="btn" id="chView">Tick charts in this map view</button><button type="button" class="btn" id="chOnly">Only charts in this view</button><button type="button" class="btn" id="chPlan">Tick charts along the flight plan</button></div>
+      <div class="vnote" id="chViewNote"></div>
+      <div class="chfilt"><div class="chtabs" id="chTabs" role="tablist"></div><input id="chFind" type="search" autocomplete="off" spellcheck="false" placeholder="Find a chart: name or a place (YMMB, Mildura)" aria-label="Find a chart by name or by a place on it"></div>
+      <div class="vnote" id="chFindNote"></div></div>
     <div class="opts-list" id="optsCharts"></div>
     <div class="vnote" id="optsNote"></div>
     <div class="lbl" style="margin-top:10px" id="optsLogsLbl">Logbook and flight logs (kept 90 days)</div>
@@ -1050,7 +1055,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=80d474c5a3';
+    const s=document.createElement('script'); s.src='app.js?v=e1417ba385';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
