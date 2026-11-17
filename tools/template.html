@@ -289,6 +289,12 @@ dialog.facdlg{width:min(900px,calc(100vw - 16px));max-height:calc(100vh - 16px);
 #facBody{overflow:auto;max-height:calc(100vh - 110px);background:#fff;border-radius:6px} #facBody canvas{display:block;margin:0 auto 6px;max-width:none}
 .opts-head{display:flex;align-items:center;gap:8px;margin-bottom:10px} .opts-head b{font-size:16px} .opts-head .btn{margin-left:auto;padding:4px 10px}
 .opts-list{display:flex;flex-direction:column;gap:2px;margin:6px 0 8px}
+.chmap{margin:6px 0 4px} .chmap canvas{display:block;width:100%;aspect-ratio:1.1;border:1px solid var(--rule);border-radius:8px;background:color-mix(in srgb,#5b8fc7 14%,var(--panel));cursor:pointer;touch-action:manipulation}
+.chmap-k{display:flex;flex-wrap:wrap;gap:4px 12px;font:500 11px var(--f-label);color:var(--dim);margin:4px 2px} .chmap-k i{display:inline-block;width:14px;height:9px;margin-right:4px;vertical-align:-1px;border-radius:2px}
+.chmap-k .k-on{background:color-mix(in srgb,var(--accent) 35%,transparent);border:1.5px solid var(--accent)} .chmap-k .k-off{border:1.5px dashed var(--dim)} .chmap-k .k-view{border:2px solid #d22}
+.chmap .ctl select{font:600 13px var(--f-label);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
+.opts-list canvas.chth{flex:none;width:58px;height:50px;border-radius:5px;border:1px solid var(--rule);background:color-mix(in srgb,#5b8fc7 14%,var(--panel))}
+#optsCharts label.hi{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .opts-list label{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer}
 .opts-list .legs{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ink);padding-left:2px} .opts-list .legs b{font-weight:700}
 .st.off{display:none!important}
@@ -661,6 +667,8 @@ body.fsm.fsm-tab #fsSheet{left:300px}
           <div class="chart-head"><b>Chart underlay</b><button class="btn" id="chartClose" aria-label="Close">✕</button></div>
           <div class="ctl"><label class="btn" for="chartFile">Import VTC/VNC PDF</label><input type="file" id="chartFile" accept=".pdf,application/pdf" multiple hidden>
             <label class="chart-op">Opacity <input type="range" id="chartOp" min="0.2" max="1" step="0.05"></label></div>
+          <div class="ctl"><button type="button" class="btn" id="chartView">Turn on every chart in this view</button><button type="button" class="btn" id="chartPick">Choose charts…</button></div>
+          <div class="vnote" id="chartViewNote"></div>
           <div class="chart-prog" id="chartProg" hidden></div>
           <details class="chart-all" id="chartAll"><summary id="chartAllSum"></summary><ul class="chart-list" id="chartList"></ul></details>
           <div class="hint">The Melbourne VNC and VTC (both panels) come with the app: they download in the background the first time you open it with signal (about 12 MB) and are then stored for offline use. The VTC is drawn above the VNC. To use a newer edition before the app is updated, import the Airservices PDF here; it is rendered on this device and used instead. The airspace and frequencies drawn on top come from the AIP data, not the chart.</div>
@@ -826,7 +834,11 @@ body.fsm.fsm-tab #fsSheet{left:300px}
   </dialog>
   <dialog class="opts" id="optsDlg" aria-labelledby="optsTitle">
     <div class="opts-head"><b id="optsTitle">Options</b><button class="btn" id="optsClose" aria-label="Close">✕</button></div>
-    <div class="lbl">Chart downloads (VNC / VTC)</div>
+    <div class="lbl">Chart downloads (VNC / VTC / WAC)</div>
+    <div class="chmap" id="chMapBox"><canvas id="chOv" aria-label="Map of Australia with each chart's area: filled = ticked, dashed = not ticked, red = the map view now. Tap a chart's area to tick or untick it"></canvas>
+      <div class="chmap-k"><span><i class="k-on"></i>ticked</span><span><i class="k-off"></i>not ticked</span><span><i class="k-view"></i>map view now</span><span class="dim">tap an area to tick or untick it</span></div>
+      <div class="ctl"><button type="button" class="btn" id="chView">Tick charts in this map view</button><button type="button" class="btn" id="chOnly">Only charts in this view</button><select id="chKind" aria-label="Which kinds of chart"><option value="">All kinds</option><option value="VTC">VTC</option><option value="VNC">VNC</option><option value="WAC">WAC</option></select></div>
+      <div class="vnote" id="chViewNote"></div></div>
     <div class="opts-list" id="optsCharts"></div>
     <div class="vnote" id="optsNote"></div>
     <div class="lbl" style="margin-top:10px" id="optsLogsLbl">Logbook and flight logs (kept 90 days)</div>
@@ -2901,6 +2913,7 @@ function inScreenPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j
 // standard parallels 36°S/39°S, origin 37.8°S 145°E. Fitted offline (tools/chartref.py) by matching the chart's printed
 // controlled-airspace boundaries to the DAH: median misfit 0.5 pt (about 45 m on the VTC, 90 m on the VNC).
 const CHART_SHEETS=/*__CHARTS__*/[];
+const AUS_MASK=/*__AUS__*/null;   // 0.1° land grid of Australia (tools/ausmask.py), for the chart locator maps
 const CH={on:ls.get('mapCharts',true), op:ls.get('chartOp',0.7), idx:[], site:[], local:[], imgs:new Map(), busy:false, need:0, have:0};
 const CH_CACHE='radio-au-charts', CH_TILE=512;
 function lccFwd(la,lo){ const R_=6371008.8/1852, rad=Math.PI/180, p1=-36*rad, p2=-39*rad, p0=-37.8*rad, l0=145*rad;
@@ -2933,13 +2946,14 @@ function chartSel(){ let sel=ls.get('chartSel',null), known=ls.get('chartKnown',
 function chartMerge(){ const sel=chartSel(); CH.idx=CH.site.filter(s=>sel.has(s.sheet)&&!CH.local.some(l=>l.sheet===s.sheet)).concat(CH.local); }
 function optsRender(){
   const sel=chartSel(), loc=new Set(CH.local.map(l=>l.sheet));
-  $('optsCharts').innerHTML= CH.site.length? CH.site.map(s=>`<label><input type="checkbox" data-sheet="${esc(s.sheet)}"${sel.has(s.sheet)?' checked':''}>`+
+  $('optsCharts').innerHTML= CH.site.length? CH.site.map(s=>`<label data-row="${esc(s.sheet)}"><input type="checkbox" data-sheet="${esc(s.sheet)}"${sel.has(s.sheet)?' checked':''}><canvas class="chth" data-th="${esc(s.sheet)}" width="116" height="100" aria-hidden="true"></canvas>`+
       `<span><b>${esc(s.name)}</b>${CH.newSheets.includes(s.sheet)?'<span class="new">NEW</span>':''}<br><small class="mono">${esc(s.ed||'')}</small></span>`+
       `<span class="meta">${(s.bytes/1048576).toFixed(1)} MB${loc.has(s.sheet)?'<br>imported copy in use':''}</span></label>`).join('')
     : '<div class="vnote">No chart list yet: open the app once with signal.</div>';
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
+  chThumbs(); chOvDraw(); chViewUI();
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+$('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); chThumbs(); chOvDraw();
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // More → Logbook: Options opened at the logbook (totals, legs, CSV export)
@@ -3337,8 +3351,100 @@ $('optTerRainbow').checked=ls.get('terRainbow',true); $('optTerRainbow').addEven
 $('optCtafSplit127').addEventListener('change',()=>{ ls.set('ctafSplit127',$('optCtafSplit127').checked); render(); });
 $('optsDlg').addEventListener('click',e=>{ if(e.target===$('optsDlg')) $('optsDlg').close(); });   // tap outside the box
 $('optsCharts').addEventListener('change',e=>{ const cb=e.target.closest('[data-sheet]'); if(!cb) return;
-  const sel=chartSel(); if(cb.checked) sel.add(cb.dataset.sheet); else sel.delete(cb.dataset.sheet); ls.set('chartSel',[...sel]);
-  chartMerge(); chartUI(); render(); CH.again=true; chartsPrecache(); optsRender(); });
+  const sel=chartSel(); if(cb.checked) sel.add(cb.dataset.sheet); else sel.delete(cb.dataset.sheet); chartSetSel(sel); });
+function chartSetSel(sel){ ls.set('chartSel',[...sel]); chartMerge(); chartUI(); render(); CH.again=true; chartsPrecache(); if($('optsDlg').open) optsRender(); }
+/* ---------- where each chart is (Options → Chart downloads, chart underlay): footprints, locator maps, charts in view ----------
+   A panel's outline in lat/lon is its clip (PDF pt), densified and taken back through chartPt (inverse affine / similarity,
+   inverse Lambert). The locator maps draw Australia from AUS_MASK (tools/ausmask.py) in a plate carrée squeezed by cos 27°. */
+const CHV={hi:null, ov:null, msk:new Map()};
+function lccInvP(pr,x,y){ lccFwdP(pr,0,0); const c=LCCP.get(pr.join()), dy=c.r0-y, s=Math.sign(c.F)||1, r=s*Math.hypot(x,dy), th=Math.atan2(x/r,dy/r);
+  return [(2*Math.atan(Math.pow(c.R_*c.F/r,1/c.n))-Math.PI/2)/c.rad, (th/c.n+c.l0)/c.rad]; }
+function panLL(pan){ if(pan.ll) return pan.ll; const pr=pan.proj||[-36,-39,-37.8,145];
+  let inv; if(pan.aff){ const [a,b,c,d,e,f]=pan.aff, det=a*e-b*d; inv=(X,Y)=>{ const u=X-c, v=Y-f; return [(e*u-b*v)/det,(-d*u+a*v)/det]; }; }
+  else { const [a,b,c,d]=pan.sim, det=-a*a-b*b; inv=(X,Y)=>{ const u=X-c, v=Y-d; return [(-a*u-b*v)/det,(-b*u+a*v)/det]; }; }
+  const C=pan.clip, out=[];
+  for(let i=0;i<C.length;i++){ const A=C[i], B=C[(i+1)%C.length], n=Math.max(1,Math.ceil(Math.hypot(B[0]-A[0],B[1]-A[1])/40));
+    for(let k=0;k<n;k++){ const [x,y]=inv(A[0]+(B[0]-A[0])*k/n, A[1]+(B[1]-A[1])*k/n); out.push(lccInvP(pr,x,y)); } }
+  return pan.ll=out; }
+const sheetPans=id=>{ const sh=CHART_SHEETS.find(s=>s.sheet===id); return sh? sh.panels.filter(p=>p.clip&&(p.aff||p.sim)) : []; };
+function llIn(poly,la,lo){ let c=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const [ai,oi]=poly[i], [aj,oj]=poly[j];
+  if((ai>la)!==(aj>la)&&lo<(oj-oi)*(la-ai)/(aj-ai)+oi) c=!c; } return c; }
+const sheetHas=(id,la,lo)=>sheetPans(id).some(p=>llIn(panLL(p),la,lo));
+const sheetArea=id=>sheetPans(id).reduce((t,p)=>{ const L=panLL(p); let a=0; for(let i=0,j=L.length-1;i<L.length;j=i++) a+=(L[j][1]+L[i][1])*(L[j][0]-L[i][0]); return t+Math.abs(a/2); },0);
+// the map view now: its four corners (and a 9 x 9 grid of points across it) in lat/lon
+function chViewPts(){ if(!MAP.inv||!MAP.W||!MAP.H||!st.pos) return null; const pts=[]; for(let j=0;j<9;j++) for(let i=0;i<9;i++) pts.push(MAP.inv(MAP.W*i/8,MAP.H*j/8)); return pts; }
+function chViewPoly(){ if(!MAP.inv||!MAP.W||!st.pos) return null; const W=MAP.W, H=MAP.H, P=[]; for(const [x0,y0,x1,y1] of [[0,0,W,0],[W,0,W,H],[W,H,0,H],[0,H,0,0]]) for(let k=0;k<8;k++) P.push(MAP.inv(x0+(x1-x0)*k/8,y0+(y1-y0)*k/8)); return P; }
+// site sheets covering any part of the map view (kind: '' = all, else VTC / VNC / WAC)
+function chartsInView(kind){ const V=chViewPts(); if(!V) return null;
+  return CH.site.filter(s=>(!kind||s.kind===kind||(CHART_SHEETS.find(x=>x.sheet===s.sheet)||{}).kind===kind)&&V.some(([la,lo])=>sheetHas(s.sheet,la,lo))).map(s=>s.sheet); }
+const sheetKind=id=>(CHART_SHEETS.find(x=>x.sheet===id)||{}).kind||'';
+// Australia as a picture: cached per size and theme
+function ausImg(W,H,fr){ const k=W+'x'+H+'|'+fr.join()+'|'+themeKey(); let c=CHV.msk.get(k); if(c) return c;
+  c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d'); g.fillStyle=cssv('--dim');   // solid here; faded once where it's drawn (rows that land on the same pixel row would double up)
+  const M=AUS_MASK; if(M){ const rows=M.r.split(';'), sx=W/(fr[2]-fr[0]), sy=H/(fr[1]-fr[3]);
+    rows.forEach((row,j)=>{ if(!row) return; let i=0, land=false; const y=Math.floor((fr[1]-(M.y0-j*M.d))*sy), y1=Math.floor((fr[1]-(M.y0-(j+1)*M.d))*sy), h=Math.max(1,y1-y);   // whole pixels: no seams between rows
+      for(const t of row.split(',')){ const n=parseInt(t,36); if(land&&n){ const x=Math.floor((M.x0+i*M.d-fr[0])*sx); g.fillRect(x, y, Math.max(1,Math.floor((M.x0+(i+n)*M.d-fr[0])*sx)-x), h); } i+=n; land=!land; } }); }
+  if(CHV.msk.size>20) CHV.msk.clear(); CHV.msk.set(k,c); return c; }
+const CH_FR=[111,-8.5,155,-44.5];   // west, north, east, south (degrees)
+function chProj(W,H,fr){ return (la,lo)=>[(lo-fr[0])/(fr[2]-fr[0])*W, (fr[1]-la)/(fr[1]-fr[3])*H]; }
+function chPoly(g,L,P){ g.beginPath(); L.forEach(([la,lo],i)=>{ const [x,y]=P(la,lo); if(i) g.lineTo(x,y); else g.moveTo(x,y); }); g.closePath(); }
+// a sheet's area on a locator map; off the map (Christmas, Cocos, Norfolk, Lord Howe) as a marker on the edge
+function chSheet(g,id,P,W,H,on,hi,lw=1.5){ const acc=cssv('--accent'), dim=cssv('--dim');
+  for(const p of sheetPans(id)){ const L=panLL(p), c=L.reduce((a,q)=>[a[0]+q[0]/L.length,a[1]+q[1]/L.length],[0,0]), [cx,cy]=P(c[0],c[1]);
+    if(cx<0||cx>W||cy<0||cy>H){ const x=Math.min(W-5,Math.max(5,cx)), y=Math.min(H-5,Math.max(5,cy)); g.fillStyle=on||hi?acc:dim; g.beginPath(); g.arc(x,y,hi?5:3.5,0,7); g.fill(); continue; }
+    chPoly(g,L,P); g.lineWidth=hi?lw+1.5:lw; g.setLineDash(on||hi?[]:[3,2.5]);
+    if(on||hi){ g.globalAlpha=hi?.45:.22; g.fillStyle=acc; g.fill(); g.globalAlpha=1; g.strokeStyle=acc; } else { g.strokeStyle=dim; if(sheetKind(id)==='WAC'){ g.globalAlpha=.4; g.lineWidth=1; } }
+    g.stroke(); g.setLineDash([]); g.globalAlpha=1; } }
+function chCanvas(cv){ const dpr=window.devicePixelRatio||1, W=cv.clientWidth||cv.width, H=cv.clientHeight||cv.height;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,cv.width,cv.height); g.setTransform(dpr,0,0,dpr,0,0); return {g,W,H,dpr}; }
+function chThumbs(){ const sel=chartSel();
+  for(const cv of document.querySelectorAll('#optsCharts canvas[data-th]')){ const id=cv.dataset.th, {g,W,H,dpr}=chCanvas(cv), P=chProj(W,H,CH_FR);
+    g.globalAlpha=.32; g.drawImage(ausImg(Math.round(W*dpr),Math.round(H*dpr),CH_FR),0,0,W,H); g.globalAlpha=1; chSheet(g,id,P,W,H,true,false,1.2);
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const pn of sheetPans(id)) for(const q of panLL(pn)){ const [x,y]=P(q[0],q[1]); x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); }
+    if(x1-x0<8&&y1-y0<8&&x0>=0&&x1<=W){ g.strokeStyle=cssv('--accent'); g.lineWidth=1.5; g.beginPath(); g.arc((x0+x1)/2,(y0+y1)/2,6.5,0,7); g.stroke(); } } }   // a small sheet: ring it so it shows
+function chOvDraw(){ const cv=$('chOv'); if(!cv||!cv.clientWidth) return; const {g,W,H,dpr}=chCanvas(cv), P=chProj(W,H,CH_FR), sel=chartSel();
+  g.globalAlpha=.32; g.drawImage(ausImg(Math.round(W*dpr),Math.round(H*dpr),CH_FR),0,0,W,H); g.globalAlpha=1;
+  const ord=CH.site.map(s=>s.sheet).sort((a,b)=>sheetArea(b)-sheetArea(a));   // big sheets first, so the small ones stay visible on top
+  for(const id of ord) if(!sel.has(id)) chSheet(g,id,P,W,H,false,false);
+  for(const id of ord) if(sel.has(id)) chSheet(g,id,P,W,H,true,false);
+  if(CHV.hi) chSheet(g,CHV.hi,P,W,H,sel.has(CHV.hi),true);
+  const V=chViewPoly(); if(V){ chPoly(g,V,P); g.strokeStyle='#d22'; g.lineWidth=2; g.stroke(); const [x,y]=P(st.pos[0],st.pos[1]); g.fillStyle='#d22'; g.beginPath(); g.arc(x,y,3,0,7); g.fill(); }
+  if(CHV.hi){ const s=CH.site.find(x=>x.sheet===CHV.hi); if(s){ g.font='600 12px '+cssv('--f-label'); const t=s.name+(sel.has(s.sheet)?' · ticked':' · not ticked'), w=g.measureText(t).width;
+    g.fillStyle=cssv('--panel'); g.globalAlpha=.9; g.fillRect(6,H-24,w+12,19); g.globalAlpha=1; g.fillStyle=cssv('--ink'); g.fillText(t,12,H-10); } } }
+// the smallest sheet under a point of the locator map (VTC before VNC before WAC)
+function chOvPick(x,y){ const cv=$('chOv'), W=cv.clientWidth, H=cv.clientHeight, fr=CH_FR, la=fr[1]-y/H*(fr[1]-fr[3]), lo=fr[0]+x/W*(fr[2]-fr[0]);
+  const hit=CH.site.map(s=>s.sheet).filter(id=>sheetHas(id,la,lo)).sort((a,b)=>sheetArea(a)-sheetArea(b));
+  if(hit.length) return hit[0];
+  const P=chProj(W,H,fr); for(const s of CH.site) for(const p of sheetPans(s.sheet)){ const L=panLL(p), c=L.reduce((a,q)=>[a[0]+q[0]/L.length,a[1]+q[1]/L.length],[0,0]), [cx,cy]=P(c[0],c[1]);   // an island sheet's edge marker
+    if((cx<0||cx>W||cy<0||cy>H)&&Math.hypot(Math.min(W-5,Math.max(5,cx))-x,Math.min(H-5,Math.max(5,cy))-y)<12) return s.sheet; }
+  return null; }
+function chViewUI(){ const k=$('chKind').value, L=chartsInView(k), sel=chartSel(), mb=ids=>(ids.reduce((t,id)=>t+((CH.site.find(s=>s.sheet===id)||{}).bytes||0),0)/1048576).toFixed(0);
+  $('chView').disabled=$('chOnly').disabled=!L;
+  if(!L){ $('chViewNote').textContent='The map view buttons need the map: once there is a GPS position (or the simulator), they use what the map shows.'; return; }
+  const add=L.filter(id=>!sel.has(id)), out=[...sel].filter(id=>!L.includes(id)&&CH.site.some(s=>s.sheet===id));
+  $('chView').textContent= add.length? `Tick ${add.length} more in this map view (+${mb(add)} MB)` : 'All charts in this map view are ticked';
+  $('chView').disabled=!add.length; $('chOnly').disabled=!out.length&&!add.length;
+  $('chOnly').textContent= out.length? `Only this view (untick ${out.length}, −${mb(out)} MB)` : 'Only charts in this view';
+  $('chViewNote').textContent= L.length? `In this map view (${rngTxt(MAP.range)} range): ${L.map(id=>(CH.site.find(s=>s.sheet===id)||{}).name||id).join(', ')}.` : 'No chart covers this map view.'; }
+$('chKind').onchange=()=>chViewUI();
+$('chView').onclick=()=>{ const L=chartsInView($('chKind').value)||[], sel=chartSel(); for(const id of L) sel.add(id); chartSetSel(sel); };
+$('chOnly').onclick=()=>{ const L=chartsInView($('chKind').value)||[], sel=chartSel(), keep=new Set([...sel].filter(id=>L.includes(id)||!CH.site.some(s=>s.sheet===id))); for(const id of L) keep.add(id);
+  const gone=[...sel].filter(id=>!keep.has(id)); if(gone.length&&!confirm(`Untick ${gone.length} chart${gone.length>1?'s':''} outside this view? Their stored tiles are removed from this device.`)) return; chartSetSel(keep); };
+{ const cv=$('chOv'); const xy=e=>{ const r=cv.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; };
+  cv.addEventListener('click',e=>{ const id=chOvPick(...xy(e)); if(!id) return; const sel=chartSel(); if(sel.has(id)) sel.delete(id); else sel.add(id); CHV.hi=id; chartSetSel(sel); });
+  cv.addEventListener('pointermove',e=>{ if(e.pointerType==='touch') return; const id=chOvPick(...xy(e)); if(id!==CHV.hi){ CHV.hi=id; chOvDraw(); } });
+  cv.addEventListener('pointerleave',()=>{ if(CHV.hi){ CHV.hi=null; chOvDraw(); } });
+  const rowHi=e=>{ const r=e.target.closest('label[data-row]'); const id=r? r.dataset.row : null; if(id!==CHV.hi){ CHV.hi=id; for(const l of $('optsCharts').querySelectorAll('label.hi')) l.classList.remove('hi'); if(r) r.classList.add('hi'); chOvDraw(); } };
+  $('optsCharts').addEventListener('pointerover',rowHi); $('optsCharts').addEventListener('focusin',rowHi);
+  if(window.ResizeObserver) new ResizeObserver(()=>{ if($('optsDlg').open) chOvDraw(); }).observe(cv); }
+// chart underlay pop-up: every chart covering this view on (downloads them), or Options at the chart list
+function chartViewBtn(){ const L=chartsInView(''), sel=chartSel(); const add=L? L.filter(id=>!sel.has(id)) : [];
+  $('chartView').disabled=!add.length; $('chartView').textContent= !L? 'Turn on every chart in this view' : add.length? `Turn on every chart in this view (+${add.length})` : 'Every chart in this view is on';
+  $('chartViewNote').textContent= L&&add.length? 'Adds: '+add.map(id=>(CH.site.find(s=>s.sheet===id)||{}).name||id).join(', ')+'. They download in the background with signal and are kept for offline use.' : ''; }
+$('chartView').onclick=()=>{ const L=chartsInView('')||[], sel=chartSel(); for(const id of L) sel.add(id); CH.on=true; ls.set('mapCharts',true); chartSetSel(sel); chartViewBtn(); };
+$('chartPick').onclick=()=>{ $('chartBox').open=false; $('bOpts').click(); setTimeout(()=>{ const b=$('chMapBox'); if(b) b.scrollIntoView({block:'start'}); },60); };
+$('chartBox').addEventListener('toggle',()=>{ if($('chartBox').open) chartViewBtn(); });
 async function chartIndexLoad(){
   const c=await caches.open(CH_CACHE);
   try{ const r=await c.match('charts/local.json'); CH.local=r? await r.json() : []; }catch(e){ CH.local=[]; }
