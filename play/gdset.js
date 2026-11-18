@@ -41,7 +41,7 @@ const plan=(id,name,t)=>({id,name,t,pts:[{n:'A',c:'YBRS',la:-38.258,lo:144.425},
  console.log('phone 2 Save now: Drive backup', JSON.stringify(backup()), '· phone 2 plans', await P2.p.evaluate(()=>PLANS.map(p=>p.name).sort().join(',')));
  await P1.p.evaluate(()=>{ $('bOpts').click(); }); await P1.p.evaluate(()=>{ fplOpen(); }); await P1.p.click('#plList li[data-id="p2"] [data-a="del"]'); await P1.p.evaluate(()=>$('plDlg').close());
  await P1.p.click('#gdNow'); await P1.p.waitForTimeout(1200);
- const own1=await P1.p.evaluate(()=>WPTS.map(w=>w.n).sort().join(',')+' | '+CL.map(c=>c.name).join(','));
+ const own1=await P1.p.evaluate(()=>WPTS.map(w=>w.n).sort().join(',')+' | '+CL.filter(c=>!/^b206b3-/.test(c.id)).map(c=>c.name).join(','));   // the built-in Bell 206B3 lists are on every phone
  console.log('  phone 1 now also has phone 2\'s waypoints and checklist:', own1); if(own1!=='FUEL DRUM,PAD | Before start') P1.errs.push('waypoints / checklists did not merge');
  await P1.p.evaluate(()=>{ wpDelete('w2'); }); await P1.p.click('#gdNow'); await P1.p.waitForTimeout(1200);
  console.log('phone 1 deletes Coast, Save now: phone 1 plans', await P1.p.evaluate(()=>PLANS.map(p=>p.name).sort().join(',')), '· Drive backup', JSON.stringify(backup()));

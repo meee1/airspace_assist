@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794991479395;
+const APP_BUILT=1795000784242;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2008,7 +2008,7 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
   ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']],
-  ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ngs','GS (nav row)',['nGs']],['ntot','TOT: time over target',['nTot']]];
+  ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ngs','GS (nav row)',['nGs']],['ntot','TOT: time over target',['nTot']],['tapea','Heading tape (A, Options → Map)',['sTapeA']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[])); navRowOff();
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -2038,6 +2038,7 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`,
   wires:`<div class="st traffic wires"><b>WIRES</b><span>0.8 NM ahead · 220 kV power line · you're 350 ft above terrain</span></div>`,
+  tapea:`<div class="st t" style="width:150px"><small>TAPE</small><b>02 ‹040› 06</b><small class="agl" style="color:#b03fd6">STEER 030 · L10°</small></div>`,
   nhdg:`<div class="st t"><small>HDG °M</small><b>268</b><small class="agl">drift R7°</small></div>`,
   nto:`<div class="st t"><small>→HDG °M</small><b>281</b><small class="agl">CARR WCA R6</small></div>`,
   ngs:`<div class="st t"><small>GS kt</small><b>88</b><small class="agl">HW 12</small></div>`,
@@ -2055,7 +2056,7 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
 const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
@@ -2066,11 +2067,15 @@ function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud
   if(want){ for(const id of FS_LAY) fsMove($(id),$('layPop')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
     for(const el of fsSecs()) fsMove(el,$('fsBody')); }
   else { for(const el of [...FS.marks.keys()]) if(!FS_HUD.includes(el.id)) fsBack(el); layPopShow(false); }
-  if(hud){ for(const id of FS_HUD_L) fsMove($(id),$('hudL')); for(const id of FS_HUD_R) fsMove($(id),$('hudR')); for(const id of FS_HUD_A) fsMove($(id),$('hudA')); }
+  if(hud){ for(const id of FS_HUD_L) fsMove($(id),$('hudL')); for(const id of FS_HUD_R) fsMove($(id),$('hudR')); for(const id of FS_HUD_A) fsMove($(id),$('hudA')); for(const id of FS_HUD_T) fsMove($(id),$('hudT')); }
   else for(const id of FS_HUD) fsBack($(id));
   if(!$('fsTabs').children.length) $('fsTabs').innerHTML=FS_TABS.map(([l,id])=>`<button type="button" role="tab" data-fs="${id}">${l}</button>`).join('');
   if(want){ fsSheet(FS.s); fsHudPos(); } tilesLayout(); }
-function fsHudPos(){ const r=$('hudL').getBoundingClientRect(); document.documentElement.style.setProperty('--hudAT',Math.round(r.bottom+5)+'px'); }
+function fsHudPos(){ const ds=document.documentElement.style, vis=e=>[...e.children].some(c=>!c.hidden&&getComputedStyle(c).display!=='none');
+  // the heading tape (A) is at the top of the screen; the tile columns start under it
+  if(vis($('hudT'))) ds.setProperty('--hudTop',Math.round($('hudT').getBoundingClientRect().bottom+6)+'px'); else ds.removeProperty('--hudTop');
+  const r=$('hudL').getBoundingClientRect(); ds.setProperty('--hudAT',Math.round(r.bottom+5)+'px'); }
+if(window.ResizeObserver){ const ro=new ResizeObserver(()=>{ if(document.body.classList.contains('fsm')) fsHudPos(); }); for(const id of ['hudL','hudR','hudA','hudT']) ro.observe($(id)); }
 function fsPeekH(){ return $('fsHead').offsetHeight+Math.max(0,parseFloat(getComputedStyle($('fsBody')).paddingBottom)-14); }
 function fsSheet(s){ FS.s=s; if(!document.body.classList.contains('fsm')) return; const pk=fsPeekH(), H=innerHeight;
   const h= s==='full'? H-Math.max(56,Math.round(H*0.08)) : s==='half'? Math.round(H*0.5) : pk;
@@ -3588,6 +3593,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     const ax=dir*(tw/2-8); g.beginPath(); g.moveTo(ax+dir*4.5,0); g.lineTo(ax-dir*3.5,-4.5); g.lineTo(ax-dir*3.5,4.5); g.closePath(); g.fill();
     g.restore(); g.textAlign='left'; g.textBaseline='alphabetic'; }
   pfMark('go to, lead, ownship');
+  hdgArcDraw(g,P,ox,oy,own[0],own[1],W,Hh,C); pfMark('heading arc');
   if(MAP.chHi&&Date.now()-MAP.chHi.t<10e3){ g.save(); g.font='700 13px '+cssv('--f-label'); const t=MAP.chHi.name+' area', tw=g.measureText(t).width;   // its name, on top of everything
     g.fillStyle=C.bg; g.globalAlpha=.92; g.fillRect(W/2-tw/2-9,Hh-34,tw+18,24); g.globalAlpha=1; g.strokeStyle=C.acc; g.lineWidth=1.5; g.strokeRect(W/2-tw/2-9,Hh-34,tw+18,24); g.fillStyle=C.acc; g.textAlign='center'; g.fillText(t,W/2,Hh-17); g.restore(); }
   if(MAP.traffic&&MAP.trWarn) MAP.trWarn();
@@ -4281,6 +4287,58 @@ function navWind(la,lo){ const t=Date.now();
   const w=tafWindNear(la,lo,t); return w&&w.kt>0? {dir:w.dir, kt:w.kt, tas, src:w.src} : null; }
 const navLR=d=>(d<0?'L':'R')+Math.round(Math.abs(d));
 const navMin=ms=>{ const m=Math.max(0,Math.round(ms/60e3)); return m<60? m+' min' : Math.floor(m/60)+' h '+String(m%60).padStart(2,'0'); };
+/* ---------- heading arc (round your aircraft on the map) and heading tape (nav tiles), both optional (rc_hdgArc, rc_hdgTape) ----------
+   COG = your GPS track (°M), the compass heading when you're slow; NAVB (set by navUI): true bearing and heading to steer to the
+   next point. Filled magenta bug = heading to steer, hollow = straight bearing. */
+const HDGO={mode:ls.get('hdgMode','A')}; if(!/^(A|C|D|AC|CD|off)$/.test(HDGO.mode)) HDGO.mode='A';   // A = tape under the tiles (default), C = arc, D = tape in the nav tiles
+const hdgOn=k=>HDGO.mode!=='off'&&HDGO.mode.includes(k);
+let NAVB=null;
+const HDG_MAG='#b03fd6';
+function hdgCog(){ const h=heading(); return h? {deg:h.deg, src:h.src} : null; }   // true
+function hdgTapeDraw(varE){ const onD=hdgOn('D'), onA=hdgOn('A');
+  $('nTape').hidden=!onD; $('sNav').classList.toggle('tapeon',onD); $('sTapeA').hidden=!onA;
+  if(onD) hdgTape1($('nTapeCv'),$('nTapeS'),varE); if(onA) hdgTape1($('tapeACv'),$('tapeAS'),varE,true); }
+function hdgTape1(cv,lineEl,varE,wide){
+  const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return; const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const C=hdgCog(), ink=cssv('--ink'), dim=cssv('--dim'), acc=cssv('--accent'), mono=cssv('--f-mono');
+  if(!C){ g.fillStyle=dim; g.font='600 11px '+mono; g.textAlign='center'; g.fillText('no track or compass',W/2,H/2+4); lineEl.textContent=''; return; }
+  const cog=C.deg-varE, span=W<200? 70 : 80, px=W/span, X=m=>W/2+((((m-cog)%360)+540)%360-180)*px;
+  for(let m=Math.floor((cog-span/2)/5)*5;m<=cog+span/2+5;m+=5){ const x=X(m), maj=m%10===0, n=((m%360)+360)%360;
+    g.strokeStyle=ink; g.lineWidth=maj?1.5:1; g.beginPath(); g.moveTo(x,H); g.lineTo(x,H-(maj?11:6)); g.stroke();
+    if(maj&&(W>=200||m%20===0)){ const card={0:'N',90:'E',180:'S',270:'W'}[n]; g.fillStyle=card?acc:ink; g.font='600 10.5px '+mono; g.textAlign='center'; g.fillText(card||String(n).padStart(3,'0').slice(0,2),x,H-14); } }
+  g.strokeStyle='#d22'; g.lineWidth=2.5; g.beginPath(); g.moveTo(W/2,H); g.lineTo(W/2,H-18); g.stroke();
+    const t=fmt3(C.deg-varE); g.font='700 13px '+mono; const bw=g.measureText(t).width+12; g.fillStyle=ink; g.beginPath(); g.roundRect? g.roundRect(W/2-bw/2,13,bw,17,4) : g.rect(W/2-bw/2,13,bw,17); g.fill();
+  g.fillStyle=cssv('--panel'); g.textAlign='center'; g.fillText(t,W/2,26);
+  if(NAVB){ const xb=X(NAVB.brg-varE), xs=X(NAVB.steer-varE);   // the bugs last, in their own band above the box: never hidden by it (Michael: "The magenta arrow disappears under the black box")
+    g.strokeStyle=HDG_MAG; g.lineWidth=2; g.beginPath(); g.moveTo(xb-6,1); g.lineTo(xb+6,1); g.lineTo(xb,9); g.closePath(); g.stroke();
+    g.fillStyle=HDG_MAG; g.strokeStyle='#fff'; g.lineWidth=1; g.beginPath(); g.moveTo(xs-7,0); g.lineTo(xs+7,0); g.lineTo(xs+7,5); g.lineTo(xs,11); g.lineTo(xs-7,5); g.closePath(); g.fill(); g.stroke(); }
+  if(C.src!=='TRK'){ g.font='600 9px '+mono; g.fillStyle=dim; g.textAlign='left'; g.fillText('HDG',2,24); }
+  const turn= NAVB? ((((NAVB.steer-C.deg)%360)+540)%360-180) : null;
+  lineEl.textContent= NAVB? (wide&&W>360? `STEER ${fmt3(NAVB.steer-varE)} · ${Math.abs(turn)<2?'on heading':(turn<0?'turn left ':'turn right ')+Math.round(Math.abs(turn))+'°'}  →  ${NAVB.c||''} ${NAVB.d!=null?(NAVB.d<10?NAVB.d.toFixed(1):Math.round(NAVB.d))+' NM':''}${NAVB.w?'':' · no wind'}` : `STEER ${fmt3(NAVB.steer-varE)} ${Math.abs(turn)<2?'on heading':navLR(turn)+'°'} · ${String(NAVB.c||'').slice(0,8)}${NAVB.d!=null?' '+(NAVB.d<10?NAVB.d.toFixed(1):Math.round(NAVB.d)):''}${NAVB.w?'':' · no wind'}`) : 'no waypoint / Go to'; }
+// the arc, in drawMap0 after your aircraft: ticks every 5° (°M), labels every 30°, the track box at the top
+function hdgArcDraw(g,P,ox,oy,la,lo,W,Hh,C){ if(!hdgOn('C')) return; const Cg=hdgCog(); if(!Cg||ox<-20||oy<-20||ox>W+20||oy>Hh+20) return;
+  const varE=variation(la,lo), r=Math.round(Math.max(60,Math.min(90,Math.min(W,Hh)*0.21))), [o0,o1]=P(la,lo);
+  const dir=t=>{ const [a,b]=gcDest(la,lo,t,1), [x,y]=P(a,b); const dx=x-o0, dy=y-o1, n=Math.hypot(dx,dy)||1; return [dx/n,dy/n]; };   // screen direction of a true bearing
+  const at=(t,rr)=>{ const [ux,uy]=dir(t); return [ox+ux*rr, oy+uy*rr]; };
+  const cogM=Cg.deg-varE, A0=Cg.deg-55, A1=Cg.deg+55;
+  g.save(); g.lineCap='round';
+  const arcPath=()=>{ g.beginPath(); for(let t=A0;t<=A1+0.01;t+=5){ const [x,y]=at(t,r); if(t===A0) g.moveTo(x,y); else g.lineTo(x,y); } };
+  arcPath(); g.strokeStyle=C.bg; g.globalAlpha=.8; g.lineWidth=10; g.stroke(); g.globalAlpha=1; arcPath(); g.strokeStyle=C.ink; g.lineWidth=1.5; g.stroke();
+  g.font='700 11px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle';
+  for(let m=Math.ceil((cogM-50)/5)*5;m<=cogM+50;m+=5){ const t=m+varE, maj=m%10===0, [x1,y1]=at(t,r), [x2,y2]=at(t,r-(maj?10:6)); g.strokeStyle=C.ink; g.lineWidth=maj?1.6:1; g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+    const n=((m%360)+360)%360; if(n%30===0&&Math.abs(m-cogM)>7){ const [lx,ly]=at(t,r+13), card={0:'N',90:'E',180:'S',270:'W'}[n], s_=card||String(n).padStart(3,'0').slice(0,2);
+      g.lineWidth=3; g.strokeStyle=C.bg; g.strokeText(s_,lx,ly); g.fillStyle=card?C.acc:C.ink; g.fillText(s_,lx,ly); } }
+  const bug=(t,fill)=>{ const [ux,uy]=dir(t), [x,y]=[ox+ux*(r+1),oy+uy*(r+1)], a=Math.atan2(ux,-uy); g.save(); g.translate(x,y); g.rotate(a); g.beginPath(); g.moveTo(-8,-9); g.lineTo(8,-9); g.lineTo(8,-4); g.lineTo(0,3); g.lineTo(-8,-4); g.closePath();
+    if(fill){ g.fillStyle=HDG_MAG; g.fill(); g.strokeStyle='#fff'; g.lineWidth=1; g.stroke(); } else { g.strokeStyle=HDG_MAG; g.lineWidth=2; g.stroke(); } g.restore(); };
+  if(NAVB){ const inArc=t=>Math.abs((((t-Cg.deg)%360)+540)%360-180)<=55;
+    for(const [t,f] of [[NAVB.brg,false],[NAVB.steer,true]]){ if(inArc(t)) bug(t,f); else { const [x,y]=at(Cg.deg+Math.sign((((t-Cg.deg)%360)+540)%360-180)*57,r); g.fillStyle=HDG_MAG; g.beginPath(); g.arc(x,y,f?4:3,0,7); g.fill(); } } }   // off the arc: a dot at its end, on that side
+  const [bx,by]=at(Cg.deg,r+22), t=fmt3(cogM); g.font='700 14px "IBM Plex Mono", monospace'; const bw=g.measureText(t).width+12;
+  g.fillStyle=C.ink; g.fillRect(bx-bw/2,by-10,bw,20); g.fillStyle=C.bg; g.fillText(t,bx,by+1);
+  g.restore(); }
+$('optHdgMode').value=HDGO.mode; $('optHdgMode').addEventListener('change',()=>{ HDGO.mode=$('optHdgMode').value; ls.set('hdgMode',HDGO.mode); render(); if(document.body.classList.contains('fsm')) setTimeout(fsHudPos,50); });
+if(window.ResizeObserver){ const ro=new ResizeObserver(()=>{ if(st.pos) hdgTapeDraw(variation(st.pos[0],st.pos[1])); }); ro.observe($('nTapeCv')); ro.observe($('tapeACv')); }
 function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!=null&&st.gs>=20? st.gs : null;
   const set=(id,v)=>{ const e=$(id); if(e.textContent!==v) e.textContent=v; };
   // HDG: the compass (with the learnt alignment); in the simulator the sim's track
@@ -4293,10 +4351,10 @@ function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!
   // GS, and the wind along your track
   set('nGsV', st.gs!=null? String(Math.round(st.gs)) : '—');
   { let t=''; if(W&&st.trk!=null&&st.gs>20){ const c=W.kt*Math.cos((W.dir-st.trk)*R); t=(c>=0?'HW ':'TW ')+Math.round(Math.abs(c)); } set('nGsS',t); }
-  if(!nx){ for(const id of ['nToV','nTotV']) set(id,'—'); set('nToS','no waypoint / Go to'); set('nTotS',''); set('nToD',''); set('nTotD',''); return; }
+  if(!nx){ NAVB=null; hdgTapeDraw(varE); for(const id of ['nToV','nTotV']) set(id,'—'); set('nToS','no waypoint / Go to'); set('nTotS',''); set('nToD',''); set('nTotD',''); return; }
   // →HDG to the next point
   const [dN,bN]=distBrg(la,lo,nx.la,nx.lo), triN= W? windTri(bN,W.tas,W.dir,W.kt) : null, hN= triN? triN.hdg : bN;
-  set('nToV', fmt3(hN-varE));
+  set('nToV', fmt3(hN-varE)); NAVB={brg:bN, steer:hN, c:nx.c, d:dN, w:!!triN}; hdgTapeDraw(varE);
   set('nToS', `${String(nx.c||'').slice(0,8)} ${dN<10?dN.toFixed(1):Math.round(dN)} NM${triN? ' WCA '+navLR(triN.wca)+'°' : ' · no wind'}`);
   $('nTo').title=`Heading to steer (°M) to ${nx.c||'the next point'}${W? `, wind ${fmt3(W.dir-varE)}/${Math.round(W.kt)} (${W.src}), TAS ${Math.round(W.tas)}` : ': no wind known (GPS estimate or Plan check), so this is the plain bearing'}`;
   // TOT: next point at your GS now (else the wind triangle's, else Plan check's speed); the rest of the plan per leg
@@ -4759,7 +4817,7 @@ function render0(){
   pfMark('alerts + tiles');
   plUI(); pfMark('power line check');   // power line warning (before the map: it marks the crossing)
   if(!BN.on) drawMap(la,lo,h,pick,AS,altFt); pfMark('map (all)');
-  sideUI(); pfMark('side view');   // not while the benchmark is drawing the map itself
+  sideUI(); pfMark('side view'); if(MEAS.on) measPlace();   // not while the benchmark is drawing the map itself
   $('stack').innerHTML=html;
 
   // list
@@ -5198,6 +5256,13 @@ $('wpList').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'), 
 let CL=ls.get('cl',[]); if(!Array.isArray(CL)) CL=[];
 const clValid=c=>c&&typeof c.id==='string'&&typeof c.name==='string'&&Array.isArray(c.items);
 CL=CL.filter(clValid);
+// The owner's Bell 206B3 checklist (18 Nov 2026, Michael: "Use this as the default checklist"; transcribed as written from his
+// operator's sheet, numbering and wording kept; multi-line responses joined with "; "). Added once per device (rc_clAdded),
+// with fixed ids so phones sharing lists through Drive don't get two copies; a deleted one stays deleted (rc_clDel).
+const CL_DEF=[{"id":"b206b3-prestart","name":"Bell 206B3 Pre start","items":["1. Maintenance Release and Hour Meter .... Check","2. Rotors .... Untied - Both Ends Visible","3. Seatbelts .... Fasted and Adjusted","4. Flight Controls .... Pedals Adjusted; Frictions Off; All Controls Full and Free; Frictions On","5. Throttle .... Fully Open; Check Idle Stop - Press to Release; Throttle FULLY CLOSED","6. Landing Light .... Off","7. Engine Anti-Ice .... Off","8. Hydraulics .... On","9. Fuel Valve .... On and Guarded","10. Instruments .... Conditions - Reading Correctly","11. Rotor Brake .... Level Up and Latched","12. Switches and C/Bs .... As Required","13. Battery .... On","14. Fuel Quantity .... Sufficient","15. Caution C/B .... In","16. Low RPM / Engine Out Horn .... Check","17. Caution Light Lit .... Eng Out, Low RRPM, Trans Press, Fuel Pump, Gen (Out)","18. Warning Horn .... Mute (If Installed)","19. Caution Test .... Press - All Light Illuminate","20. Fire Test Switch .... Press to test (if Installed)","21. TOT Light .... Press to test (if Installed)","22. Fuel Pump C/Bs .... Individual C/B In; Check Pressure Increase and Fuel Pump Light Remains Lit; Both C/Bs In; Fuel Pump Light Out","23. Caution C/B .... Out (If No Mute Installed)","24. Anti Coll Light .... On"],"ac":""},{"id":"b206b3-start","name":"Bell 206B3 Start","items":["25. Identify Start N1 and TOT gauges, confirm limits: TOT Start Limits .... 810 - 926 Max 10 Secs; Max 927 for 1 Sec","26. Throttle .... Check FULLY CLOSED","27. Area .... Clear","28. Starter Button .... Press","29. Engine Oil Pressure .... Increasing","30. TOT .... Below 150","31. N1 .... Above 15%","32. Throttle .... Open to Ground Idle","33. Guard Idle Release","34. TOT .... Check Within Limits","# WARNING - If TOT is likely to exceed maximum limits or rate of increase is excessive, CLOSE THROTTLE and keep starter depressed until TOT is below 810.","35. Rotor .... Turning by 25% N1","36. Starter Button .... Release at 58% N1","37. Engine & Xmsm .... Pressure Increasing","38. Throttle Idle Stop .... Check N1 60-62%","39. Caution C/B .... In","# Start - continued","40. Hydraulics .... Off - Check controls for feedback or binding; Check C/B system restore","Hydraulics .... On","# One Minute After Starter Release","41. N1 .... Increase to 70%","42. Generator .... On - Caution Light Out; Charging on Gauge","43. Radios .... On","# When Generator Load is Below 70%","44. Throttle .... Open Fully TQ below 40%","45. Switches & C/Bs .... On","46. Gov RPM .... Check Gov Range 97-100%","47. Frictions Off .... Check Control Response"],"ac":""},{"id":"b206b3-prelift","name":"Bell 206B3 Pre lift off checks","items":["48. Switches & C/B .... On as Required","49. Caution Lights .... Out - Press to Test","50. Ts & Ps .... In the Green and Normal","51. Fuel .... Sufficient","52. Nr .... 100%","53. Flight Instruments .... Reading Normal","54. Radios & Transponder .... Set","55. Frictions .... As Required","56. Throttle .... Fully Open","57. Hatchess & Harnesses .... Secure"],"ac":""},{"id":"b206b3-shutdown","name":"Bell 206B3 Shutdown","ph":"land","items":["1. Collective .... Fully Down","2. Throttle .... Close to IDLE; Check Clock and N1 Decelerates to 60-62% within 3-5 secs","3. Landing Light .... Off","4. Cyclic and Pedals .... Neutral","5. Frictions .... On","6. Radios .... Off","# After 2 Minutes at Ground Idle","7. Throttle .... Fully Closed","8. TOT .... Check Decrease","9. Nr Gauge .... Check Needle Split","10. Caution C/B .... Out","11. Rotor Brake .... Engage Between 38-30% RRPM; Restore before fully stopped and Stow","12. TOT .... Stabilise Below 400","13. N1 .... Less than 2%","14. Rotor .... Stopped","15. Fuel Pump C/Bs .... Out","16. Anti Coll Light .... Off","17. Generator .... Off","18. Battery .... Off"],"ac":""}];
+{ const added=ls.get('clAdded',{}), del=new Set((ls.get('clDel',[])||[]).map(x=>x&&x.id)); let ch=false;
+  for(const d of CL_DEF){ if(added[d.id]) continue; added[d.id]=1; ch=true; if(del.has(d.id)||CL.some(c=>c.id===d.id)) continue; CL.push({...d, items:d.items.slice(), t:1}); }
+  if(ch){ ls.set('clAdded',added); ls.set('cl',CL); } }
 let CLT=ls.get('clTick',{}); if(!CLT||typeof CLT!=='object') CLT={};
 const CLV={v:'list', id:null};   // the dialog's view: list | run | edit
 const clItems=c=>c.items.map(t=>{ const h=/^\s*#\s*(.*)$/.exec(t); if(h) return {h:h[1]}; const m=/^(.*?)\s*(?:\.{2,}|…+|\s:\s)\s*(.+)$/.exec(t); return m&&m[1]? {c:m[1],r:m[2]} : {c:t}; });

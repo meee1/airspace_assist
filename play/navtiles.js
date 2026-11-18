@@ -42,6 +42,6 @@ const {chromium}=require('playwright'); const {PX9,TAB}=require('./px9.js');
     await q.goto('http://localhost:8811/index.html?sim=-38.10,144.60&alt=1500&trk=090&gs=90'); await q.waitForFunction(()=>typeof render==='function'&&st.pos);
     await q.setInputFiles('#fpFile',__dirname+'/fixtures/ybrs.gpx'); await q.waitForFunction(()=>FP&&FP.pts.length>5); await q.evaluate(()=>{ fpPick(FP.pts.findIndex(x=>x.c==='CARR')); render(); }); await q.waitForTimeout(500);
     const z=await q.evaluate(()=>({par:$('sNav').parentElement.id||$('sNav').parentElement.className, w:document.documentElement.scrollWidth, iw:innerWidth, cells:[...document.querySelectorAll('#sNav>.st')].map(e=>Math.round(e.getBoundingClientRect().width))}));
-    ok(z.w<=z.iw&&z.cells.every(x=>x>40),`${n}: row in ${z.par}, cells ${z.cells.join('/')} px, no sideways scroll`);
+    ok(z.w<=z.iw&&z.cells.filter(x=>x>0).length>=3&&z.cells.filter(x=>x>0).every(x=>x>40),   /* the heading tape (on by default) hides HDG and →HDG */`${n}: row in ${z.par}, cells ${z.cells.join('/')} px, no sideways scroll`);
     await q.screenshot({path:__dirname+`/navtiles_${n}.png`}); await c.close(); }
   console.log(fail.length? fail.length+' FAILED':'all passed'); console.log(errs); await b.close(); process.exit(fail.length?1:0); })();

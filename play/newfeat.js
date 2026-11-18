@@ -108,7 +108,7 @@ const say=()=>{ window.__said=[]; const S={speak:u=>window.__said.push(u.text),c
     await p.goto(U+'?sim=-37.97,144.93&alt=1000&trk=090&gs=90'); await p.waitForFunction(()=>typeof render==='function'&&st.pos); await p.waitForTimeout(600);
     await p.click('#mapLayers'); const r=await p.evaluate(()=>({wx:$('mapWx').parentElement.id, side:$('mapSide').parentElement.id, w:document.documentElement.scrollWidth}));
     ok(r.wx==='layPop'&&r.side==='layPop'&&r.w<=427,'full screen: Wx and Side in the Layers grid, no sideways scroll');
-    await p.click('#mapSide'); await p.click('#map',{position:{x:200,y:300}}); await p.waitForTimeout(1300);
+    await p.click('#mapSide'); await p.evaluate(()=>layPopShow(false));   // close the Layers grid (a tap on the map did this; the HUD now covers most of the top of the map) await p.waitForTimeout(1300);
     await p.evaluate(()=>{ SAR.t=Date.now()+10*60e3; SAR.cnx=0; sarTick(); });
     ok(await p.evaluate(()=>$('sSar').parentElement.id==='hudA'&&!$('sideBox').hidden),'SARTIME row in the HUD, side view over the map');
     await p.screenshot({path:__dirname+'/newfeat_fs.png'}); await ctx.close(); }
