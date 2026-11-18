@@ -100,6 +100,9 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .rbramp{display:inline-block;width:56px;height:8px;border-radius:2px;vertical-align:0;margin:0 4px;background:linear-gradient(90deg,rgb(38,150,160),rgb(120,190,80) 14%,rgb(245,200,70) 41%,rgb(220,90,60) 68%,rgb(130,60,170))}
 .st.nxcls.amber{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
 .st.nxcls.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
+.navrow{grid-column:1/-1;display:flex;gap:5px;min-width:0} .navrow.off,.navrow>.st.off{display:none!important} .navrow>.st{flex:1 1 0;min-width:0}
+.navrow>.st small.agl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} body.fsm .navrow{display:grid;grid-template-columns:1fr 1fr}   /* full screen (phone HUD, tablet column): 2 x 2, four across is too narrow for 0432Z */
+#hud .navrow{gap:4px;margin-top:4px} #hud .navrow>.st.t{padding:3px 7px} #hud .navrow>.st b{font-size:19px} #hud .navrow>.st small.agl{flex-basis:100%;font-size:10.5px}
 .st.fq.l{grid-column:1/span 7} .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.fq small.nx b{display:inline;font:inherit;font-weight:700;color:var(--freq);margin:0}
@@ -597,6 +600,12 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st fq" id="sAreaBox" title="Area (Class G/E) or ATC frequency at your position and altitude"><small id="sAreaLbl">AREA</small><b id="sArea">—</b><small id="sAreaWho" class="who"></small><small id="sAreaNx" class="nx"></small></div>
     <div class="st fq gt l" id="gCtafBox" hidden title="Go to: CTAF of the aerodrome at (or nearest within 10 NM of) the Go to point or flight plan waypoint; tower hours at your ETA"><small id="gCtafLbl">→ CTAF</small><b id="gCtaf">—</b><small id="gCtafAd" class="who"></small><small class="src" id="gCtafSrc" hidden></small><small id="gCtafCn" class="cn"></small><small id="gCtafNx" class="nx"></small></div>
     <div class="st fq gt" id="gAreaBox" hidden title="Go to: area or ATC frequency over the Go to point at your current altitude"><small id="gAreaLbl">→ AREA</small><b id="gArea">—</b><small class="src" id="gAreaSrc" hidden></small><small id="gAreaWho" class="who"></small><small id="gAreaNx" class="nx"></small></div>
+    <div class="navrow" id="sNav">
+      <div class="st t nc" id="nHdg" title="Compass heading (°M), aligned to your GPS track when the app has learnt it; drift = track minus heading"><small>HDG °M</small><b id="nHdgV">—</b><small class="agl" id="nHdgS"></small></div>
+      <div class="st t nc" id="nTo" title="Heading to steer (°M) to the next waypoint or Go to point, corrected for the wind (GPS estimate while flying, else Plan check's wind); second line: to the destination"><small>→HDG °M</small><b id="nToV">—</b><small class="agl" id="nToS"></small><small class="agl" id="nToD"></small></div>
+      <div class="st t nc" id="nGs" title="Ground speed (kt), and the head or tail wind along your track when the wind is known"><small>GS kt</small><b id="nGsV">—</b><small class="agl" id="nGsS"></small></div>
+      <div class="st t nc" id="nTot" title="Time over target (UTC): when you'll reach the next waypoint at your groundspeed, and the destination along the rest of the plan (wind-corrected per leg when the wind is known)"><small>TOT</small><b id="nTotV">—</b><small class="agl" id="nTotS"></small><small class="agl" id="nTotD"></small></div>
+    </div>
     <div class="st ctl" id="sCtl" hidden title="Controlled aerodrome on screen: ATIS, tower, ground and approach from ERSA. Tap for the full list"></div>
     <div class="st ctl gt" id="gCtl" hidden title="Go to aerodrome: ATIS, tower, ground and approach from ERSA. Tap for its details"></div>
     <div class="st traffic" id="sTraffic" hidden role="alert"></div>
@@ -1055,7 +1064,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=390c53baff';
+    const s=document.createElement('script'); s.src='app.js?v=2f1e5986af';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794954305388;
+const APP_BUILT=1794970827492;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2007,8 +2007,9 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']]];
-function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']],
+  ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ngs','GS (nav row)',['nGs']],['ntot','TOT: time over target',['nTot']]];
+function tilesLayout(){ const off=new Set(ls.get('tilesOff',[])); navRowOff();
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
   sb.style.gridAutoFlow= off.size? 'row dense' : '';   // fill the holes hidden tiles leave (narrow layout spans)
@@ -2018,6 +2019,7 @@ function tilesLayout(){ const off=new Set(ls.get('tilesOff',[]));
   sb.style.gridTemplateColumns=cols; const half=Math.max(1,Math.round(T/2));
   const pair=(a,b,on)=>{ if(on.a&&on.b){ $(a).style.gridColumn=`1/span ${half}`; $(b).style.gridColumn=`${half+1}/-1`; } else { $(a).style.gridColumn='1/-1'; $(b).style.gridColumn='1/-1'; } };
   pair('sCtafBox','sAreaBox',{a:!off.has('ctaf'),b:!off.has('area')}); pair('gCtafBox','gAreaBox',{a:true,b:true}); }
+function navRowOff(){ const off=new Set(ls.get('tilesOff',[])); $('sNav').classList.toggle('off',['nhdg','nto','ngs','ntot'].every(k=>off.has(k))); }
 // small examples beside each tick box (fixed sample values, the tiles' own classes, shrunk with zoom)
 const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').innerHTML}</span></div>`,
   trk:`<div class="st t"><small>TRK °M</small><b>275</b></div>`, gs:`<div class="st t"><small>GS kt</small><b>95</b><small class="agl">last 0920Z</small></div>`,
@@ -2036,6 +2038,10 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`,
   wires:`<div class="st traffic wires"><b>WIRES</b><span>0.8 NM ahead · 220 kV power line · you're 350 ft above terrain</span></div>`,
+  nhdg:`<div class="st t"><small>HDG °M</small><b>268</b><small class="agl">drift R7°</small></div>`,
+  nto:`<div class="st t"><small>→HDG °M</small><b>281</b><small class="agl">CARR WCA R6</small></div>`,
+  ngs:`<div class="st t"><small>GS kt</small><b>88</b><small class="agl">HW 12</small></div>`,
+  ntot:`<div class="st t"><small>TOT</small><b>0432Z</b><small class="agl">CARR 12 min</small></div>`,
   sar:`<div class="st nxcls sar amber"><small>SARTIME</small><b style="color:var(--accent)">0430Z</b><span>in 0:25 · with ATS · tap when cancelled</span></div>`,
   chk:`<div class="st nxcls amber chk"><small>CHECKLIST</small><b>Pre-landing</b><span>Before landing · tap to open</span></div>`,
   fuel:`<div class="st nxcls fuel"><small>FUEL</small><b style="color:var(--ink)">145 L</b><span>1:05 to reserve · 103 NM at 95 kt · reserve 20 min</span></div>`};
@@ -2049,7 +2055,7 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A);
 const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
@@ -4249,6 +4255,44 @@ function lastLight(la,lo,t=Date.now()){
   const day=D.find(([f,l])=>f<=t&&t<l); if(day) return {ll:day[1], night:false};
   return {ll:Math.max(...D.map(d=>d[1]).filter(v=>v<=t)), fl:Math.min(...D.map(d=>d[0]).filter(v=>v>t)), night:true}; }
 // set a top-bar row's classes without losing 'off' (the row is turned off in Options → Top bar tiles; tilesLayout sets it)
+/* ---------- nav row: HDG (compass), →HDG (heading to steer, wind-corrected), GS, TOT (time over the next point and the destination) ----------
+   Wind: the GPS estimate (under 20 min old, with its TAS), else Plan check's wind (entered, or the nearest TAF) at Plan check's
+   speed as TAS. Next point = the active plan waypoint (Go to point when direct or without a plan); destination = the plan's
+   last point (the Go to point when direct). */
+function navWind(la,lo){ const t=Date.now();
+  if(WIND.est&&t-WIND.est.t<20*60e3&&WIND.est.spd>=2) return {dir:WIND.est.from, kt:WIND.est.spd, tas:WIND.est.tas, src:'GPS'};
+  const W=pcWind(), tas=+ls.get('pcGs',90)||90; if(!W) return null;
+  if(W.src==='set') return {dir:W.dir, kt:W.kt, tas, src:'entered'};
+  const w=tafWindNear(la,lo,t); return w&&w.kt>0? {dir:w.dir, kt:w.kt, tas, src:w.src} : null; }
+const navLR=d=>(d<0?'L':'R')+Math.round(Math.abs(d));
+const navMin=ms=>{ const m=Math.max(0,Math.round(ms/60e3)); return m<60? m+' min' : Math.floor(m/60)+' h '+String(m%60).padStart(2,'0'); };
+function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!=null&&st.gs>=20? st.gs : null;
+  const set=(id,v)=>{ const e=$(id); if(e.textContent!==v) e.textContent=v; };
+  // HDG: the compass (with the learnt alignment); in the simulator the sim's track
+  let hd=null; if(st.sim&&st.trk!=null) hd={deg:st.trk, src:'sim'}; else if(st.compass!=null) hd={deg:norm(cmpTrue()+(CMP.n>=CMP_MIN?CMP.off:0)), src:'cmp'};
+  set('nHdgV', hd? fmt3(hd.deg-varE) : '—');
+  set('nHdgS', !hd? 'no compass' : hd.src==='sim'? 'sim: track' : st.trk!=null&&st.gs>20? 'drift '+navLR(((st.trk-hd.deg+540)%360)-180)+'°' : CMP.n>=CMP_MIN? 'aligned' : 'not aligned');
+  // targets
+  const dct=FP&&FP.dct&&GO, fpT=FP&&!FP.dct&&FP.pts[FP.i], nx= fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO? {c:GO.c||GO.n,la:GO.la,lo:GO.lo} : null;
+  const last=FP&&!dct? FP.pts[FP.pts.length-1] : null, dest= last&&last!==fpT? {c:last.c||last.n,la:last.la,lo:last.lo} : null;
+  // GS, and the wind along your track
+  set('nGsV', st.gs!=null? String(Math.round(st.gs)) : '—');
+  { let t=''; if(W&&st.trk!=null&&st.gs>20){ const c=W.kt*Math.cos((W.dir-st.trk)*R); t=(c>=0?'HW ':'TW ')+Math.round(Math.abs(c)); } set('nGsS',t); }
+  if(!nx){ for(const id of ['nToV','nTotV']) set(id,'—'); set('nToS','no waypoint / Go to'); set('nTotS',''); set('nToD',''); set('nTotD',''); return; }
+  // →HDG to the next point
+  const [dN,bN]=distBrg(la,lo,nx.la,nx.lo), triN= W? windTri(bN,W.tas,W.dir,W.kt) : null, hN= triN? triN.hdg : bN;
+  set('nToV', fmt3(hN-varE));
+  set('nToS', `${String(nx.c||'').slice(0,8)} ${dN<10?dN.toFixed(1):Math.round(dN)} NM${triN? ' WCA '+navLR(triN.wca)+'°' : ' · no wind'}`);
+  $('nTo').title=`Heading to steer (°M) to ${nx.c||'the next point'}${W? `, wind ${fmt3(W.dir-varE)}/${Math.round(W.kt)} (${W.src}), TAS ${Math.round(W.tas)}` : ': no wind known (GPS estimate or Plan check), so this is the plain bearing'}`;
+  // TOT: next point at your GS now (else the wind triangle's, else Plan check's speed); the rest of the plan per leg
+  const gsN= gsNow || (triN&&triN.gs) || (+ls.get('pcGs',90)||90), tN=now+dN/gsN*3600e3;
+  set('nTotV', hhmmZ(tN)); set('nTotS', `${String(nx.c||'').slice(0,8)} ${navMin(tN-now)}${gsNow?'':' at '+Math.round(gsN)+' kt'}`);
+  if(dest){ let t=tN, D=dN, pa=nx.la, po=nx.lo; for(let k=FP.i+1;k<FP.pts.length;k++){ const q=FP.pts[k], [L,b]=distBrg(pa,po,q.la,q.lo); D+=L;
+      const g= W? (windTri(b,W.tas,W.dir,W.kt).gs||gsN) : gsN; t+=L/g*3600e3; pa=q.la; po=q.lo; }
+    const [dD,bD]=distBrg(la,lo,dest.la,dest.lo), triD= W? windTri(bD,W.tas,W.dir,W.kt) : null;
+    set('nToD', `${String(dest.c||'').slice(0,8)} ${fmt3((triD?triD.hdg:bD)-varE)} · ${Math.round(D)} NM`); set('nTotD', `${String(dest.c||'').slice(0,8)} ${hhmmZ(t)} · ${navMin(t-now)}`);
+    $('nTot').title=`Time over target (UTC): ${nx.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local), ${dest.c} ${hhmmZ(t)} (${new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local) along the plan`; }
+  else { set('nToD',''); set('nTotD',''); $('nTot').title=`Time over target (UTC): ${nx.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local)`; } }
 function rowCls(el,c){ const off=el.classList.contains('off'); el.className=c; if(off) el.classList.add('off'); }
 function lastLightUI(){ if(!st.pos){ $('sLast').textContent=''; $('sLastRow').hidden=true; return; }
   const t=Date.now(), L=lastLight(st.pos[0],st.pos[1],t), loc=ms=>new Date(ms).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
@@ -4541,6 +4585,7 @@ function render0(){
       $('sPlanTo').textContent='→ '+(tg.c||''); { const S=goSrc(); $('sPlanLbl').textContent= fpT? 'PLAN' : S&&S.c==='dct'? 'DIRECT' : 'GO TO'; $('sPlanLbl').title= S? S.tip : ''; } $('sPlanTurn').textContent=turn; $('sPlanTurn').classList.toggle('off', !!h && Math.abs(((b-h.deg+540)%360)-180)>=10); }
     else { $('sPlan').textContent='—'; $('sPlanTo').textContent=''; $('sPlanTurn').textContent=''; $('sPlanLbl').textContent='PLAN'; }
   }
+  navUI(la,lo,varE); pfMark('nav tiles');
 
   const cands=candidates();
   let pick=null;
