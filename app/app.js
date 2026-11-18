@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794987407084;
+const APP_BUILT=1794991479395;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2112,7 +2112,7 @@ $('optFlash').value=String(FQF.n); $('optFlash').addEventListener('change',()=>{
 // beyond 12 NM). Inbound when you're landing there (adStop: last plan point, a point marked Land, or the Go to aerodrome without a plan);
 // otherwise, for a non-towered aerodrome, the transit call (CAAP 166: within 10 NM). Row #sInbound with the frequency and the inbound call filled in; the Go to tile flashes.
 // Tap the row to dismiss; it goes by itself inside 4 NM or after 4 min.
-const INB={armed:{}, on:null, t:0, lastD:{}, kind:'inb'};
+const INB={armed:{}, on:null, t:0, lastD:{}, kind:'inb', far:{}};   // far: when you were last 3 NM+ from each candidate (arriving vs departing, twrDep)
 // transponder code for a towered aerodrome's airspace: a code ATC gave you (clearance panel), else the aerodrome's own ERSA
 // instruction ("shall SQUAWK code 0100", Essendon), else AIP ENR 1.6 7.1.4 a: civil flights in class A, C and D airspace 3000
 // (Moorabbin's class D zone). After leaving it, VFR in class E or G: 1200 (7.1.4 c).
@@ -2123,7 +2123,8 @@ function sqkOf(a){ if(!a||!(a.x||[]).some(x=>x[0]==='TWR')) return null;
 // are you landing at this aerodrome? the plan's last point, or a plan point marked Land; with no plan, the Go to aerodrome
 function fpLand(k){ const p=FP&&FP.pts[k]; return !!p&&(p.land!=null? p.land : k===FP.pts.length-1); }
 function adStop(a){ if(!a) return false;
-  if(FP&&FP.pts.length>1){ const at=p=>(p.c||'').toUpperCase()===a.i||distBrg(p.la,p.lo,a.la,a.lo)[0]<0.5; return FP.pts.some((p,k)=>at(p)&&fpLand(k)); }
+  if(FP&&FP.pts.length>1){ if(FP.dct){ const g=goTarget(); if(g&&g.ad===a) return true; }   // direct-to an aerodrome (or a point by one) during a plan: a diversion, so you land there
+    const at=p=>(p.c||'').toUpperCase()===a.i||distBrg(p.la,p.lo,a.la,a.lo)[0]<0.5; return FP.pts.some((p,k)=>at(p)&&fpLand(k)); }
   const g=goTarget(); return !!(g&&g.ad===a); }
 // "Ballarat traffic, Cessna 175 Alpha Bravo Charlie, 10 miles north, 4,500 feet, transiting east to west, Ballarat."
 function transitCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('cSign').value), typ=$('cType').value.trim(), cs=csR||'[callsign]', ty=typ||'[type]';
@@ -2147,11 +2148,16 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
   const inCtl= st.curBand&&/^(A|C|D|CTR)$/.test(st.curBand.k)&&!(st.curBand.k==='CTR'&&/^(G|E)$/.test(st.curBand.ctrCls||''));   // in controlled airspace: you're talking to ATC, no CTAF transit calls
   const openZone=a=>aspNear(a.la,a.lo).some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&DATA.ap.some(t=>t!==a&&Math.abs(t.la-a.la)<0.3&&Math.abs(t.lo-a.lo)<0.4&&twrOpen(t)&&inAsp(z,t.la,t.lo)));   // a strip under an open tower's zone (YAVE, YVPC)
   const C=DATA.ap.filter(a=>Math.abs(a.la-la)<0.25&&Math.abs(a.lo-lo)<0.32&&(a===tgt||(!inCtl&&(st.all||a.s==='E')&&(a.t!=='H'||st.heli)&&!twrOpen(a)&&!openZone(a))));
+  // within 10 NM of the aerodrome you're landing at (Go to / plan stop, towered or not), you're on its frequency for the
+  // approach and circuit: no transit calls for other fields (Tyabb → CARR → Moorabbin gave a Caribbean Park call at 3.5 NM)
+  const landNear=DATA.ap.some(a=>Math.abs(a.la-la)<0.2&&Math.abs(a.lo-lo)<0.26&&distBrg(la,lo,a.la,a.lo)[0]<=10&&adStop(a));
+  if(INB.on&&INB.kind==='trn'&&!INB.man&&(landNear||inCtl)){ INB.on=null; box.hidden=true; }   // a transit call showing when you get there: gone
   let hit=null;
-  for(const a of C){ const [d,b]=distBrg(la,lo,a.la,a.lo), prev=INB.lastD[a.i]; INB.lastD[a.i]=d;
+  for(const a of C){ const [d,b]=distBrg(la,lo,a.la,a.lo), prev=INB.lastD[a.i]; INB.lastD[a.i]=d; if(d>3) INB.far[a.i]=Date.now();
     if(d>12) INB.armed[a.i]=true;
     const closing= prev!=null? d<prev-0.002 : st.gs>30, stop=adStop(a);
     if(!stop&&twrOpen(a)) continue;   // passing a towered field: a clearance (NEXT CLASS / Radio calls), not a CTAF call
+    if(!stop&&landNear) continue;
     // one row at a time, but the inbound call for where you're landing takes over from a transit call (a coast leg into
     // Moorabbin runs within 10 NM of Tyabb till 7 NM out)
     const free=!INB.on||(stop&&INB.kind==='trn'&&INB.on!==a.i);
@@ -5543,6 +5549,8 @@ function twrDep(a){   // -> {pt, brg} when you're departing this aerodrome: the 
     for(const k of [i,i-1]) if(k>=0&&k<P.length-1&&at(P[k])){ const nx=P.slice(k+1).find(p=>!at(p)); if(nx) return {pt:nx, brg:distBrg(a.la,a.lo,nx.la,nx.lo)[1]}; }
     return null; }
   const g=GO&&st.pos&&distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]<0.5? GO : null;
+  if(g){ const gt=goTarget(), far=INB.far[a.i]||0, landed=PH.last&&PH.last.k==='land'&&PH.last.t>far;   // a Go to whose aerodrome is this one (CARR → Moorabbin):
+    if(gt&&gt.ad===a&&Date.now()-far<10*60e3&&!landed) return null; }   // arriving if you were 3 NM+ out in the last 10 min and haven't landed since; else departing towards it
   return g&&!at(g)? {pt:{la:g.la,lo:g.lo,c:g.c,n:g.n}, brg:distBrg(a.la,a.lo,g.la,g.lo)[1]} : null; }
 // the split tower's frequency for someone at la/lo (not on the field): ERSA's arrival rule first (Moorabbin: RWY 17/35 in
 // use, from the S via CARR -> 123.0 West, though CARR is just east of south) when within 3 NM of the reporting point, heading
