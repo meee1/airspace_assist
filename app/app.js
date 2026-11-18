@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1794970827492;
+const APP_BUILT=1794987407084;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2156,14 +2156,23 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
     // Moorabbin runs within 10 NM of Tyabb till 7 NM out)
     const free=!INB.on||(stop&&INB.kind==='trn'&&INB.on!==a.i);
     if(free&&INB.armed[a.i]&&d<=10.2&&d>3&&closing&&st.gs>30&&(!hit||d<hit.d||stop&&!hit.stop)) hit={a,d,stop}; }
-  if(hit){ INB.armed[hit.a.i]=false; INB.on=hit.a.i; INB.kind=hit.stop?'inb':'trn'; INB.t=Date.now(); if(hit.stop) phEvent('inb',hit.a);
+  if(hit){ INB.armed[hit.a.i]=false; INB.on=hit.a.i; INB.kind=hit.stop?'inb':'trn'; INB.t=Date.now(); INB.man=false; if(hit.stop) phEvent('inb',hit.a);
     const el=$(hit.a===tgt?'gCtafBox':'sCtafBox'); if(el&&FQF.n>0){ el.classList.remove('fqflash'); void el.offsetWidth; el.style.setProperty('--flashN',FQF.n); el.classList.add('fqflash'); el.addEventListener('animationend',()=>el.classList.remove('fqflash'),{once:true}); } }
   const ad=INB.on&&DATA.ap.find(a=>a.i===INB.on); if(!ad){ box.hidden=true; INB.on=null; return; }
   const [d,b]=distBrg(la,lo,ad.la,ad.lo);
-  if(d<4&&INB.kind==='inb'||d>10.5&&INB.kind==='trn'||Date.now()-INB.t>240e3){ INB.on=null; box.hidden=true; return; }   // inbound: till 4 NM; transit: while inside 10 NM; 4 min at most
+  if((INB.man? d>15 : d<4&&INB.kind==='inb'||d>10.5&&INB.kind==='trn')||Date.now()-INB.t>240e3){ INB.on=null; INB.man=false; box.hidden=true; return; }   // brought back by a tap (INB.man): till you're 15 NM away or 4 min   // inbound: till 4 NM; transit: while inside 10 NM; 4 min at most
   const c= INB.kind==='inb'? inboundCall(ad,d,b) : transitCall(ad,d,b); box.hidden=false;
   box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b>${c.sq?`<small class="sq">SQUAWK ${c.sq.code}</small>`:''}<small class="x">✕</small><span>${c.html||esc(c.txt)}</span>`; }
-$('sInbound').addEventListener('click',()=>{ INB.on=null; $('sInbound').hidden=true; });
+$('sInbound').addEventListener('click',()=>{ INB.on=null; INB.man=false; $('sInbound').hidden=true; });
+// bring the inbound (or transit) call back: a tap on the → CTAF tile (the Go to / plan aerodrome) or the CTAF tile (its aerodrome),
+// within 15 NM, while no call row is showing. Worked out afresh for where you are now. A towered field with its tower open that
+// you're only passing gets no CTAF call (as at 10 NM). Otherwise the tap does what it did before (the whole top bar over the map).
+function inbRecall(a){ if(!a||!st.pos||INB.on) return false; const [d]=distBrg(st.pos[0],st.pos[1],a.la,a.lo); if(d>15) return false;
+  const stop=adStop(a), tw=(a.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(a):null, open=tw.length&&(ts?ts.on:true);
+  if(!stop&&open) return false;
+  INB.on=a.i; INB.kind=stop?'inb':'trn'; INB.t=Date.now(); INB.man=true; INB.armed[a.i]=false; inboundUI(); return !$('sInbound').hidden; }
+for(const [id,ad] of [['gCtafBox',()=>{ const g=goTarget(); return g&&g.ad; }],['sCtafBox',()=>st.ctafTileAd]])
+  $(id).addEventListener('click',e=>{ if(inbRecall(ad())){ e.stopPropagation(); if(FS.bar){ FS.bar=false; fsApply(); } } });
 
 // ---------- wind from GPS: the ground-velocity vectors you fly at one airspeed lie on a circle whose centre is the wind (the
 // "circle method"). Last 3 min of 1 s samples at 30 kt+; once the tracks span 120°+ (a turn, an orbit), a least-squares

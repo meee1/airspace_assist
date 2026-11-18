@@ -617,7 +617,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
     <button class="st fsbar-x" id="fsBarX">▲ Back to the map</button>
-    <div class="st nxcls amber inbound" id="sInbound" hidden title="Inbound call reminder: 10 NM from your Go to / flight plan aerodrome"></div>
+    <div class="st nxcls amber inbound" id="sInbound" hidden title="Inbound call reminder: 10 NM from your Go to / flight plan aerodrome. Tap to dismiss; tap the CTAF or → CTAF tile to bring it back"></div>
     <div class="st nxcls clr" id="sClr" hidden title="Your clearance notes: tap to edit"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
   </div>
@@ -1064,7 +1064,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=2f1e5986af';
+    const s=document.createElement('script'); s.src='app.js?v=ca53e0ff9e';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
