@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795000784242;
+const APP_BUILT=1795034511314;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2007,7 +2007,7 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']],
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['clrreq','Clearance call reminder',['sClrReq']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']],
   ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ngs','GS (nav row)',['nGs']],['ntot','TOT: time over target',['nTot']],['tapea','Heading tape (A, Options → Map)',['sTapeA']]];
 function tilesLayout(){ const off=new Set(ls.get('tilesOff',[])); navRowOff();
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
@@ -2034,6 +2034,7 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   nxcls:`<div class="st nxcls warn"><small>NEXT CLASS</small><b style="color:var(--as-d)">D</b><span>SFC–A025 in 4.0 NM · Moorabbin Twr W 123.0</span></div>`,
   ahead:`<div class="st nxcls ahead"><small>LSALT</small><b>2,500</b><span>highest 1,450 ft terrain in 6.2 NM</span></div>`,
   clr:`<div class="st nxcls clr"><small>CLEARANCE</small><b>4123</b><span>A015 · via CARR · ATIS C</span></div>`,
+  clrreq:`<div class="st nxcls amber inbound"><small>CLEARANCE CALL</small><b>133.55</b><span>Avalon Approach, Bell 206 …, 4 miles north-west of Barwon Heads, 1,500 feet, received …, request clearance to transit …</span></div>`,
   inbound:`<div class="st nxcls amber inbound"><small>INBOUND CALL</small><b>119.1</b><span>Lilydale traffic, Bell 206 …, 10 miles south, 1,500 feet, inbound …</span></div>`,
   last:`<div class="st nxcls amber"><small>LAST LIGHT</small><b style="color:var(--accent)">in 15 min</b><span>0920Z (8:20 pm)</span></div>`,
   traffic:`<div class="st traffic"><b>TRAFFIC</b><span>2 o’clock 1.4 NM · 300 ft above · VH-ABC C172</span></div>`,
@@ -2056,7 +2057,7 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sClrReq','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
 const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
@@ -4763,7 +4764,7 @@ function render0(){
   } else html+=freqRow('AREA','', 'No airspace data here');
   pfMark('class tile');
   nextFreqs(la,lo,altFt,st.hereCtaf,here,cur,clsKey(cur,AS.prd.find(q=>altFt>=q.L-50&&altFt<q.H&&q.k==='R'&&!(q.st&&q.st.s==='off'))).key); pfMark('next freqs');
-  renderCalls(a,pick,varE); pfMark('radio calls');   // after nextFreqs: the clearance-request call uses NX.cls
+  st.curBand=cur; renderCalls(a,pick,varE); clrReqUI(); pfMark('radio calls');   // after nextFreqs: the clearance-request call uses NX.cls
   st.curBand=cur; inboundUI(); clrUI(cur);
   { // warning row: you're inside a restricted / prohibited / danger area at your altitude (status from the NAIPS briefing first), or a NOTAM temporary zone
     const S=(DATA.sua&&DATA.sua.areas)||{}, inn=AS.prd.filter(p=>altFt>=p.L-50&&altFt<p.H), box=$('sInSua');
@@ -5139,9 +5140,11 @@ function icoLbl(id,t){ const s=$(id)&&$(id).querySelector('.il'); if(s){ if(s.te
 for(const [id,k,l] of [['mapCtaf','ctaf','CTAF'],['mapTer','ter','Terrain'],['mapSat','sat','Sat'],['mapChart','chart','Charts'],['mapLead','lead','Lead'],['mapWire','wire','Wires'],['mapRadar','radar','Radar'],['mapMeas','meas','Measure'],['mapRange','range','Range'],['mapLog','log','Log'],['mapWx','wx','Wx'],['mapSide','side','Side'],['mapTraffic','trf','Traffic'],['mapUp','up','Track up'],['mapHome','home','Centre'],['mapLayers','layers','Layers']]) icoBtn(id,k,l);
 // full-screen map: the ten layer buttons are in a grid over the map, opened by Layers (next to the other map buttons);
 // it stays open while you switch layers and closes on a tap anywhere else
+// the grid lives at page level (fixed, above the floating tiles: inside #mapSec, z-index 5, it went under them on a narrow phone)
+document.body.appendChild($('layPop'));
 function layPopShow(on){ const pop=$('layPop'), b=$('mapLayers'); if(!pop||!b) return; pop.hidden=!on; b.setAttribute('aria-expanded',on);
   if(!on) return; const sec=$('mapSec').getBoundingClientRect(), r=b.getBoundingClientRect(), w=pop.offsetWidth, h=pop.offsetHeight;
-  pop.style.left=Math.max(8,r.left-sec.left-w-8)+'px'; pop.style.top=Math.max(8,Math.min(r.bottom-sec.top-h, sec.height-h-8))+'px'; }
+  pop.style.left=Math.max(sec.left+8,r.left-w-8)+'px'; pop.style.top=Math.max(sec.top+8,Math.min(r.bottom-h, sec.bottom-h-8))+'px'; }
 $('mapLayers').onclick=()=>layPopShow($('layPop').hidden);
 document.addEventListener('pointerdown',e=>{ const pop=$('layPop'); if(!pop||pop.hidden) return; if(e.target.closest('#layPop,#mapLayers')) return; layPopShow(false); },true);
 // north up <-> track up (a map turned by hand goes to north up); moved off your position, track up holds the track of the
@@ -5732,6 +5735,16 @@ $('mycSave').onclick=()=>{ const C=MYC.cur, t=$('mycTa').value.replace(/\s+/g,' 
   if(t) MYC.t[k]=t; else delete MYC.t[k]; ls.set('myCalls',MYC.t); $('mycDlg').close(); render(); };
 $('mycReset').onclick=()=>{ const C=MYC.cur; if(!C) return; const m=mycGet(C.a.i,C.mode,MYC.label); if(m){ delete MYC.t[m.k]; ls.set('myCalls',MYC.t); } $('mycDlg').close(); render(); };
 $('mycClose').onclick=()=>$('mycDlg').close();
+/* ---------- clearance call reminder: the clearance request (Radio calls) as a row once the controlled airspace ahead (NEXT
+   CLASS: class A/C/D or a control zone, not an R area) is within 5 NM at your level. Once per airspace; tap to dismiss (it
+   stays dismissed for 10 min); gone when you're in it or after 4 min. */
+let CLRQ=null; const CRQ={dis:{}, on:null, t:0};
+function clrReqUI(){ const box=$('sClrReq'), q=CLRQ, t=Date.now();
+  if(q&&q.d<=5){ if(CRQ.on!==q.key&&!(CRQ.dis[q.key]&&t-CRQ.dis[q.key]<10*60e3)){ CRQ.on=q.key; CRQ.t=t; } } else CRQ.on=null;
+  if(!CRQ.on||!q||q.key!==CRQ.on){ box.hidden=true; return; }
+  if(t-CRQ.t>240e3){ CRQ.dis[CRQ.on]=t; CRQ.on=null; box.hidden=true; return; }
+  box.hidden=false; box.innerHTML=`<small>CLEARANCE CALL</small><b>${q.f||''}</b><small class="x">✕</small><span>${q.html}</span>`; }
+$('sClrReq').addEventListener('click',()=>{ if(CRQ.on) CRQ.dis[CRQ.on]=Date.now(); CRQ.on=null; $('sClrReq').hidden=true; });
 function renderCalls(a,pick,varE){
   st.cardAd=a; { const l=a&&atisOf(a.i), n=[l&&a.a?'ATIS '+a.i+' '+l:'',CLR.sq?'squawk '+CLR.sq:'',CLR.lvl||''].filter(Boolean).join(' · '); $('cAtisNow').textContent=n; }
   const loc=callName(a.n,a.i), T=v=>esc(v), heli=$('cCat').value==='H';
@@ -5802,6 +5815,7 @@ function renderCalls(a,pick,varE){
   }
   // clearance request (trial): controlled airspace (class A/C/D or a control zone) ahead within 10 NM at your level, from
   // the NEXT CLASS check; the unit and frequency are the ones that alert names (a split tower by your side)
+  CLRQ=null;
   { const n=NX.cls; if(n&&!n.prd&&n.b){ let f=n.b.f, unit=n.b.unit?titleCase(n.b.unit):'<i>[unit]</i>';
       const {ad:ctrAd, app}=ctrApp(n.b);
       // a transit goes to approach (towerApp: ERSA APP for that field, by sector) unless the zone's aerodrome is your plan / Go to
@@ -5815,7 +5829,27 @@ function renderCalls(a,pick,varE){
       const atis= ctrAd&&ctrAd.a? `, received ${atisRecv(ctrAd.i)}` : '';
       const lim=`${n.b.L<=0?'SFC':limTxt(n.b.L)}–${limTxt(n.b.H)}`;
       calls.unshift([`Clearance request · ${unitS} ${f||'<i>[freq]</i>'} · class ${n.k} ${lim} in ${n.d<10?n.d.toFixed(1):Math.round(n.d)} NM (trial)`,
-        `${unitS}, ${type} ${cs}, ${posTxt}, ${lvl}${atis}, ${want}. <small>Call well before the boundary and remain outside until cleared; read back the clearance, level and squawk.</small>`]); } }
+        `${unitS}, ${type} ${cs}, ${posTxt}, ${lvl}${atis}, ${want}. <small>Call well before the boundary and remain outside until cleared; read back the clearance, level and squawk.</small>`]);
+      CLRQ={key:n.b.n, d:n.d, f, html:`${unitS}, ${type} ${cs}, ${posTxt}, ${lvl}${atis}, ${want}.`}; } }
+  // transiting a control zone (inside it below its top, not landing at its aerodrome): that zone's calls instead of the CTAF calls
+  // of the card's aerodrome (inside the Avalon zone the closest aerodrome is a strip: Ceres, Lovely Banks, Wooloomanata)
+  { const cur=st.curBand, zt= cur&&cur.k==='CTR'&&!/^(G|E)$/.test(cur.ctrCls||'')? ctrApp(cur) : null;
+    if(!(zt&&zt.ad)) st.ztMem=null;
+    if(zt&&zt.ad&&!adStop(zt.ad)){ const za=zt.ad, zl=callName(za.n,za.i); let u=null, f=cur.f;
+      if(zt.app){ u=zt.app[1]; f=zt.app[2]; }
+      else { const tw=(za.x||[]).filter(x=>x[0]==='TWR'), t=(tw.some(x=>x[4])&&twrSideAt(za,st.pos[0],st.pos[1]))||tw[0]; if(t){ u=t[1]; f=t[2]; } }
+      // the unit you entered with, for the whole transit: you stay on it till ATC moves you (near the field the approach
+      // unit would otherwise flip to the tower)
+      if(st.ztMem&&st.ztMem.n===cur.n){ u=st.ztMem.u; f=st.ztMem.f; } else st.ztMem={n:cur.n,u,f};
+      const unitS=titleCase(String(u||zl+' Tower')).replace(/\s*\([^)]*\)/g,'').replace(/\bApp\b/,'Approach').replace(/\bTwr\b/,'Tower');
+      const [zd,zb]=distBrg(za.la,za.lo,st.pos[0],st.pos[1]), zn=Math.max(1,Math.round(zd));
+      const zpos= zd<0.75? `over ${T(zl)}` : `${zn} mile${zn===1?'':'s'} ${PTS[Math.round(norm(zb-varE)/45)%8]} of ${T(zl)}`;
+      const zname=titleCase(cur.n||zl+' control zone').replace(/\s*\([^)]*\)/g,'');
+      calls=[...(CLRQ? [calls[0]] : []), [`In the zone · ${unitS} ${f||''} · position report (when ATC asks)`,`${unitS}, ${cs}, ${zpos}, ${lvl}.`],
+        ['Clear of the zone (if ATC asked you to report it)',`${unitS}, ${cs}, clear of control zone. <small>ATC gives the frequency and squawk for after the zone; without one, squawk 1200 in class G or E.</small>`]];
+      modeTxt=`<b>Transiting ${T(zname)}</b> · ${T(unitS)} ${f||''}${za.a?` · ATIS ${za.a[0]}`:''}<br>`;
+      note=`You're in ${zname} and not landing at ${za.i}: stay on ${f||'the frequency you were cleared on'} until ATC changes it, keep to your clearance and read back any change. The CTAF calls for ${a.i} are for after the zone.`;
+      $('callsAt').textContent=unitS+' · '+(f||''); station=T(unitS); posV=zpos; altV=lvl; atisV=za.a? atisRecv(za.i) : ''; } }
   let rptHtml='';
   if(mode==='twr' && K.rpts){
     const pts=(K.rpts||'').split(/,\s*|\s+or\s+/).map(x=>x.trim()).filter(Boolean).map(c=>VWby.get(c)).filter(Boolean)

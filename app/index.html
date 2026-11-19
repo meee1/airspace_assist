@@ -536,7 +536,7 @@ body.fsm #mapSec .mapctl .icob,#layPop .icob{flex-direction:column;gap:2px;min-w
 body.fsm #mapSec .mapctl .icob .il,#layPop .icob .il{font:700 8.5px/1 var(--f-label);letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}
 #mapLayers{display:none} body.fsm #mapLayers{display:inline-flex}
 body.fsm #mapLayers[aria-expanded=true]{background:var(--freq)!important;border-color:var(--freq);color:#fff}
-.laypop{display:none} body.fsm .laypop:not([hidden]){display:grid;position:absolute;z-index:8;grid-template-columns:repeat(6,58px);gap:6px;padding:8px;border-radius:12px;background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--rule);box-shadow:0 6px 22px rgba(0,0,0,.28)}
+.laypop{display:none} body.fsm .laypop:not([hidden]){display:grid;position:fixed;z-index:30;grid-template-columns:repeat(6,58px);gap:6px;padding:8px;border-radius:12px;background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--rule);box-shadow:0 6px 22px rgba(0,0,0,.28)}
 .laypop .btn{min-height:52px;justify-content:center;margin:0}
 @media (max-width:420px){ body.fsm .laypop:not([hidden]){grid-template-columns:repeat(4,58px)} }
 body.fsm #fsSheet{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;height:var(--fsH,64px);z-index:30;background:var(--bg);border-top:1px solid var(--rule);border-radius:14px 14px 0 0;box-shadow:0 -6px 22px rgba(0,0,0,.2);transition:height .18s ease-out}
@@ -574,7 +574,7 @@ body.fsm.fsm-tab .wrap>.status{grid-template-columns:repeat(6,minmax(0,1fr))!imp
 body.fsm.fsm-tab .wrap>.status>.st{grid-column:span 3!important}
 body.fsm.fsm-tab .wrap>.status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .wrap>.status>#sHdgBox,body.fsm.fsm-tab .wrap>.status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .wrap>.status>#sLimBox{grid-column:span 4!important}
 body.fsm.fsm-tab .wrap>.status>.st.fq,body.fsm.fsm-tab .wrap>.status>.st.ctl,body.fsm.fsm-tab .wrap>.status>.st.nxcls,body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>.fsbar-x,body.fsm.fsm-tab .wrap>.status>.st.tapea{grid-column:1/-1!important}
-body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sClr,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow,body.fsm.fsm-tab .wrap>.status>#sSar,body.fsm.fsm-tab .wrap>.status>#sChk{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
+body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sClrReq,body.fsm.fsm-tab .wrap>.status>#sClr,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow,body.fsm.fsm-tab .wrap>.status>#sSar,body.fsm.fsm-tab .wrap>.status>#sChk{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
 body.fsm.fsm-tab .wrap>.status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .wrap>.status>.st.nxcls span{white-space:normal;flex-basis:100%}
 body.fsm.fsm-tab #mapSec{left:300px}
 body.fsm.fsm-tab #fsSheet{left:300px}
@@ -625,6 +625,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
     <button class="st fsbar-x" id="fsBarX">▲ Back to the map</button>
+    <div class="st nxcls amber inbound" id="sClrReq" hidden title="Clearance call reminder: controlled airspace within 5 NM ahead at your level. Tap to dismiss (the call is also first in Radio calls)"></div>
     <div class="st nxcls amber inbound" id="sInbound" hidden title="Inbound call reminder: 10 NM from your Go to / flight plan aerodrome. Tap to dismiss; tap the CTAF or → CTAF tile to bring it back"></div>
     <div class="st nxcls clr" id="sClr" hidden title="Your clearance notes: tap to edit"></div>
     <div class="st nxcls warn" id="sNxCls" hidden title="Controlled (class A, C, D) or restricted airspace ahead within 10 NM at your current altitude, along the flight plan or your track"></div>
@@ -1073,7 +1074,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=9ff8f1269f';
+    const s=document.createElement('script'); s.src='app.js?v=163a61f9cd';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
