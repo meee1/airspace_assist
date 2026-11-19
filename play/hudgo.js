@@ -10,8 +10,8 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
     let g=await vis('gCtafBox'); ok(g.par==='hudL'&&!g.shown,`${n}: no Go to: → tiles in the HUD column, hidden`);
     await p.evaluate(()=>{ const a=DATA.ap.find(x=>x.i==='YMMB'); setGo({k:'AD',c:a.i,n:a.n,la:a.la,lo:a.lo}); render(); }); await p.waitForTimeout(300);
     g=await vis('gCtafBox'); const a=await vis('gAreaBox'), sheet=await p.evaluate(()=>Math.round($('fsSheet').getBoundingClientRect().top));
-    ok(g.shown&&a.shown&&/TWR W ?123\.0 ?YMMB/.test(g.txt)&&/GO TO/.test(g.txt),`${n}: Go to YMMB: → TWR shown over the map: ${g.txt}`);
-    ok(a.bot<sheet&&await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${n}: → AREA ends above the sheet (${a.bot} < ${sheet}), no sideways scroll`);
+    ok(g.shown&&(a.shown||await p.evaluate(()=>$('gCtaf').textContent===$('gArea').textContent))&&/TWR W ?123\.0 ?YMMB/.test(g.txt)&&/GO TO/.test(g.txt),`${n}: Go to YMMB: → TWR shown over the map: ${g.txt}`);
+    ok((a.shown?a.bot:g.bot)<sheet&&await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${n}: → AREA ends above the sheet (${a.bot} < ${sheet}), no sideways scroll`);
     await p.screenshot({path:__dirname+`/hudgo_${n}.png`});
     // the whole top bar: the → tiles are back in it with their full lines
     await p.click('#sAreaBox'); await p.click('#sAreaBox'); await p.waitForTimeout(300);

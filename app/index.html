@@ -107,10 +107,10 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .status>.tapea,#hudT>.tapea{grid-column:1/-1;padding:4px 8px 5px} .status>.tapea{order:-2}   /* at the top (Michael: "Place the a tape at the top") */ .tapea canvas{display:block;width:100%;height:56px} .tapea small{display:block;margin-top:2px;font:700 12px/1.2 var(--f-mono);color:#b03fd6;text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hudT{position:fixed;z-index:20;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));top:max(8px,env(safe-area-inset-top,0px));display:none} body.fsm:not(.fsm-tab):not(.fsm-bar) #hudT{display:block}
 #hudT>.tapea{background:color-mix(in srgb,var(--panel) 90%,transparent);padding:2px 8px 3px} #hudT>.tapea small{display:none}   /* over the phone's map: slim (the →HDG tile has the steer line), so the alert rows below still fit above the sheet */
-#hudT>.tapea canvas{height:50px} body.fsm .navrow{display:grid;grid-template-columns:1fr 1fr}   /* full screen (phone HUD, tablet column): 2 x 2, four across is too narrow for 0432Z */
+#hudT>.tapea canvas{height:50px} body.fsm .navrow{display:flex;flex-wrap:wrap} body.fsm .navrow>.st{flex:1 1 40%} body.fsm .navrow>#nTape{flex-basis:100%}   /* full screen (phone HUD, tablet column): 2 x 2, four across is too narrow for 0432Z */
 #hud .st.gt small.nx,#hud .st.gt small.cn{display:none}   /* the → tiles over the phone's map: compact (Michael: "in phone mode the planned elements never show"); the full ones are in the whole top bar */
 #hud .navrow{gap:4px;margin-top:4px} #hud .navrow>.st.t{padding:3px 7px} #hud .navrow>.st b{font-size:19px} #hud .navrow>.st small.agl{flex-basis:100%;font-size:10.5px}
-.st.fq.l{grid-column:1/span 7} .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
+.st.fq.l{grid-column:1/span 7} .st.fq.dup{display:none!important} .wrap>.status>.st.fq.solo{grid-column:1/-1!important}   /* a frequency shown once (CTAF = AREA, → TWR = → ATC) */ .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st.fq small.nx b{display:inline;font:inherit;font-weight:700;color:var(--freq);margin:0}
 .st.fq small.nx:empty{display:none}
@@ -604,7 +604,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
   <div class="status" aria-live="off">
     <div class="st gps" id="gpsTile" title="GPS"><span class="dot" id="gpsDot" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" class="f"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><b id="sAcc">—</b><i id="gpsAge"></i></div>
     <div class="st t" id="sHdgBox"><small id="hdgLbl">TRK</small><b id="sHdg">—</b><small id="sWind" class="agl" title="Wind estimated from GPS while you turn (ground speed vectors around a circle): direction it blows from, °M / kt"></small></div>
-    <div class="st t" id="sGsBox"><small>GS kt</small><b id="sGs">—</b><small id="sLast" class="agl" title="Last light: end of evening civil twilight here (sun 6° below the horizon), the end of VFR day"></small></div>
+    <div class="st t" id="sGsBox"><small>GS kt</small><b id="sGs">—</b><small id="sLast" class="agl" title="Last light: end of evening civil twilight here (sun 6° below the horizon), the end of VFR day"></small><small id="sGsW" class="agl" title="Head or tail wind along your track (GPS wind estimate, else Plan check's wind)"></small></div>
     <div class="st t plan" id="sPlanBox" title="Planned heading: magnetic bearing to the active flight plan waypoint, or the Go to point (no wind correction)"><small id="sPlanLbl">PLAN</small><b id="sPlan">—</b><small class="turn" id="sPlanTo"></small><small class="turn" id="sPlanTurn"></small></div>
     <div class="st t" id="sAltBox" title="GPS altitude"><small>ALT ft</small><b id="sAlt">—</b><small id="sAgl" class="agl"></small></div>
     <div class="st t cls" id="sClsBox" title="Airspace class at your position and altitude, and the restricted or danger area you're in"><small>CLASS</small><b id="sCls">—</b><small id="sClsP" class="cap"></small></div>
@@ -617,7 +617,6 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div class="st t nc" id="nHdg" title="Compass heading (°M), aligned to your GPS track when the app has learnt it; drift = track minus heading"><small>HDG °M</small><b id="nHdgV">—</b><small class="agl" id="nHdgS"></small></div>
       <div class="st t nc" id="nTo" title="Heading to steer (°M) to the next waypoint or Go to point, corrected for the wind (GPS estimate while flying, else Plan check's wind); second line: to the destination"><small>→HDG °M</small><b id="nToV">—</b><small class="agl" id="nToS"></small><small class="agl" id="nToD"></small></div>
       <div class="st t nc tapec" id="nTape" hidden title="Heading tape: your track (°M; the compass heading when you're slow) in the box; filled magenta bug = heading to steer to the next point (wind-corrected), hollow = the straight bearing to it"><canvas id="nTapeCv" aria-hidden="true"></canvas><small class="agl" id="nTapeS"></small></div>
-      <div class="st t nc" id="nGs" title="Ground speed (kt), and the head or tail wind along your track when the wind is known"><small>GS kt</small><b id="nGsV">—</b><small class="agl" id="nGsS"></small></div>
       <div class="st t nc" id="nTot" title="Time over target (UTC): when you'll reach the next waypoint at your groundspeed, and the destination along the rest of the plan (wind-corrected per leg when the wind is known)"><small>TOT</small><b id="nTotV">—</b><small class="agl" id="nTotS"></small><small class="agl" id="nTotD"></small></div>
     </div>
     <div class="st tapea" id="sTapeA" hidden title="Heading tape: your track (°M; the compass heading when you're slow) in the box; filled magenta bug = heading to steer to the next point (wind-corrected), hollow = the straight bearing to it"><canvas id="tapeACv" aria-hidden="true"></canvas><small id="tapeAS"></small></div>
@@ -1082,7 +1081,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=0fdbca6f48';
+    const s=document.createElement('script'); s.src='app.js?v=eb31ac0ff2';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

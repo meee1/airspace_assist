@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795076930258;
+const APP_BUILT=1795078365609;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1659,6 +1659,7 @@ function renderGoTiles(here,curF,altFt){
     $('gCtafBox').hidden=false;
     if(g.ad!==here){ renderCtl(g.ad,r.tp,r.open,r.ts,'gCtl'); $('gCtl').dataset.ad=g.ad.i; const s0=$('gCtl').querySelector('small'); if(s0&&!s0.textContent.startsWith('→')) s0.textContent='→ '+s0.textContent; } else renderCtl(null,0,0,0,'gCtl'); }
   else { $('gCtafLbl').textContent='→ CTAF'; $('gCtaf').textContent='—'; $('gCtafAd').textContent=''; $('gCtafNx').textContent=`${GO.c} ${dd} NM · no aerodrome within 10 NM`; $('gCtafBox').hidden=false; renderCtl(null,0,0,0,'gCtl'); }
+  { const dup=$('gCtaf').textContent!=='—'&&$('gCtaf').textContent===$('gArea').textContent; if(dup) $('gAreaBox').hidden=true; $('gCtafBox').classList.toggle('solo',dup); }   // → TWR and → ATC on one frequency (Moorabbin's zone): one tile
 }
 function setGo(p){
   if(FP&&p&&p.k!=='FP'){ // GNSS-style direct-to
@@ -2026,7 +2027,7 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
   ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['clrreq','Clearance call reminder',['sClrReq']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']],
-  ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ngs','GS (nav row)',['nGs']],['ntot','TOT: time over target',['nTot']],['tapea','Heading tape (A, Options → Map)',['sTapeA']]];
+  ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ntot','TOT: time over target',['nTot']],['tapea','Heading tape (A, Options → Map)',['sTapeA']]];
 // two sets (Michael: "2 tick boxes ... one for phone mode one for tablet mode"): rc_tilesOff for the phone (and a tablet held
 // upright), rc_tilesOffTab for the tablet in landscape (FS_TAB); the tablet's starts as a copy of the phone's
 const tilesKey=()=>typeof FS_TAB!=='undefined'&&FS_TAB? 'tilesOffTab' : 'tilesOff';
@@ -2042,7 +2043,8 @@ function tilesLayout(){ const off=tilesOffNow(); navRowOff();
   sb.style.gridTemplateColumns=cols; const half=Math.max(1,Math.round(T/2));
   const pair=(a,b,on)=>{ if(on.a&&on.b){ $(a).style.gridColumn=`1/span ${half}`; $(b).style.gridColumn=`${half+1}/-1`; } else { $(a).style.gridColumn='1/-1'; $(b).style.gridColumn='1/-1'; } };
   pair('sCtafBox','sAreaBox',{a:!off.has('ctaf'),b:!off.has('area')}); pair('gCtafBox','gAreaBox',{a:true,b:true}); }
-function navRowOff(){ const off=tilesOffNow(); $('sNav').classList.toggle('off',['nhdg','nto','ngs','ntot'].every(k=>off.has(k))); }
+function navRowOff(){ const off=tilesOffNow(); let A=false, D=false; try{ A=hdgOn('A'); D=hdgOn('D'); }catch(e){}   // at start-up the heading settings don't exist yet
+  $('sNav').classList.toggle('off',!D&&(A||['nhdg','nto'].every(k=>off.has(k)))&&off.has('ntot')); }
 // small examples beside each tick box (fixed sample values, the tiles' own classes, shrunk with zoom)
 const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').innerHTML}</span></div>`,
   trk:`<div class="st t"><small>TRK °M</small><b>275</b></div>`, gs:`<div class="st t"><small>GS kt</small><b>95</b><small class="agl">last 0920Z</small></div>`,
@@ -2065,7 +2067,6 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   tapea:`<div class="st t" style="width:150px"><small>TAPE</small><b>02 ‹040› 06</b><small class="agl" style="color:#b03fd6">STEER 030 · L10°</small></div>`,
   nhdg:`<div class="st t"><small>HDG °M</small><b>268</b><small class="agl">drift R7°</small></div>`,
   nto:`<div class="st t"><small>→HDG °M</small><b>281</b><small class="agl">CARR WCA R6</small></div>`,
-  ngs:`<div class="st t"><small>GS kt</small><b>88</b><small class="agl">HW 12</small></div>`,
   ntot:`<div class="st t"><small>TOT</small><b>0432Z</b><small class="agl">CARR 12 min</small></div>`,
   sar:`<div class="st nxcls sar amber"><small>SARTIME</small><b style="color:var(--accent)">0430Z</b><span>in 0:25 · with ATS · tap when cancelled</span></div>`,
   chk:`<div class="st nxcls amber chk"><small>CHECKLIST</small><b>Pre-landing</b><span>Before landing · tap to open</span></div>`,
@@ -4336,7 +4337,7 @@ let NAVB=null;
 const HDG_MAG='#b03fd6';
 function hdgCog(){ const h=heading(); return h? {deg:h.deg, src:h.src} : null; }   // true
 function hdgTapeDraw(varE){ const onD=hdgOn('D'), onA=hdgOn('A');
-  $('nTape').hidden=!onD; $('sNav').classList.toggle('tapeon',onD); $('sTapeA').hidden=!onA;
+  $('nTape').hidden=!onD; $('sNav').classList.toggle('tapeon',onD||onA); $('sTapeA').hidden=!onA; navRowOff();   // either tape shows track, steer and bearing: no HDG / →HDG tiles beside it
   if(onD) hdgTape1($('nTapeCv'),$('nTapeS'),varE); if(onA) hdgTape1($('tapeACv'),$('tapeAS'),varE,true); }
 function hdgTape1(cv,lineEl,varE,wide){
   const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return; const dpr=window.devicePixelRatio||1;
@@ -4393,8 +4394,7 @@ function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!
   const dct=FP&&FP.dct&&GO, fpT=FP&&!FP.dct&&FP.pts[FP.i], nx= fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO? {c:GO.c||GO.n,la:GO.la,lo:GO.lo} : null;
   const last=FP&&!dct? FP.pts[FP.pts.length-1] : null, dest= last&&last!==fpT? {c:last.c||last.n,la:last.la,lo:last.lo} : null;
   // GS, and the wind along your track
-  set('nGsV', st.gs!=null? String(Math.round(st.gs)) : '—');
-  { let t=''; if(W&&st.trk!=null&&st.gs>20){ const c=W.kt*Math.cos((W.dir-st.trk)*R); t=(c>=0?'HW ':'TW ')+Math.round(Math.abs(c)); } set('nGsS',t); }
+  { let t=''; if(W&&st.trk!=null&&st.gs>20){ const c=W.kt*Math.cos((W.dir-st.trk)*R); t=(c>=0?'HW ':'TW ')+Math.round(Math.abs(c)); } set('sGsW',t); }   // on the GS tile (the nav row's own GS tile went: Michael "Dedup the tiles")
   if(!nx){ NAVB=null; hdgTapeDraw(varE); for(const id of ['nToV','nTotV']) set(id,'—'); set('nToS','no waypoint / Go to'); set('nTotS',''); set('nToD',''); set('nTotD',''); return; }
   // →HDG to the next point
   const [dN,bN]=distBrg(la,lo,nx.la,nx.lo), triN= W? windTri(bN,W.tas,W.dir,W.kt) : null, hN= triN? triN.hdg : bN;
@@ -4754,7 +4754,7 @@ function render0(){
   // the card and radio calls are for another aerodrome than this tile's: say which, and why (selected by you / the plan's)
   srcChip($('sCtafSrc'), st.pin? {t:(pick.a===here?'SELECTED':'CARD '+pick.a.i)+' ✕', c:'pin', tip:`${pick.a.i} is selected: the aerodrome card and radio calls are for it instead of the closest aerodrome. Tap to go back to automatic.`}
     : fpWhy&&pick.a!==here? {t:'CARD '+pick.a.i, c:'fp', tip:`The aerodrome card and radio calls are for ${pick.a.i}: ${fpWhy}`} : null);
-  { const r=ctafTile(here,herePk,'s'); st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here;
+  { const r=ctafTile(here,herePk,'s'); st.ctafFar=!!r.CI.far; st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here;
     if(nearPk.a!==here&&twrOpenNow(nearPk.a)&&nearPk.d<=10){ const r2=twrPick(nearPk.a,nearPk), ts2=twrStatus(nearPk.a); renderCtl(nearPk.a,r2,true,ts2); st.ctlAd=nearPk.a; }   // a towered field you're near but not in: its ATIS / TWR row still shows
     else { renderCtl(here,r.tp,r.open,r.ts); st.ctlAd= here.a||(here.x||[]).some(x=>x[0]==='TWR')? here : null; } }
   $('ctafRow').innerHTML=html; html='';
@@ -4837,6 +4837,11 @@ function render0(){
     if(capp){ $('sAreaLbl').textContent='APP'; $('sArea').textContent=capp[2]; }
     $('sArea').style.color=g?'':'var(--as-'+((cur.k==='CTR'?cur.ctrCls:cur.k)==='A'?'c':(cur.k==='CTR'?cur.ctrCls:cur.k).toLowerCase())+')';
     { const ll=areaLL(AS,cur), u=cur? unitShort(cur.unit) : ''; $('sAreaWho').textContent=u+(ll?(u?' · ':'')+ll:''); } if(spl&&!capp) $('sAreaWho').textContent=unitShort(T.tp.tw[1]||cur.unit); if(capp) $('sAreaWho').textContent=unitShort(capp[1]||'')+' · zone transit'; }
+  { // no aerodrome within 10 NM: the CTAF tile shows the area frequency, the same as the AREA tile: one tile, with both "next" lines
+    // (Michael: "Dedup the tiles")
+    const f=$('sCtaf').textContent, dup=st.ctafFar&&f!=='—'&&f===$('sArea').textContent;
+    $('sAreaBox').classList.toggle('dup',dup); $('sCtafBox').classList.toggle('solo',dup);
+    if(dup&&$('sAreaNx').innerHTML) $('sCtafNx').innerHTML=($('sCtafNx').innerHTML? $('sCtafNx').innerHTML+' · ' : '')+$('sAreaNx').innerHTML; }
   renderGoTiles(here,$('sArea').textContent,altFt);
   for(const b of AS.ba.filter(b=>altFt>=b.L-50&&altFt<b.H))
     html+=freqRow('BCST',b.f,`<em>${esc(titleCase(b.n))} broadcast area</em> · ${limTxt(b.L)}–${limTxt(b.H)} ${chip(ASRC)}`);

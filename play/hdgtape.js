@@ -16,11 +16,11 @@ const {chromium}=require('playwright'); const {PX9,TAB}=require('./px9.js');
   // classic phone: A by default, in the top bar
   let {ctx,p}=await mk(PX9,false); let r=await state(p);
   ok((await p.evaluate(()=>{ const t=$('sTapeA').getBoundingClientRect(), g=$('gpsTile').getBoundingClientRect(); return t.bottom<=g.top+1; })),'classic: A is the first row of the top bar');
-  ok(r.mode==='A'&&r.A&&!r.D&&r.hdg!=='none'&&/^STEER 030 · turn left 10°  →  CARR 8\.4 NM$/.test(r.aS),'classic: A by default, HDG/→HDG tiles still there: '+r.aS);
+  ok(r.mode==='A'&&r.A&&!r.D&&r.hdg==='none'&&/^STEER 030 · turn left 10°  →  CARR 8\.4 NM$/.test(r.aS),'classic: A by default, in place of the HDG/→HDG tiles: '+r.aS);
   ok((await mag(p))===0,'A only: no arc on the map');
   await p.locator('.wrap>.status').screenshot({path:__dirname+'/hdgtape_classic_A.png'});
   for(const [m,a,c,d] of [['C',false,true,false],['D',false,false,true],['AC',true,true,false],['CD',false,true,true],['off',false,false,false]]){ await setMode(p,m); r=await state(p); const n=await mag(p);
-    ok(r.A===a&&r.D===d&&(n>40)===c&&(r.hdg==='none')===d&&(await p.evaluate(()=>ls.get('hdgMode')))===m,`mode ${m}: tape A ${r.A}, tape D ${r.D}, arc ${n} px`); }
+    ok(r.A===a&&r.D===d&&(n>40)===c&&(r.hdg==='none')===(d||a)&&(await p.evaluate(()=>ls.get('hdgMode')))===m,`mode ${m}: tape A ${r.A}, tape D ${r.D}, arc ${n} px`); }
   await setMode(p,'A'); await ctx.close();
   // full-screen phone: A under the tiles (its own row over the map), C, D
   ({ctx,p}=await mk(PX9,true));
