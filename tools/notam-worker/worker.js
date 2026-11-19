@@ -71,17 +71,26 @@ async function traffic(u, env, ctx, H) {
     ...(env.ADSBLOL_KEY ? [['https://re-api.adsb.lol/?circle={lat},{lon},{nm}', LK]] : []),
     ['https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}', {}],
     ['https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{nm}', {}]];
-  let j = null, url = '', errs = [];
+  let j = null, url = '', errs = [], wait = [];
   for (const [tpl, hd] of feeds) {
     url = tpl.replace('{lat}', la).replace('{lon}', lo).replace('{nm}', nm); const host = new URL(url).host;
+    // a feed that answered 429 is left alone until its Retry-After has passed (adsb.lol: "Retry after the number of seconds in
+    // `Retry-After`"; unkeyed it allows 500 requests a day per IP, and this Worker is one IP for everyone), so it isn't asked
+    // again every 10 s while it's over quota
+    const until = await blockedUntil(host);
+    if (until) { const s = Math.ceil((until - Date.now()) / 1000); errs.push(`${host} 429: rate limited, next try in ${s} s`); wait.push(s); continue; }
     try {
       const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 5000);
       const r = await fetch(url, { signal: ac.signal, headers: { ...UA, ...hd } }).finally(() => clearTimeout(tm));
+      if (r.status === 429) { const s = Math.max(1, Math.min(86400, parseInt(r.headers.get('Retry-After'), 10) || 60)); await block(host, s, ctx);
+        errs.push(`${host} 429: ${(await r.text()).slice(0, 80)} (Retry-After ${s} s)`); wait.push(s); continue; }
       if (!r.ok) { errs.push(`${host} ${r.status}: ${(await r.text()).slice(0, 120)}`); continue; }
       j = await r.json(); break;
     }
     catch (e) { errs.push(`${host}: ${e.name === 'AbortError' ? 'timeout' : e.message}`); }
   }
+  if (!j && wait.length === feeds.length) { const s = Math.min(...wait);   // every feed is rate limited: tell the app when to ask again
+    return json({ error: 'rate limited', retryAfter: s, keyed: !!env.ADSBLOL_KEY, errors: errs }, 429, { ...H, 'Retry-After': String(s), 'Access-Control-Expose-Headers': 'Retry-After' }); }
   if (!j) return json({ error: 'ADS-B feed unavailable', keyed: !!env.ADSBLOL_KEY, errors: errs }, 502, H);
   const num = v => typeof v === 'number' && isFinite(v) ? v : null;
   const out = (j.ac || j.aircraft || []).filter(a => num(a.lat) != null && num(a.lon) != null).map(a => ({
@@ -94,6 +103,13 @@ async function traffic(u, env, ctx, H) {
   ctx.waitUntil(cache.put(key, res.clone()));
   return res;
 }
+// feeds over their quota (429): kept in this isolate's memory and in the edge cache (other isolates), keyed by host
+const BLOCK = new Map();
+async function block(host, s, ctx) { const until = Date.now() + s * 1000; BLOCK.set(host, until);
+  ctx.waitUntil(caches.default.put(new Request(`https://adsb.cache/block/${host}`), new Response(String(until), { headers: { 'Cache-Control': `public, max-age=${s}` } }))); }
+async function blockedUntil(host) { let until = BLOCK.get(host) || 0;
+  if (until <= Date.now()) { const r = await caches.default.match(new Request(`https://adsb.cache/block/${host}`)); until = r ? +(await r.text()) || 0 : 0; if (until > Date.now()) BLOCK.set(host, until); }
+  return until > Date.now() ? until : 0; }
 const TILE = {
   wi: { min: 3, max: 19, url: (z, y, x) => `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}` },
   st: { min: 2, max: 20, url: (z, y, x) => `https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1/arcgis/imagery/labels/static/tile/${z}/${y}/${x}` }

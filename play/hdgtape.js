@@ -31,6 +31,12 @@ const {chromium}=require('playwright'); const {PX9,TAB}=require('./px9.js');
   const bugTop=await p.evaluate(()=>{ const C=hdgCog(); NAVB={brg:C.deg, steer:C.deg, c:'X', d:5, w:true}; hdgTape1($('tapeACv'),$('tapeAS'),variation(st.pos[0],st.pos[1]),true);
     const c=$('tapeACv'), k=c.width/c.clientWidth, d=c.getContext('2d').getImageData(Math.round(c.width/2-12*k),0,Math.round(24*k),Math.round(12*k)).data; let n=0; for(let i=0;i<d.length;i+=4) if(d[i]>150&&d[i+1]<100&&d[i+2]>180) n++; return n; });
   ok(bugTop>20,'steer = track: the magenta bug shows above the track box ('+bugTop+' px)'); await p.evaluate(()=>render());
+  // off the end of the tape: an arrow at the edge on the side to turn to (steer 90 deg right -> right edge; 100 deg left -> left edge)
+  const edgeAt=async off=>p.evaluate(off=>{ const C=hdgCog(); NAVB={brg:C.deg+off, steer:C.deg+off, c:'X', d:5, w:true}; hdgTape1($('tapeACv'),$('tapeAS'),variation(st.pos[0],st.pos[1]),true);
+    const c=$('tapeACv'), k=c.width/c.clientWidth, h=Math.round(13*k), d=c.getContext('2d').getImageData(0,0,c.width,h).data, W=c.width; let l=0,r=0,m=0;
+    for(let i=0;i<d.length;i+=4){ if(!(d[i]>150&&d[i+1]<100&&d[i+2]>180)) continue; const x=(i/4)%W; if(x<W*0.12) l++; else if(x>W*0.88) r++; else m++; } return {l,r,m}; },off);
+  const eR=await edgeAt(90), eL=await edgeAt(-100); await p.evaluate(()=>render());
+  ok(eR.r>30&&eR.l===0&&eL.l>30&&eL.r===0,`off the tape: arrow at the right edge for a right turn (${eR.r} px), left edge for a left turn (${eL.l} px)`);
   await setMode(p,'C'); await p.screenshot({path:__dirname+'/hdgtape_phone_C.png'}); await setMode(p,'D'); await p.screenshot({path:__dirname+'/hdgtape_phone_D.png'}); await ctx.close();
   // tablet: A in the left column, C, D
   ({ctx,p}=await mk(TAB,true)); r=await state(p);

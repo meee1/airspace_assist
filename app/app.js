@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795034511314;
+const APP_BUILT=1795068906714;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -958,10 +958,15 @@ $('optTrSize').value=String(TRS.k); $('optTrSize').addEventListener('change',()=
 $('optTrNm').value=String(trNm()); $('optTrNm').addEventListener('change',()=>{ ls.set('trNm',+$('optTrNm').value); TR.t=0; trPoll(); });
 async function trPoll(){
   const u=ntUrl(); if(!MAP.traffic||!u||!st.pos||TR.busy||!navigator.onLine||document.hidden) return;
+  if(TR.wait&&Date.now()<TR.wait) return;   // the feed said 429: wait for its Retry-After
   TR.busy=true;
   try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),12000);   // the proxy may try two feeds (5 s each)
     const r=await fetch(`${u}/traffic?lat=${st.pos[0].toFixed(3)}&lon=${st.pos[1].toFixed(3)}&nm=${trNm()}`,{signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(tm));
-    const j=await r.json().catch(()=>({})); if(!r.ok||!Array.isArray(j.ac)) throw new Error((j.error||('HTTP '+r.status))+(Array.isArray(j.errors)&&j.errors.length? ' ('+j.errors.join('; ')+')' : ''));
+    const j=await r.json().catch(()=>({}));
+    if(r.status===429){ const s=Math.max(10,Math.min(86400,+j.retryAfter||+r.headers.get('Retry-After')||60)); TR.wait=Date.now()+s*1000;   // over the feed's quota (adsb.lol: 500 a day per IP without a key)
+      throw new Error(`the ADS-B feed is over its request quota: next try ${new Date(TR.wait).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} (in ${s<120?s+' s':Math.round(s/60)+' min'})`); }
+    TR.wait=0;
+    if(!r.ok||!Array.isArray(j.ac)) throw new Error((j.error||('HTTP '+r.status))+(Array.isArray(j.errors)&&j.errors.length? ' ('+j.errors.join('; ')+')' : ''));
     TR.ac=j.ac; TR.t=Date.now(); TR.src=j.src||'ADS-B'; TR.nm=j.nm||Math.min(trNm(),40);   // an older proxy caps at 40 NM and doesn't say TR.skip=Array.isArray(j.skipped)?j.skipped:[]; TR.err=null; trLogAdd();
   }catch(e){ TR.err=String(e&&e.message||e).slice(0,220); }
   TR.busy=false; render(); }
@@ -1473,11 +1478,24 @@ function ctafTile(a,pk,P,when){ // one CTAF/TWR tile (ids P+'Ctaf', P+'CtafLbl',
 // inside its control zone): the CTAF tile shows its approach frequency, the unit you'd talk to around it. ERSA APP
 // entries; with several, the one whose sector holds you at your altitude. null -> show the tower as before.
 function adPlanned(a){ if(FP&&FP.pts.some(p=>(p.c||'').toUpperCase()===a.i||distBrg(p.la,p.lo,a.la,a.lo)[0]<0.5)) return true;
-  if(GO&&(GO.c===a.i||distBrg(GO.la,GO.lo,a.la,a.lo)[0]<0.5)) return true; const g=goTarget(); return !!(g&&g.ad===a); }
+  return goLandsAt(a); }
+// does your Go to mean landing at this aerodrome? Its own point, one of its ERSA reporting points (CARR -> Moorabbin), or a coast
+// leg's turn point ending there. Not a town, suburb or other point that merely has the aerodrome within 10 NM (Michael: Moorabbin
+// to Norlane gave Avalon Tower though not landing; Norlane's nearest aerodrome is Avalon)
+function goLandsAt(a){ if(!GO||!a) return false; if(GO.adc) return GO.adc===a.i;
+  const c=String(GO.c||'').toUpperCase(); if(c===a.i||distBrg(GO.la,GO.lo,a.la,a.lo)[0]<0.5) return true;
+  if(!c) return false; const rp=((a.keys||{}).rpts||'').toUpperCase().split(/,\s*|\s+OR\s+/).map(x=>x.trim());
+  return rp.includes(c)||twrRules(a).some(r=>r.rp===c); }
+const TWRFAR={};   // when you were last 3 NM+ from each towered aerodrome (towerApp: transit vs circuit / departing)
 function towerApp(a){
   const apps=(a.x||[]).filter(x=>x[0]==='APP'); if(!apps.length||!st.pos||adPlanned(a)) return null;
   const alt=st.alt!=null?st.alt:0, t=terrainFt(st.pos[0],st.pos[1]);
-  if(distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]<3&&aspNear(st.pos[0],st.pos[1]).some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)&&alt<limFt(z.hi,z.hik,t!=null?t:0,0))) return null;   // in its zone within 3 NM of the field (circuit, departing): tower. Elsewhere in the zone you're transiting: approach (owner, 1 Nov 2026)
+  const dA=distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0], now=Date.now(); if(dA>=3) TWRFAR[a.i]=now;
+  // within 3 NM of the field in its zone: the tower when you're in the circuit or departing, i.e. you haven't come in from 3 NM+
+  // in the last 15 min (or you've landed since). Crossing near the field on a transit stays with approach (Michael: Moorabbin
+  // to Norlane passes within 3 NM of Avalon and showed Avalon Tower)
+  const cameIn=TWRFAR[a.i]&&now-TWRFAR[a.i]<15*60e3&&!(PH.last&&PH.last.k==='land'&&PH.last.t>TWRFAR[a.i]);
+  if(dA<3&&!cameIn&&aspNear(st.pos[0],st.pos[1]).some(z=>z.k==='CTR'&&inAsp(z,st.pos[0],st.pos[1])&&inAsp(z,a.la,a.lo)&&alt<limFt(z.hi,z.hik,t!=null?t:0,0))) return null;   // in its zone within 3 NM of the field (circuit, departing): tower. Elsewhere in the zone you're transiting: approach (owner, 1 Nov 2026)
   if(apps.length>1){ const fs=sectorsAt(st.pos[0],st.pos[1],alt).map(x=>x.f); const m=apps.find(x=>fs.includes(x[2])); if(m) return m; }
   return apps[0]; }
 // weather box on the aerodrome card (trial): the briefing's METAR/SPECI with wind, QNH, temperature, density altitude
@@ -2072,6 +2090,18 @@ function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud
   else for(const id of FS_HUD) fsBack($(id));
   if(!$('fsTabs').children.length) $('fsTabs').innerHTML=FS_TABS.map(([l,id])=>`<button type="button" role="tab" data-fs="${id}">${l}</button>`).join('');
   if(want){ fsSheet(FS.s); fsHudPos(); } tilesLayout(); }
+// tablet full screen: the divider between the tile column and the map (rc_tabW, 240 px up to 45% of the width; default 300)
+{ const sp=$('fsSplit'), lim=w=>Math.round(Math.max(240,Math.min(w,Math.max(260,innerWidth*0.45))));
+  const setW=(w,save)=>{ w=lim(w); document.documentElement.style.setProperty('--tabW',w+'px'); if(save) ls.set('tabW',w); if(document.body.classList.contains('fsm-tab')){ fsSheet(FS.s); if(MAP.last) requestAnimationFrame(()=>drawMap(...MAP.last)); } };
+  const w0=ls.get('tabW',null); if(w0) setW(w0,false);
+  let drag=null;
+  sp.addEventListener('pointerdown',e=>{ drag={id:e.pointerId}; sp.classList.add('drag'); try{ sp.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); });
+  sp.addEventListener('pointermove',e=>{ if(drag&&e.pointerId===drag.id) setW(e.clientX,false); });
+  const end=e=>{ if(!drag||e.pointerId!==drag.id) return; drag=null; sp.classList.remove('drag'); setW(e.clientX,true); };
+  sp.addEventListener('pointerup',end); sp.addEventListener('pointercancel',end);
+  sp.addEventListener('keydown',e=>{ const cur=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tabW'))||300;
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); setW(cur+(e.key==='ArrowRight'?20:-20),true); } });
+  addEventListener('resize',()=>{ const w=ls.get('tabW',null); if(w) setW(w,false); }); }
 function fsHudPos(){ const ds=document.documentElement.style, vis=e=>[...e.children].some(c=>!c.hidden&&getComputedStyle(c).display!=='none');
   // the heading tape (A) is at the top of the screen; the tile columns start under it
   if(vis($('hudT'))) ds.setProperty('--hudTop',Math.round($('hudT').getBoundingClientRect().bottom+6)+'px'); else ds.removeProperty('--hudTop');
@@ -2129,9 +2159,9 @@ function sqkOf(a){ if(!a||!(a.x||[]).some(x=>x[0]==='TWR')) return null;
 // are you landing at this aerodrome? the plan's last point, or a plan point marked Land; with no plan, the Go to aerodrome
 function fpLand(k){ const p=FP&&FP.pts[k]; return !!p&&(p.land!=null? p.land : k===FP.pts.length-1); }
 function adStop(a){ if(!a) return false;
-  if(FP&&FP.pts.length>1){ if(FP.dct){ const g=goTarget(); if(g&&g.ad===a) return true; }   // direct-to an aerodrome (or a point by one) during a plan: a diversion, so you land there
+  if(FP&&FP.pts.length>1){ if(FP.dct&&goLandsAt(a)) return true;   // direct-to an aerodrome (or one of its reporting points) during a plan: a diversion, so you land there
     const at=p=>(p.c||'').toUpperCase()===a.i||distBrg(p.la,p.lo,a.la,a.lo)[0]<0.5; return FP.pts.some((p,k)=>at(p)&&fpLand(k)); }
-  const g=goTarget(); return !!(g&&g.ad===a); }
+  return goLandsAt(a); }
 // "Ballarat traffic, Cessna 175 Alpha Bravo Charlie, 10 miles north, 4,500 feet, transiting east to west, Ballarat."
 function transitCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('cSign').value), typ=$('cType').value.trim(), cs=csR||'[callsign]', ty=typ||'[type]';
   const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), nv=nearestVFR(st.pos[0],st.pos[1],1.5), pos=(nv?`over ${titleCase(nv.p.n)}, `:'')+`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
@@ -2154,9 +2184,9 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
   const inCtl= st.curBand&&/^(A|C|D|CTR)$/.test(st.curBand.k)&&!(st.curBand.k==='CTR'&&/^(G|E)$/.test(st.curBand.ctrCls||''));   // in controlled airspace: you're talking to ATC, no CTAF transit calls
   const openZone=a=>aspNear(a.la,a.lo).some(z=>z.k==='CTR'&&inAsp(z,a.la,a.lo)&&DATA.ap.some(t=>t!==a&&Math.abs(t.la-a.la)<0.3&&Math.abs(t.lo-a.lo)<0.4&&twrOpen(t)&&inAsp(z,t.la,t.lo)));   // a strip under an open tower's zone (YAVE, YVPC)
   const C=DATA.ap.filter(a=>Math.abs(a.la-la)<0.25&&Math.abs(a.lo-lo)<0.32&&(a===tgt||(!inCtl&&(st.all||a.s==='E')&&(a.t!=='H'||st.heli)&&!twrOpen(a)&&!openZone(a))));
-  // within 10 NM of the aerodrome you're landing at (Go to / plan stop, towered or not), you're on its frequency for the
+  // within 15 NM of the aerodrome you're landing at (Go to / plan stop, towered or not), you're on its frequency for the
   // approach and circuit: no transit calls for other fields (Tyabb → CARR → Moorabbin gave a Caribbean Park call at 3.5 NM)
-  const landNear=DATA.ap.some(a=>Math.abs(a.la-la)<0.2&&Math.abs(a.lo-lo)<0.26&&distBrg(la,lo,a.la,a.lo)[0]<=10&&adStop(a));
+  const landNear=DATA.ap.some(a=>Math.abs(a.la-la)<0.3&&Math.abs(a.lo-lo)<0.38&&distBrg(la,lo,a.la,a.lo)[0]<=15&&adStop(a));   // 15 NM (Michael: Caribbean Park's transit call came up 12 NM from Moorabbin)
   if(INB.on&&INB.kind==='trn'&&!INB.man&&(landNear||inCtl)){ INB.on=null; box.hidden=true; }   // a transit call showing when you get there: gone
   let hit=null;
   for(const a of C){ const [d,b]=distBrg(la,lo,a.la,a.lo), prev=INB.lastD[a.i]; INB.lastD[a.i]=d; if(d>3) INB.far[a.i]=Date.now();
@@ -2607,7 +2637,7 @@ function satUI(){ $('mapSat').setAttribute('aria-pressed',SAT.on&&!!satVia()); $
 // ---------- power lines: Geoscience Australia transmission lines (66 kV+, overhead), tools/powerlines.py -> powerlines.json
 // {src, got, l:[[kV, sub, underConstruction, [x0,y0,dx,dy,...] 1e-5 deg lon/lat]]}. Loaded once (the service worker keeps it).
 // Drawn with the Wires layer; the warning (Options, default on) works without it.
-const PL={on:ls.get('mapWire',false), warn:ls.get('wireWarn',true), d:null, busy:false, err:'', grid:new Map(), hit:null, said:new Map()}, PL_CELL=0.1, PL_AGL=500, PL_AHEAD=2;
+const PL={on:ls.get('mapWire',false), warn:ls.get('wireWarn',true), d:null, busy:false, err:'', grid:new Map(), hit:null, said:new Map()}, PL_CELL=0.1, PL_AGL=500, PL_AHEAD=2, PL_SAY=300;
 function plLoad(){ if(PL.d||PL.busy||PL.err==='none') return; PL.busy=true;
   fetch('powerlines.json').then(r=>r.ok? r.json() : Promise.reject(new Error(r.status===404?'none':'HTTP '+r.status))).then(j=>{
     const L=[]; for(const [kv,sub,uc,d] of j.l||[]){ const xy=new Float64Array(d.length); let x=0,y=0; const b=[1e9,1e9,-1e9,-1e9];
@@ -2635,8 +2665,10 @@ function plUI(){ const box=$('sWires'); if(PL.warn||PL.on) plLoad();
   const h= PL.warn? plAhead() : null; PL.hit=h;
   if(!h){ box.hidden=true; box.innerHTML=''; return; }
   box.hidden=false; box.innerHTML=`<b>WIRES</b><span>${h.d<0.1?'now':h.d.toFixed(1)+' NM ahead'} · ${h.kv?h.kv+' kV ':''}power line · you're ${h.agl.toLocaleString('en-AU')} ft above terrain</span>`;
-  const last=PL.said.get(h.k)||0;
-  if(trVoiceOn()&&'speechSynthesis' in window&&Date.now()-last>90e3){ PL.said.set(h.k,Date.now()); try{ const m=Math.round(h.d), n=h.d<0.75?'half a mile':m+' mile'+(m>1?'s':''); const u=new SpeechSynthesisUtterance(`Wires ahead, ${n}`); u.rate=1.05; speechSynthesis.speak(u); }catch(e){} } }
+  const last=PL.said.get(h.k)||0, tX=terrainFt(h.la,h.lo), aglX= tX!=null&&st.alt!=null? st.alt-tX : h.agl;   // height above the ground at the line
+  // spoken only when you're low at the line (under PL_SAY, about the height of the towers); the row shows below PL_AGL as before
+  // (Michael: "the wires ahead call doesn't need to be spoken when AGL is high")
+  if(aglX<PL_SAY&&trVoiceOn()&&'speechSynthesis' in window&&Date.now()-last>90e3){ PL.said.set(h.k,Date.now()); try{ const m=Math.round(h.d), n=h.d<0.75?'half a mile':m+' mile'+(m>1?'s':''); const u=new SpeechSynthesisUtterance(`Wires ahead, ${n}`); u.rate=1.05; speechSynthesis.speak(u); }catch(e){} } }
 function drawWires(g,P,C,W,Hh,la,lo,reach,cosl,sc){
   const hit=PL.warn? PL.hit : null; if(!(PL.on||hit)) return;
   if(PL.on&&!PL.d){ plLoad(); if(PL.err){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--warn'); g.textAlign='left'; g.fillText(PL.err==='none'? 'Wires: no data yet (run tools/powerlines.py)' : 'Wires: '+PL.err,8,34); } }
@@ -4313,8 +4345,12 @@ function hdgTape1(cv,lineEl,varE,wide){
     const t=fmt3(C.deg-varE); g.font='700 13px '+mono; const bw=g.measureText(t).width+12; g.fillStyle=ink; g.beginPath(); g.roundRect? g.roundRect(W/2-bw/2,13,bw,17,4) : g.rect(W/2-bw/2,13,bw,17); g.fill();
   g.fillStyle=cssv('--panel'); g.textAlign='center'; g.fillText(t,W/2,26);
   if(NAVB){ const xb=X(NAVB.brg-varE), xs=X(NAVB.steer-varE);   // the bugs last, in their own band above the box: never hidden by it (Michael: "The magenta arrow disappears under the black box")
-    g.strokeStyle=HDG_MAG; g.lineWidth=2; g.beginPath(); g.moveTo(xb-6,1); g.lineTo(xb+6,1); g.lineTo(xb,9); g.closePath(); g.stroke();
-    g.fillStyle=HDG_MAG; g.strokeStyle='#fff'; g.lineWidth=1; g.beginPath(); g.moveTo(xs-7,0); g.lineTo(xs+7,0); g.lineTo(xs+7,5); g.lineTo(xs,11); g.lineTo(xs-7,5); g.closePath(); g.fill(); g.stroke(); }
+    // off the end of the tape: an arrow at that edge pointing the way to turn (Michael), the steer heading beside it
+    const off=x=>x<7||x>W-7, edge=(x,fill,val)=>{ const L=x<W/2, e=L?2:W-2, k=L?1:-1; g.beginPath(); g.moveTo(e,6); g.lineTo(e+12*k,0); g.lineTo(e+12*k,12); g.closePath();
+      if(fill){ g.fillStyle=HDG_MAG; g.fill(); g.strokeStyle='#fff'; g.lineWidth=1; g.stroke(); } else { g.strokeStyle=HDG_MAG; g.lineWidth=2; g.stroke(); }
+      if(val!=null){ g.font='700 11px '+mono; g.textAlign=L?'left':'right'; g.lineWidth=3; g.strokeStyle=cssv('--panel'); const tx=e+15*k; g.strokeText(fmt3(val),tx,10); g.fillStyle=HDG_MAG; g.fillText(fmt3(val),tx,10); } };
+    if(off(xb)) edge(xb,false,null); else { g.strokeStyle=HDG_MAG; g.lineWidth=2; g.beginPath(); g.moveTo(xb-6,1); g.lineTo(xb+6,1); g.lineTo(xb,9); g.closePath(); g.stroke(); }
+    if(off(xs)) edge(xs,true,NAVB.steer-varE); else { g.fillStyle=HDG_MAG; g.strokeStyle='#fff'; g.lineWidth=1; g.beginPath(); g.moveTo(xs-7,0); g.lineTo(xs+7,0); g.lineTo(xs+7,5); g.lineTo(xs,11); g.lineTo(xs-7,5); g.closePath(); g.fill(); g.stroke(); } }
   if(C.src!=='TRK'){ g.font='600 9px '+mono; g.fillStyle=dim; g.textAlign='left'; g.fillText('HDG',2,24); }
   const turn= NAVB? ((((NAVB.steer-C.deg)%360)+540)%360-180) : null;
   lineEl.textContent= NAVB? (wide&&W>360? `STEER ${fmt3(NAVB.steer-varE)} · ${Math.abs(turn)<2?'on heading':(turn<0?'turn left ':'turn right ')+Math.round(Math.abs(turn))+'°'}  →  ${NAVB.c||''} ${NAVB.d!=null?(NAVB.d<10?NAVB.d.toFixed(1):Math.round(NAVB.d))+' NM':''}${NAVB.w?'':' · no wind'}` : `STEER ${fmt3(NAVB.steer-varE)} ${Math.abs(turn)<2?'on heading':navLR(turn)+'°'} · ${String(NAVB.c||'').slice(0,8)}${NAVB.d!=null?' '+(NAVB.d<10?NAVB.d.toFixed(1):Math.round(NAVB.d)):''}${NAVB.w?'':' · no wind'}`) : 'no waypoint / Go to'; }
@@ -5816,7 +5852,10 @@ function renderCalls(a,pick,varE){
   // clearance request (trial): controlled airspace (class A/C/D or a control zone) ahead within 10 NM at your level, from
   // the NEXT CLASS check; the unit and frequency are the ones that alert names (a split tower by your side)
   CLRQ=null;
-  { const n=NX.cls; if(n&&!n.prd&&n.b){ let f=n.b.f, unit=n.b.unit?titleCase(n.b.unit):'<i>[unit]</i>';
+  { const n=NX.cls, za=n&&!n.prd&&n.b? ctrApp(n.b).ad : null;
+    // landing at the zone's own aerodrome: the tower inbound call is the request (INBOUND CALL row, tower calls), so no
+    // clearance request (Michael, Moorabbin from the north: both rows came up)
+    if(n&&!n.prd&&n.b&&!(za&&adStop(za))){ let f=n.b.f, unit=n.b.unit?titleCase(n.b.unit):'<i>[unit]</i>';
       const {ad:ctrAd, app}=ctrApp(n.b);
       // a transit goes to approach (towerApp: ERSA APP for that field, by sector) unless the zone's aerodrome is your plan / Go to
       // (then you're landing there and it's the tower); no APP in ERSA (Moorabbin) -> tower

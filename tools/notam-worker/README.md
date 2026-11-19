@@ -22,6 +22,7 @@ folder keeps its old name.)
   button is on and there's signal. (airplanes.live was the first choice but its API now answers 403 "please contact
   us" until they approve a project.) If both fail the answer is 502 with `errors` naming each feed's status, which the
   app shows under the map and in Settings.
+- **Rate limits (19 Nov 2026):** adsb.lol allows 500 requests a day per IP without a key (https://api.adsb.lol/api/openapi.json), and over quota it answers 429 with `Retry-After` in seconds. The Worker remembers that per feed (in memory and the edge cache) and doesn't ask that feed again until then, trying the next one; when every feed is over quota it answers the app 429 with `Retry-After` and `retryAfter` in the body, and the app holds its polls until then and says so. All the app's users share the Worker's IP, so a key (ADSBLOL_KEY, x-api-key) or fewer polls matter. Test: `node test_429.mjs`. **Redeploy the Worker** for this.
 - Returns `{src, t, n, ac:[{hex, flt, reg, type, la, lo, ab, gnd, ag, gs, trk, vs, cat, seen}]}`: `ab` pressure
   altitude, `ag` GNSS altitude (WGS84 ellipsoid; the app converts it to MSL with the geoid), `seen` position age in s.
 - **adsb.lol API key:** add it as the secret `ADSBLOL_KEY` (Cloudflare dashboard → the Worker → Settings → Variables and

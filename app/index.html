@@ -170,13 +170,13 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .sidebox .sb-h{display:flex;align-items:center;gap:6px;font:600 11px/1.2 var(--f-mono);color:var(--dim)} .sidebox .sb-h span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .sidebox .sb-h .btn{min-height:24px;padding:1px 7px;font-size:11px}
 .sidebox canvas{display:block;width:100%;height:112px}
 body.fsm .sidebox{position:fixed;bottom:calc(var(--fsH,64px) + 10px);left:10px;right:auto;width:min(calc(100vw - 110px),460px)}
-body.fsm.fsm-tab .sidebox{left:310px;width:min(calc(100vw - 420px),520px)}
+body.fsm.fsm-tab .sidebox{left:calc(var(--tabW,300px) + 10px);width:min(calc(100vw - 420px),520px)}
 .wxr{display:inline-block;width:9px;height:9px;border-radius:50%;border:3px solid;vertical-align:-2px;margin:0 2px 0 6px}
 .sar-who{display:flex;flex-direction:column;gap:3px;font-size:13px;margin:6px 0} .sar-who input{font:500 14px var(--f-label);padding:8px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)}
 .measbox{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;box-shadow:0 4px 14px rgba(0,0,0,.18);font:500 13px/1.35 var(--f-label)}
 .measbox b{font:700 16px var(--f-mono)} .measbox .mb-b{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap} .measbox .btn{padding:6px 9px;font-size:11px;min-height:32px} .measbox small{color:var(--dim)}
 body.fsm .measbox{position:fixed;bottom:calc(var(--fsH,64px) + 10px);left:10px;right:auto;width:min(calc(100vw - 110px),420px)}
-body.fsm.fsm-tab .measbox{left:310px;width:min(calc(100vw - 420px),420px)}   /* the tablet's full-screen map starts right of the 300 px tile column */
+body.fsm.fsm-tab .measbox{left:calc(var(--tabW,300px) + 10px);width:min(calc(100vw - 420px),420px)}   /* the tablet's full-screen map starts right of the 300 px tile column */
 .pl-save{display:flex;gap:6px;margin:8px 0} .pl-save input,.pl-filter input{flex:1;min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)} .pl-filter input{width:100%;box-sizing:border-box;margin-bottom:6px}
 .wp-form{display:grid;gap:6px;margin:8px 0} .wp-form label{display:grid;grid-template-columns:70px 1fr;align-items:center;gap:8px;font-size:12px;color:var(--dim)} .wp-form input,#shLink,.cl-ed input,.cl-ed select,.cl-ed textarea{min-width:0;font:500 15px var(--f-mono);padding:7px 9px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);box-sizing:border-box;width:100%}
 .sh-qr{display:flex;justify-content:center;margin:10px 0} .sh-qr canvas{background:#fff;border-radius:8px;image-rendering:pixelated;max-width:100%} #shLink{font-size:12px;margin-bottom:8px}
@@ -569,15 +569,17 @@ body.fsm .mapmenu{z-index:9}
 #hud .st.t b{font-size:19px;margin:0} #hud .st.t small.agl,#hud .st.t small.cap{font-size:10.5px}
 #hud .st.gps{flex-direction:row;height:auto;padding:4px 8px;justify-content:flex-start;gap:6px;align-self:flex-end;width:auto}
 #hud .st.nxcls{flex-wrap:wrap;font-size:12.5px;padding:5px 8px} #hud .st.nxcls span{white-space:normal;flex-basis:100%} #hud .st.traffic{font-size:13px}
-body.fsm.fsm-tab .wrap>.status{position:fixed!important;top:0;bottom:0;left:0;width:300px;z-index:20;margin:0!important;padding:max(8px,env(safe-area-inset-top,0px)) 8px 8px max(8px,env(safe-area-inset-left,0px))!important;overflow:auto;background:var(--bg);grid-template-columns:repeat(2,minmax(0,1fr))!important;align-content:start;border-right:1px solid var(--rule)}
+body.fsm.fsm-tab .wrap>.status{position:fixed!important;top:0;bottom:0;left:0;width:var(--tabW,300px);z-index:20;margin:0!important;padding:max(8px,env(safe-area-inset-top,0px)) 8px 8px max(8px,env(safe-area-inset-left,0px))!important;overflow:auto;background:var(--bg);grid-template-columns:repeat(2,minmax(0,1fr))!important;align-content:start;border-right:1px solid var(--rule)}
 body.fsm.fsm-tab .wrap>.status{grid-template-columns:repeat(6,minmax(0,1fr))!important}
 body.fsm.fsm-tab .wrap>.status>.st{grid-column:span 3!important}
 body.fsm.fsm-tab .wrap>.status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .wrap>.status>#sHdgBox,body.fsm.fsm-tab .wrap>.status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .wrap>.status>#sLimBox{grid-column:span 4!important}
 body.fsm.fsm-tab .wrap>.status>.st.fq,body.fsm.fsm-tab .wrap>.status>.st.ctl,body.fsm.fsm-tab .wrap>.status>.st.nxcls,body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>.fsbar-x,body.fsm.fsm-tab .wrap>.status>.st.tapea{grid-column:1/-1!important}
 body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sClrReq,body.fsm.fsm-tab .wrap>.status>#sClr,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow,body.fsm.fsm-tab .wrap>.status>#sSar,body.fsm.fsm-tab .wrap>.status>#sChk{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
 body.fsm.fsm-tab .wrap>.status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .wrap>.status>.st.nxcls span{white-space:normal;flex-basis:100%}
-body.fsm.fsm-tab #mapSec{left:300px}
-body.fsm.fsm-tab #fsSheet{left:300px}
+body.fsm.fsm-tab #mapSec{left:var(--tabW,300px)}
+body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
+#fsSplit{display:none} body.fsm.fsm-tab #fsSplit{display:block;position:fixed;top:0;bottom:0;left:calc(var(--tabW,300px) - 8px);width:16px;z-index:26;cursor:col-resize;touch-action:none}
+#fsSplit::after{content:'';position:absolute;left:5px;top:50%;width:6px;height:56px;margin-top:-28px;border-radius:3px;background:var(--dim);opacity:.55;box-shadow:0 0 0 2px var(--bg)} #fsSplit:hover::after,#fsSplit.drag::after{opacity:.9;background:var(--accent)}
 .v3win{position:fixed;z-index:9998;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--rule);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
 .v3win[hidden]{display:none} .v3h{display:flex;gap:5px;align-items:center;padding:4px 6px 4px 9px;cursor:move;touch-action:none;font:600 12px var(--f-mono);border-bottom:1px solid var(--rule);user-select:none}
 .v3h b{flex:1;white-space:nowrap} .v3h small{font:600 9px var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--warn);border:1px solid currentColor;border-radius:3px;padding:1px 3px}
@@ -839,6 +841,7 @@ body.fsm.fsm-tab #fsSheet{left:300px}
     <button class="btn" id="bInstall" hidden title="Install as an app: full screen, its own icon, and Android keeps its stored data">Install app</button>
   </div>
 
+  <div id="fsSplit" role="separator" aria-orientation="vertical" aria-label="Drag to make the tile column wider or narrower" title="Drag to make the tile column wider or narrower" tabindex="0"></div>
   <div id="hud" aria-label="Key frequencies and flight data over the map"><div id="hudL"></div><div id="hudR"></div><div id="hudA"></div><div id="hudT"></div></div>
   <div id="fsSheet" data-s="peek"><div id="fsHead"><div class="fs-grab" aria-hidden="true"><i></i></div><div class="fs-tabs" id="fsTabs" role="tablist"></div></div><div id="fsBody"><div id="fsLayers" class="fs-sec"><div class="lbl">Map layers</div><div class="ctl" id="fsLayBtns"></div></div></div></div>
 
@@ -1074,7 +1077,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=163a61f9cd';
+    const s=document.createElement('script'); s.src='app.js?v=387ae95d31';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
