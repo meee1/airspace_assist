@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795068906714;
+const APP_BUILT=1795076930258;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2027,7 +2027,12 @@ const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
   ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['clrreq','Clearance call reminder',['sClrReq']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']],
   ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ngs','GS (nav row)',['nGs']],['ntot','TOT: time over target',['nTot']],['tapea','Heading tape (A, Options → Map)',['sTapeA']]];
-function tilesLayout(){ const off=new Set(ls.get('tilesOff',[])); navRowOff();
+// two sets (Michael: "2 tick boxes ... one for phone mode one for tablet mode"): rc_tilesOff for the phone (and a tablet held
+// upright), rc_tilesOffTab for the tablet in landscape (FS_TAB); the tablet's starts as a copy of the phone's
+const tilesKey=()=>typeof FS_TAB!=='undefined'&&FS_TAB? 'tilesOffTab' : 'tilesOff';
+const tilesOffFor=m=>new Set(m==='tab'? (ls.get('tilesOffTab',null)??ls.get('tilesOff',[])) : ls.get('tilesOff',[]));
+const tilesOffNow=()=>tilesOffFor(tilesKey()==='tilesOffTab'?'tab':'phone');
+function tilesLayout(){ const off=tilesOffNow(); navRowOff();
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
   sb.style.gridAutoFlow= off.size? 'row dense' : '';   // fill the holes hidden tiles leave (narrow layout spans)
@@ -2037,7 +2042,7 @@ function tilesLayout(){ const off=new Set(ls.get('tilesOff',[])); navRowOff();
   sb.style.gridTemplateColumns=cols; const half=Math.max(1,Math.round(T/2));
   const pair=(a,b,on)=>{ if(on.a&&on.b){ $(a).style.gridColumn=`1/span ${half}`; $(b).style.gridColumn=`${half+1}/-1`; } else { $(a).style.gridColumn='1/-1'; $(b).style.gridColumn='1/-1'; } };
   pair('sCtafBox','sAreaBox',{a:!off.has('ctaf'),b:!off.has('area')}); pair('gCtafBox','gAreaBox',{a:true,b:true}); }
-function navRowOff(){ const off=new Set(ls.get('tilesOff',[])); $('sNav').classList.toggle('off',['nhdg','nto','ngs','ntot'].every(k=>off.has(k))); }
+function navRowOff(){ const off=tilesOffNow(); $('sNav').classList.toggle('off',['nhdg','nto','ngs','ntot'].every(k=>off.has(k))); }
 // small examples beside each tick box (fixed sample values, the tiles' own classes, shrunk with zoom)
 const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').innerHTML}</span></div>`,
   trk:`<div class="st t"><small>TRK °M</small><b>275</b></div>`, gs:`<div class="st t"><small>GS kt</small><b>95</b><small class="agl">last 0920Z</small></div>`,
@@ -2075,7 +2080,7 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sClrReq','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','gCtafBox','gAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sClrReq','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
 const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
@@ -2380,10 +2385,12 @@ function csvRows(t){ const out=[]; let row=[], f='', q=false;
 function logTotals(){ const now=Date.now(), V=Object.values(LOGBK).filter(v=>!v.del);
   return [7,28,365].map(d=>{ const S=V.filter(v=>v.off>now-d*86400e3); const ms=S.reduce((a,v)=>a+v.on-v.off,0);
     return {d, n:S.length, ms, night:S.reduce((a,v)=>a+(v.night||0),0), ldg:S.reduce((a,v)=>a+(v.ldg||0),0)}; }); }
-function tilesOpts(){ const off=new Set(ls.get('tilesOff',[]));
-  $('optsTiles').innerHTML=TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<label><input type="checkbox" data-tile="${k}"${off.has(k)?'':' checked'}><span>${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></label>`; }).join(''); }
-$('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const off=new Set(ls.get('tilesOff',[]));
-  if(c.checked) off.delete(c.dataset.tile); else off.add(c.dataset.tile); ls.set('tilesOff',[...off]); tilesLayout(); });
+function tilesOpts(){ const P=tilesOffFor('phone'), T=tilesOffFor('tab'), now=tilesKey()==='tilesOffTab'?'tab':'phone';
+  const cb=(k,m,off)=>`<label class="tl-cb${now===m?' now':''}"><input type="checkbox" data-tile="${k}" data-m="${m}"${off.has(k)?'':' checked'} aria-label="${m==='tab'?'Tablet':'Phone'}: ${esc(TILES.find(t=>t[0]===k)[1])}"><small>${m==='tab'?'Tablet':'Phone'}</small></label>`;
+  $('optsTiles').innerHTML=`<div class="tl-row tl-head"><span>Tile</span><small class="tl-h${now==='phone'?' now':''}">Phone</small><small class="tl-h${now==='tab'?' now':''}">Tablet</small></div>`+
+    TILES.map(([k,l])=>{ const ex=TILE_EX[k]; return `<div class="tl-row">${cb(k,'phone',P)}${cb(k,'tab',T)}<span class="tl-n">${esc(l)}</span><span class="tpv" aria-hidden="true"><span class="status">${typeof ex==='function'?ex():ex||''}</span></span></div>`; }).join(''); }
+$('optsTiles').addEventListener('change',e=>{ const c=e.target.closest('[data-tile]'); if(!c) return; const m=c.dataset.m==='tab'?'tab':'phone', off=tilesOffFor(m);
+  if(c.checked) off.delete(c.dataset.tile); else off.add(c.dataset.tile); ls.set(m==='tab'?'tilesOffTab':'tilesOff',[...off]); tilesLayout(); });
 matchMedia('(max-width:370px)').addEventListener('change',tilesLayout);
 tilesLayout();
 $('optCtafSplit').checked=ls.get('ctafSplit',true);

@@ -108,6 +108,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 #hudT{position:fixed;z-index:20;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));top:max(8px,env(safe-area-inset-top,0px));display:none} body.fsm:not(.fsm-tab):not(.fsm-bar) #hudT{display:block}
 #hudT>.tapea{background:color-mix(in srgb,var(--panel) 90%,transparent);padding:2px 8px 3px} #hudT>.tapea small{display:none}   /* over the phone's map: slim (the →HDG tile has the steer line), so the alert rows below still fit above the sheet */
 #hudT>.tapea canvas{height:50px} body.fsm .navrow{display:grid;grid-template-columns:1fr 1fr}   /* full screen (phone HUD, tablet column): 2 x 2, four across is too narrow for 0432Z */
+#hud .st.gt small.nx,#hud .st.gt small.cn{display:none}   /* the → tiles over the phone's map: compact (Michael: "in phone mode the planned elements never show"); the full ones are in the whole top bar */
 #hud .navrow{gap:4px;margin-top:4px} #hud .navrow>.st.t{padding:3px 7px} #hud .navrow>.st b{font-size:19px} #hud .navrow>.st small.agl{flex-basis:100%;font-size:10.5px}
 .st.fq.l{grid-column:1/span 7} .st.fq{grid-column:8/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:6px 9px}
 .st.fq small.nx{flex-basis:100%;font:600 11px/1.2 var(--f-mono);text-transform:none;letter-spacing:0;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -358,6 +359,10 @@ button.chgo{flex:none;padding:0;border:0;background:none;position:relative;curso
 .sos-call{font:600 17px/1.45 var(--f-label);padding:10px 12px;border:2px solid #c62828;border-radius:10px;background:color-mix(in srgb,#c62828 7%,var(--panel));color:var(--ink)}
 .sos-sq{margin:8px 0;font-size:13px} .sos-pos{font:600 13px/1.5 var(--f-mono)} #sosNear tr{cursor:pointer}
 .pc-sec{font:700 11px var(--f-label);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px} .opts-tiles label{padding:6px 4px} .opts-tiles label>span:not(.tpv){flex:1 1 auto;min-width:0}
+.opts-tiles .tl-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--rule)} .opts-tiles .tl-n{flex:1 1 auto;min-width:0;font-size:13px}
+.opts-tiles .tl-cb{display:flex;flex-direction:column;align-items:center;gap:1px;padding:0;border:0;width:44px;flex:none;cursor:pointer} .opts-tiles .tl-cb small{font:600 9px var(--f-label);color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.opts-tiles .tl-cb.now small,.opts-tiles .tl-h.now{color:var(--accent)} .opts-tiles .tl-head{font:600 11px var(--f-label);color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.opts-tiles .tl-head>span{order:3;flex:1 1 auto} .opts-tiles .tl-h{width:44px;text-align:center;flex:none} .opts-tiles .tl-cb small{display:none}   /* the column heads say Phone / Tablet (the one in use now in the accent colour) */
 .tpv{flex:none;width:250px;zoom:.56;pointer-events:none;margin-left:auto} .tpv .status{display:block;position:static;padding:0;margin:0;background:none} .tpv .st{margin:0} .tpv .st[hidden]{display:flex}
 .tpv .st.t{display:inline-flex;flex-direction:column;width:110px} .tpv .st.gps{display:inline-flex;width:44px;height:64px} .tpv .st>small:first-child{line-height:1.3;overflow:visible} .tpv .st.t small{line-height:1.3}
 .opts-list label input{width:20px;height:20px;flex:none} .opts-list .meta{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
@@ -894,7 +899,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <div class="opts-list"><label style="cursor:default"><span><b>Flash CTAF and AREA when they change</b><br><small>The tile pulses when its frequency changes, so a new CTAF or area frequency catches your eye. 0 = off.</small></span><select id="optFlash" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)"><option value="0">0 (off)</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select><span class="meta">pulses</span></label></div>
     <div class="opts-list opts-tiles" id="optsTiles"></div>
     <div class="opts-list"><label><input type="checkbox" id="optTileZoom"><span><b>Tap a tile to enlarge it</b><br><small>The first tap makes a tile bigger, so it's easier to read on a small screen; it stays big until you tap somewhere else. Tap it again while it's big for what the tile normally does (the whole top bar, the fuel timer, your clearance notes…).</small></span></label></div>
-    <div class="vnote">Untick a tile to hide it; the others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
+    <div class="vnote">Untick a tile to hide it, separately for the phone (and a tablet held upright) and the tablet in landscape; the column in use now is highlighted. The others widen to fill the row. The alert rows (IN, NEXT CLASS, LAST LIGHT, TRAFFIC) only appear when there is something to show, so think twice before hiding them.</div>
     <div class="lbl" style="margin-top:10px">Map</div>
     <div class="opts-list"><label style="cursor:default"><span><b>Your aircraft</b><br><small>The symbol for you on the map, pointing along your track (or heading).</small></span><select id="optOwnIcon" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"><option value="arrow">Arrow</option><option value="heli">Helicopter (2 blades)</option><option value="fw">Fixed wing</option></select></label>
       <label style="cursor:default"><span><b>Your aircraft size</b></span><select id="optOwnSize" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"><option value="0.75">Small</option><option value="1">Normal</option><option value="1.25">Large</option><option value="1.5">Larger</option><option value="2">Largest</option></select></label>
@@ -1077,7 +1082,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=387ae95d31';
+    const s=document.createElement('script'); s.src='app.js?v=0fdbca6f48';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

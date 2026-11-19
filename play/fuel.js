@@ -27,5 +27,5 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
  await p.evaluate(()=>{ $('simGs').value='0'; simApply(); }); await p.waitForTimeout(5500); await p.evaluate(()=>{ __adv(4*60e3); fuTick(); fuTick(); });
  console.log('stopped after 3 min slow:', await p.evaluate(()=>!FUEL.on), '· kept after reload', await (async()=>{ await p.reload(); await p.waitForFunction(()=>typeof render==='function'); return p.evaluate(()=>FUEL.fob===300&&!FUEL.on&&FUEL.run>0); })());
  await p.evaluate(()=>$('bOpts').click()); await p.waitForTimeout(300);
- console.log('Options tiles without a sample:', await p.evaluate(()=>[...document.querySelectorAll('#optsTiles label')].filter(l=>!l.querySelector('.tpv .status').innerHTML.trim()).map(l=>l.textContent.trim()).join(', ')||'none'));
+ console.log('Options tiles without a sample:', await p.evaluate(()=>[...document.querySelectorAll('#optsTiles .tl-row:not(.tl-head)')].filter(l=>!l.querySelector('.tpv .status').innerHTML.trim()).map(l=>l.querySelector('.tl-n').textContent.trim()).join(', ')||'none'));
  console.log(errs); await b.close(); })();
