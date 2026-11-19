@@ -9,7 +9,7 @@ const {chromium}=require('playwright'); const {PX9,TAB}=require('./px9.js');
   await p.goto('http://localhost:8811/index.html?sim=YBRS&alt=1500&trk=045&gs=90'); await p.waitForFunction(()=>typeof render==='function'); await p.waitForTimeout(700);
   await p.evaluate(()=>{ fuSet(200,100); render(); }); await p.waitForTimeout(200);
   const box=id=>p.evaluate(id=>{ const r=$(id).getBoundingClientRect(); return {w:Math.round(r.width),h:Math.round(r.height),l:Math.round(r.left),t:Math.round(r.top),r:Math.round(r.right),b:Math.round(r.bottom),big:$(id).hasAttribute('data-zb'),vw:innerWidth,vh:innerHeight}; },id);
-  for(const id of ['sAltBox','sCtafBox','sHdgBox']){ const a=await box(id); await p.click('#'+id,{position:{x:8,y:8}}); await p.waitForTimeout(250); const z=await box(id);
+  for(const id of ['sAltBox','sCtafBox','sGsBox']){ const a=await box(id); await p.click('#'+id,{position:{x:8,y:8}}); await p.waitForTimeout(250); const z=await box(id);
     const inside=z.l>=0&&z.t>=0&&z.r<=z.vw&&z.b<=z.vh, bar=await p.evaluate(()=>!!FS.bar);
     console.log(nm.padEnd(18), id.padEnd(9), `${a.w}x${a.h} -> ${z.w}x${z.h}`, z.big?'big':'NOT BIG', inside?'inside the screen':'OFF SCREEN', '· action ran:', bar);
     if(!z.big||z.w<a.w*1.24||!inside||bar) errs.push(`${nm} ${id}: first tap`);

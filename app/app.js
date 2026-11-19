@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795078365609;
+const APP_BUILT=1795084319259;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2032,7 +2032,9 @@ const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS
 // upright), rc_tilesOffTab for the tablet in landscape (FS_TAB); the tablet's starts as a copy of the phone's
 const tilesKey=()=>typeof FS_TAB!=='undefined'&&FS_TAB? 'tilesOffTab' : 'tilesOff';
 const tilesOffFor=m=>new Set(m==='tab'? (ls.get('tilesOffTab',null)??ls.get('tilesOff',[])) : ls.get('tilesOff',[]));
-const tilesOffNow=()=>tilesOffFor(tilesKey()==='tilesOffTab'?'tab':'phone');
+const tilesOffNow=()=>{ const off=tilesOffFor(tilesKey()==='tilesOffTab'?'tab':'phone');
+  try{ if(hdgOn('A')||hdgOn('D')) off.add('trk'); }catch(e){}   // a heading tape shows your track: no TRK tile (Michael: "hide TRK when the tape is on"); at start-up HDGO doesn't exist yet
+  return off; };
 function tilesLayout(){ const off=tilesOffNow(); navRowOff();
   for(const [k,,ids] of TILES) for(const id of ids){ const e=$(id); if(e) e.classList.toggle('off',off.has(k)); }
   const sb=document.querySelector('.status'), narrow=matchMedia('(max-width:370px)').matches, fqIds=['sCtafBox','sAreaBox','gCtafBox','gAreaBox'];
@@ -4337,7 +4339,8 @@ let NAVB=null;
 const HDG_MAG='#b03fd6';
 function hdgCog(){ const h=heading(); return h? {deg:h.deg, src:h.src} : null; }   // true
 function hdgTapeDraw(varE){ const onD=hdgOn('D'), onA=hdgOn('A');
-  $('nTape').hidden=!onD; $('sNav').classList.toggle('tapeon',onD||onA); $('sTapeA').hidden=!onA; navRowOff();   // either tape shows track, steer and bearing: no HDG / →HDG tiles beside it
+  $('nTape').hidden=!onD; $('sNav').classList.toggle('tapeon',onD||onA); $('sTapeA').hidden=!onA;
+  const k=(onA?1:0)+(onD?2:0); if(k!==HDGO.lastK){ HDGO.lastK=k; tilesLayout(); }   // TRK on or off with the tapes   // either tape shows track, steer and bearing: no HDG / →HDG tiles beside it
   if(onD) hdgTape1($('nTapeCv'),$('nTapeS'),varE); if(onA) hdgTape1($('tapeACv'),$('tapeAS'),varE,true); }
 function hdgTape1(cv,lineEl,varE,wide){
   const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return; const dpr=window.devicePixelRatio||1;
@@ -4394,7 +4397,9 @@ function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!
   const dct=FP&&FP.dct&&GO, fpT=FP&&!FP.dct&&FP.pts[FP.i], nx= fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO? {c:GO.c||GO.n,la:GO.la,lo:GO.lo} : null;
   const last=FP&&!dct? FP.pts[FP.pts.length-1] : null, dest= last&&last!==fpT? {c:last.c||last.n,la:last.la,lo:last.lo} : null;
   // GS, and the wind along your track
-  { let t=''; if(W&&st.trk!=null&&st.gs>20){ const c=W.kt*Math.cos((W.dir-st.trk)*R); t=(c>=0?'HW ':'TW ')+Math.round(Math.abs(c)); } set('sGsW',t); }   // on the GS tile (the nav row's own GS tile went: Michael "Dedup the tiles")
+  { let t=''; if(W&&st.trk!=null&&st.gs>20){ const c=W.kt*Math.cos((W.dir-st.trk)*R); t=(c>=0?'HW ':'TW ')+Math.round(Math.abs(c)); }
+    const wv=$('sWind').textContent; if(wv&&tilesOffNow().has('trk')) t=t? t+' · '+wv.replace(/^W\/V /,'') : wv;   // TRK hidden (a heading tape): its GPS wind goes on the GS tile
+    set('sGsW',t); }   // on the GS tile (the nav row's own GS tile went: Michael "Dedup the tiles")   // on the GS tile (the nav row's own GS tile went: Michael "Dedup the tiles")
   if(!nx){ NAVB=null; hdgTapeDraw(varE); for(const id of ['nToV','nTotV']) set(id,'—'); set('nToS','no waypoint / Go to'); set('nTotS',''); set('nToD',''); set('nTotD',''); return; }
   // →HDG to the next point
   const [dN,bN]=distBrg(la,lo,nx.la,nx.lo), triN= W? windTri(bN,W.tas,W.dir,W.kt) : null, hN= triN? triN.hdg : bN;

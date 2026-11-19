@@ -16,8 +16,16 @@ const {chromium}=require('playwright'); const {PX9,TAB}=require('./px9.js');
       g:$('gCtaf').textContent, ga:$('gArea').textContent, gaShown:!$('gAreaBox').hidden}));
     ok(!(fq.far&&fq.ctaf===fq.area)||(!fq.areaShown&&/ATC 123\.35|next 123\.35/.test(fq.nx)),`${n}: CTAF ${fq.ctaf} = AREA ${fq.area}: one tile, both "next" lines (${fq.nx})`);
     ok(fq.g===fq.ga&&!fq.gaShown,`${n}: → TWR ${fq.g} = → ATC ${fq.ga}: one → tile`);
+    // TRK hidden with a tape (the tape's box is your track); the GPS wind moves to the tape's line
+    ok(!(await vis(p,'sHdgBox')),`${n}: tape A: no TRK tile`);
+    const wl=await p.evaluate(()=>{ WIND.est={from:270,spd:20,tas:95,rms:1,t:Date.now(),la:st.pos[0],lo:st.pos[1]}; windUI(); render(); return $('sGsW').textContent; });
+    ok(/^(HW|TW) \d+ · \d{3}\/20$/.test(wl)&&await vis(p,'sGsBox'),`${n}: GPS wind on the GS tile: ${wl}`);
+    if(n==='phone classic'){ const g=await p.evaluate(()=>{ const sb=document.querySelector('.wrap>.status').getBoundingClientRect(), t=[...document.querySelectorAll('.wrap>.status>.st')].filter(e=>e.getBoundingClientRect().height>0&&Math.abs(e.getBoundingClientRect().top-$('gpsTile').getBoundingClientRect().top)<3);
+        return {right:Math.max(...t.map(e=>e.getBoundingClientRect().right)), sb:sb.right}; }); ok(g.sb-g.right<12,`${n}: top row fills the width without TRK (${Math.round(g.right)} of ${Math.round(g.sb)})`); }
+    await p.evaluate(()=>{ $('optHdgMode').value='D'; $('optHdgMode').dispatchEvent(new Event('change')); }); await p.waitForTimeout(200);
+    ok(!(await vis(p,'sHdgBox')),`${n}: tape D: no TRK tile`);
     await p.evaluate(()=>{ $('optHdgMode').value='C'; $('optHdgMode').dispatchEvent(new Event('change')); }); await p.waitForTimeout(200);
-    ok(await vis(p,'nHdg')&&await vis(p,'nTo'),`${n}: arc only (C): HDG / →HDG tiles back`);
+    ok(await vis(p,'nHdg')&&await vis(p,'nTo')&&await vis(p,'sHdgBox'),`${n}: arc only (C): HDG / →HDG and TRK tiles back`);
     await p.evaluate(()=>{ $('optHdgMode').value='A'; $('optHdgMode').dispatchEvent(new Event('change')); }); await p.waitForTimeout(200);
     await p.screenshot({path:__dirname+`/dedup_${n.replace(/ /g,'_')}.png`}); await ctx.close(); }
   console.log(fail.length? fail.length+' FAILED':'all passed'); console.log(errs); await b.close(); process.exit(fail.length?1:0); })();
