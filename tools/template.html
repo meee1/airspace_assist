@@ -4405,6 +4405,44 @@ function projMake(la0,lo0){
     return [Math.asin(Math.max(-1,Math.min(1,cs*s0+y*sc*c0/rho)))/R, lo0+Math.atan2(x*sc, rho*c0*cs-y*s0*sc)/R]; };
   return [fwd,inv]; }
 function drawMap(...a){ if(!PF.on) return drawMap0(...a); pfStart('map'); try{ return drawMap0(...a); } finally{ pfEnd(); } }
+// a "227°/5NM" box on a line at (x,y), turned along it (never upside down), with a drawn arrowhead pointing the way the line
+// goes (ang = direction of travel on screen). Used on the line to the selected aerodrome and on each flight-plan leg.
+function brgBox(g,x,y,ang,lab,col,C,bold){
+  g.save(); g.font='700 10.5px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+  let a=ang, fl=false; if(a>Math.PI/2){ a-=Math.PI; fl=true; } else if(a<-Math.PI/2){ a+=Math.PI; fl=true; }
+  const tw=g.measureText(lab).width+23, dir=fl?-1:1;   // a drawn arrowhead at the far end of the box (the font's arrows are too small)
+  g.translate(x,y); g.rotate(a);
+  g.fillStyle=C.bg; g.globalAlpha=.92; g.beginPath(); g.roundRect? g.roundRect(-tw/2,-8,tw,16,5) : g.rect(-tw/2,-8,tw,16); g.fill(); g.globalAlpha=1;
+  g.strokeStyle=col; g.lineWidth=bold?2:1.2; g.stroke(); g.fillStyle=col; g.fillText(lab,-dir*6,0.5);
+  const ax=dir*(tw/2-8); g.beginPath(); g.moveTo(ax+dir*4.5,0); g.lineTo(ax-dir*3.5,-4.5); g.lineTo(ax-dir*3.5,4.5); g.closePath(); g.fill();
+  g.restore(); return tw; }
+// flight-plan legs: magnetic track (at the leg's start) and distance in a box at the middle of the part of the leg on screen,
+// arrow along the leg (21 Nov 2026, Michael: "Add the same distance and bearing box like on closest aerodrome to each flight
+// plan leg"). A coast leg (its turn points) gets one box, "coast" and its whole length, on its longest visible piece. Legs whose
+// visible part is too short for the box are left without one; the active leg's box has a thicker edge.
+function legBoxes(g,P,W,Hh,C,wp){ const n=FP.pts.length; if(n<2) return; const pts=FP.pts.map(p=>P(p.la,p.lo)), m=8;
+  const clip=(a,b)=>{ let t0=0,t1=1; const dx=b[0]-a[0], dy=b[1]-a[1];   // Liang–Barsky against the screen inset m
+    for(const [p,q] of [[-dx,a[0]-m],[dx,W-m-a[0]],[-dy,a[1]-m],[dy,Hh-m-a[1]]]){ if(p===0){ if(q<0) return null; continue; } const r=q/p; if(p<0){ if(r>t1) return null; if(r>t0) t0=r; } else { if(r<t0) return null; if(r<t1) t1=r; } }
+    return [t0,t1]; };
+  const fmtD=d=>d<9.95? d.toFixed(1) : String(Math.round(d));
+  let a=0; const boxes=[];
+  while(a<n-1){ let b=a+1; while(b<n-1&&FP.pts[b].cg) b++;   // a..b: one leg (b-a>1: a coast leg through its turn points)
+    let D=0, best=null;
+    for(let k=a;k<b;k++){ const p=FP.pts[k], q=FP.pts[k+1], d=distBrg(p.la,p.lo,q.la,q.lo); D+=d[0];
+      const c=clip(pts[k],pts[k+1]); if(!c) continue; const L=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1])*(c[1]-c[0]);
+      if(!best||L>best.L) best={k,L,c,brg:d[1],la:p.la,lo:p.lo}; }
+    g.font='700 10.5px "IBM Plex Mono", monospace';
+    if(best&&b-a===1){ const k=best.k, A=pts[k], B=pts[k+1], t=(best.c[0]+best.c[1])/2, x=A[0]+(B[0]-A[0])*t, y=A[1]+(B[1]-A[1])*t;
+      const lab=`${fmt3(best.brg-variation(best.la,best.lo))}°/${fmtD(D)}NM`, tw=g.measureText(lab).width+23;
+      if(best.L>=tw+12&&!boxes.some(o=>Math.hypot(o[0]-x,o[1]-y)<tw*0.7)){ boxes.push([x,y]); brgBox(g,x,y,Math.atan2(B[1]-A[1],B[0]-A[0]),lab,wp,C,FP.i>a&&FP.i<=b); } }
+    else if(best){   // a coast leg: many short pieces; the box goes at the middle of its visible path, turned with the path there
+      const lab=`coast/${fmtD(D)}NM`, tw=g.measureText(lab).width+23, seg=[]; let tot=0;
+      for(let k=a;k<b;k++){ const c=clip(pts[k],pts[k+1]); if(!c) continue; const A=pts[k], B=pts[k+1], dx=B[0]-A[0], dy=B[1]-A[1];
+        const p0=[A[0]+dx*c[0],A[1]+dy*c[0]], p1=[A[0]+dx*c[1],A[1]+dy*c[1]], L=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]); if(L>0){ seg.push([p0,p1,tot,L]); tot+=L; } }
+      const at=d=>{ for(const [p0,p1,s0,L] of seg) if(d<=s0+L){ const t=Math.max(0,(d-s0)/L); return [p0[0]+(p1[0]-p0[0])*t, p0[1]+(p1[1]-p0[1])*t]; } const z=seg[seg.length-1]; return z? z[1] : null; };
+      if(tot>=tw+12){ const m=at(tot/2), u=at(Math.max(0,tot/2-tw/2)), v=at(Math.min(tot,tot/2+tw/2));
+        if(m&&u&&v&&!boxes.some(o=>Math.hypot(o[0]-m[0],o[1]-m[1])<tw*0.7)){ boxes.push(m); brgBox(g,m[0],m[1],Math.atan2(v[1]-u[1],v[0]-u[0]),lab,wp,C,FP.i>a&&FP.i<=b); } } }
+    a=b; } }
 function drawMap0(la,lo,h,pick,AS,altFt){
   const cv=$('map'); if(!cv) return;
   MAP.last=[la,lo,h,pick,AS,altFt];
@@ -4613,7 +4651,8 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     FP.pts.forEach((p,k)=>{ const [x,y]=pts[k]; if(x<-20||y<-20||x>W+20||y>Hh+20) return;
       if(p.cg&&k!==FP.i) return;   // a coast leg's turn points: the line shows them
       g.beginPath(); g.arc(x,y,k===FP.i?5.5:3.5,0,2*Math.PI); g.fillStyle=k===FP.i?wp:C.bg; g.fill(); g.strokeStyle=wp; g.lineWidth=2; g.stroke();
-      const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); }); }
+      const t=p.c||p.n; const tw=g.measureText(t).width; g.fillStyle=C.bg; g.globalAlpha=.85; g.fillRect(x+6,y-14,tw+4,12); g.globalAlpha=1; g.fillStyle=wp; g.fillText(t,x+8,y-4); });
+    legBoxes(g,P,W,Hh,C,wp); }
   if(MAP.log) drawTrail(g,P,C,W,Hh);
   pfMark('plan + log');
   { MAP.trHits=[]; MAP.trBox=null; MAP.trWarn=null; const T= MAP.traffic&&ntUrl()? drawTraffic(g,P,C,W,Hh,sc) : []; trAlert(T); } pfMark('traffic');
@@ -4745,15 +4784,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
     const ex=(t)=>[ox+(sx-ox)*t, oy+(sy-oy)*t], inside=([x,y])=>x>8&&y>8&&x<W_-8&&y<H_-8;
     while(t1>0.1&&!inside(ex(t1))) t1-=0.05;   // the aerodrome may be off screen: label the part you can see
     const Lv=Math.hypot(sx-ox,sy-oy)*(t1-t0), [mx,my]=ex(Math.min(0.6*Lv,95)/Math.hypot(sx-ox,sy-oy)), lab=`${fmt3(pick.b-variation(st.pos[0],st.pos[1]))}°/${Math.round(pick.d)}NM`;   // short: magnetic bearing / whole NM
-    const nx=-(sy-oy), ny=(sx-ox), nl=Math.hypot(nx,ny)||1, off=0, lx=mx+nx/nl*off, ly=my+ny/nl*off;
-    g.font='700 10.5px "IBM Plex Mono", monospace'; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
-    let ang=Math.atan2(sy-oy,sx-ox), fl=false; if(ang>Math.PI/2){ ang-=Math.PI; fl=true; } else if(ang<-Math.PI/2){ ang+=Math.PI; fl=true; }   // on the line, never upside down
-    const tw0=g.measureText(lab).width, tw=tw0+23, dir=fl?-1:1;   // a drawn arrowhead at the aerodrome end of the box (the font's arrows are too small)
-    g.save(); g.translate(lx,ly); g.rotate(ang);
-    g.fillStyle=C.bg; g.globalAlpha=.92; g.beginPath(); g.roundRect? g.roundRect(-tw/2,-8,tw,16,5) : g.rect(-tw/2,-8,tw,16); g.fill(); g.globalAlpha=1;
-    g.strokeStyle=C.acc; g.lineWidth=1.2; g.stroke(); g.fillStyle=C.acc; g.fillText(lab,-dir*6,0.5);
-    const ax=dir*(tw/2-8); g.beginPath(); g.moveTo(ax+dir*4.5,0); g.lineTo(ax-dir*3.5,-4.5); g.lineTo(ax-dir*3.5,4.5); g.closePath(); g.fill();
-    g.restore(); g.textAlign='left'; g.textBaseline='alphabetic'; }
+    brgBox(g,mx,my,Math.atan2(sy-oy,sx-ox),lab,C.acc,C); }
   pfMark('go to, lead, ownship');
   hdgArcDraw(g,P,ox,oy,own[0],own[1],W,Hh,C); pfMark('heading arc');
   if(MAP.chHi&&Date.now()-MAP.chHi.t<10e3){ g.save(); g.font='700 13px '+cssv('--f-label'); const t=MAP.chHi.name+' area', tw=g.measureText(t).width;   // its name, on top of everything

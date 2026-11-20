@@ -1,5 +1,5 @@
-const C='radio-au-3f21448835', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
-const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./app.js?v=9944cd5fd2','./urban.json?v=b7ee073b12','./data.json?v=f125575d9a','./data-next.json?v=a653815da6'];   // build files with the ?v= the page asks for
+const C='radio-au-6a59228e5a', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
+const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./app.js?v=ecd465ee0f','./urban.json?v=b7ee073b12','./data.json?v=f125575d9a','./data-next.json?v=a653815da6'];   // build files with the ?v= the page asks for
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
 const BUILD=/\/(app\.js|data\.json|data-next\.json|urban\.json)$/;
