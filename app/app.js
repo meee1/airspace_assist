@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795179512085;
+const APP_BUILT=1795206057305;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1755,7 +1755,7 @@ function drawAdMap(a,pick,h){
 // number) switched the circle on, and turning it off put the map back to 10 NM (Michael: "As I zoom out range turns
 // itself back on"). The circle is rc_rangeRing now; a true/false left in rc_mapRange moves there.
 { const v=ls.get('mapRange',10); if(typeof v==='boolean'){ ls.set('rangeRing',v); ls.set('mapRange',10); } }
-const MAP={hide:new Set(ls.get('mapHide',[])), range:(v=>typeof v==='number'&&v>0? v : 10)(ls.get('mapRange',10)), up:ls.get('mapUp','trk'), rotF:ls.get('mapRotF',0), cyF:ls.get('mapCyF',0.5), hold:null, rotNow:0, ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
+const MAP={hide:new Set(ls.get('mapHide',[])), vor:ls.get('mapVor',false), range:(v=>typeof v==='number'&&v>0? v : 10)(ls.get('mapRange',10)), up:ls.get('mapUp','trk'), rotF:ls.get('mapRotF',0), cyF:ls.get('mapCyF',0.5), hold:null, rotNow:0, ctaf:ls.get('mapCtaf',false), ter:ls.get('mapTer',true), lead:ls.get('mapLead',true), log:ls.get('mapLog',false)};
 const CTAF_NM=10;           // AIP: CTAF calls are made within 10 NM of the aerodrome
 // CTAF frequency colours: no reds, oranges or magenta (0, 30, 345, then 320 were taken out, 11 Nov 2026, Michael: "Ctaf frequency colours red and
 // orange need to be removed, they clash with danger and restricted zones"): R areas are red, D/Q orange (--as-r, --as-q)
@@ -2089,7 +2089,8 @@ const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapCoast','mapRa
 const FS_TABS=[['Aerodrome','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Legend','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
 function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
-function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud=want&&!tab&&!FS.bar;
+function fsApply(){ try{ if(!$('mapMenu').hidden) mmPlace(); }catch(e){}   // an open map menu follows the layout
+  const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud=want&&!tab&&!FS.bar;
   document.body.classList.toggle('fsm',want); document.body.classList.toggle('fsm-tab',tab); document.body.classList.toggle('fsm-bar',want&&!tab&&FS.bar);
   $('fsBtn').textContent= FS.on? '⤡' : '⤢'; $('fsBtn').title= FS.on? 'Exit the full-screen map (classic page)' : 'Full-screen map';
   if(want){ for(const id of FS_LAY) fsMove($(id),$('layPop')); for(const id of ['ctafLeg','mapLeg','chartBox']) fsMove($(id),$('fsLayers'));
@@ -3507,7 +3508,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
       const go=GO&&GO.c===p.c;
       g.save(); g.translate(x,y); g.rotate(Math.PI/4); g.fillStyle=go?C.acc:wpC; g.fillRect(-4,-4,8,8); g.fillStyle=C.bg; g.fillRect(-1.6,-1.6,3.2,3.2); g.restore();
       g.fillStyle=go?C.acc:wpC; g.fillText(p.c,x+7,y-5); }
-    for(const p of NA){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue;
+    for(const p of NA){ if(Math.abs(p.la-la)>reach||Math.abs(p.lo-lo)>reach/cosl) continue; if(!MAP.vor) continue;   // navaids (NDB, VOR, DME, VOR/DME, TACAN) only when on in the legend (ls mapVor)
       const [x,y]=P(p.la,p.lo); if(x<-8||y<-8||x>W+8||y>Hh+8) continue; MAP.hits.push({x,y,p});
       g.strokeStyle=C.ink; g.fillStyle=C.ink; g.lineWidth=1.3;
       if(p.t==='NDB'){ g.setLineDash([1.5,2]); g.beginPath(); g.arc(x,y,6,0,2*Math.PI); g.stroke(); g.setLineDash([]); g.beginPath(); g.arc(x,y,1.6,0,2*Math.PI); g.fill(); }
@@ -5341,10 +5342,11 @@ $('mapCtaf').onclick=()=>{ MAP.ctaf=!MAP.ctaf; ls.set('mapCtaf',MAP.ctaf); $('ma
 $('mapCtaf').setAttribute('aria-pressed',MAP.ctaf);
 $('mapTer').onclick=()=>{ MAP.ter=!MAP.ter; ls.set('mapTer',MAP.ter); $('mapTer').setAttribute('aria-pressed',MAP.ter); legUI(); render(); };
 // legend: tap an item to show / hide that layer (terrain is the same switch as the Terrain button)
-function legUI(){ if($('terRbLeg')) $('terRbLeg').hidden=!ls.get('terRainbow',true); for(const el of document.querySelectorAll('#mapLeg [data-leg]')){ const k=el.dataset.leg, on= k==='TER'? MAP.ter : !MAP.hide.has(k);
+function legUI(){ if($('terRbLeg')) $('terRbLeg').hidden=!ls.get('terRainbow',true); for(const el of document.querySelectorAll('#mapLeg [data-leg]')){ const k=el.dataset.leg, on= k==='TER'? MAP.ter : k==='VOR'? MAP.vor : !MAP.hide.has(k);
   el.classList.toggle('off',!on); el.setAttribute('role','button'); el.tabIndex=0; el.setAttribute('aria-pressed',on); } }
 const legTap=e=>{ const el=e.target.closest('[data-leg]'); if(!el) return; const k=el.dataset.leg;
   if(k==='TER'){ $('mapTer').click(); return; }
+  if(k==='VOR'){ MAP.vor=!MAP.vor; ls.set('mapVor',MAP.vor); legUI(); render(); return; }
   if(MAP.hide.has(k)) MAP.hide.delete(k); else MAP.hide.add(k); ls.set('mapHide',[...MAP.hide]); legUI(); render(); };
 $('mapLeg').addEventListener('click',legTap);
 $('mapLeg').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); legTap(e); } });
@@ -5784,9 +5786,11 @@ const mapRotSave=()=>{ ls.set('mapUp',MAP.up); ls.set('mapRotF',MAP.rotF); ls.se
     if(MAP.traffic){ let tb=null, td=24*Math.max(1,TRS.k); for(const h of (MAP.trHits||[])){ const q=Math.hypot(h.x-x,h.y-y); if(q<td){ td=q; tb=h.hex; } }   // tap a traffic symbol: select / deselect it
       if(tb){ TR.sel= TR.sel===tb? null : tb; if(MAP.last) drawMap(...MAP.last); return; }
       if(TR.sel){ TR.sel=null; if(MAP.last) drawMap(...MAP.last); return; } }   // a tap elsewhere clears the selection
-    let best=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;} }
-    if(best){ if(best.k==='AD') st.pin=best.c;   // tapping an aerodrome also selects it (card, frequencies, calls)
-      setGo(best); } };
+    // a tap never changes Go to (with a plan that would be a direct-to): an aerodrome becomes the Aerodrome card's selection,
+    // a waypoint opens the map menu, where Go to is an explicit choice (21 Nov 2026, Michael: "When tapping the map, change the
+    // aerodrome tab, not the Goto. Goto must be selected from the menu")
+    let best=null,bh=null,bd=22; for(const it of (MAP.hits||[])){ const q=Math.hypot(it.x-x,it.y-y); if(q<bd){bd=q;best=it.p;bh=it;} }
+    if(best){ if(best.k==='AD'){ st.pin=best.c; render(); } else mapMenu(bh.x,bh.y); } };
   cv.addEventListener('contextmenu',e=>{ e.preventDefault(); if(e.pointerType==='touch') return; const r=cv.getBoundingClientRect(); if(MAP.inv) mapMenu(e.clientX-r.left,e.clientY-r.top); });   // right-click on a computer
   cv.addEventListener('pointerup',end);
   const lost=e=>{ ptr.delete(e.pointerId); lpCancel(); if(pinch&&ptr.size<2){ if(pinch.turn!=null) mapRotSave(); pinch=null; ls.set('mapRange',MAP.range); render(); } if(!ptr.size) pinch=null; drag=null; };
@@ -5868,7 +5872,14 @@ let MM_GUARD=0;
 function mmGuardOn(){ MM_GUARD=Infinity; const lift=()=>{ MM_GUARD=Date.now()+400; window.removeEventListener('pointerup',lift,true); window.removeEventListener('pointercancel',lift,true); };
   window.addEventListener('pointerup',lift,true); window.addEventListener('pointercancel',lift,true); }
 for(const ev of ['click','pointerdown','pointerup','touchend']) $('mapMenu').addEventListener(ev,e=>{ if(Date.now()<MM_GUARD){ e.preventDefault(); e.stopPropagation(); } },true);
-function mapMenu(px,py){ if(document.body.classList.contains('fsm')&&FS.s!=='peek') fsSheet('peek');
+// full-screen map: the floating tiles are fixed at page level (z 20) and #mapSec is its own stacking context (z 5), so a menu
+// inside it went under the tiles, close button and all (21 Nov 2026, Michael: "The right click menu shows under the tiles").
+// In full screen it's moved to <body> and fixed above the sheet's tab bar; on the classic page it goes back into the map box.
+const MM_HOME=$('mapMenu').parentElement;
+function mmPlace(){ const m=$('mapMenu'), fs=document.body.classList.contains('fsm');
+  if(fs&&m.parentElement!==document.body) document.body.appendChild(m); else if(!fs&&m.parentElement!==MM_HOME) MM_HOME.appendChild(m);
+  m.classList.toggle('mm-fs',fs); }
+function mapMenu(px,py){ if(document.body.classList.contains('fsm')&&FS.s!=='peek') fsSheet('peek'); mmPlace();
   if(!MAP.inv) return; const [la,lo]=MAP.inv(px,py); MAP.press=[la,lo];
   let town=null; for(const t of TOWNS){ if(Math.abs(t.la-la)>0.2||Math.abs(t.lo-lo)>0.25) continue; const d=distBrg(t.la,t.lo,la,lo); if(!town||d[0]<town.d) town={t,d:d[0],b:d[1]}; }
   let near=null; for(const it of searchIdx()){ const q=it.p; if(!q||!/^(AD|VFR|NAV)$/.test(q.k)||Math.abs(q.la-la)>0.05||Math.abs(q.lo-lo)>0.07) continue; const d=distBrg(la,lo,q.la,q.lo)[0]; if(d<=2&&(!near||d<near.d)) near={p:q,d}; }
