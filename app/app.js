@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795084319259;
+const APP_BUILT=1795164721188;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1957,7 +1957,7 @@ function optsRender(){
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   chThumbs(); chOvDraw(); chViewUI(); chFilter();
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); chThumbs(); chOvDraw();
+$('bOpts').onclick=()=>{ optsRender(); sttModelUI(); logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); chThumbs(); chOvDraw();
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // More → Logbook: Options opened at the logbook (totals, legs, CSV export)
@@ -2026,7 +2026,7 @@ function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=
 // frequency rows' spans are recomputed so the remaining tiles fill the width; at 370 px or less the CSS layout flows as is
 const TILES=[['gps','GPS',['gpsTile']],['trk','TRK / HDG',['sHdgBox']],['gs','GS (and last light)',['sGsBox']],['plan','PLAN',['sPlanBox']],['alt','ALT / AGL',['sAltBox']],
   ['cls','CLASS',['sClsBox']],['lims','CAP / LL',['sLimBox']],['ctaf','CTAF / TWR',['sCtafBox']],['area','AREA / ATC',['sAreaBox']],['go','Go to tiles (→)',['gCtafBox','gAreaBox','gCtl']],
-  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['clrreq','Clearance call reminder',['sClrReq']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['traffic','TRAFFIC alert',['sTraffic']],
+  ['ctl','Controlled aerodrome row',['sCtl']],['insua','IN alert (R/D area)',['sInSua']],['nxcls','NEXT CLASS alert',['sNxCls']],['clr','Clearance notes row',['sClr']],['inbound','Inbound call reminder',['sInbound']],['clrreq','Clearance call reminder',['sClrReq']],['wires','WIRES alert',['sWires']],['ahead','LSALT ahead row',['sAhead']],['last','LAST LIGHT row',['sLastRow']],['fuel','FUEL timer row',['sFuel']],['sar','SARTIME row',['sSar']],['chk','Checklist reminder',['sChk']],['stt','Radio transcript row',['sStt']],['traffic','TRAFFIC alert',['sTraffic']],
   ['nhdg','HDG: compass heading',['nHdg']],['nto','→HDG: heading to steer to the next point',['nTo']],['ntot','TOT: time over target',['nTot']],['tapea','Heading tape (A, Options → Map)',['sTapeA']]];
 // two sets (Michael: "2 tick boxes ... one for phone mode one for tablet mode"): rc_tilesOff for the phone (and a tablet held
 // upright), rc_tilesOffTab for the tablet in landscape (FS_TAB); the tablet's starts as a copy of the phone's
@@ -2072,6 +2072,7 @@ const TILE_EX={gps:()=>`<div class="st gps"><span class="dot ok">${$('gpsDot').i
   ntot:`<div class="st t"><small>TOT</small><b>0432Z</b><small class="agl">CARR 12 min</small></div>`,
   sar:`<div class="st nxcls sar amber"><small>SARTIME</small><b style="color:var(--accent)">0430Z</b><span>in 0:25 · with ATS · tap when cancelled</span></div>`,
   chk:`<div class="st nxcls amber chk"><small>CHECKLIST</small><b>Pre-landing</b><span>Before landing · tap to open</span></div>`,
+  stt:`<div class="st nxcls stt"><small>RADIO</small><span><i>0412Z</i> <mark>ABC</mark> cleared to enter control zone, not above <b>1500</b></span></div>`,
   fuel:`<div class="st nxcls fuel"><small>FUEL</small><b style="color:var(--ink)">145 L</b><span>1:05 to reserve · 103 NM at 95 kt · reserve 20 min</span></div>`};
 // ---------- full-screen map. FS.on = rc_fsMap (default on); applied while the map is shown. Elements are moved, not copied, so
 // every render/handler keeps working: a comment marker is left where each one came from and fsBack puts it back.
@@ -2083,7 +2084,7 @@ const fsTab=()=>{ const sw=screen.width, sh=screen.height; return innerWidth>=80
 let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px wide); a phone on its side is under 460 px tall
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
-const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','gCtafBox','gAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sClrReq','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
+const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','gCtafBox','gAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sClrReq','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk','sStt'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
 const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
 const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
@@ -4492,6 +4493,229 @@ function sayOpts(){ for(const el of document.querySelectorAll('#optsSay [data-sa
 $('optsSay').addEventListener('change',e=>{ const k=e.target.dataset&&e.target.dataset.say; if(!k) return; SAY[k]=e.target.checked; const {log,...o}=SAY; ls.set('say',o); });
 $('sayTest').onclick=()=>{ SAYT.delete('test'); say('test','Class D ahead, 3 miles, Moorabbin Tower, '+sayFreq('123.0')); };
 sayOpts();
+
+/* ---------- audio input test (20 Nov 2026, Michael: transcribe radio calls through the Bose A30; first find out what the tablet can hear).
+   Lists audio inputs, meters the chosen one (peak and RMS in dBFS), records 30 s with MediaRecorder, plays it back, saves it.
+   Nothing is sent anywhere; stops when Options closes. */
+const AUD={st:null, ac:null, an:null, raf:0, rec:null, chunks:[], blob:null, url:'', pk:-99, pkT:0, hist:[]};
+function audSt(t){ $('audSt').textContent=t||''; }
+async function audList(keep){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ audSt('This browser can\'t use a microphone here (it needs https and a current Chrome).'); return; }
+  try{ if(!keep){ const t=await navigator.mediaDevices.getUserMedia({audio:true}); t.getTracks().forEach(x=>x.stop()); } }   // asks permission, so the inputs have names
+  catch(e){ audSt(e.name==='NotAllowedError'? 'Microphone blocked: allow it for this site (the padlock or tune icon by the address, Permissions → Microphone).' : 'No microphone: '+e.message); return; }
+  const L=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput'), sel=$('audDev'), was=sel.value;
+  sel.innerHTML=L.map((d,i)=>`<option value="${esc(d.deviceId)}">${esc(d.label||('Input '+(i+1)))}</option>`).join('')||'<option value="">(no inputs)</option>';
+  if(L.some(d=>d.deviceId===was)) sel.value=was;
+  sel.disabled=!L.length; $('audGo').disabled=!L.length;
+  const bt=L.filter(d=>/bluetooth|bose|a30|headset|hands.?free|sco/i.test(d.label)), usb=L.filter(d=>/usb/i.test(d.label));
+  audSt(`${L.length} input${L.length===1?'':'s'}${bt.length?' · headset: '+bt.map(d=>d.label).join(', '):''}${usb.length?' · USB: '+usb.map(d=>d.label).join(', '):''}. `+
+    (bt.length||usb.length? '' : 'No headset or USB input listed: check it\'s connected, then List inputs again.')); }
+function audStop(){ cancelAnimationFrame(AUD.raf); AUD.raf=0; if(AUD.rec&&AUD.rec.state!=='inactive') try{ AUD.rec.stop(); }catch(e){}
+  if(AUD.st) AUD.st.getTracks().forEach(t=>t.stop()); AUD.st=null; if(AUD.ac) try{ AUD.ac.close(); }catch(e){} AUD.ac=null; AUD.an=null; AUD.src=null; STT.node=null; sttRow();
+  $('audGo').textContent='Listen'; $('audRec').disabled=true; audDraw(null); }
+async function audStart(){
+  audStop(); const raw=$('audRaw').checked, id=$('audDev').value;
+  const c={deviceId:id?{exact:id}:undefined, echoCancellation:!raw, noiseSuppression:!raw, autoGainControl:!raw, channelCount:1};
+  try{ AUD.st=await navigator.mediaDevices.getUserMedia({audio:c}); }catch(e){ audSt('Couldn\'t open that input: '+(e.message||e.name)); return; }
+  const tr=AUD.st.getAudioTracks()[0], S=tr.getSettings?tr.getSettings():{};
+  $('audInfo').textContent=`${tr.label||'input'} · ${S.sampleRate?S.sampleRate+' Hz':'rate ?'}${S.channelCount?' · '+S.channelCount+' ch':''} · echo cancel ${S.echoCancellation?'on':'off'}, noise suppression ${S.noiseSuppression?'on':'off'}, auto gain ${S.autoGainControl?'on':'off'}`+
+    (/bluetooth|headset|hands.?free|sco/i.test(tr.label)? ' · Bluetooth headsets send call-quality audio (8–16 kHz) while the tablet listens to them.':'');
+  AUD.ac=new (window.AudioContext||window.webkitAudioContext)(); AUD.ac.resume&&AUD.ac.resume().catch(()=>{}); AUD.an=AUD.ac.createAnalyser(); AUD.an.fftSize=2048;
+  AUD.src=AUD.ac.createMediaStreamSource(AUD.st); AUD.src.connect(AUD.an); if(STT.on) sttAttach(); AUD.pk=-99; AUD.hist=[];
+  $('audGo').textContent='Stop'; $('audRec').disabled=typeof MediaRecorder==='undefined'; audSt('Listening. Nothing is recorded until you tap Record.');
+  const buf=new Float32Array(AUD.an.fftSize);
+  const tick=()=>{ if(!AUD.an) return; AUD.an.getFloatTimeDomainData(buf); let p=0,q=0; for(const v of buf){ const a=Math.abs(v); if(a>p) p=a; q+=v*v; }
+    const db=x=>x>0? Math.min(0,Math.max(-60,20*Math.log10(x))) : -60, P=db(p), R=db(Math.sqrt(q/buf.length)), t=performance.now();
+    if(P>AUD.pk||t-AUD.pkT>1500){ AUD.pk=P; AUD.pkT=t; }
+    AUD.hist.push(R); if(AUD.hist.length>240) AUD.hist.shift();
+    audDraw({P,R,pk:AUD.pk}); AUD.raf=requestAnimationFrame(tick); };
+  tick(); }
+function audDraw(m){ const cv=$('audMeter'), w=cv.clientWidth||300, h=34, k=devicePixelRatio||1;
+  if(cv.width!==Math.round(w*k)){ cv.width=Math.round(w*k); cv.height=Math.round(h*k); }
+  const g=cv.getContext('2d'); g.setTransform(k,0,0,k,0,0); g.clearRect(0,0,w,h); if(!m) return;
+  const X=db=>(db+60)/60*w;
+  g.fillStyle=cssv('--dim'); g.globalAlpha=.35; const H=AUD.hist; for(let i=0;i<H.length;i++){ const y=h-2-(H[i]+60)/60*(h-16); g.fillRect(w-(H.length-i)*w/240,y,w/240+0.5,h-2-y); } g.globalAlpha=1;
+  g.fillStyle=m.P>-3?'#e3161b':m.P>-12?'#e0a020':'#2fa84f'; g.fillRect(0,2,X(m.R),8);
+  g.fillStyle=cssv('--ink'); g.fillRect(X(m.pk)-1,0,2,12);
+  g.font='600 10px '+(cssv('--f-mono')||'monospace'); g.textBaseline='bottom'; g.fillText(`RMS ${m.R.toFixed(0)} dBFS · peak ${m.pk.toFixed(0)}`,4,h-2); }
+function audRec(){ if(!AUD.st) return; if(AUD.rec&&AUD.rec.state==='recording'){ AUD.rec.stop(); return; }
+  const types=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'], ty=types.find(t=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(t))||'';
+  try{ AUD.rec=new MediaRecorder(AUD.st,ty?{mimeType:ty}:undefined); }catch(e){ audSt('Can\'t record here: '+e.message); return; }
+  AUD.chunks=[]; const t0=Date.now(); AUD.recT=t0;
+  AUD.rec.ondataavailable=e=>{ if(e.data&&e.data.size) AUD.chunks.push(e.data); };
+  AUD.rec.onstop=()=>{ clearInterval(AUD.cd); clearTimeout(AUD.to); $('audRec').textContent='Record 30 s';
+    AUD.blob=new Blob(AUD.chunks,{type:AUD.rec.mimeType||ty||'audio/webm'}); if(AUD.url) URL.revokeObjectURL(AUD.url); AUD.url=URL.createObjectURL(AUD.blob);
+    const el=$('audEl'); el.src=AUD.url; el.hidden=false; $('audPlay').disabled=$('audSave').disabled=!AUD.blob.size;
+    $('sttRecB').disabled=!AUD.blob.size;
+    audSt(`Recorded ${Math.round((Date.now()-t0)/1000)} s (${(AUD.blob.size/1024).toFixed(0)} KB). Play it back through the headset to hear what the tablet got.`); };
+  AUD.rec.start(1000); $('audRec').textContent='Stop recording';
+  AUD.cd=setInterval(()=>audSt(`Recording… ${30-Math.round((Date.now()-t0)/1000)} s left`),500); AUD.to=setTimeout(()=>{ if(AUD.rec&&AUD.rec.state==='recording') AUD.rec.stop(); },30000); }
+$('audList').onclick=()=>audList();
+$('audGo').onclick=()=>{ if(AUD.st) { audStop(); audSt('Stopped.'); } else audStart(); };
+$('audDev').onchange=$('audRaw').onchange=()=>{ if(AUD.st) audStart(); };
+$('audRec').onclick=audRec;
+$('audPlay').onclick=()=>{ const el=$('audEl'); el.currentTime=0; el.play().catch(e=>audSt('Can\'t play: '+e.message)); };
+$('audSave').onclick=()=>{ if(!AUD.blob) return; const ext=/mp4/.test(AUD.blob.type)?'m4a':/ogg/.test(AUD.blob.type)?'ogg':'webm';
+  const a=document.createElement('a'); a.href=AUD.url; a.download=`Audio test ${new Date().toISOString().slice(0,16).replace(/[T:]/g,'-')}.${ext}`; document.body.appendChild(a); a.click(); a.remove(); };
+$('optsDlg').addEventListener('close',()=>{ if(AUD.st&&!STT.on){ audStop(); audSt('Stopped when Options closed.'); } });
+if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange',()=>{ if(!$('audDev').disabled) audList(true); });
+
+/* ---------- offline speech-to-text (20 Nov 2026, Michael: "Add the offline speech decoder"). Whisper English-only (tiny.en / base.en,
+   8-bit ONNX from Hugging Face onnx-community) through Transformers.js 4.3.2 + ONNX Runtime Web (WebAssembly), vendored in
+   lib/transformers; runs in lib/stt/worker2.js (a changed worker needs a new file name: lib/ is cached for good).
+   Whisper is given a prompt of local names (sttPrompt: aerodromes within 30 NM with Tower/Ground/Approach where ERSA has them, VFR
+   points within 20 NM, your type and callsign, common words), which fixes most place names ("Murabintaur" -> "Moorabbin Tower"). The model downloads once (Transformers.js keeps it in Cache Storage
+   'transformers-cache', which the service worker keeps across builds); the lib files are kept by the service worker.
+   Audio: the Audio input test's stream -> AudioWorklet tap -> 20 ms blocks -> energy detector over a moving noise floor
+   (STT.sens dB above it, 0.3 s pre-roll, ends after 0.7 s quiet, 25 s max) -> each transmission resampled to 16 kHz
+   (OfflineAudioContext) -> worker -> text. Whisper's stock outputs for silence/noise are dropped. Nothing leaves the device. */
+const STT_M={tiny:{id:'onnx-community/whisper-tiny.en', mb:41, n:'Standard model (41 MB)'}, base:{id:'onnx-community/whisper-base.en', mb:77, n:'Better model (77 MB, about 2x slower)'}};
+const STT_CACHE='transformers-cache';
+const STT={on:false, model:STT_M[ls.get('sttModel')]? ls.get('sttModel') : 'tiny', sens:+(ls.get('sttSens')||11), w:null, ready:false, loading:false, wmodel:'',
+  busy:false, q:[], log:[], id:0, node:null, have:{}, prog:{}, blk:[], blkN:0, floor:-60, seg:null, pre:[], quiet:0, voiced:0, drop:0, ms:[]};
+const STT_JUNK=/^[\s.,!?-]*$|^\s*[\[(][^\])]*[\])]\s*$|^\s*(thank you( (very much|for watching|so much))?|thanks for watching|you|bye|okay|so|\.\.\.|please subscribe.*)[.!]?\s*$/i;
+function sttSt(t){ $('sttSt').textContent=t||''; }
+async function sttHave(k){ try{ const c=await caches.open(STT_CACHE), keys=(await c.keys()).map(r=>r.url), id=STT_M[k].id;
+    return keys.some(u=>u.includes(id)&&/encoder_model_quantized\.onnx/.test(u)) && keys.some(u=>u.includes(id)&&/decoder_model_merged_quantized\.onnx/.test(u)); }catch(e){ return false; } }
+async function sttModelUI(){ const sel=$('sttModel');
+  for(const k in STT_M) STT.have[k]=await sttHave(k);
+  sel.innerHTML=Object.entries(STT_M).map(([k,m])=>`<option value="${k}">${m.n}${STT.have[k]?' · stored':''}</option>`).join(''); sel.value=STT.model;
+  const h=STT.have[STT.model]; $('sttDl').hidden=h; $('sttDel').hidden=!h||STT.loading; $('sttDl').disabled=STT.loading||!navigator.onLine;
+  if(!STT.loading) $('sttMSt').textContent= h? (STT.ready&&STT.wmodel===STT.model? 'Model stored and loaded: works without signal.' : 'Model stored on this tablet: works without signal.')
+    : navigator.onLine? `Not on this tablet yet: Download model (${STT_M[STT.model].mb} MB, once).` : 'Not on this tablet yet, and no signal to download it.';
+  $('sttOn').checked=STT.on; $('sttSens').value=String(STT.sens); $('sttRecB').disabled=!(AUD.blob&&AUD.blob.size); }
+function sttLoad(){ if(STT.ready&&STT.wmodel===STT.model) return Promise.resolve(true);
+  if(STT.loading) return STT.loading;
+  if(STT.w){ STT.w.terminate(); STT.w=null; STT.ready=false; }
+  const base=new URL('lib/transformers/',location.href).href, m=STT.model;
+  STT.prog={}; STT.loading=new Promise(res=>{
+    let w; try{ w=STT.w=new Worker(new URL('lib/stt/worker2.js',location.href).href,{type:'module'}); }catch(e){ $('sttMSt').textContent='This browser can\'t run the speech model: '+e.message; STT.loading=false; return res(false); }
+    w.onmessage=e=>{ const d=e.data;
+      if(d.t==='prog'){ const p=d.p; if(p.file&&p.total) STT.prog[p.file]=[p.loaded||0,p.total]; if(p.status==='done'&&p.file&&STT.prog[p.file]) STT.prog[p.file][0]=STT.prog[p.file][1];
+        const big=Object.values(STT.prog).filter(x=>x[1]>1e6), L=big.reduce((a,x)=>a+x[0],0), T=big.reduce((a,x)=>a+x[1],0);
+        $('sttMSt').textContent= T? `Loading the model… ${(L/1048576).toFixed(0)} / ${(T/1048576).toFixed(0)} MB` : 'Loading the model…'; }
+      else if(d.t==='ready'){ STT.ready=true; STT.wmodel=m; STT.loading=false; STT.warm=d.warm; sttModelUI(); res(true); sttNext(); }
+      else if(d.t==='text') sttGot(d);
+      else if(d.t==='err'){ if(d.stage==='load'){ STT.loading=false; w.terminate(); STT.w=null;
+          $('sttMSt').textContent=(navigator.onLine? 'Couldn\'t load the model: ' : 'The model isn\'t on this tablet and there\'s no signal to download it. ')+d.msg.slice(0,160); sttModelUI(); res(false); }
+        else { STT.busy=false; sttSt('Transcription error: '+d.msg.slice(0,160)); sttNext(); } } };
+    w.onerror=e=>{ STT.loading=false; $('sttMSt').textContent='Speech model failed to start: '+(e.message||'error'); res(false); };
+    w.postMessage({t:'load', base, model:STT_M[m].id}); sttModelUI(); });
+  return STT.loading; }
+const STT_TAP=`class T extends AudioWorkletProcessor{ constructor(){ super(); this.b=new Float32Array(2048); this.n=0; }
+  process(i){ const c=i[0]&&i[0][0]; if(c){ for(let k=0;k<c.length;k++){ this.b[this.n++]=c[k]; if(this.n===2048){ this.port.postMessage(this.b); this.b=new Float32Array(2048); this.n=0; } } } return true; } }
+registerProcessor('stt-tap',T);`;
+async function sttAttach(){ if(!AUD.ac||!AUD.src||STT.node) return;
+  try{ if(!AUD.wl){ const u=URL.createObjectURL(new Blob([STT_TAP],{type:'text/javascript'})); await AUD.ac.audioWorklet.addModule(u); AUD.wl=AUD.ac; }
+    else if(AUD.wl!==AUD.ac){ const u=URL.createObjectURL(new Blob([STT_TAP],{type:'text/javascript'})); await AUD.ac.audioWorklet.addModule(u); AUD.wl=AUD.ac; }
+    const n=new AudioWorkletNode(AUD.ac,'stt-tap'); AUD.src.connect(n); STT.node=n; STT.sr=AUD.ac.sampleRate; STT.blkN=Math.round(STT.sr*0.02); STT.blk=[]; STT.seg=null; STT.pre=[]; STT.floor=-60;
+    n.port.onmessage=e=>sttFeed(e.data); }
+  catch(e){ sttSt('Can\'t tap the audio here: '+e.message); } }
+function sttDetach(){ if(STT.node){ try{ AUD.src&&AUD.src.disconnect(STT.node); }catch(e){} STT.node.port.onmessage=null; STT.node=null; } STT.seg=null; }
+function sttFeed(x){ // 20 ms blocks -> detector
+  let acc=STT.acc||[], have=STT.accN||0; acc.push(x); have+=x.length;
+  const N=STT.blkN; let all=null;
+  if(have>=N){ all=new Float32Array(have); let o=0; for(const a of acc){ all.set(a,o); o+=a.length; }
+    let i=0; for(;i+N<=have;i+=N) sttBlock(all.subarray(i,i+N).slice());
+    acc=i<have? [all.slice(i)] : []; have-=i; }
+  STT.acc=acc; STT.accN=have; }
+function sttBlock(b){ let q=0; for(const v of b) q+=v*v; const db=Math.max(-90,10*Math.log10(q/b.length+1e-12));
+  // the noise floor follows the quiet parts: falls at once, rises slowly (so a long call doesn't become the floor)
+  STT.floor= db<STT.floor? db : STT.floor+(db-STT.floor)*(STT.seg?0.0005:0.004);
+  const loud= db>Math.max(STT.floor+STT.sens,-58);
+  if(!STT.seg){ STT.pre.push(b); if(STT.pre.length>15) STT.pre.shift();
+    if(loud){ STT.seg={b:STT.pre.slice(), t:Date.now()-STT.pre.length*20}; STT.pre=[]; STT.quiet=0; STT.voiced=1; } return; }
+  STT.seg.b.push(b); if(loud){ STT.voiced++; STT.quiet=0; } else STT.quiet++;
+  if(STT.quiet>=35||STT.seg.b.length>=1250) sttEnd(); }
+function sttEnd(){ const s=STT.seg; STT.seg=null; if(!s) return;
+  if(STT.voiced<15) return;   // under 0.3 s of sound: a click or a squelch burst
+  const n=s.b.reduce((a,x)=>a+x.length,0), pcm=new Float32Array(n); let o=0; for(const x of s.b){ pcm.set(x,o); o+=x.length; }
+  sttQueue(pcm,STT.sr,s.t); }
+async function sttTo16k(pcm,sr){ if(sr===16000) return pcm;
+  const oc=new OfflineAudioContext(1,Math.ceil(pcm.length*16000/sr),16000), b=oc.createBuffer(1,pcm.length,sr); b.copyToChannel(pcm,0);
+  const s=oc.createBufferSource(); s.buffer=b; s.connect(oc.destination); s.start(); return (await oc.startRendering()).getChannelData(0); }
+async function sttQueue(pcm,sr,t){ const x=await sttTo16k(pcm,sr); STT.q.push({id:++STT.id, pcm:x, t});
+  if(STT.q.length>4){ STT.q.shift(); STT.drop++; sttSt(`Behind: ${STT.drop} transmission${STT.drop>1?'s':''} skipped (the tablet can't keep up; try the standard model).`); }
+  if(!STT.ready) sttLoad(); sttNext(); }
+function sttNext(){ if(STT.busy||!STT.ready||!STT.q.length) return; const j=STT.q.shift(); STT.busy=j;
+  sttSt(`Working on a ${(j.pcm.length/16000).toFixed(1)} s transmission…${STT.q.length?' ('+STT.q.length+' waiting)':''}`);
+  STT.w.postMessage({t:'run', id:j.id, pcm:j.pcm, prompt:sttPrompt()},[j.pcm.buffer]); }
+function sttPrompt(){ const p=st.pos; if(!p) return STT_WORDS;
+  if(STT.pr&&distBrg(p[0],p[1],STT.pr.la,STT.pr.lo)[0]<3&&STT.pr.cs===$('cSign').value&&STT.pr.ty===$('cType').value) return STT.pr.t;
+  const W=[], add=w=>{ w=String(w||'').trim(); if(w&&!W.includes(w)) W.push(w); };
+  add([$('cType').value.trim(), sayCallsign($('cSign').value)].filter(Boolean).join(', '));
+  const A=DATA.ap.filter(a=>a.t!=='H'&&Math.abs(a.la-p[0])<0.6&&Math.abs(a.lo-p[1])<0.75).map(a=>[distBrg(p[0],p[1],a.la,a.lo)[0],a]).filter(x=>x[0]<30).sort((x,y)=>x[0]-y[0]).slice(0,8);
+  for(const [,a] of A){ const n=callName(a.n,a.i), c=(a.x||[]).some(x=>x[0]==='TWR'); add(c? n+' Tower' : n); if((a.x||[]).some(x=>/^(GND|SMC)$/.test(x[0]))) add(n+' Ground'); if((a.x||[]).some(x=>x[0]==='APP')) add(n+' Approach'); }
+  for(const v of VW.filter(v=>Math.abs(v.la-p[0])<0.4&&Math.abs(v.lo-p[1])<0.5).map(v=>[distBrg(p[0],p[1],v.la,v.lo)[0],v]).filter(x=>x[0]<20).sort((x,y)=>x[0]-y[0]).slice(0,10)) add(titleCase(v[1].n));
+  try{ const u=st.curBand&&st.curBand.u; if(u) add(sayUnit(String(u))); }catch(e){}
+  const t=(W.join(', ')+'. '+STT_WORDS).slice(0,600);
+  STT.pr={la:p[0], lo:p[1], cs:$('cSign').value, ty:$('cType').value, t}; return t; }
+const STT_WORDS='Traffic, CTAF, QNH, squawk, ATIS, information, runway, circuit, downwind, base, final, inbound, taxiing, cleared, report.';
+function sttGot(d){ const j=STT.busy; STT.busy=false; STT.ms.push(d.ms/1000/Math.max(0.5,d.dur)); if(STT.ms.length>20) STT.ms.shift();
+  const txt=d.text.replace(/\s+/g,' ').trim();
+  if(txt&&!STT_JUNK.test(txt)){ STT.log.push({t:j&&j.t||Date.now(), text:txt, dur:d.dur}); if(STT.log.length>300) STT.log.shift(); sttRender(); }
+  const r=STT.ms.reduce((a,x)=>a+x,0)/STT.ms.length;
+  sttSt(`Last: ${d.dur.toFixed(1)} s of audio in ${(d.ms/1000).toFixed(1)} s (about ${r.toFixed(1)}× its length).${STT.q.length?' '+STT.q.length+' waiting.':''}`);
+  sttNext(); }
+const STT_NATO=['alpha|alfa','bravo','charl(?:ie|ey|y)','delta','echo','foxtrot','golf','hotel','india','juliett?e?','kilo','lima','mike','november','oscar','papa','quebec','romeo','sierra','tango','uniform','victor','whiske?y','x-?ray','yankee','zulu'];
+function sttMark(t){ let h=esc(t);
+  h=h.replace(/\b(1[1-3]\d)\s?(?:[.,]|decimal|point)\s?(\d{1,3})\b/gi,'<b>$1.$2</b>')
+     .replace(/\b(squawk(?:ing)?)\s+(\d\s?\d\s?\d\s?\d)\b/gi,(m,a,b)=>a+' <b>'+b.replace(/\s/g,'')+'</b>')
+     .replace(/\b(QNH)\s+(\d\s?\d\s?\d\s?\d?)\b/gi,(m,a,b)=>a+' <b>'+b.replace(/\s/g,'')+'</b>')
+     .replace(/\b(\d{1,2},?\d{3}|\d{3,5})\s?(feet|ft)\b/gi,'<b>$1</b> $2')
+     .replace(/\b(runway)\s+(\d{1,2}\s?(?:left|right|L|R)?)\b/gi,'$1 <b>$2</b>')
+     .replace(/\b(information)\s+([A-Z][a-z]+)\b/g,'$1 <b>$2</b>');
+  const me=trOwnId(); if(me&&me.length>=2){ const L=me.slice(-3).split(''), w=L.map(c=>/[A-Z]/.test(c)? `(?:${STT_NATO[c.charCodeAt(0)-65]}|${c})` : c).join('[\\s,.-]*');
+    try{ h=h.replace(new RegExp('\\b'+w+'\\b','gi'),m=>'<mark>'+m+'</mark>'); }catch(e){} }
+  return h; }
+function sttRender(){ const L=STT.log;
+  $('sttLog').innerHTML=L.slice().reverse().map(x=>`<li><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)} <small>${x.dur.toFixed(0)} s</small></li>`).join('');
+  sttRow(); }
+function sttRow(){ const row=$('sStt'), L=STT.log, now=Date.now(), last=L.filter(x=>now-x.t<120e3).slice(-2);
+  if(!STT.on||!AUD.st||!last.length){ row.hidden=true; return; }
+  row.hidden=false; row.innerHTML='<small>RADIO</small>'+last.reverse().map(x=>`<span><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)}</span>`).join(''); }
+setInterval(()=>{ if(STT.on) sttRow(); },10e3);
+async function sttSet(on){ STT.on=on; $('sttOn').checked=on;
+  if(on){ if(!STT.have[STT.model]&&!navigator.onLine){ STT.on=false; $('sttOn').checked=false; sttSt('Download the model first (needs signal once).'); return; }
+    sttLoad(); if(!AUD.st){ if($('audDev').disabled) await audList(); await audStart(); } else sttAttach();
+    sttSt(AUD.st? 'Listening for transmissions…' : 'No input open: pick one above.'); }
+  else { sttDetach(); STT.q=[]; sttSt('Transcription off.'); }
+  sttRow(); }
+async function sttFile(){ if(!AUD.blob) return; $('sttRecB').disabled=true;
+  try{ const ac=new (window.AudioContext||window.webkitAudioContext)(), buf=await ac.decodeAudioData(await AUD.blob.arrayBuffer()); ac.close();
+    const pcm=await sttTo16k(buf.getChannelData(0),buf.sampleRate);
+    // split it like the live detector would, so each transmission is its own line
+    const save={seg:STT.seg,pre:STT.pre,floor:STT.floor,quiet:STT.quiet,voiced:STT.voiced}, segs=[]; STT.seg=null; STT.pre=[]; STT.floor=-60;
+    const t0=AUD.recT||Date.now()-pcm.length/16;
+    for(let i=0;i+320<=pcm.length;i+=320) sttBlockSplit(pcm.slice(i,i+320),i,segs);
+    if(STT.seg) sttEndSplit(segs);
+    Object.assign(STT,save);
+    if(!segs.length) segs.push({pcm,at:0});
+    if(!(await sttLoad())) { $('sttRecB').disabled=false; return; }
+    for(const s of segs){ STT.q.push({id:++STT.id, pcm:s.pcm, t:t0+s.at/16}); } sttNext();
+    sttSt(`The recording: ${segs.length} transmission${segs.length>1?'s':''} queued.`); }
+  catch(e){ sttSt('Couldn\'t read the recording: '+e.message); }
+  $('sttRecB').disabled=false; }
+function sttBlockSplit(b,at,segs){ // the live detector on a stored recording (16 kHz, 20 ms blocks)
+  let q=0; for(const v of b) q+=v*v; const db=Math.max(-90,10*Math.log10(q/b.length+1e-12));
+  STT.floor= db<STT.floor? db : STT.floor+(db-STT.floor)*(STT.seg?0.0005:0.004);
+  const loud= db>Math.max(STT.floor+STT.sens,-58);
+  if(!STT.seg){ STT.pre.push(b); if(STT.pre.length>15) STT.pre.shift(); if(loud){ STT.seg={b:STT.pre.slice(), at:at-(STT.pre.length-1)*320}; STT.pre=[]; STT.quiet=0; STT.voiced=1; } return; }
+  STT.seg.b.push(b); if(loud){ STT.voiced++; STT.quiet=0; } else STT.quiet++;
+  if(STT.quiet>=35||STT.seg.b.length>=1250) sttEndSplit(segs); }
+function sttEndSplit(segs){ const s=STT.seg; STT.seg=null; if(!s||STT.voiced<15) return;
+  const n=s.b.reduce((a,x)=>a+x.length,0), pcm=new Float32Array(n); let o=0; for(const x of s.b){ pcm.set(x,o); o+=x.length; } segs.push({pcm, at:Math.max(0,s.at)}); }
+$('sttModel').onchange=()=>{ STT.model=$('sttModel').value; ls.set('sttModel',STT.model); if(STT.ready&&STT.wmodel!==STT.model){ STT.w&&STT.w.terminate(); STT.w=null; STT.ready=false; } sttModelUI(); if(STT.on) sttLoad(); };
+$('sttDl').onclick=async()=>{ $('sttDl').disabled=true; const ok=await sttLoad(); if(ok) $('sttMSt').textContent='Model stored and loaded: works without signal.'; sttModelUI(); };
+$('sttDel').onclick=async()=>{ const id=STT_M[STT.model].id; try{ const c=await caches.open(STT_CACHE); for(const r of await c.keys()) if(r.url.includes(id)) await c.delete(r); }catch(e){}
+  if(STT.wmodel===STT.model){ if(STT.on) sttSet(false); STT.w&&STT.w.terminate(); STT.w=null; STT.ready=false; } sttModelUI(); };
+$('sttOn').onchange=()=>sttSet($('sttOn').checked);
+$('sttSens').onchange=()=>{ STT.sens=+$('sttSens').value; ls.set('sttSens',STT.sens); };
+$('sttRecB').onclick=sttFile;
+$('sttCopy').onclick=()=>{ const t=STT.log.map(x=>hhmmZ(x.t)+'  '+x.text).join('\n'); if(navigator.clipboard) navigator.clipboard.writeText(t).then(()=>sttSt('Copied.'),()=>dlFile('Radio transcript.txt',t,'text/plain')); else dlFile('Radio transcript.txt',t,'text/plain'); };
+$('sttClear').onclick=()=>{ STT.log=[]; sttRender(); };
+$('sStt').addEventListener('click',()=>{ $('bOpts').onclick(); setTimeout(()=>$('sttLog').scrollIntoView({block:'center'}),50); });
+addEventListener('online',()=>{ if($('optsDlg').open) sttModelUI(); }); addEventListener('offline',()=>{ if($('optsDlg').open) sttModelUI(); });
 
 /* ---------- phase of flight from groundspeed: 'move' (starts moving after 60 s+ stopped), 'land' (stopped 30 s after flying
    at 30 kt+), 'inb' (the 10 NM inbound call for where you land, from inboundUI). Feeds SARTIME and the checklists. ---------- */

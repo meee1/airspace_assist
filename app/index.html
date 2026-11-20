@@ -166,7 +166,10 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .pc-ready{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.5} .pc-ready.ok{border-color:var(--ok)} .pc-ready.bad{border-color:var(--warn)} .pc-ready small{color:var(--dim)}
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
 .fu-big{font:700 22px var(--f-mono);margin:6px 0} .fu-big small{display:block;font:500 13px var(--f-label);color:var(--dim)} .fu-opt{display:flex;align-items:center;gap:10px;margin:8px 0} .fu-opt span{flex:1} .fu-opt small{color:var(--dim)}
-#sFuel{cursor:pointer} #sSar,#sChk{cursor:pointer}
+#sFuel{cursor:pointer} #sSar,#sChk,#sStt{cursor:pointer}
+#sStt.st.nxcls{display:block;text-align:left;white-space:normal} #sStt.st.nxcls small{margin-right:6px} #sStt.st.nxcls span,#hud #sStt.st.nxcls span{display:block;white-space:normal;overflow:visible;-webkit-line-clamp:unset;font:500 14px/1.3 var(--f-body);color:var(--ink)} #sStt.st.nxcls span+span{color:var(--dim);font-size:12.5px} #sStt.st.nxcls span *{font-family:var(--f-body)} #sStt.st.nxcls span b{font:700 1em var(--f-mono);display:inline;margin:0} #sStt.st.nxcls span i{font:600 11px var(--f-mono)} #sStt i,.sttlog i{font:600 11px var(--f-mono);font-style:normal;color:var(--dim)}
+.sttlog{list-style:none;margin:6px 0;padding:0;max-height:40vh;overflow:auto;border:1px solid var(--rule);border-radius:7px} .sttlog:empty{display:none} .sttlog li{padding:5px 8px;border-bottom:1px solid var(--rule);font:500 14px/1.35 var(--f-body)} .sttlog li:last-child{border-bottom:0} .sttlog small{color:var(--dim);font-size:11px}
+.sttlog mark,#sStt mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit;border-radius:3px;padding:0 2px} .sttlog b,#sStt b{font-family:var(--f-mono);color:var(--freq,var(--ink))}
 .sidebox{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--rule);border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .sidebox .sb-h{display:flex;align-items:center;gap:6px;font:600 11px/1.2 var(--f-mono);color:var(--dim)} .sidebox .sb-h span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .sidebox .sb-h .btn{min-height:24px;padding:1px 7px;font-size:11px}
 .sidebox canvas{display:block;width:100%;height:112px}
@@ -579,7 +582,7 @@ body.fsm.fsm-tab .wrap>.status{grid-template-columns:repeat(6,minmax(0,1fr))!imp
 body.fsm.fsm-tab .wrap>.status>.st{grid-column:span 3!important}
 body.fsm.fsm-tab .wrap>.status>.gps{grid-column:span 1!important;padding:4px 0} body.fsm.fsm-tab .wrap>.status>#sHdgBox,body.fsm.fsm-tab .wrap>.status>#sClsBox{grid-column:span 2!important} body.fsm.fsm-tab .wrap>.status>#sLimBox{grid-column:span 4!important}
 body.fsm.fsm-tab .wrap>.status>.st.fq,body.fsm.fsm-tab .wrap>.status>.st.ctl,body.fsm.fsm-tab .wrap>.status>.st.nxcls,body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>.fsbar-x,body.fsm.fsm-tab .wrap>.status>.st.tapea{grid-column:1/-1!important}
-body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sClrReq,body.fsm.fsm-tab .wrap>.status>#sClr,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow,body.fsm.fsm-tab .wrap>.status>#sSar,body.fsm.fsm-tab .wrap>.status>#sChk{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
+body.fsm.fsm-tab .wrap>.status>.st.traffic,body.fsm.fsm-tab .wrap>.status>#sInbound,body.fsm.fsm-tab .wrap>.status>#sClrReq,body.fsm.fsm-tab .wrap>.status>#sClr,body.fsm.fsm-tab .wrap>.status>#sInSua,body.fsm.fsm-tab .wrap>.status>#sNxCls,body.fsm.fsm-tab .wrap>.status>#sLastRow,body.fsm.fsm-tab .wrap>.status>#sSar,body.fsm.fsm-tab .wrap>.status>#sChk,body.fsm.fsm-tab .wrap>.status>#sStt{order:-1}   /* alerts at the top of the column, never scrolled out of sight */
 body.fsm.fsm-tab .wrap>.status>.st.nxcls{flex-wrap:wrap} body.fsm.fsm-tab .wrap>.status>.st.nxcls span{white-space:normal;flex-basis:100%}
 body.fsm.fsm-tab #mapSec{left:var(--tabW,300px)}
 body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
@@ -627,6 +630,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <div class="st nxcls warn" id="sLastRow" hidden></div>
     <div class="st nxcls fuel" id="sFuel" hidden role="button" tabindex="0" title="Fuel timer: fuel left, time and range to your reserve. Tap to set fuel, burn, start or stop"></div>
     <div class="st nxcls sar" id="sSar" hidden role="button" tabindex="0" title="SARTIME or flight note: time left before search action starts, and a reminder to cancel it after landing. Tap to set, change or cancel"></div>
+    <div class="st nxcls stt" id="sStt" hidden role="button" tabindex="0" title="Radio transcript (on this tablet): the last transmissions heard. An aid only, it mishears. Tap for the whole log"></div>
     <div class="st nxcls amber chk" id="sChk" hidden role="button" tabindex="0" title="A checklist you've set for this phase of flight: tap to open it"></div>
     <div class="st nxcls warn insua" id="sInSua" hidden title="You are inside a restricted, prohibited or danger area at your current altitude (DAH limits; status from the ERSA SUA list)"></div>
     <div class="st nxcls ahead" id="sAhead" hidden title="Lowest safe altitude ahead: the highest terrain (SRTM) or NOTAM obstacle within 2 NM of your track or flight plan over the next 10 NM, plus 1000 ft"></div>
@@ -889,6 +893,25 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <label><input type="checkbox" data-say="sar"><span><b>SARTIME</b><br><small>15 minutes to go while flying, "landed, cancel your SARTIME", and every 5 minutes once it has passed.</small></span></label>
       <label><input type="checkbox" data-say="chk"><span><b>Checklist for the phase of flight</b><br><small>Says the checklist's name when it's offered (before take-off, pre-landing, after landing).</small></span></label>
       <div class="vnote" id="saySt"></div><div style="display:flex;gap:6px"><button type="button" class="btn" id="sayTest">Test the voice</button></div></div>
+    <div class="lbl" style="margin-top:10px">Radio audio and transcription</div>
+    <div class="opts-list" id="audBox">
+      <div class="vnote" style="margin-top:0">Checks what audio the tablet can hear from a headset or cable, before radio transcription is built. Connect the headset (Bluetooth) or the audio cable, tap <b>List inputs</b>, pick one and watch the meter: talk on the intercom, then listen to an ATIS or a CTAF call. If the meter moves for the radio, the radio audio reaches the tablet. Record 30 s and play it back to hear what it gets.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0"><button type="button" class="btn" id="audList">List inputs</button><select id="audDev" style="flex:1 1 180px;min-width:0;font:600 14px var(--f-body);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)" disabled><option value="">(tap List inputs)</option></select></div>
+      <label><input type="checkbox" id="audRaw" checked><span><b>Raw audio</b><br><small>Turns off the phone's echo cancelling, noise suppression and automatic gain, which can cut radio audio as "noise".</small></span></label>
+      <canvas id="audMeter" height="34" style="width:100%;height:34px;border-radius:6px;background:var(--bg);border:1px solid var(--rule)"></canvas>
+      <div class="vnote" id="audInfo"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="audGo" disabled>Listen</button><button type="button" class="btn" id="audRec" disabled>Record 30 s</button><button type="button" class="btn" id="audPlay" disabled>Play back</button><button type="button" class="btn" id="audSave" disabled>Save recording</button></div>
+      <audio id="audEl" controls hidden style="width:100%"></audio>
+      <div class="vnote" id="audSt"></div>
+      <div style="font-weight:700;margin:10px 0 2px">Transcribe (on this tablet, no signal needed)</div>
+      <div class="vnote" style="margin-top:0">Turns what the input hears into text with a speech model that runs on the tablet. Download the model once with signal; after that it works offline. It's an aid only: it mishears callsigns and numbers, so your ears and your read-back come first.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0"><select id="sttModel" style="flex:1 1 200px;min-width:0;font:600 14px var(--f-body);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"></select><button type="button" class="btn" id="sttDl">Download model</button><button type="button" class="btn" id="sttDel" hidden>Delete model</button></div>
+      <div class="vnote" id="sttMSt"></div>
+      <label><input type="checkbox" id="sttOn"><span><b>Transcribe the input</b><br><small>Listens to the input picked above and writes each transmission below (and on the RADIO row). Keeps listening when Options is closed, until you untick it.</small></span></label>
+      <label style="cursor:default"><span><b>Sensitivity</b><br><small>How far above the background hiss a sound must be to count as speech. Higher catches quieter calls but also more noise.</small></span><select id="sttSens" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"><option value="16">Low</option><option value="11">Normal</option><option value="7">High</option></select></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="sttRecB" disabled>Transcribe the recording</button><button type="button" class="btn" id="sttCopy">Copy</button><button type="button" class="btn" id="sttClear">Clear</button></div>
+      <div class="vnote" id="sttSt"></div>
+      <ol class="sttlog" id="sttLog"></ol></div>
     <div class="lbl" style="margin-top:10px">Settings file</div>
     <div class="opts-list" id="cfgBox">
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="cfgExport">Export settings</button><label class="btn" for="cfgFile">Import settings</label><input type="file" id="cfgFile" accept=".json,application/json" hidden></div>
@@ -1081,7 +1104,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=8b1c434ea9';
+    const s=document.createElement('script'); s.src='app.js?v=4e248d50db';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

@@ -1,5 +1,5 @@
-const C='radio-au-595dbce3be', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
-const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./app.js?v=8b1c434ea9','./urban.json?v=b7ee073b12','./data.json?v=f125575d9a','./data-next.json?v=a653815da6'];   // build files with the ?v= the page asks for
+const C='radio-au-53166a0859', T='radio-au-terrain', F='radio-au-fonts', X='radio-au-charts', S='radio-au-share', SAT='radio-au-sat', E='radio-au-ersa', PLW='radio-au-wires', SAT_MAX=6000;
+const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./app.js?v=4e248d50db','./urban.json?v=b7ee073b12','./data.json?v=f125575d9a','./data-next.json?v=a653815da6'];   // build files with the ?v= the page asks for
 // files that belong to this build: served from this build's cache first (the ?v= in the URL is only a network cache-buster),
 // so app code and AIP data can never come from two different builds
 const BUILD=/\/(app\.js|data\.json|data-next\.json|urban\.json)$/;
@@ -14,7 +14,7 @@ async function precacheTerrain(){   // all SRTM tiles, a few at a time; safe to 
   }catch(e){}
 }
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S,SAT,E,PLW].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![C,T,F,X,S,SAT,E,PLW,'transformers-cache'].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>{ precacheTerrain(); }))});
 self.addEventListener('message',e=>{ if(e.data==='precache') e.waitUntil(precacheTerrain()); });
 self.addEventListener('fetch',e=>{
   const req=e.request, u=new URL(req.url);
