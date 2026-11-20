@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795175280178;
+const APP_BUILT=1795179512085;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2085,8 +2085,8 @@ let FS_TAB=fsTab();   // tablet landscape (a 10" Android tab can be ~850 CSS px 
 function fsMove(el,to){ if(!el) return; if(!FS.marks.has(el)){ const m=document.createComment('fs'); el.before(m); FS.marks.set(el,m); } if(el.parentNode!==to) to.append(el); }
 function fsBack(el){ if(!el) return; const m=FS.marks.get(el); if(m){ m.replaceWith(el); FS.marks.delete(el); } }
 const FS_HUD_R=['gpsTile','sAltBox','sHdgBox','sGsBox','sClsBox'], FS_HUD_L=['sCtafBox','sAreaBox','gCtafBox','gAreaBox','sNav'], FS_HUD_A=['sTraffic','sWires','sClrReq','sInbound','sClr','sInSua','sNxCls','sAhead','sLastRow','sFuel','sSar','sChk','sStt'], FS_HUD_T=['sTapeA'], FS_HUD=FS_HUD_L.concat(FS_HUD_R,FS_HUD_A,FS_HUD_T);
-const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
-const FS_TABS=[['Card','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Layers','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
+const FS_LAY=['mapCtaf','mapTer','mapSat','mapChart','mapWire','mapCoast','mapRadar','mapLead','mapRange','mapMeas','mapLog','mapWx','mapSide'];
+const FS_TABS=[['Aerodrome','adCard'],['Radio calls','calls'],['Flight plan','fpBox'],['Go to','goBox'],['Legend','fsLayers'],['NOTAMs','ntSet'],['Nearby','fsNear'],['More','moreCtl']];
 const FS_NEAR=document.querySelector('.wrap>.sec-h'); if(FS_NEAR) FS_NEAR.id='fsNear';
 function fsSecs(){ return [$('effBanner'),$('adCard'),$('colA'),$('ntSet'),FS_NEAR,$('list'),$('moreCtl'),$('foot')].filter(Boolean); }
 function fsApply(){ const want=FS.on&&!$('mapSec').hidden, tab=want&&FS_TAB, hud=want&&!tab&&!FS.bar;
@@ -2705,6 +2705,52 @@ function drawWires(g,P,C,W,Hh,la,lo,reach,cosl,sc){
     g.save(); g.lineWidth=5; g.strokeStyle=C.bg; g.beginPath(); g.arc(x,y,9,0,2*Math.PI); g.stroke(); g.strokeStyle=red; g.lineWidth=2.5; g.beginPath(); g.arc(x,y,9,0,2*Math.PI); g.moveTo(x-5,y-5); g.lineTo(x+5,y+5); g.moveTo(x+5,y-5); g.lineTo(x-5,y+5); g.stroke(); g.restore(); } }
 $('mapWire').setAttribute('aria-pressed',PL.on);
 $('mapWire').onclick=()=>{ PL.on=!PL.on; ls.set('mapWire',PL.on); $('mapWire').setAttribute('aria-pressed',PL.on); if(PL.on){ if(PL.err&&PL.err!=='none') PL.err=''; plLoad(); } render(); };
+
+/* ---------- coastline layer (20 Nov 2026, Michael: "Add coastline as a layer"). The coast-leg tiles (app/coast/<SW corner>.json,
+   tools/coast.py: Geoscience Australia GEODATA COAST 100K, land polygons clipped to 1° tiles) drawn as lines. The tile
+   clipping adds straight edges along the 1° lines; segments lying on a tile's own edge are left out. Decoded rings are kept
+   per tile, full and thinned (a point every ~0.003°, edge points always kept) for ranges over 30 NM. Shown to 160 NM. */
+COAST.on=ls.get('mapCoast',false); COAST.dec=new Map();
+function coastDec(n){ let d=COAST.dec.get(n); if(d) return d;   // n = 'S38E144' -> {full:[Float64Array lon,lat,..,edge flags], coarse:[..]}
+  COAST.dec.set(n,'loading');
+  coastTile(n).then(P=>{ const la0=(n[0]==='S'?-1:1)*+n.slice(1,3), lo0=(n[3]==='W'?-1:1)*+n.slice(4,7), X0=lo0*1e4, X1=X0+1e4, Y0=la0*1e4, Y1=Y0+1e4;
+      const one=pts=>{ const n_=pts.length/2, e=new Uint8Array(n_);   // e[i]: segment i->i+1 lies on the tile edge
+        for(let i=0;i+1<n_;i++){ const x=pts[2*i],y=pts[2*i+1],x2=pts[2*i+2],y2=pts[2*i+3];
+          e[i]=(x===x2&&(x===X0||x===X1))||(y===y2&&(y===Y0||y===Y1))?1:0; }
+        return {p:pts,e}; };
+      const full=[], coarse=[];
+      for(const poly of P) for(const r of poly){ if(r.length<4) continue; const pts=[r[0],r[1]]; let x=r[0],y=r[1];
+        for(let i=2;i+1<r.length;i+=2){ x+=r[i]; y+=r[i+1]; pts.push(x,y); }
+        if(pts[0]!==pts[pts.length-2]||pts[1]!==pts[pts.length-1]) pts.push(pts[0],pts[1]);   // closed
+        full.push(one(pts));
+        const on=(x,y)=>x===X0||x===X1||y===Y0||y===Y1, c=[pts[0],pts[1]]; let lx=pts[0],ly=pts[1];
+        for(let i=2;i<pts.length;i+=2){ const x=pts[i],y=pts[i+1], last=i===pts.length-2;
+          if(last||on(x,y)||Math.abs(x-lx)+Math.abs(y-ly)>30){ c.push(x,y); lx=x; ly=y; } }
+        if(c.length>=4) coarse.push(one(c)); }
+      COAST.dec.set(n,{full,coarse}); if(COAST.on) render(); })
+    .catch(e=>{ COAST.dec.delete(n); COAST.err=e.message; COAST.errT=Date.now(); });
+  return 'loading'; }
+function drawCoast(g,P,C,W,Hh,inv,sc){ if(!COAST.on) return;
+  if(MAP.range>160){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--dim'); g.textAlign='left'; g.fillText('Coast: zoom in to 160 NM or less',8,Hh-8); return; }
+  if(!COAST.idx){ if(!COAST.ixP) COAST.ixP=coastIndex().then(()=>{ COAST.ixP=null; render(); },e=>{ COAST.err=e.message; COAST.errT=Date.now(); setTimeout(()=>COAST.ixP=null,30e3); });
+    if(COAST.err){ g.font='600 11px "IBM Plex Mono", monospace'; g.fillStyle=cssv('--warn'); g.textAlign='left'; g.fillText('Coast: '+COAST.err.slice(0,70),8,Hh-8); } return; }
+  let a=90,b=-90,c=180,d=-180; for(const [x,y] of [[0,0],[W,0],[0,Hh],[W,Hh],[W/2,0],[W/2,Hh],[0,Hh/2],[W,Hh/2]]){ const q=inv(x,y); a=Math.min(a,q[0]); b=Math.max(b,q[0]); c=Math.min(c,q[1]); d=Math.max(d,q[1]); }
+  const coarse=MAP.range>30, rings=[];
+  for(let la0=Math.floor(a);la0<=Math.floor(b);la0++) for(let lo0=Math.floor(c);lo0<=Math.floor(d);lo0++){
+    const n=`${la0<0?'S':'N'}${String(Math.abs(la0)).padStart(2,'0')}${lo0<0?'W':'E'}${String(Math.abs(lo0)).padStart(3,'0')}`;
+    if(!COAST.c.has(n)) continue; const t=coastDec(n); if(t==='loading') continue; for(const r of (coarse?t.coarse:t.full)) rings.push(r); }
+  if(!rings.length) return;
+  const path=new Path2D(), k=1e-4;
+  for(const {p,e} of rings){ let pen=false, px=0, py=0;
+    for(let i=0;i<p.length;i+=2){ const [x,y]=P(p[i+1]*k,p[i]*k);
+      if(!pen){ path.moveTo(x,y); pen=true; px=x; py=y; }
+      else if(e[i/2-1]) { path.moveTo(x,y); px=x; py=y; }
+      else if(Math.abs(x-px)+Math.abs(y-py)>=0.7||i===p.length-2){ path.lineTo(x,y); px=x; py=y; } } }
+  g.save(); g.lineJoin='round'; g.lineCap='round';
+  g.strokeStyle=C.bg; g.globalAlpha=.7; g.lineWidth=3.6; g.stroke(path);
+  g.strokeStyle=C.coast||cssv('--coast')||'#2a6f78'; g.globalAlpha=.95; g.lineWidth=1.5; g.stroke(path); g.restore(); }
+$('mapCoast').setAttribute('aria-pressed',COAST.on);
+$('mapCoast').onclick=()=>{ COAST.on=!COAST.on; ls.set('mapCoast',COAST.on); $('mapCoast').setAttribute('aria-pressed',COAST.on); if(COAST.on) COAST.err=''; render(); };
 /* ---------- tap a tile to enlarge it (Options → Tiles, on by default; rc_tileZoom) ----------
    For reading a small screen: the first tap on a tile scales it up in place (kept inside the screen) until a tap anywhere
    else (Michael: "Keep it large untill clicking outside"); a tap on it while it's big goes through to whatever the tile
@@ -3330,6 +3376,7 @@ function drawMap0(la,lo,h,pick,AS,altFt){
   pfMark('terrain');
   drawRadar(g,W,Hh,P,invPx,cosl,sc); pfMark('radar');
   drawWires(g,P,C,W,Hh,la,lo,reach,cosl,sc); pfMark('power lines');
+  drawCoast(g,P,C,W,Hh,invPx,sc); pfMark('coastline');
   // CTAF layer (drawCtaf: cached picture of the merged 10 NM areas per frequency)
   let ctafAt=[];
   if(MAP.ctaf && MAP.range>80) $('ctafLeg').innerHTML='<span>CTAF areas show at 80 NM and closer</span>';   // hundreds of aerodromes: too slow to draw further out
@@ -5424,6 +5471,7 @@ const ICO={
   chart:'<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z"/><path d="M9 4v13.5M15 6.5V20"/>',
   lead:'<path d="M12 21V4M7.5 8.5 12 3.5l4.5 5"/><path d="M8.5 17h7M9.5 13h5"/>',
   wire:'<path d="M12 2 7 22M12 2l5 20M5 7h14M6.8 12h10.4M8.5 12l7 5.5M15.5 12l-7 5.5"/><path d="M5 7v2.5M19 7v2.5"/>',
+  coast:'<path d="M3 2.5c2.5 2 1 4.5 3.5 6.5s4.5.5 5 4-2 5.5 0 8.5"/><path d="M14 8.5c1.6-1.2 3.2-1.2 4.8 0s2.2 1 3 .5M14 13c1.6-1.2 3.2-1.2 4.8 0s2.2 1 3 .5M14.5 17.5c1.6-1.2 3.2-1.2 4.8 0s1.7 1 2.5.5"/>',
   radar:'<path d="M7 15.5h10a3.6 3.6 0 0 0 .4-7.2A5.5 5.5 0 0 0 6.7 9.6 3 3 0 0 0 7 15.5Z"/><path d="M8.5 18.5 7.6 21M12.5 18.5l-.9 2.5M16.5 18.5l-.9 2.5"/>',
   meas:'<circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="5" r="2.2"/><path d="M6.6 17.4 17.4 6.6" stroke-dasharray="2.4 2.2"/><path d="M14 17h7M17.5 15v4"/>',
   range:'<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5" stroke-dasharray="2.5 2"/><path d="M12 9.6v4.8M10 11.4l2-1.8 2 1.8"/>',
@@ -5437,7 +5485,7 @@ const ICO={
 };
 function icoBtn(id,k,label){ const b=$(id); if(!b) return; b.classList.add('icob'); b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg><span class="il"></span>`; b.querySelector('.il').textContent=label; }
 function icoLbl(id,t){ const s=$(id)&&$(id).querySelector('.il'); if(s){ if(s.textContent!==t) s.textContent=t; } else if($(id)) $(id).textContent=t; }
-for(const [id,k,l] of [['mapCtaf','ctaf','CTAF'],['mapTer','ter','Terrain'],['mapSat','sat','Sat'],['mapChart','chart','Charts'],['mapLead','lead','Lead'],['mapWire','wire','Wires'],['mapRadar','radar','Radar'],['mapMeas','meas','Measure'],['mapRange','range','Range'],['mapLog','log','Log'],['mapWx','wx','Wx'],['mapSide','side','Side'],['mapTraffic','trf','Traffic'],['mapUp','up','Track up'],['mapHome','home','Centre'],['mapLayers','layers','Layers']]) icoBtn(id,k,l);
+for(const [id,k,l] of [['mapCtaf','ctaf','CTAF'],['mapTer','ter','Terrain'],['mapSat','sat','Sat'],['mapChart','chart','Charts'],['mapLead','lead','Lead'],['mapWire','wire','Wires'],['mapCoast','coast','Coast'],['mapRadar','radar','Radar'],['mapMeas','meas','Measure'],['mapRange','range','Range'],['mapLog','log','Log'],['mapWx','wx','Wx'],['mapSide','side','Side'],['mapTraffic','trf','Traffic'],['mapUp','up','Track up'],['mapHome','home','Centre'],['mapLayers','layers','Layers']]) icoBtn(id,k,l);
 // full-screen map: the ten layer buttons are in a grid over the map, opened by Layers (next to the other map buttons);
 // it stays open while you switch layers and closes on a tap anywhere else
 // the grid lives at page level (fixed, above the floating tiles: inside #mapSec, z-index 5, it went under them on a narrow phone)

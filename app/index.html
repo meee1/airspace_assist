@@ -20,7 +20,7 @@
 :root{
   --bg:#eef1ee; --panel:#ffffff; --ink:#132026; --dim:#5a6a70; --rule:#d3dad6;
   --freq:#0b5c45; --accent:#c25a00; --warn:#a3281b; --ok:#1d7a4a; --chip:#e3e9e5;
-  --wp:#7b2d8e;
+  --wp:#7b2d8e; --coast:#1d6e7a;
   --as-c:#1f5fbf; --as-d:#1f5fbf; --as-e:#7a4fc2; --as-r:#c8202f; --as-q:#d0660a; --as-fia:#2f8f5b;
   --f-label:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -28,17 +28,17 @@
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --wp:#d78cf0;
+  --wp:#d78cf0; --coast:#5cc8d6;
   --as-c:#6aa8ff; --as-d:#6aa8ff; --as-e:#b493ff; --as-r:#ff5f6d; --as-q:#ffa04d; --as-fia:#5fe0a8;
   --bg:#0d1417; --panel:#152024; --ink:#e6efe9; --dim:#8a9ba0; --rule:#26353a;
   --freq:#5fe0a8; --accent:#ffad4d; --warn:#ff7a66; --ok:#5fe0a8; --chip:#1d2b30; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --wp:#d78cf0;
+  --wp:#d78cf0; --coast:#5cc8d6;
   --as-c:#6aa8ff; --as-d:#6aa8ff; --as-e:#b493ff; --as-r:#ff5f6d; --as-q:#ffa04d; --as-fia:#5fe0a8;
   --bg:#0d1417; --panel:#152024; --ink:#e6efe9; --dim:#8a9ba0; --rule:#26353a;
   --freq:#5fe0a8; --accent:#ffad4d; --warn:#ff7a66; --ok:#5fe0a8; --chip:#1d2b30; color-scheme:dark}
 :root[data-theme="night"]{
-  --wp:#ff7a90;
+  --wp:#ff7a90; --coast:#ff9a7a;
   --as-c:#ff6a55; --as-d:#ff6a55; --as-e:#d94a3a; --as-r:#ff2a1a; --as-q:#ff8a6a; --as-fia:#a8392e;
   --bg:#000; --panel:#0c0000; --ink:#ff5a4a; --dim:#a8392e; --rule:#3a0d08;
   --freq:#ff6a55; --accent:#ff8a6a; --warn:#ff3b2a; --ok:#ff6a55; --chip:#1a0402; color-scheme:dark}
@@ -385,7 +385,7 @@ button.chgo{flex:none;padding:0;border:0;background:none;position:relative;curso
 .mapctl #mapOut,.mapctl #mapIn{padding:8px 10px} .mapctl #mapTraffic,.mapctl #mapUp{padding:8px 8px}
 .mapctl .btn{padding:8px 11px;font-size:14px}
 .mapctl #mapUp{font-size:12px}
-.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog,.mapctl #mapWire,.mapctl #mapRadar,.mapctl #mapMeas,.mapctl #mapRange{font-size:11px;flex:1 1 0;min-width:58px;padding:6px 3px 5px;flex-direction:column;gap:3px;justify-content:center}   /* the layer row: icon over label */
+.mapctl .brk{flex-basis:100%;height:0} .mapctl #mapCtaf,.mapctl #mapTer,.mapctl #mapSat,.mapctl #mapChart,.mapctl #mapLead,.mapctl #mapLog,.mapctl #mapWire,.mapctl #mapCoast,.mapctl #mapRadar,.mapctl #mapMeas,.mapctl #mapRange{font-size:11px;flex:1 1 0;min-width:58px;padding:6px 3px 5px;flex-direction:column;gap:3px;justify-content:center}   /* the layer row: icon over label */
 .ctafleg{font:600 11px var(--f-mono);color:var(--ink)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;opacity:.85}
 .mapctl #mapRng{min-width:52px;text-align:center}
@@ -555,7 +555,7 @@ body.fsm #fsSheet{display:flex;flex-direction:column;position:fixed;left:0;right
 .fs-tabs button{flex:none;font:600 13px/1 var(--f-label);padding:9px 12px;border-radius:18px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);cursor:pointer}
 .fs-tabs button.on{background:var(--freq);border-color:var(--freq);color:#fff}
 #fsBody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 12px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
-#fsBody>*{scroll-margin-top:4px;flex:none} #fsLayers{display:none} body.fsm #fsLayers{display:flex;flex-direction:column;gap:8px} #fsLayBtns{display:flex;flex-wrap:wrap;gap:6px}
+#fsBody>*{scroll-margin-top:4px;flex:none} #fsLayers{display:none} body.fsm #fsLayers{display:flex;flex-direction:column;gap:8px} #fsLayBtns{display:flex;flex-wrap:wrap;gap:6px} #fsLayBtns:empty{display:none}
 body.fsm #fsBody .ad-head{top:0}
 body.fsm #fsBody>*,body.fsm #fsBody #colA>*{scroll-margin-top:4px}   /* not the classic landscape top-bar margin (--stickH is the whole left column in fsm-tab) */
 body.fsm #fsBody #colA{display:flex;flex-direction:column;gap:12px}
@@ -683,6 +683,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
         <button class="btn" id="mapChart" aria-pressed="false" title="VTC/VNC chart underlay (import the Airservices PDFs once below)">Charts</button>
         <button class="btn" id="mapLead" aria-pressed="true" title="Lead line: 10 NM ahead of your arrow, a cross line every NM">Lead</button>
         <button class="btn" id="mapWire" aria-pressed="false" title="Power lines: Geoscience Australia transmission lines (66 kV and up; local distribution lines are not included)">Wires</button>
+        <button class="btn" id="mapCoast" aria-pressed="false" title="Coastline: Geoscience Australia 1:100,000 coast and islands (CC BY 4.0), the same data as coast legs. Stored on the device, so it works offline">Coast</button>
         <button class="btn" id="mapRadar" aria-pressed="false" title="Rain radar from RainViewer, the latest image (10-minute steps, online only)">Radar</button>
         <button class="btn" id="mapMeas" aria-pressed="false" title="Measure: tap points on the map (aerodromes and waypoints snap) for distance, magnetic bearing and time at your groundspeed">Measure</button>
         <button class="btn" id="mapRange" aria-pressed="false" title="Range circle: how far you can fly at your groundspeed before reaching your fuel reserve (from the fuel timer); dashed: out and back">Range</button>
@@ -851,7 +852,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
 
   <div id="fsSplit" role="separator" aria-orientation="vertical" aria-label="Drag to make the tile column wider or narrower" title="Drag to make the tile column wider or narrower" tabindex="0"></div>
   <div id="hud" aria-label="Key frequencies and flight data over the map"><div id="hudL"></div><div id="hudR"></div><div id="hudA"></div><div id="hudT"></div></div>
-  <div id="fsSheet" data-s="peek"><div id="fsHead"><div class="fs-grab" aria-hidden="true"><i></i></div><div class="fs-tabs" id="fsTabs" role="tablist"></div></div><div id="fsBody"><div id="fsLayers" class="fs-sec"><div class="lbl">Map layers</div><div class="ctl" id="fsLayBtns"></div></div></div></div>
+  <div id="fsSheet" data-s="peek"><div id="fsHead"><div class="fs-grab" aria-hidden="true"><i></i></div><div class="fs-tabs" id="fsTabs" role="tablist"></div></div><div id="fsBody"><div id="fsLayers" class="fs-sec"><div class="lbl">Legend</div><div class="vnote" style="margin-top:0">Map layers: the <b>Layers</b> button on the map.</div><div class="ctl" id="fsLayBtns"></div></div></div></div>
 
   <dialog class="opts clrdlg" id="clrDlg" aria-labelledby="clrTitle">
     <div class="opts-head"><b id="clrTitle">ATIS and clearance</b><button class="btn" id="clrClose" aria-label="Close">✕</button></div>
@@ -1104,7 +1105,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=68a19e9a30';
+    const s=document.createElement('script'); s.src='app.js?v=39f16000b5';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
