@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795164721188;
+const APP_BUILT=1795175280178;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -2955,7 +2955,7 @@ function pfShow(force){ const box=$('perfBox'); if(!PF.on){ box.hidden=true; ret
     `<table><tr><td></td><td class="n">avg</td><td class="n">last</td><td class="n">max 60s</td><td class="n">rate</td></tr>${sec('render','Screen update (render)')}${sec('map','Map drawing (drawMap)')}</table>`+
     (hid('render')+hid('map')? `<div><button type="button" data-pf="all">Show ${hid('render')+hid('map')} more under 0.3 ms</button></div>` : PF.all? `<div><button type="button" data-pf="all">Hide parts under 0.3 ms</button></div>` : '')+
     (BN.msg? `<div class="bn">${esc(BN.msg)}</div>` : '')+(BN.res&&!BN.on? `<pre class="bn">${esc(BN.res)}</pre>` : '')+
-    `<div>Long tasks (over 50 ms) in the last minute: ${R.long.length}${R.long.length?' · worst '+Math.round(Math.max(...R.long.map(x=>x[1])))+' ms':''} · canvas ${cv?cv.width+'×'+cv.height:'-'} @${(window.devicePixelRatio||1).toFixed(2)}</div>`; }
+    `<div>Long tasks (over 50 ms) in the last minute: ${R.long.length}${R.long.length?' · worst '+Math.round(Math.max(...R.long.map(x=>x[1])))+' ms':''} · canvas ${cv?cv.width+'×'+cv.height:'-'} @${(window.devicePixelRatio||1).toFixed(2)}</div><div id="pfMem">${esc(memLine())}</div>`; }
 function pfText(){ const R=pfRows(), f=v=>v.toFixed(1), L=[];
   L.push(`Radio Calls AU render timing · ${new Date().toISOString()} · build ${APP_BUILT?new Date(APP_BUILT).toISOString().slice(0,16):'?'}`);
   L.push(`${navigator.userAgent}`); L.push(`viewport ${innerWidth}x${innerHeight} @${window.devicePixelRatio} · canvas ${$('map').width}x${$('map').height} · full screen ${document.body.classList.contains('fsm')}`);
@@ -2963,7 +2963,7 @@ function pfText(){ const R=pfRows(), f=v=>v.toFixed(1), L=[];
   L.push(`map range ${MAP.range} NM · up ${MAP.up} · layers: ${[['ctaf',MAP.ctaf],['terrain',MAP.ter],['sat',SAT.on],['charts',CH.on],['wires',PL.on],['radar',RAD.on],['traffic',MAP.traffic],['log',MAP.log],['lead',MAP.lead]].filter(x=>x[1]).map(x=>x[0]).join(', ')||'none'} · sim ${!!st.sim} · GS ${st.gs!=null?Math.round(st.gs):'-'}`);
   for(const [t,title] of [['render','render'],['map','drawMap']]){ const T=R.tot(t); if(!T) continue; L.push(''); L.push(`${title}: avg ${f(T.avg)} last ${f(T.last)} max60 ${f(T.max)} ms · ${R.rate(t).toFixed(1)}/s · n ${T.n}`);
     for(const s of R.parts(t)) L.push(`  ${s.name.padEnd(26)} avg ${f(s.avg).padStart(6)}  last ${f(s.last).padStart(6)}  max60 ${f(s.max).padStart(6)}`); }
-  L.push(''); L.push(`long tasks 60s: ${R.long.length}${R.long.length?' (ms: '+R.long.map(x=>Math.round(x[1])).join(', ')+')':''}`);
+  L.push(''); L.push(memLine()); L.push(`long tasks 60s: ${R.long.length}${R.long.length?' (ms: '+R.long.map(x=>Math.round(x[1])).join(', ')+')':''}`);
   if(BN.res){ L.push(''); L.push(BN.res); }
   return L.join('\n'); }
 $('perfBox').addEventListener('click',e=>{ const b=e.target.closest('[data-pf]'); if(!b) return; const k=b.dataset.pf;
@@ -4562,7 +4562,7 @@ if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener) navigator.me
 
 /* ---------- offline speech-to-text (20 Nov 2026, Michael: "Add the offline speech decoder"). Whisper English-only (tiny.en / base.en,
    8-bit ONNX from Hugging Face onnx-community) through Transformers.js 4.3.2 + ONNX Runtime Web (WebAssembly), vendored in
-   lib/transformers; runs in lib/stt/worker2.js (a changed worker needs a new file name: lib/ is cached for good).
+   lib/transformers; runs in lib/stt/worker3.js (a changed worker needs a new file name: lib/ is cached for good).
    Whisper is given a prompt of local names (sttPrompt: aerodromes within 30 NM with Tower/Ground/Approach where ERSA has them, VFR
    points within 20 NM, your type and callsign, common words), which fixes most place names ("Murabintaur" -> "Moorabbin Tower"). The model downloads once (Transformers.js keeps it in Cache Storage
    'transformers-cache', which the service worker keeps across builds); the lib files are kept by the service worker.
@@ -4589,13 +4589,14 @@ function sttLoad(){ if(STT.ready&&STT.wmodel===STT.model) return Promise.resolve
   if(STT.w){ STT.w.terminate(); STT.w=null; STT.ready=false; }
   const base=new URL('lib/transformers/',location.href).href, m=STT.model;
   STT.prog={}; STT.loading=new Promise(res=>{
-    let w; try{ w=STT.w=new Worker(new URL('lib/stt/worker2.js',location.href).href,{type:'module'}); }catch(e){ $('sttMSt').textContent='This browser can\'t run the speech model: '+e.message; STT.loading=false; return res(false); }
+    let w; try{ w=STT.w=new Worker(new URL('lib/stt/worker3.js',location.href).href,{type:'module'}); }catch(e){ $('sttMSt').textContent='This browser can\'t run the speech model: '+e.message; STT.loading=false; return res(false); }
     w.onmessage=e=>{ const d=e.data;
       if(d.t==='prog'){ const p=d.p; if(p.file&&p.total) STT.prog[p.file]=[p.loaded||0,p.total]; if(p.status==='done'&&p.file&&STT.prog[p.file]) STT.prog[p.file][0]=STT.prog[p.file][1];
         const big=Object.values(STT.prog).filter(x=>x[1]>1e6), L=big.reduce((a,x)=>a+x[0],0), T=big.reduce((a,x)=>a+x[1],0);
         $('sttMSt').textContent= T? `Loading the model… ${(L/1048576).toFixed(0)} / ${(T/1048576).toFixed(0)} MB` : 'Loading the model…'; }
       else if(d.t==='ready'){ STT.ready=true; STT.wmodel=m; STT.loading=false; STT.warm=d.warm; sttModelUI(); res(true); sttNext(); }
       else if(d.t==='text') sttGot(d);
+      else if(d.t==='mem'){ MEM.stt=d.wasm; MEM.sttT=Date.now(); memUI(); }
       else if(d.t==='err'){ if(d.stage==='load'){ STT.loading=false; w.terminate(); STT.w=null;
           $('sttMSt').textContent=(navigator.onLine? 'Couldn\'t load the model: ' : 'The model isn\'t on this tablet and there\'s no signal to download it. ')+d.msg.slice(0,160); sttModelUI(); res(false); }
         else { STT.busy=false; sttSt('Transcription error: '+d.msg.slice(0,160)); sttNext(); } } };
@@ -4716,6 +4717,28 @@ $('sttCopy').onclick=()=>{ const t=STT.log.map(x=>hhmmZ(x.t)+'  '+x.text).join('
 $('sttClear').onclick=()=>{ STT.log=[]; sttRender(); };
 $('sStt').addEventListener('click',()=>{ $('bOpts').onclick(); setTimeout(()=>$('sttLog').scrollIntoView({block:'center'}),50); });
 addEventListener('online',()=>{ if($('optsDlg').open) sttModelUI(); }); addEventListener('offline',()=>{ if($('optsDlg').open) sttModelUI(); });
+
+/* ---------- memory (20 Nov 2026, Michael: "Can we see memory usage?"). What Chrome lets a page see: its own JavaScript heap
+   (performance.memory: used / allocated / limit; not the canvases, images or decoded tiles, which live outside it), the
+   speech worker's WebAssembly memory (counted inside lib/stt/worker3.js: the model and its working space), the device's RAM
+   rounded to a power of two (navigator.deviceMemory, capped at 8 GB), and the storage used (navigator.storage.estimate:
+   caches, IndexedDB, service worker). The whole tab's memory isn't available to a page (measureUserAgentSpecificMemory needs
+   cross-origin isolation, which GitHub Pages can't set). Polled every 3 s while the Render timing panel or Options is open. */
+const MEM={heap:null, stt:null, sttT:0, dm:navigator.deviceMemory||null, est:null, estT:0};
+const mb=b=>b==null? '?' : b>=1073741824? (b/1073741824).toFixed(1)+' GB' : Math.round(b/1048576)+' MB';
+function memLine(){ try{ return memLine0(); }catch(x){ return ''; } }   // called by the render panel, possibly before MEM/STT exist at start-up
+function memLine0(){ const h=MEM.heap, e=MEM.est, d=e&&e.usageDetails, sw=!!STT.w;
+  return 'Memory: page JS heap '+(h? `${mb(h.used)} (allocated ${mb(h.total)}, limit ${mb(h.limit)})` : 'not shown by this browser')+
+    (sw&&MEM.stt!=null? ` · speech model ${mb(MEM.stt)}` : '')+
+    (MEM.dm? ` · device RAM about ${MEM.dm>=8?'8+':MEM.dm} GB` : '')+
+    (e? ` · stored ${mb(e.usage)} of ${mb(e.quota)}`+(d? ' ('+[['caches',d.caches],['IndexedDB',d.indexedDB],['service worker',d.serviceWorkerRegistrations]].filter(x=>x[1]).map(x=>x[0]+' '+mb(x[1])).join(', ')+')' : '') : ''); }
+async function memPoll(){ const pm=performance.memory; MEM.heap=pm? {used:pm.usedJSHeapSize, total:pm.totalJSHeapSize, limit:pm.jsHeapSizeLimit} : null;
+  if(STT.w) try{ STT.w.postMessage({t:'mem'}); }catch(e){}
+  if(navigator.storage&&navigator.storage.estimate&&Date.now()-MEM.estT>15e3){ MEM.estT=Date.now(); try{ MEM.est=await navigator.storage.estimate(); }catch(e){} }
+  memUI(); }
+function memUI(){ const t=memLine(), a=$('pfMem'), b=$('sttMem'); if(a) a.textContent=t;
+  if(b) b.textContent=STT.w&&MEM.stt!=null? `Speech model in memory: ${mb(MEM.stt)}${MEM.heap?' · page JS heap '+mb(MEM.heap.used):''}${MEM.dm?' · device RAM about '+(MEM.dm>=8?'8+':MEM.dm)+' GB':''}` : ''; }
+setInterval(()=>{ if(PF.on||$('optsDlg').open) memPoll(); },3000);
 
 /* ---------- phase of flight from groundspeed: 'move' (starts moving after 60 s+ stopped), 'land' (stopped 30 s after flying
    at 30 kt+), 'inb' (the 10 NM inbound call for where you land, from inboundUI). Feeds SARTIME and the checklists. ---------- */

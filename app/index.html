@@ -906,7 +906,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div style="font-weight:700;margin:10px 0 2px">Transcribe (on this tablet, no signal needed)</div>
       <div class="vnote" style="margin-top:0">Turns what the input hears into text with a speech model that runs on the tablet. Download the model once with signal; after that it works offline. It's an aid only: it mishears callsigns and numbers, so your ears and your read-back come first.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0"><select id="sttModel" style="flex:1 1 200px;min-width:0;font:600 14px var(--f-body);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"></select><button type="button" class="btn" id="sttDl">Download model</button><button type="button" class="btn" id="sttDel" hidden>Delete model</button></div>
-      <div class="vnote" id="sttMSt"></div>
+      <div class="vnote" id="sttMSt"></div><div class="vnote" id="sttMem"></div>
       <label><input type="checkbox" id="sttOn"><span><b>Transcribe the input</b><br><small>Listens to the input picked above and writes each transmission below (and on the RADIO row). Keeps listening when Options is closed, until you untick it.</small></span></label>
       <label style="cursor:default"><span><b>Sensitivity</b><br><small>How far above the background hiss a sound must be to count as speech. Higher catches quieter calls but also more noise.</small></span><select id="sttSens" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"><option value="16">Low</option><option value="11">Normal</option><option value="7">High</option></select></label>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="sttRecB" disabled>Transcribe the recording</button><button type="button" class="btn" id="sttCopy">Copy</button><button type="button" class="btn" id="sttClear">Clear</button></div>
@@ -1104,7 +1104,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=4e248d50db';
+    const s=document.createElement('script'); s.src='app.js?v=68a19e9a30';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

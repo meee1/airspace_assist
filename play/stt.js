@@ -27,6 +27,8 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   ok(/<mark>/.test(L.html),'own callsign (ABC / Alpha Bravo Charlie) highlighted');
   ok(L.log.every(x=>!/thank you/i.test(x)),'no stock "thank you" lines from the silence');
   await p.evaluate(()=>$('sttLog').scrollIntoView({block:'center'})); await p.screenshot({path:__dirname+'/stt_opts.png'});
+  await p.waitForFunction(()=>/Speech model in memory: \d+ MB/.test($('sttMem').textContent),null,{timeout:10000}).catch(()=>{});
+  const mm=await p.evaluate(()=>({t:$('sttMem').textContent, b:MEM.stt})); ok(mm.b>40*1048576,'memory: '+mm.t);
   // RADIO row stays after closing Options, listening continues
   await p.evaluate(()=>$('optsDlg').close()); await p.waitForTimeout(300);
   ok(await p.evaluate(()=>!!AUD.st&&!$('sStt').hidden&&/RADIO/.test($('sStt').textContent)),'Options closed: still listening, RADIO row shown');

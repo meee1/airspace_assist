@@ -2,14 +2,24 @@
 // Runs Whisper (English-only, 8-bit) with Transformers.js / ONNX Runtime Web (WebAssembly) off the page's main thread.
 // The model is downloaded once from Hugging Face and kept by Transformers.js in Cache Storage 'transformers-cache';
 // the library files in lib/transformers are kept by the app's service worker. After that it works without signal.
-// The file name carries a version (worker2.js): lib/ files are cached for good, so a changed worker needs a new name.
+// The file name carries a version (worker3.js): lib/ files are cached for good, so a changed worker needs a new name.
 // A prompt (nearby aerodromes, reporting points, your type and callsign) is given to Whisper as previous text
 // (<|startofprev|> prompt <|startoftranscript|> <|notimestamps|>), which is how it learns the spelling of local names;
 // the decoded text repeats the prompt, which is cut off here.
+// Memory: the model's weights and working space live in WebAssembly memory, which a page can't otherwise see from a worker
+// (no performance.memory here). Every WebAssembly.Memory made or exported is collected and its size summed on request.
+const MEMS=new Set(), WM=WebAssembly.Memory;
+WebAssembly.Memory=function(d){ const m=new WM(d); MEMS.add(m); return m; }; WebAssembly.Memory.prototype=WM.prototype;
+const keep=r=>{ try{ const ex=(r&&r.instance||r).exports; for(const k in ex) if(ex[k] instanceof WM) MEMS.add(ex[k]); }catch(e){} return r; };
+{ const I=WebAssembly.instantiate, IS=WebAssembly.instantiateStreaming;
+  WebAssembly.instantiate=(...a)=>I.apply(WebAssembly,a).then(keep);
+  if(IS) WebAssembly.instantiateStreaming=(...a)=>IS.apply(WebAssembly,a).then(keep); }
+const wasmBytes=()=>{ let n=0; for(const m of MEMS) try{ n+=m.buffer.byteLength; }catch(e){} return n; };
 let asr=null, tk=null;
 const tid=t=>tk.convert_tokens_to_ids? tk.convert_tokens_to_ids(t) : tk.encode(t,{add_special_tokens:false})[0];
 self.onmessage=async e=>{ const m=e.data;
   try{
+    if(m.t==='mem'){ self.postMessage({t:'mem', wasm:wasmBytes(), n:MEMS.size}); return; }
     if(m.t==='load'){
       const T=await import(m.base+'transformers.min.js');
       T.env.allowLocalModels=false; T.env.useBrowserCache=true;
