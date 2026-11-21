@@ -3267,7 +3267,7 @@ function transitCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('c
   return {f:ctafInfo(ad).f||'126.7', txt:`${cn} traffic, ${ty} ${cs}, ${pos}, ${lvl}, transiting ${fr} to ${to}, ${cn}.`}; }
 function inboundCall(ad,d,b){ const cn=callName(ad.n,ad.i), csR=sayCallsign($('cSign').value), typ=$('cType').value.trim(), cs=csR||'[callsign]', ty=typ||'[type]';
   const from=norm(b+180-variation(st.pos[0],st.pos[1])), nm=Math.max(1,Math.round(d)), nv=nearestVFR(st.pos[0],st.pos[1],1.5), pos=(nv?`over ${titleCase(nv.p.n)}, `:'')+`${nm} mile${nm===1?'':'s'} ${PTS[Math.round(from/45)%8]}`, lvl=sayLevel(st.alt).replace(/<[^>]+>/g,'');
-  const eta=Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');
+  const pe=planEtaTo(ad), eta= pe? pe.t : Date.now()+(st.gs>20? d/st.gs*3600e3 : 0), mm=String(new Date(eta).getUTCMinutes()).padStart(2,'0');   // along the plan when it's in it (coast route, waypoints), else straight
   const tw=(ad.x||[]).filter(x=>x[0]==='TWR'), ts=tw.length?twrStatus(ad,new Date(eta)):null, open=tw.length&&(ts?ts.on:true);
   if(open){ let w=tw[0]; const tp=twrPick(ad,{a:ad,d,b}); if(tp&&tp.tw) w=tp.tw; else if(tw.some(x=>x[4])) w=twrSideAt(ad,st.pos[0],st.pos[1])||w;   // the tile's rules: side, and ERSA reporting-point rules (CARR -> 123.0)
     return {f:w[2], sq:sqkOf(ad), html:mycRow(ad,'twr',{station:cn+' Tower',type:ty,callsign:cs,position:pos,level:lvl,atis:atisWord(ad.i)||'[ATIS '+ad.i+']',runway:'runway [XX]',place:cn}), txt:`${cn} Tower, ${ty} ${cs}, ${pos}, ${lvl}${ad.a?', received '+(atisWord(ad.i)||'[ATIS '+ad.i+']'):''}, inbound.`}; }
@@ -5587,6 +5587,18 @@ function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!
     set('nToD', `${String(dest.c||'').slice(0,8)} ${fmt3((triD?triD.hdg:bD)-varE)} · ${Math.round(D)} NM`); set('nTotD', `${String(dest.c||'').slice(0,8)} ${hhmmZ(t)} · ${navMin(t-now)}`);
     $('nTot').title=`Time over target (UTC): ${nx.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local), ${dest.c} ${hhmmZ(t)} (${new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local) along the plan`; }
   else { set('nToD',''); set('nTotD',''); $('nTot').title=`Time over target (UTC): ${nx.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local)`; } }
+// Time to an aerodrome along the flight plan (21 Nov 2026, Michael: the inbound call's "estimate circuit at time mm" should
+// follow a coast route and the waypoints on the way): when the aerodrome is a plan point at or after the active one (not
+// during a direct-to), your position -> the active point at your GS now (else the wind triangle's, else Plan check's speed),
+// then each leg to it at its own wind-triangle GS, as the TOT tile does. null otherwise (the caller uses the straight line).
+function planEtaTo(ad){ if(!ad||!FP||FP.dct||!st.pos||!FP.pts[FP.i]) return null;
+  let j=-1; for(let k=FP.i;k<FP.pts.length;k++){ const q=FP.pts[k]; if(q.cg) continue; if(q.c===ad.i||distBrg(q.la,q.lo,ad.la,ad.lo)[0]<0.5){ j=k; break; } }
+  if(j<0) return null;
+  const [la,lo]=st.pos, W=navWind(la,lo), gsNow=st.gs!=null&&st.gs>=20? st.gs : null, nx=FP.pts[FP.i], [dN,bN]=distBrg(la,lo,nx.la,nx.lo);
+  const triN= W? windTri(bN,W.tas,W.dir,W.kt) : null, gsN= gsNow || (triN&&triN.gs) || (+ls.get('pcGs',90)||90);
+  let t=Date.now()+dN/gsN*3600e3, D=dN, pa=nx.la, po=nx.lo;
+  for(let k=FP.i+1;k<=j;k++){ const q=FP.pts[k], [L,b]=distBrg(pa,po,q.la,q.lo); D+=L; const g= W? (windTri(b,W.tas,W.dir,W.kt).gs||gsN) : gsN; t+=L/g*3600e3; pa=q.la; po=q.lo; }
+  return {t, D, legs:j-FP.i}; }
 function rowCls(el,c){ const off=el.classList.contains('off'); el.className=c; if(off) el.classList.add('off'); }
 function lastLightUI(){ if(!st.pos){ $('sLast').textContent=''; $('sLastRow').hidden=true; return; }
   const t=Date.now(), L=lastLight(st.pos[0],st.pos[1],t), loc=ms=>new Date(ms).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
