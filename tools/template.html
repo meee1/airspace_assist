@@ -167,6 +167,11 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
 .fu-big{font:700 22px var(--f-mono);margin:6px 0} .fu-big small{display:block;font:500 13px var(--f-label);color:var(--dim)} .fu-opt{display:flex;align-items:center;gap:10px;margin:8px 0} .fu-opt span{flex:1} .fu-opt small{color:var(--dim)}
 #sFuel{cursor:pointer} #sSar,#sChk,#sStt{cursor:pointer}
+#briefBox{position:fixed;inset:0;z-index:70;background:var(--panel);color:var(--ink);display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top,0px)) 16px max(12px,env(safe-area-inset-bottom,0px))} #briefBox[hidden]{display:none}
+.bf-h{display:flex;align-items:center;gap:10px;font-size:18px} .bf-h b{flex:1} .bf-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:20px 4px;cursor:pointer}
+.bf-sec{font:700 clamp(16px,3.5vw,24px) var(--f-label);letter-spacing:.5px;text-transform:uppercase;color:var(--dim)} .bf-c{font:600 clamp(28px,7vw,56px)/1.2 var(--f-body)} .bf-r{font:500 clamp(22px,5vw,40px)/1.25 var(--f-body);color:var(--accent)}
+.bf-f{display:flex;gap:10px} .bf-f .btn{flex:1;min-height:58px;font-size:20px}
+#sStt.st.nxcls.me{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)} .sttlog li.me{border-left:4px solid var(--accent)} .btn.sttuse{min-height:30px;padding:3px 8px;font-size:12px;margin:4px 0 0;display:inline-flex} .sttused{color:var(--ok);margin-left:4px}
 #sStt.st.nxcls{display:block;text-align:left;white-space:normal} #sStt.st.nxcls small{margin-right:6px} #sStt.st.nxcls span,#hud #sStt.st.nxcls span{display:block;white-space:normal;overflow:visible;-webkit-line-clamp:unset;font:500 14px/1.3 var(--f-body);color:var(--ink)} #sStt.st.nxcls span+span{color:var(--dim);font-size:12.5px} #sStt.st.nxcls span *{font-family:var(--f-body)} #sStt.st.nxcls span b{font:700 1em var(--f-mono);display:inline;margin:0} #sStt.st.nxcls span i{font:600 11px var(--f-mono)} #sStt i,.sttlog i{font:600 11px var(--f-mono);font-style:normal;color:var(--dim)}
 .sttlog{list-style:none;margin:6px 0;padding:0;max-height:40vh;overflow:auto;border:1px solid var(--rule);border-radius:7px} .sttlog:empty{display:none} .sttlog li{padding:5px 8px;border-bottom:1px solid var(--rule);font:500 14px/1.35 var(--f-body)} .sttlog li:last-child{border-bottom:0} .sttlog small{color:var(--dim);font-size:11px}
 .sttlog mark,#sStt mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit;border-radius:3px;padding:0 2px} .sttlog b,#sStt b{font-family:var(--f-mono);color:var(--freq,var(--ink))}
@@ -844,6 +849,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
     <button class="btn" id="bFuel" aria-haspopup="dialog" title="Fuel timer: fuel on board, burn rate, start/stop, reminders">Fuel timer</button>
     <button class="btn" id="bPad" aria-haspopup="dialog" title="Read-back pad: write down a clearance with your finger, with the squawk, level and ATIS letter">Read-back pad</button>
+    <button class="btn" id="bBrief" aria-haspopup="dialog" title="Passenger briefing: your briefing items full screen, one at a time, for the passengers">Passenger brief</button>
     <button class="btn" id="bSar" aria-haspopup="dialog" title="SARTIME or flight note: countdown, and a reminder to cancel it once you've landed">SARTIME</button>
     <button class="btn" id="bLog" aria-haspopup="dialog" title="Your logbook: legs from the GPS log, totals, and CSV export for your logbook app">Logbook</button>
     <button class="btn" id="bOpts" aria-haspopup="dialog" title="Which VNC / VTC charts to download and keep on this device">Options</button>
@@ -909,6 +915,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0"><select id="sttModel" style="flex:1 1 200px;min-width:0;font:600 14px var(--f-body);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"></select><button type="button" class="btn" id="sttDl">Download model</button><button type="button" class="btn" id="sttDel" hidden>Delete model</button></div>
       <div class="vnote" id="sttMSt"></div><div class="vnote" id="sttMem"></div>
       <label><input type="checkbox" id="sttOn"><span><b>Transcribe the input</b><br><small>Listens to the input picked above and writes each transmission below (and on the RADIO row). Keeps listening when Options is closed, until you untick it.</small></span></label>
+      <label><input type="checkbox" id="sttMeAlert"><span><b>Alert when my callsign is heard</b><br><small>A double vibration and a two-note chime, and the RADIO row marked, when a transmission has your callsign (the last three letters, from Radio calls). ATIS letters, QNH, squawk codes, levels and clearances it hears are offered with a <b>Use</b> button for the ATIS and clearance notes: check them before you rely on them.</small></span></label>
       <label style="cursor:default"><span><b>Sensitivity</b><br><small>How far above the background hiss a sound must be to count as speech. Higher catches quieter calls but also more noise.</small></span><select id="sttSens" style="margin-left:auto;font:600 15px var(--f-mono);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"><option value="16">Low</option><option value="11">Normal</option><option value="7">High</option></select></label>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"><button type="button" class="btn" id="sttRecB" disabled>Transcribe the recording</button><button type="button" class="btn" id="sttCopy">Copy</button><button type="button" class="btn" id="sttClear">Clear</button></div>
       <div class="vnote" id="sttSt"></div>
@@ -1727,13 +1734,14 @@ const TLOG={pts:ls.get('tlog',[]), last:0};
 const LOGDB={db:null, n:0, ok:typeof indexedDB!=='undefined'}, LOG_KEEP=90*86400e3;
 // v2 adds store "tr": ADS-B traffic seen while flying with Traffic on, {t, r:[t, hex, reg, flt, type, lat, lon, alt ft MSL,
 // gs, trk, vs, gnd, level 0-3, NM from you]} (see trLogAdd)
-function logDbOpen(){ return new Promise((ok,no)=>{ const r=indexedDB.open('radio-au',2);
-  r.onupgradeneeded=()=>{ const db=r.result; for(const n of ['log','tr']) if(!db.objectStoreNames.contains(n)) db.createObjectStore(n,{autoIncrement:true}).createIndex('t','t'); };
+// v3 adds store "tx": radio transcripts, {t, r:[t, lat, lon, alt ft, text, 1 if your callsign was in it]} (txLogAdd)
+function logDbOpen(){ return new Promise((ok,no)=>{ const r=indexedDB.open('radio-au',3);
+  r.onupgradeneeded=()=>{ const db=r.result; for(const n of ['log','tr','tx']) if(!db.objectStoreNames.contains(n)) db.createObjectStore(n,{autoIncrement:true}).createIndex('t','t'); };
   r.onsuccess=()=>ok(r.result); r.onerror=()=>no(r.error); }); }
 function logDbAdd(rows){ if(!LOGDB.db){ if(!LOGDB.ok) ls.set('tlog',TLOG.pts); return; }
   try{ const tx=LOGDB.db.transaction('log','readwrite'), os=tx.objectStore('log'); for(const r of rows) os.add({t:r[0],r});
     if((LOGDB.n+=rows.length)>=60){ LOGDB.n=0; const cut=Date.now()-LOG_KEEP; os.index('t').openCursor(IDBKeyRange.upperBound(cut,true)).onsuccess=e=>{ const c=e.target.result; if(c){ c.delete(); c.continue(); } };
-      try{ const tx2=LOGDB.db.transaction('tr','readwrite'); tx2.objectStore('tr').index('t').openCursor(IDBKeyRange.upperBound(cut,true)).onsuccess=e=>{ const c=e.target.result; if(c){ c.delete(); c.continue(); } }; }catch(e){} }
+      for(const sn of ['tr','tx']) try{ const tx2=LOGDB.db.transaction(sn,'readwrite'); tx2.objectStore(sn).index('t').openCursor(IDBKeyRange.upperBound(cut,true)).onsuccess=e=>{ const c=e.target.result; if(c){ c.delete(); c.continue(); } }; }catch(e){} }
   }catch(e){ ls.set('tlog',TLOG.pts); } }
 async function logDbInit(){
   if(!LOGDB.ok) return;
@@ -2049,8 +2057,16 @@ function trLogAdd(){ if(st.sim||!st.pos||!TR.t) return; const now=Date.now(); if
     rows.push([Math.round(TR.t-(a.seen||0)*1000), a.hex||'', a.reg||'', a.flt||'', a.type||'', +(+a.la).toFixed(5), +(+a.lo).toFixed(5), t.alt!=null?Math.round(t.alt):null, a.gs!=null?Math.round(a.gs):null, a.trk!=null?Math.round(a.trk):null, a.vs!=null?Math.round(a.vs):null, a.gnd?1:0, t.lvl, +t.d.toFixed(2)]); }
   if(!rows.length) return; TRLOG.push(...rows); const cut=now-6*3600e3; while(TRLOG.length&&TRLOG[0][0]<cut) TRLOG.shift();
   if(LOGDB.db) try{ const tx=LOGDB.db.transaction('tr','readwrite'), os=tx.objectStore('tr'); for(const r of rows) os.add({t:r[0],r}); }catch(e){} }
-function trLogRead(from,to){ return new Promise(ok=>{ if(!LOGDB.db) return ok(TRLOG.filter(r=>r[0]>=from&&r[0]<=to)); const out=[];
-  try{ const q=LOGDB.db.transaction('tr').objectStore('tr').index('t').openCursor(IDBKeyRange.bound(from,to)); q.onsuccess=e=>{ const c=e.target.result; if(c){ out.push(c.value.r); c.continue(); } else ok(out); }; q.onerror=()=>ok(out); }catch(e){ ok(out); } }); }
+function logStoreRead(sn,mem,from,to){ return new Promise(ok=>{ if(!LOGDB.db) return ok(mem.filter(r=>r[0]>=from&&r[0]<=to)); const out=[];
+  try{ const q=LOGDB.db.transaction(sn).objectStore(sn).index('t').openCursor(IDBKeyRange.bound(from,to)); q.onsuccess=e=>{ const c=e.target.result; if(c){ out.push(c.value.r); c.continue(); } else ok(out); }; q.onerror=()=>ok(out); }catch(e){ ok(out); } }); }
+const trLogRead=(from,to)=>logStoreRead('tr',TRLOG,from,to);
+// radio transcripts (offline speech-to-text): each line with where you were, kept like the fixes (90 days; last 6 h in memory)
+// for the flight-log GPX (a <wpt> per line) and replay (21 Nov 2026, Michael chose "transcripts in the flight log")
+const TXLOG=[];
+function txLogAdd(x){ if(st.sim) return; const r=[x.t, st.pos?+st.pos[0].toFixed(5):null, st.pos?+st.pos[1].toFixed(5):null, st.alt!=null?Math.round(st.alt):null, x.text, x.me?1:0];
+  TXLOG.push(r); const cut=Date.now()-6*3600e3; while(TXLOG.length&&TXLOG[0][0]<cut) TXLOG.shift();
+  if(LOGDB.db) try{ LOGDB.db.transaction('tx','readwrite').objectStore('tx').add({t:r[0],r}); }catch(e){} }
+const txLogRead=(from,to)=>logStoreRead('tx',TXLOG,from,to);
 // targets relative to you: extrapolated along track (up to 30 s); height above MSL from GNSS altitude (ellipsoid - geoid), else pressure altitude
 // Own-aircraft filter (never alert on yourself): (1) the registration / flight id matches your callsign; (2) the hex
 // learnt for this callsign (rc_trOwnHex); (3) a target that moves with you: within 0.6 NM (feed lag at 100+ kt), track
@@ -2151,16 +2167,18 @@ function fpLogFix(){ if(!st.pos) return; const t=Date.now();
   TLOG.pts.push([t,+st.pos[0].toFixed(6),+st.pos[1].toFixed(6),st.alt!=null?Math.round(st.alt):null,st.gs!=null?Math.round(st.gs):null,st.trk!=null?Math.round(st.trk):null,st.acc!=null?Math.round(st.acc):null,FP?FP.i:null]);
   const cut=t-6*3600e3; while(TLOG.pts.length&&TLOG.pts[0][0]<cut) TLOG.pts.shift(); logDbAdd([TLOG.pts[TLOG.pts.length-1]]); }
 function fpLogEv(kind,a,b,d){ if(st.sim) return; const r=[Date.now(),'ev',kind,a,b,+d.toFixed(2)]; TLOG.pts.push(r); logDbAdd([r]); }
-function fpLogGpx(rows=TLOG.pts,title,tr=[]){ const fx=rows.filter(p=>p[1]!=='ev'), ev=rows.filter(p=>p[1]==='ev');
+function fpLogGpx(rows=TLOG.pts,title,tr=[],tx=[]){ const fx=rows.filter(p=>p[1]!=='ev'), ev=rows.filter(p=>p[1]==='ev');
   const x=s=>String(s).replace(/[<&]/g,'');
   const pts=fx.map(p=>`<trkpt lat="${p[1]}" lon="${p[2]}">${p[3]!=null?`<ele>${(p[3]/3.28084).toFixed(1)}</ele>`:''}<time>${new Date(p[0]).toISOString()}</time><desc>gs ${p[4]} trk ${p[5]} acc ${p[6]} wp ${p[7]}</desc></trkpt>`).join('\n');
   const wpts=ev.map(e=>{ const f=fx.reduce((m,p)=>Math.abs(p[0]-e[0])<Math.abs(m[0]-e[0])?p:m,fx[0]||[e[0],0,0]); return `<wpt lat="${f[1]}" lon="${f[2]}"><time>${new Date(e[0]).toISOString()}</time><name>${x(e[2])} ${e[3]}->${e[4]}</name><desc>${e[5]} NM from waypoint</desc></wpt>`; }).join('\n');
+  // radio transcripts (if any): a waypoint where you were, named by the UTC time, the text as its description
+  const rx=tx.filter(r=>r[1]!=null).map(r=>`<wpt lat="${r[1]}" lon="${r[2]}">${r[3]!=null?`<ele>${(r[3]/3.28084).toFixed(1)}</ele>`:''}<time>${new Date(r[0]).toISOString()}</time><name>Radio ${new Date(r[0]).toISOString().slice(11,16).replace(':','')}Z</name><desc>${x(r[4])}</desc><type>radio${r[5]?' callsign':''}</type></wpt>`).join('\n');
   // traffic (if logged): one track per aircraft, named by registration / flight and type, with its level and distance from you
   const by=new Map(); for(const r of tr){ const k=r[1]||r[2]||r[3]; if(!k) continue; if(!by.has(k)) by.set(k,[]); by.get(k).push(r); }
   const lvlTxt=['','far','near','WARNING'], trks=[...by.values()].map(L=>{ L.sort((a,b)=>a[0]-b[0]); const f=L.find(r=>r[2]||r[3])||L[0], top=Math.max(...L.map(r=>r[12]||0)), near=Math.min(...L.map(r=>r[13]));
     return `<trk><name>${x(f[2]||f[3]||f[1])}${f[4]?' '+x(f[4]):''}</name><desc>ADS-B traffic${f[1]?' hex '+x(f[1]):''}${f[3]&&f[2]?' flight '+x(f[3]):''} · closest ${near.toFixed(1)} NM${top===3?' · traffic warning':''}</desc><type>traffic</type><trkseg>\n`+
       L.map(r=>`<trkpt lat="${r[5]}" lon="${r[6]}">${r[7]!=null?`<ele>${(r[7]/3.28084).toFixed(1)}</ele>`:''}<time>${new Date(r[0]).toISOString()}</time><desc>gs ${r[8]} trk ${r[9]} vs ${r[10]}${r[11]?' gnd':''} · ${r[13]} NM from you${r[12]>=2?' · '+lvlTxt[r[12]]:''}</desc></trkpt>`).join('\n')+`\n</trkseg></trk>`; }).join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n<trk><name>Radio Calls AU log${title?' · '+x(title):FP?' · '+x(FP.name):''}</name><trkseg>\n${pts}\n</trkseg></trk>${trks?'\n'+trks:''}</gpx>`; }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Radio Calls AU" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}${rx?'\n'+rx:''}\n<trk><name>Radio Calls AU log${title?' · '+x(title):FP?' · '+x(FP.name):''}</name><trkseg>\n${pts}\n</trkseg></trk>${trks?'\n'+trks:''}</gpx>`; }
 // Flight plan aerodromes take priority over "closest" so the right calls are on screen in time:
 //  1. the next aerodrome in the plan, once within 10 NM (the CTAF inbound/overflying call point)
 //  2. when the active waypoint is one of that aerodrome's ERSA VFR reporting points (e.g. ACE for Moorabbin), within 15 NM,
@@ -3076,11 +3094,11 @@ async function logsRender(){ const el=$('optsLogs');
     : '<div class="vnote">No flights logged yet.</div>';
   el.onclick=e=>{ const c=e.target.closest('[data-csv]'); if(c){ const lg=c.dataset.csv==='all'? BK : L[+c.dataset.csv].legs.filter(l=>!l.del), t0=lg[0].off;   // all = every leg ever logged
       dlFile('radio-calls-logbook-'+(c.dataset.csv==='all'?'all-':'')+new Date(t0).toISOString().slice(0,10)+'.csv',logCsv(lg),'text/csv'); return; }
-    const rp=e.target.closest('[data-rp]'); if(rp){ const f=L[+rp.dataset.rp]; rpLoad(f.rows.filter(r=>r[1]!=='ev').map(r=>({t:r[0],la:r[1],lo:r[2],alt:r[3],gs:r[4],trk:r[5]})),fmt(f.t0)); $('optsDlg').close(); fsShow($('simBox')); return; }
+    const rp=e.target.closest('[data-rp]'); if(rp){ const f=L[+rp.dataset.rp]; txLogRead(f.t0-60e3,f.t1+60e3).then(tx=>{ rpLoad(f.rows.filter(r=>r[1]!=='ev').map(r=>({t:r[0],la:r[1],lo:r[2],alt:r[3],gs:r[4],trk:r[5]})),fmt(f.t0),tx); $('optsDlg').close(); fsShow($('simBox')); }); return; }
     const ed=e.target.closest('[data-ed]'); if(ed){ const [fi,li]=ed.dataset.ed.split(':').map(Number); logEdit(L[fi],li,ed.closest('.lg')); return; }
     const b=e.target.closest('[data-log]'); if(!b) return; const f=L[+b.dataset.log];
-    trLogRead(f.t0-60e3,f.t1+60e3).then(tr=>{
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0),tr)],{type:'application/gpx+xml'}));
+    Promise.all([trLogRead(f.t0-60e3,f.t1+60e3),txLogRead(f.t0-60e3,f.t1+60e3)]).then(([tr,tx])=>{
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(f.rows,fmt(f.t0),tr,tx)],{type:'application/gpx+xml'}));
     a.download='radio-calls-log-'+new Date(f.t0).toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }); }; }
 function logEdit(f,li,row){ const l=f.legs[li], k=l.key, e=LOGED[k]||{}, idxRaw=f.raw.findIndex(r=>String(r.off)===k), next=f.raw[idxRaw+1];
   row.insertAdjacentHTML('afterend',`<div class="lgedit"><label>From <input data-k="from" value="${esc(l.from)}"></label><label>To <input data-k="to" value="${esc(l.to)}"></label><label>Landings <input data-k="ldg" type="number" min="0" value="${l.ldg}" style="width:60px"></label>
@@ -3330,7 +3348,7 @@ $('optZoneHi').checked=ZHI.on; $('optZoneHi').addEventListener('change',()=>{ ZH
 // controlled airspace, and clear themselves 2 min after you leave it.
 const ATIS=ls.get('atis',{}), CLR=ls.get('clr',{});
 const ATIS_W=['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliett','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo','Sierra','Tango','Uniform','Victor','Whiskey','X-ray','Yankee','Zulu'];
-function atisOf(code){ const x=code&&ATIS[code]; return x&&Date.now()-x.t<60*60e3? x.l : null; }
+function atisOf(code){ const x=code&&ATIS[code]; return x&&Date.now()-x.t<60*60e3? x.l||null : null; }
 function atisWord(code){ const l=atisOf(code); return l? ATIS_W[l.charCodeAt(0)-65] : null; }
 function atisRecv(code){ const w=atisWord(code); return w? w : `<i>[ATIS${code?' '+code:''}]</i>`; }   // for calls: "received Charlie"
 function atisAdNow(){ const n=NX.cls; let a=null;
@@ -3340,7 +3358,8 @@ function atisAdNow(){ const n=NX.cls; let a=null;
   if(!a&&st.ctlAd) a=st.ctlAd;
   return a&&a.a? a : a; }
 function clrOpen(ad){ ad=ad||atisAdNow(); const d=$('clrDlg'); d.dataset.ad=ad?ad.i:'';
-  $('clrAtisLbl').textContent= ad&&ad.a? `ATIS ${ad.i} ${ad.a[0]} · letter` : 'ATIS (no ATIS aerodrome nearby)';
+  const aq=ad&&ATIS[ad.i]&&Date.now()-ATIS[ad.i].t<60*60e3&&ATIS[ad.i].q;
+  $('clrAtisLbl').textContent= ad&&ad.a? `ATIS ${ad.i} ${ad.a[0]} · letter${aq?' · QNH '+aq:''}` : 'ATIS (no ATIS aerodrome nearby)';
   const cur=ad&&atisOf(ad.i);
   $('clrAtis').innerHTML= ad&&ad.a? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c=>`<button type="button" class="btn${cur===c?' on':''}" data-l="${c}">${c}</button>`).join('') : '';
   $('clrSq').value=CLR.sq||''; $('clrLvl').value=CLR.lvl||''; $('clrRt').value=CLR.rt||'';
@@ -3398,14 +3417,16 @@ function padChanged(){ CLR.inkV=(CLR.inkV||0)+1; CLR.t=Date.now(); CLR.leftT=0; 
 // ---------- flight replay: a GPX track (file, or a flight from Options → Flight logs) played through the app at 1–10×, as the
 // simulator (so nothing is logged). Position interpolated between fixes; GS and track from the fixes; altitude from <ele>.
 // The app's clock is not shifted: tower hours, last light and NOTAM times are for now, not for the flight.
-const RP={pts:[],i:0,on:false,wall:0,t:0,spd:5,timer:null};
-function rpLoad(pts,name){ pts=pts.filter(p=>p.t&&p.la!=null).sort((a,b)=>a.t-b.t); if(pts.length<2){ $('rpStat').textContent='No timed track points in that file.'; return; }
+const RP={pts:[],i:0,on:false,wall:0,t:0,spd:5,timer:null,tx:[]};
+function rpLoad(pts,name,tx){ RP.tx=(tx||pts.tx||[]).slice().sort((a,b)=>a[0]-b[0]); pts=pts.filter(p=>p.t&&p.la!=null).sort((a,b)=>a.t-b.t); if(pts.length<2){ $('rpStat').textContent='No timed track points in that file.'; return; }
   RP.pts=pts; RP.t=pts[0].t; RP.i=0; $('rpPos').max=String(pts[pts.length-1].t-pts[0].t); $('rpPos').value='0'; $('rpBox').hidden=false;
   if(!st.sim) setSim(true); setFly(false); rpShow(); $('rpStat').textContent=`${name||'Track'}: ${pts.length} fixes, ${hmm(pts[pts.length-1].t-pts[0].t)}`; }
 function rpParseGpx(txt){ const d=new DOMParser().parseFromString(txt,'application/xml'), out=[];
   for(const p of d.querySelectorAll('trkpt,rtept')){ const t=p.querySelector('time'), e=p.querySelector('ele'), ds=p.querySelector('desc');
     const g=ds&&/gs (\d+)/.exec(ds.textContent), tr=ds&&/trk (\d+)/.exec(ds.textContent);
     out.push({t:t?Date.parse(t.textContent):null, la:+p.getAttribute('lat'), lo:+p.getAttribute('lon'), alt:e?+e.textContent*3.28084:null, gs:g?+g[1]:null, trk:tr?+tr[1]:null}); }
+  out.tx=[]; for(const w of d.querySelectorAll('wpt')){ const ty=w.querySelector('type'), t=w.querySelector('time'), ds=w.querySelector('desc');   // radio transcripts saved by this app
+    if(ty&&/^radio/.test(ty.textContent)&&t&&ds) out.tx.push([Date.parse(t.textContent),+w.getAttribute('lat'),+w.getAttribute('lon'),null,ds.textContent,/callsign/.test(ty.textContent)?1:0]); }
   return out; }
 function rpShow(){ const P=RP.pts; if(!P.length) return; let i=RP.i; while(i>0&&P[i].t>RP.t) i--; while(i<P.length-2&&P[i+1].t<=RP.t) i++; RP.i=i;
   const a=P[i], b=P[Math.min(i+1,P.length-1)], f=b.t>a.t? Math.max(0,Math.min(1,(RP.t-a.t)/(b.t-a.t))) : 0;
@@ -3413,6 +3434,7 @@ function rpShow(){ const P=RP.pts; if(!P.length) return; let i=RP.i; while(i>0&&
   st.pos=[la,lo]; st.acc=0; st.alt= a.alt!=null&&b.alt!=null? a.alt+(b.alt-a.alt)*f : a.alt;
   st.gs= a.gs!=null? a.gs : dt>0? d/dt : 0; if(d>0.01) st.trk= brg; else if(a.trk!=null) st.trk=a.trk; st.simHdg=st.trk;
   $('simPos').value=la.toFixed(5)+', '+lo.toFixed(5); $('simAlt').value=st.alt!=null?String(Math.round(st.alt)):''; $('simGs').value=String(Math.round(st.gs||0)); if(st.trk!=null) $('simTrk').value=fmt3(st.trk-variation(la,lo));
+  try{ sttRow(); }catch(e){}
   $('rpPos').value=String(RP.t-P[0].t); $('rpTime').textContent=`${hmm(RP.t-P[0].t)} / ${hmm(P[P.length-1].t-P[0].t)} · ${new Date(RP.t).toISOString().slice(11,16)}Z`;
   simStatus(); fpLogFix(); render(); }
 function rpPlay(on){ RP.on=on; $('rpPlay').textContent=on?'❚❚':'▶'; clearInterval(RP.timer); RP.timer=null;
@@ -5670,7 +5692,7 @@ async function audStart(){
   $('audInfo').textContent=`${tr.label||'input'} · ${S.sampleRate?S.sampleRate+' Hz':'rate ?'}${S.channelCount?' · '+S.channelCount+' ch':''} · echo cancel ${S.echoCancellation?'on':'off'}, noise suppression ${S.noiseSuppression?'on':'off'}, auto gain ${S.autoGainControl?'on':'off'}`+
     (/bluetooth|headset|hands.?free|sco/i.test(tr.label)? ' · Bluetooth headsets send call-quality audio (8–16 kHz) while the tablet listens to them.':'');
   AUD.ac=new (window.AudioContext||window.webkitAudioContext)(); AUD.ac.resume&&AUD.ac.resume().catch(()=>{}); AUD.an=AUD.ac.createAnalyser(); AUD.an.fftSize=2048;
-  AUD.src=AUD.ac.createMediaStreamSource(AUD.st); AUD.src.connect(AUD.an); if(STT.on) sttAttach(); AUD.pk=-99; AUD.hist=[];
+  AUD.src=AUD.ac.createMediaStreamSource(AUD.st); AUD.src.connect(AUD.an); if(STT.on||STT.sink) sttAttach(); AUD.pk=-99; AUD.hist=[];
   $('audGo').textContent='Stop'; $('audRec').disabled=typeof MediaRecorder==='undefined'; audSt('Listening. Nothing is recorded until you tap Record.');
   const buf=new Float32Array(AUD.an.fftSize);
   const tick=()=>{ if(!AUD.an) return; AUD.an.getFloatTimeDomainData(buf); let p=0,q=0; for(const v of buf){ const a=Math.abs(v); if(a>p) p=a; q+=v*v; }
@@ -5720,7 +5742,7 @@ if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener) navigator.me
    (OfflineAudioContext) -> worker -> text. Whisper's stock outputs for silence/noise are dropped. Nothing leaves the device. */
 const STT_M={tiny:{id:'onnx-community/whisper-tiny.en', mb:41, n:'Standard model (41 MB)'}, base:{id:'onnx-community/whisper-base.en', mb:77, n:'Better model (77 MB, about 2x slower)'}};
 const STT_CACHE='transformers-cache';
-const STT={on:false, model:STT_M[ls.get('sttModel')]? ls.get('sttModel') : 'tiny', sens:+(ls.get('sttSens')||11), w:null, ready:false, loading:false, wmodel:'',
+const STT={lid:0, meT:0, sink:null, on:false, model:STT_M[ls.get('sttModel')]? ls.get('sttModel') : 'tiny', sens:+(ls.get('sttSens')||11), w:null, ready:false, loading:false, wmodel:'',
   busy:false, q:[], log:[], id:0, node:null, have:{}, prog:{}, blk:[], blkN:0, floor:-60, seg:null, pre:[], quiet:0, voiced:0, drop:0, ms:[]};
 const STT_JUNK=/^[\s.,!?-]*$|^\s*[\[(][^\])]*[\])]\s*$|^\s*(thank you( (very much|for watching|so much))?|thanks for watching|you|bye|okay|so|\.\.\.|please subscribe.*)[.!]?\s*$/i;
 function sttSt(t){ $('sttSt').textContent=t||''; }
@@ -5778,18 +5800,19 @@ function sttBlock(b){ let q=0; for(const v of b) q+=v*v; const db=Math.max(-90,1
   STT.seg.b.push(b); if(loud){ STT.voiced++; STT.quiet=0; } else STT.quiet++;
   if(STT.quiet>=35||STT.seg.b.length>=1250) sttEnd(); }
 function sttEnd(){ const s=STT.seg; STT.seg=null; if(!s) return;
+  if(STT.sink&&(HF.quietT===Infinity||s.t<HF.quietT)) return;   // hands-free: the tablet's own voice reading an item, not you
   if(STT.voiced<15) return;   // under 0.3 s of sound: a click or a squelch burst
   const n=s.b.reduce((a,x)=>a+x.length,0), pcm=new Float32Array(n); let o=0; for(const x of s.b){ pcm.set(x,o); o+=x.length; }
   sttQueue(pcm,STT.sr,s.t); }
 async function sttTo16k(pcm,sr){ if(sr===16000) return pcm;
   const oc=new OfflineAudioContext(1,Math.ceil(pcm.length*16000/sr),16000), b=oc.createBuffer(1,pcm.length,sr); b.copyToChannel(pcm,0);
   const s=oc.createBufferSource(); s.buffer=b; s.connect(oc.destination); s.start(); return (await oc.startRendering()).getChannelData(0); }
-async function sttQueue(pcm,sr,t){ const x=await sttTo16k(pcm,sr); STT.q.push({id:++STT.id, pcm:x, t});
+async function sttQueue(pcm,sr,t){ const x=await sttTo16k(pcm,sr); STT.q.push({id:++STT.id, pcm:x, t, sink:STT.sink||null});
   if(STT.q.length>4){ STT.q.shift(); STT.drop++; sttSt(`Behind: ${STT.drop} transmission${STT.drop>1?'s':''} skipped (the tablet can't keep up; try the standard model).`); }
   if(!STT.ready) sttLoad(); sttNext(); }
-function sttNext(){ if(STT.busy||!STT.ready||!STT.q.length) return; const j=STT.q.shift(); STT.busy=j;
+function sttNext(){ if(STT.busy||!STT.ready||!STT.q.length) return; const j=STT.q.shift(); STT.busy=j; if(STT.sink&&!j.sink) j.sink=STT.sink;
   sttSt(`Working on a ${(j.pcm.length/16000).toFixed(1)} s transmission…${STT.q.length?' ('+STT.q.length+' waiting)':''}`);
-  STT.w.postMessage({t:'run', id:j.id, pcm:j.pcm, prompt:sttPrompt()},[j.pcm.buffer]); }
+  STT.w.postMessage({t:'run', id:j.id, pcm:j.pcm, prompt:j.sink? hfPrompt() : sttPrompt()},[j.pcm.buffer]); }
 function sttPrompt(){ const p=st.pos; if(!p) return STT_WORDS;
   if(STT.pr&&distBrg(p[0],p[1],STT.pr.la,STT.pr.lo)[0]<3&&STT.pr.cs===$('cSign').value&&STT.pr.ty===$('cType').value) return STT.pr.t;
   const W=[], add=w=>{ w=String(w||'').trim(); if(w&&!W.includes(w)) W.push(w); };
@@ -5803,7 +5826,9 @@ function sttPrompt(){ const p=st.pos; if(!p) return STT_WORDS;
 const STT_WORDS='Traffic, CTAF, QNH, squawk, ATIS, information, runway, circuit, downwind, base, final, inbound, taxiing, cleared, report.';
 function sttGot(d){ const j=STT.busy; STT.busy=false; STT.ms.push(d.ms/1000/Math.max(0.5,d.dur)); if(STT.ms.length>20) STT.ms.shift();
   const txt=d.text.replace(/\s+/g,' ').trim();
-  if(txt&&!STT_JUNK.test(txt)){ STT.log.push({t:j&&j.t||Date.now(), text:txt, dur:d.dur}); if(STT.log.length>300) STT.log.shift(); sttRender(); }
+  if(j&&j.sink){ if(STT.sink===j.sink&&txt&&!STT_JUNK.test(txt)) j.sink(txt); sttNext(); return; }   // hands-free checklist: commands, not radio
+  if(txt&&!STT_JUNK.test(txt)){ const me=sttMe(txt), x={t:j&&j.t||Date.now(), text:txt, dur:d.dur, me, id:++STT.lid};
+    x.sug=sttSuggest(txt,me); STT.log.push(x); if(STT.log.length>300) STT.log.shift(); txLogAdd(x); if(me) sttAlert(); sttRender(); }
   const r=STT.ms.reduce((a,x)=>a+x,0)/STT.ms.length;
   sttSt(`Last: ${d.dur.toFixed(1)} s of audio in ${(d.ms/1000).toFixed(1)} s (about ${r.toFixed(1)}× its length).${STT.q.length?' '+STT.q.length+' waiting.':''}`);
   sttNext(); }
@@ -5815,15 +5840,53 @@ function sttMark(t){ let h=esc(t);
      .replace(/\b(\d{1,2},?\d{3}|\d{3,5})\s?(feet|ft)\b/gi,'<b>$1</b> $2')
      .replace(/\b(runway)\s+(\d{1,2}\s?(?:left|right|L|R)?)\b/gi,'$1 <b>$2</b>')
      .replace(/\b(information)\s+([A-Z][a-z]+)\b/g,'$1 <b>$2</b>');
-  const me=trOwnId(); if(me&&me.length>=2){ const L=me.slice(-3).split(''), w=L.map(c=>/[A-Z]/.test(c)? `(?:${STT_NATO[c.charCodeAt(0)-65]}|${c})` : c).join('[\\s,.-]*');
-    try{ h=h.replace(new RegExp('\\b'+w+'\\b','gi'),m=>'<mark>'+m+'</mark>'); }catch(e){} }
+  const re=sttMeRe(); if(re) h=h.replace(re,m=>'<mark>'+m+'</mark>');
   return h; }
+// your callsign's last three letters, spoken (Alpha Bravo Charlie / Alfa Bravo Charley) or as letters (ABC)
+function sttMeRe(){ const me=trOwnId(); if(!me||me.length<2) return null; if(STT.meRe&&STT.meRe[0]===me) return STT.meRe[1];
+  const w=me.slice(-3).split('').map(c=>/[A-Z]/.test(c)? `(?:${STT_NATO[c.charCodeAt(0)-65]}|${c})` : c).join('[\\s,.-]*');
+  let re=null; try{ re=new RegExp('\\b'+w+'\\b','gi'); }catch(e){} STT.meRe=[me,re]; return re; }
+const sttMe=t=>{ const re=sttMeRe(); if(!re) return false; re.lastIndex=0; const r=re.test(t); re.lastIndex=0; return r; };
+// your callsign heard: vibrate, a two-note chime (through the headset when it's the tablet's audio output) and the RADIO row
+// marked for 30 s (21 Nov 2026, Michael chose "callsign heard"). Options: rc_sttMeAlert (default on).
+function sttAlert(){ STT.meT=Date.now(); if(ls.get('sttMeAlert',true)===false) return;
+  try{ navigator.vibrate&&navigator.vibrate([150,80,150]); }catch(e){}
+  try{ const ac=STT.cac||(STT.cac=new (window.AudioContext||window.webkitAudioContext)()); ac.resume&&ac.resume();
+    [[880,0],[1320,0.16]].forEach(([f,d])=>{ const o=ac.createOscillator(), g=ac.createGain(), t=ac.currentTime+d; o.frequency.value=f; o.type='sine';
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.14); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+0.15); }); }catch(e){} }
+// ATIS and clearance details in a transmission, offered to the ATIS and clearance notes (never written without a tap):
+// "information Charlie", "QNH 1013" (an ATIS: the aerodrome by its name in the text, else the one atisAdNow picks), and in a
+// transmission with your callsign "squawk 3401", "not above 1,500" / "climb to 3,000" / "maintain 2,500" / "flight level 95",
+// "cleared …" (21 Nov 2026, Michael chose "ATIS and clearance auto-fill")
+const STT_W4={alph:'A',alfa:'A',brav:'B',char:'C',delt:'D',echo:'E',foxt:'F',golf:'G',hote:'H',indi:'I',juli:'J',kilo:'K',lima:'L',mike:'M',nove:'N',osca:'O',papa:'P',queb:'Q',rome:'R',sier:'S',tang:'T',unif:'U',vict:'V',whis:'W','x-ra':'X',xray:'X','x ra':'X',yank:'Y',zulu:'Z'};
+function sttSuggest(t,me){ const S={}, n=s=>s.replace(/\s/g,'');
+  const mi=/\binformation\s+([a-z][a-z-]{3,})/i.exec(t); if(mi){ const l=STT_W4[mi[1].toLowerCase().slice(0,4)]; if(l) S.l=l; }
+  const mq=/\bQNH\s*(\d\s*\d\s*\d\s*\d?)\b/i.exec(t); if(mq){ const q=+n(mq[1]); if(q>=900&&q<=1100) S.q=q; }
+  if(S.l||S.q){ let ad=null; const p=st.pos;
+    if(p) for(const a of DATA.ap){ if(!a.a||Math.abs(a.la-p[0])>0.7||Math.abs(a.lo-p[1])>0.9) continue; const cn=callName(a.n,a.i); if(cn&&new RegExp('\\b'+cn.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(t)){ ad=a; break; } }
+    if(!ad){ try{ const a=atisAdNow(); if(a&&a.a) ad=a; }catch(e){} }
+    if(ad&&S.l) S.ad=ad.i; else if(ad&&S.q) S.ad=ad.i; else { delete S.l; } }
+  if(me){ const sq=/\bsquawk(?:ing)?\s*(\d)\s*(\d)\s*(\d)\s*(\d)\b/i.exec(t); if(sq) S.sq=sq.slice(1).join('');
+    const fl=/\b(?:flight level|FL)\s*(\d{2,3})\b/i.exec(t), lv=/\b(not above|climb(?:ing)?(?: to)?|descend(?:ing)?(?: to)?|maintain)\s+(?:altitude\s+)?(\d{1,2},?\d{3}|\d{3,5})\b/i.exec(t);
+    if(lv) S.lvl=lv[1].toLowerCase()+' '+lv[2].replace(',',''); else if(fl) S.lvl='FL'+fl[1];
+    const cl=/\b(cleared\b[^.]*)/i.exec(t); if(cl){ const r=cl[1].split(/,?\s+(?=(?:not above|climb|descend|maintain|squawk|QNH|report|contact)\b)/i)[0].replace(/[,\s]+$/,''); S.rt=r.trim().slice(0,90); } }
+  const lab=[S.ad&&S.l? `ATIS ${S.ad} ${S.l}`:'', S.ad&&S.q? `QNH ${S.q}`:'', S.sq? `squawk ${S.sq}`:'', S.lvl||'', S.rt? 'clearance':''].filter(Boolean);
+  return lab.length? {...S, lab:lab.join(' · ')} : null; }
+function sttUse(id){ const x=STT.log.find(y=>y.id===id); if(!x||!x.sug) return; const S=x.sug;
+  if(S.ad&&(S.l||S.q)){ const o=ATIS[S.ad]&&Date.now()-ATIS[S.ad].t<60*60e3? ATIS[S.ad] : {}; ATIS[S.ad]={l:S.l||o.l||'', q:S.q||o.q, t:Date.now()}; if(!ATIS[S.ad].l) delete ATIS[S.ad].l; }
+  if(S.sq) CLR.sq=S.sq; if(S.lvl) CLR.lvl=S.lvl; if(S.rt) CLR.rt=S.rt; if(S.sq||S.lvl||S.rt){ CLR.t=Date.now(); CLR.leftT=0; }
+  clrSave(); S.used=true; sttRender(); sttSt('Added to the ATIS and clearance notes: '+S.lab+'.'); render(); }
+const sttUseBtn=x=>x.sug? (x.sug.used? `<small class="sttused">✓ ${esc(x.sug.lab)}</small>` : `<button type="button" class="btn sttuse" data-sug="${x.id}">Use: ${esc(x.sug.lab)}</button>`) : '';
 function sttRender(){ const L=STT.log;
-  $('sttLog').innerHTML=L.slice().reverse().map(x=>`<li><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)} <small>${x.dur.toFixed(0)} s</small></li>`).join('');
+  $('sttLog').innerHTML=L.slice().reverse().map(x=>`<li${x.me?' class="me"':''}><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)} <small>${x.dur.toFixed(0)} s</small>${sttUseBtn(x)}</li>`).join('');
   sttRow(); }
-function sttRow(){ const row=$('sStt'), L=STT.log, now=Date.now(), last=L.filter(x=>now-x.t<120e3).slice(-2);
+function sttRow(){ const row=$('sStt'), rp=RP.pts.length&&!$('rpBox').hidden&&RP.tx.length;
+  if(rp){ const last=RP.tx.filter(r=>r[0]<=RP.t&&RP.t-r[0]<120e3).slice(-2);   // replay: the transcripts logged on that flight, at its time
+    row.hidden=!last.length; if(last.length){ rowCls(row,'st nxcls stt'+(last.some(r=>r[5])?' me':'')); row.innerHTML='<small>RADIO (replay)</small>'+last.reverse().map(r=>`<span><i>${hhmmZ(r[0])}</i> ${sttMark(r[4])}</span>`).join(''); } return; }
+  const L=STT.log, now=Date.now(), last=L.filter(x=>now-x.t<120e3).slice(-2);
   if(!STT.on||!AUD.st||!last.length){ row.hidden=true; return; }
-  row.hidden=false; row.innerHTML='<small>RADIO</small>'+last.reverse().map(x=>`<span><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)}</span>`).join(''); }
+  row.hidden=false; rowCls(row,'st nxcls stt'+(STT.meT&&now-STT.meT<30e3?' me':''));
+  row.innerHTML='<small>RADIO</small>'+last.reverse().map((x,i)=>`<span><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)}${i===0&&x.sug&&!x.sug.used?' '+sttUseBtn(x):''}</span>`).join(''); }
 setInterval(()=>{ if(STT.on) sttRow(); },10e3);
 async function sttSet(on){ STT.on=on; $('sttOn').checked=on;
   if(on){ if(!STT.have[STT.model]&&!navigator.onLine){ STT.on=false; $('sttOn').checked=false; sttSt('Download the model first (needs signal once).'); return; }
@@ -5860,11 +5923,14 @@ $('sttDl').onclick=async()=>{ $('sttDl').disabled=true; const ok=await sttLoad()
 $('sttDel').onclick=async()=>{ const id=STT_M[STT.model].id; try{ const c=await caches.open(STT_CACHE); for(const r of await c.keys()) if(r.url.includes(id)) await c.delete(r); }catch(e){}
   if(STT.wmodel===STT.model){ if(STT.on) sttSet(false); STT.w&&STT.w.terminate(); STT.w=null; STT.ready=false; } sttModelUI(); };
 $('sttOn').onchange=()=>sttSet($('sttOn').checked);
+$('sttMeAlert').checked=ls.get('sttMeAlert',true)!==false; $('sttMeAlert').onchange=()=>ls.set('sttMeAlert',$('sttMeAlert').checked);
 $('sttSens').onchange=()=>{ STT.sens=+$('sttSens').value; ls.set('sttSens',STT.sens); };
 $('sttRecB').onclick=sttFile;
 $('sttCopy').onclick=()=>{ const t=STT.log.map(x=>hhmmZ(x.t)+'  '+x.text).join('\n'); if(navigator.clipboard) navigator.clipboard.writeText(t).then(()=>sttSt('Copied.'),()=>dlFile('Radio transcript.txt',t,'text/plain')); else dlFile('Radio transcript.txt',t,'text/plain'); };
 $('sttClear').onclick=()=>{ STT.log=[]; sttRender(); };
-$('sStt').addEventListener('click',()=>{ $('bOpts').onclick(); setTimeout(()=>$('sttLog').scrollIntoView({block:'center'}),50); });
+$('sStt').addEventListener('click',e=>{ const u=e.target.closest('[data-sug]'); if(u){ e.stopPropagation(); sttUse(+u.dataset.sug); return; }
+  $('bOpts').onclick(); setTimeout(()=>$('sttLog').scrollIntoView({block:'center'}),50); });
+$('sttLog').addEventListener('click',e=>{ const u=e.target.closest('[data-sug]'); if(u) sttUse(+u.dataset.sug); });
 addEventListener('online',()=>{ if($('optsDlg').open) sttModelUI(); }); addEventListener('offline',()=>{ if($('optsDlg').open) sttModelUI(); });
 
 /* ---------- memory (20 Nov 2026, Michael: "Can we see memory usage?"). What Chrome lets a page see: its own JavaScript heap
@@ -5949,7 +6015,7 @@ sarTick();
 /* ---------- checklists offered by phase of flight (a checklist's "Offer it": c.ph = move | inb | land) ----------
    The lists that match the phase (and this aircraft) have their ticks cleared and the CHECKLIST row shows for up to 10 min,
    until they're complete; tap it to open them. */
-const PH_NAME={move:'Before take-off',inb:'Pre-landing',land:'After landing'};
+const PH_NAME={move:'Before take-off',inb:'Pre-landing',land:'After landing',brief:'Passenger briefing'};
 const CHK={k:null, ids:[], t:0};
 function clOffer(k){ const cur=typeof wbCur==='function'&&wbCur(), L=CL.filter(c=>c.ph===k&&(!c.ac||(cur&&c.ac===cur.id))); if(!L.length) return;
   for(const c of L) delete CLT[c.id]; ls.set('clTick',CLT);
@@ -6661,8 +6727,8 @@ $('fpSave').onclick=()=>{ if(!FP||!FP.pts.length) return; const P_=FP.pts, nm=q=
   dlFile(`${nm(P_[0])}-${nm(P_[P_.length-1])}-${new Date().toISOString().slice(0,10)}.gpx`,fpGpx(),'application/gpx+xml');
   const b=$('fpSave'); b.textContent='Saved'; setTimeout(()=>b.textContent='Save GPX',2000); };
 $('fpLog').onclick=()=>{ const n=TLOG.pts.filter(p=>p[1]!=='ev').length; if(!n){ const b=$('fpLog'), t=b.textContent; b.textContent='No GPS log yet'; setTimeout(()=>b.textContent=t,2500); return; }
-  const fx=TLOG.pts.filter(p=>p[1]!=='ev'), tr=TRLOG.filter(r=>r[0]>=fx[0][0]-60e3&&r[0]<=fx[fx.length-1][0]+60e3);
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(TLOG.pts,undefined,tr)],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
+  const fx=TLOG.pts.filter(p=>p[1]!=='ev'), tr=TRLOG.filter(r=>r[0]>=fx[0][0]-60e3&&r[0]<=fx[fx.length-1][0]+60e3), tx=TXLOG.filter(r=>r[0]>=fx[0][0]-60e3&&r[0]<=fx[fx.length-1][0]+60e3);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fpLogGpx(TLOG.pts,undefined,tr,tx)],{type:'application/gpx+xml'})); a.download='radio-calls-log-'+new Date().toISOString().slice(0,16).replace(/:/g,'').replace('T','-')+'.gpx'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000); };
 $('fpRev').onclick=()=>{ if(!FP) return; fpReverse(FP.pts); FP.rev=(FP.rev||0)+1; fpPick(Math.min(1,FP.pts.length-1)); };
 $('fpClear').onclick=()=>{ FP_EDIT=false; fpSet(null); setGo(null); };
 $('fpLegs').addEventListener('change',e=>{ const t=e.target.closest('.altin'); if(!t||!FP) return; const k=+t.dataset.k, v=t.value.trim().toUpperCase();
@@ -6728,7 +6794,9 @@ function clRender(){ const B=$('clBody'), cur=typeof wbCur==='function'&&wbCur()
   if(CLV.v==='run'){ const c=CL.find(x=>x.id===CLV.id); if(!c){ CLV.v='list'; return clRender(); }
     const it=clItems(c), s=clTicks(c), [d,n]=clCount(c), next=it.findIndex((x,k)=>x.h==null&&s[k]!=='1');
     $('clTitle').textContent=c.name;
+    const hfOn=HF.on&&HF.id===c.id;
     B.innerHTML=`<div class="cl-bar"><button class="btn" data-a="back">◀ Lists</button><b>${esc(clAcName(c.ac))}</b><span class="mono">${d}/${n}</span><button class="btn" data-a="reset">Reset</button></div>`+
+      (n&&d<n? `<div class="cl-bar"><button class="btn${hfOn?' on':''}" data-a="hf" aria-pressed="${hfOn}">${hfOn?'■ Stop hands-free':'🎙 Hands-free'}</button>${c.ph==='brief'?'<button class="btn" data-a="bfs">Full screen</button>':''}</div><div class="vnote" id="hfSt">${esc(HF.on&&HF.id===c.id?HF.msg||'':'')}</div>` : '')+
       (n&&d===n? `<div class="cl-done">${esc(c.name)} complete</div>` : '')+
       `<ul class="cl-run">${it.map((x,k)=> x.h!=null? `<li class="h">${esc(x.h)}</li>` : `<li class="i${s[k]==='1'?' on':''}${k===next?' next':''}" data-k="${k}" role="checkbox" aria-checked="${s[k]==='1'}" tabindex="0"><span class="c">${esc(x.c)}</span>${x.r?`<span class="r">${esc(x.r)}</span>`:''}</li>`).join('')}</ul>`+
       (n? '' : '<div class="vnote">This checklist has no items yet: Edit it from the list.</div>');
@@ -6737,7 +6805,7 @@ function clRender(){ const B=$('clBody'), cur=typeof wbCur==='function'&&wbCur()
     $('clTitle').textContent=c?'Edit checklist':'New checklist';
     B.innerHTML=`<div class="cl-ed"><label>Name <input id="clName" maxlength="40" autocomplete="off" value="${esc(c?c.name:'')}" placeholder="Before start"></label>`+
       `<label>Aircraft <select id="clAc"><option value="">Every aircraft</option>${profs.map(p=>`<option value="${esc(p.id)}"${(c?c.ac:(cur&&cur.id))===p.id?' selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`+
-      `<label>Offer it <select id="clPh">${[['','Only when I open it'],['move','Before take-off: when you start moving after a stop'],['inb','Pre-landing: at the 10 NM inbound call'],['land','After landing: stopped 30 s after flying']].map(([v,t])=>`<option value="${v}"${(c&&c.ph||'')===v?' selected':''}>${t}</option>`).join('')}</select></label>`+
+      `<label>Offer it <select id="clPh">${[['','Only when I open it'],['move','Before take-off: when you start moving after a stop'],['inb','Pre-landing: at the 10 NM inbound call'],['land','After landing: stopped 30 s after flying'],['brief','Passenger briefing: More → Passenger brief, full screen']].map(([v,t])=>`<option value="${v}"${(c&&c.ph||'')===v?' selected':''}>${t}</option>`).join('')}</select></label>`+
       `<label>Items, one per line <textarea id="clText" spellcheck="false" autocapitalize="sentences" placeholder="# Cabin&#10;Seat belts .... fastened&#10;Doors .... closed and latched">${esc(c?c.items.join('\n'):'')}</textarea></label></div>`+
       `<div class="vnote">Type or paste it from the aircraft's flight manual: the app has no checklists of its own. A line starting with # is a heading. "Item .... response" puts the response on the right.</div>`+
       `<div class="vnote w" id="clStat"></div><div class="ctl"><button class="btn primary" data-a="save">Save</button><button class="btn" data-a="cancel">Cancel</button>${c?'<button class="btn" data-a="del">Delete checklist</button>':''}</div>`;
@@ -6755,7 +6823,9 @@ function clOpen(){ CLV.v='list'; clRender(); if(!$('clDlg').open) $('clDlg').sho
 function clTick(c,k){ const s=clTicks(c).split(''); s[k]= s[k]==='1'?'0':'1'; CLT[c.id]=s.join(''); ls.set('clTick',CLT); clRender();
   const nx=$('clBody').querySelector('li.next'); if(nx&&s[k]==='1') nx.scrollIntoView({block:'nearest',behavior:'smooth'}); }
 $('clBody').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'), li=e.target.closest('li[data-id]'), it=e.target.closest('li.i');
-  if(it&&CLV.v==='run'){ const c=CL.find(x=>x.id===CLV.id); if(c) clTick(c,+it.dataset.k); return; }
+  if(it&&CLV.v==='run'){ const c=CL.find(x=>x.id===CLV.id); if(c){ clTick(c,+it.dataset.k); if(HF.on&&HF.id===c.id) hfNext(); } return; }
+  if(b&&b.dataset.a==='hf'){ const c=CL.find(x=>x.id===CLV.id); if(c) HF.on&&HF.id===c.id? hfStop('Stopped.') : hfStart(c); return; }
+  if(b&&b.dataset.a==='bfs'){ const c=CL.find(x=>x.id===CLV.id); if(c) briefFs(c); return; }
   if(!b) return; const a=b.dataset.a;
   if(a==='run'&&li){ CLV.v='run'; CLV.id=li.dataset.id; clRender(); $('clDlg').scrollTop=0; }
   else if(a==='ed'&&li){ CLV.v='edit'; CLV.id=li.dataset.id; clRender(); }
@@ -6772,6 +6842,73 @@ $('clBody').addEventListener('click',e=>{ const b=e.target.closest('[data-a]'), 
     CL=CL.filter(x=>x!==c); listDel('clDel',c.id); delete CLT[c.id]; clStore(); ls.set('clTick',CLT); CLV.v='list'; clRender(); } });
 $('clBody').addEventListener('keydown',e=>{ if((e.key===' '||e.key==='Enter')&&e.target.matches('li.i')){ e.preventDefault(); e.target.click(); } });
 $('fpCl').onclick=clOpen; $('clClose').onclick=()=>$('clDlg').close();
+$('clDlg').addEventListener('close',()=>{ if(HF.on) hfStop(); });
+/* ---------- hands-free checklist (21 Nov 2026, Michael chose "hands-free checklists"): the tablet reads the next item aloud
+   (speechSynthesis), then listens through the speech model (Options → Radio audio and transcription: the same input and
+   model, offline) for "check" (or checked, done, next, set, on, off… or the item's own response) to tick it and read the
+   next; "repeat" / "say again" reads it again; "back" goes to the one before; "stop" ends it. Whatever the microphone
+   hears while the tablet is speaking is dropped (HF.quietT), so its own voice can't tick an item. While it runs the
+   transcription log doesn't get those words (STT.sink). */
+const HF={on:false, id:null, k:-1, quietT:0, msg:''};
+function hfSt(t){ HF.msg=t; const e=$('hfSt'); if(e) e.textContent=t; }
+const hfCur=c=>{ const it=clItems(c), s=clTicks(c); return it.findIndex((x,k)=>x.h==null&&s[k]!=='1'); };
+const hfText=x=>(x.c.replace(/^\s*\d+[.)]\s*/,'')+(x.r? '. '+x.r : '')).replace(/\s*;\s*/g,', ');
+async function hfStart(c){ if(!('speechSynthesis' in window)){ hfSt('This browser has no text-to-speech.'); return; }
+  if(HF.on) hfStop();
+  if(!(await sttHave(STT.model))){ HF.id=c.id; hfSt('Download the speech model first: Options → Radio audio and transcription → Download model (needs signal once).'); return; }
+  HF.on=true; HF.id=c.id; HF.k=-1; STT.sink=hfHeard; clRender(); hfSt('Starting…');
+  const ok=await sttLoad(); if(!ok||!HF.on){ hfStop('The speech model didn\'t load.'); return; }
+  if(!AUD.st){ if($('audDev').disabled) await audList(); await audStart(); } else sttAttach();
+  if(!AUD.st){ hfStop('No microphone: allow it for this site, or pick an input in Options.'); return; }
+  hfNext(); }
+function hfStop(msg){ const was=HF.on; HF.on=false; STT.sink=null; HF.quietT=0; try{ speechSynthesis.cancel(); }catch(e){} STT.q=STT.q.filter(j=>!j.sink);
+  if(!STT.on){ sttDetach(); if(was&&AUD.st&&!$('optsDlg').open) audStop(); }
+  if($('clDlg').open&&CLV.v==='run') clRender(); hfSt(msg||''); }
+function hfSay(text,then){ HF.quietT=Infinity; try{ speechSynthesis.cancel(); }catch(e){}
+  const u=new SpeechSynthesisUtterance(text); u.rate=1.0; let done=false;
+  const end=()=>{ if(done) return; done=true; HF.quietT=Date.now()+350; if(then) then(); };
+  u.onend=end; u.onerror=end; setTimeout(end,Math.min(20e3,1500+text.length*85));   // some browsers never send onend
+  try{ speechSynthesis.speak(u); }catch(e){ end(); } }
+function hfNext(){ if(!HF.on) return; const c=CL.find(x=>x.id===HF.id); if(!c){ hfStop(); return; }
+  const k=hfCur(c), it=clItems(c);
+  if(k<0){ hfSay(`${c.name} complete`,()=>hfStop(`${c.name} complete.`)); return; }
+  HF.k=k; const x=it[k]; let h=null; for(let i=k-1;i>=0;i--) if(it[i].h!=null){ h=it[i].h; break; }
+  const sect= h&&HF.sect!==h? h+'. ' : ''; HF.sect=h;
+  hfSt(`Reading: ${hfText(x)}`);
+  hfSay(sect+hfText(x),()=>{ if(HF.on) hfSt(`${hfText(x)} · say "check", "repeat", "back" or "stop"`); });
+  const li=$('clBody').querySelector(`li.i[data-k="${k}"]`); if(li) li.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+const hfPrompt=()=>{ const c=CL.find(x=>x.id===HF.id), x=c&&HF.k>=0&&clItems(c)[HF.k]; return 'Check. Checked. Next. Repeat. Say again. Back. Stop.'+(x&&x.r? ' '+x.r+'.' : ''); };
+function hfHeard(text){ if(!HF.on) return; const c=CL.find(x=>x.id===HF.id); if(!c) return;
+  const w=text.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim().split(/\s+/).filter(Boolean), T=' '+w.join(' ')+' ', has=re=>re.test(T);
+  if(!w.length) return;
+  if(has(/ (stop|cancel|pause|finish) /)){ hfSay('Stopped',()=>hfStop('Stopped.')); return; }
+  if(has(/ (repeat|again) /)){ HF.sect=null; hfNext(); return; }
+  if(has(/ (back|previous) /)){ const s=clTicks(c).split(''), it=clItems(c); let j=HF.k<0? it.length-1 : HF.k-1; while(j>=0&&(it[j].h!=null||s[j]!=='1')) j--;
+    if(j>=0){ s[j]='0'; CLT[c.id]=s.join(''); ls.set('clTick',CLT); clRender(); } HF.sect=null; hfNext(); return; }
+  const x=clItems(c)[HF.k], rw=x&&x.r? x.r.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(v=>v.length>1) : [];
+  const ok= w.length<=5&&(has(/ (check|checked|checks|done|next|complete|completed|ok|okay|confirmed|set|yes|correct|on|off|tick) /)||(rw.length&&rw.slice(0,3).every(v=>w.includes(v))));
+  if(ok&&HF.k>=0){ const s=clTicks(c).split(''); s[HF.k]='1'; CLT[c.id]=s.join(''); ls.set('clTick',CLT); clRender(); hfNext(); }
+  else hfSt(`Heard "${text}". Say "check", "repeat", "back" or "stop".`); }
+/* ---------- passenger briefing card (21 Nov 2026, Michael chose it): a checklist offered as "Passenger briefing" (its items are
+   yours: your operator's or flight manual's briefing) shown full screen, one item at a time in large text, for the passenger
+   to read with you. Done ticks the list and records when (rc_paxBrief {id, t}). More → Passenger brief opens it. */
+function briefFs(c){ const it=clItems(c), idx=it.map((x,k)=>x.h==null?k:-1).filter(k=>k>=0); if(!idx.length){ CLV.v='edit'; CLV.id=c.id; clRender(); if(!$('clDlg').open) $('clDlg').showModal(); return; }
+  let i=0; const B=$('briefBox');
+  const show=()=>{ const k=idx[i], x=it[k]; let h=''; for(let j=k-1;j>=0;j--) if(it[j].h!=null){ h=it[j].h; break; }
+    B.innerHTML=`<div class="bf-h"><b>${esc(c.name)}</b><span class="mono">${i+1} / ${idx.length}</span><button type="button" class="btn" data-b="x" aria-label="Close">✕</button></div>`+
+      `<div class="bf-body" data-b="next">${h?`<div class="bf-sec">${esc(h)}</div>`:''}<div class="bf-c">${esc(x.c.replace(/^\s*\d+[.)]\s*/,''))}</div>${x.r?`<div class="bf-r">${esc(x.r)}</div>`:''}</div>`+
+      `<div class="bf-f"><button type="button" class="btn" data-b="back"${i?'':' disabled'}>◀ Back</button><button type="button" class="btn primary" data-b="${i===idx.length-1?'done':'next'}">${i===idx.length-1?'Done ✓':'Next ▶'}</button></div>`; };
+  B.onclick=e=>{ const b=e.target.closest('[data-b]'); if(!b) return; const a=b.dataset.b;
+    if(a==='x'){ B.hidden=true; return; } if(a==='back'&&i>0){ i--; show(); return; }
+    if(a==='next'){ if(i<idx.length-1){ i++; show(); } return; }
+    if(a==='done'){ CLT[c.id]=it.map(x=>x.h==null?'1':'0').join(''); ls.set('clTick',CLT); ls.set('paxBrief',{id:c.id,t:Date.now()}); B.hidden=true; if($('clDlg').open) clRender(); } };
+  if($('clDlg').open) $('clDlg').close(); B.hidden=false; show(); }
+$('bBrief').onclick=()=>{ const cur=typeof wbCur==='function'&&wbCur(), L=CL.filter(c=>c.ph==='brief'&&(!c.ac||(cur&&c.ac===cur.id)));
+  if(L.length===1) return briefFs(L[0]);
+  if(L.length>1){ clOpen(); return; }
+  CLV.v='edit'; CLV.id=null; clRender(); if(!$('clDlg').open) $('clDlg').showModal();
+  $('clName').value='Passenger briefing'; $('clPh').value='brief'; $('clStat').textContent='Type your passenger briefing items, one per line (from your operator\'s procedures or flight manual), then Save. More → Passenger brief shows them full screen.'; $('clText').focus(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('briefBox').hidden) $('briefBox').hidden=true; });
 /* ---------- share a plan: a link with the plan inside it (…/app/#plan=<base64url>), also drawn as a QR code ----------
    The part after # never leaves the phone that opens it. Packed as JSON [1, name, [[label, lat×1e5, lon×1e5, alt or 0,
    land (0 = default, 1 = land, 2 = overfly), 1 if the label is an AIP code, [ft off the shore, hop NM] if the leg to it
@@ -7813,8 +7950,8 @@ async function gdSync(why){ if(GD.busy||!gdOn()||!navigator.onLine||!LOGDB.db) r
     await gdDir();   // finds the folder (and merges duplicates) once a session, learns what's in it
     for(const f of L){ const k=String(f.t0); if(GD.done.has(k)||f.t1>over) continue;   // a flight still going (or just ended) waits
       if(GD.ids[gdName(f.t0)]){ GD.done.add(k); ls.set('gdDone',[...GD.done].slice(-500)); continue; }   // already in the folder (this phone before a reinstall, or a merge)
-      const tr=await trLogRead(f.t0-60e3,f.t1+60e3), title=new Date(f.t0).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
-      await gdPut(gdName(f.t0),fpLogGpx(f.rows,title,tr),'application/gpx+xml'); GD.done.add(k); ls.set('gdDone',[...GD.done].slice(-500)); n++;
+      const tr=await trLogRead(f.t0-60e3,f.t1+60e3), tx=await txLogRead(f.t0-60e3,f.t1+60e3), title=new Date(f.t0).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+      await gdPut(gdName(f.t0),fpLogGpx(f.rows,title,tr,tx),'application/gpx+xml'); GD.done.add(k); ls.set('gdDone',[...GD.done].slice(-500)); n++;
       if(f.t1>ls.get('gdHw',0)) ls.set('gdHw',f.t1); }
     // the Logbook.csv in Drive may have legs from another phone: take them in before writing it back, every time
     if(GD.lbIn){ lbIn=true; GD.lbIn=false; }
@@ -7915,6 +8052,7 @@ async function offlineStatus(){
 window.__boot&&window.__boot.ready();   // app started: hide the loading screen
 </script>
 <div id="perfBox" hidden></div>
+<div id="briefBox" hidden role="dialog" aria-label="Passenger briefing"></div>
 <div id="v3dWin" class="v3win" hidden role="dialog" aria-label="3D view">
   <div class="v3h"><b>3D view</b><small>dev</small>
     <select id="v3dCam" aria-label="Camera"><option value="cockpit">Cockpit</option><option value="chase">Chase</option><option value="orbit">Orbit</option></select>
