@@ -179,7 +179,7 @@ The map sits at the top of the screen, straight under the top bar, with Go to, t
 
 ### Google Drive (flight logs, logbook, settings backup)
 **Options → Google Drive → Connect Google Drive** signs in with Google once. After each flight (35 min with no movement, when there's signal) the app saves to a **Radio Calls AU** folder in your Drive:
-- one GPX track per flight (with the logged ADS-B traffic), named `Flight 2026-11-06 0912.gpx`;
+- one GPX track per flight (with the logged ADS-B traffic and radio transcripts), named `Flight 2026-11-06 0912.gpx`. **Flights from before you connected count too:** the tablet keeps 90 days of flights, and on connecting (or reconnecting after a Disconnect) every one of them not already in the folder is saved, so connect within 90 days of a flight to keep it. After that the files stay in Drive until you delete them;
 - `Logbook.csv`, rewritten each time with every leg ever logged (the same columns as the logbook export). Before each write the app reads the Logbook.csv already in Drive and takes in legs it doesn't have, so with two phones each one's flights stay in it;
 - `Settings backup.json`: aircraft, W&B, saved plans, call wording and options (not your NAIPS login, Drive sign-in or satellite key). **Restore settings** loads it back, e.g. on a new phone.
 - **Two phones, one folder:** every phone signed in to the same Google account uses the same **Radio Calls AU** folder. Versions before 8 Nov 2026 made a folder per phone; the first save after updating merges them into the oldest (flights moved, logbooks combined, the newer settings backup kept; the duplicates go to Drive's bin, recoverable for 30 days). The settings backup is shared: the last phone to save wins.

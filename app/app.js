@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795240094933;
+const APP_BUILT=1795243148732;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -6767,7 +6767,7 @@ function v3dFrame(){
 const GD={tok:null, exp:0, busy:false, err:'', msg:'', client:null, gis:null, cid:null, last:ls.get('gdLast',0), ids:ls.get('gdIds',{}),
   done:new Set(ls.get('gdDone',[])), auto:ls.get('gdAuto',true)};
 const GD_SCOPE='https://www.googleapis.com/auth/drive.file', GD_DIR='Radio Calls AU', GD_API='https://www.googleapis.com';
-const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_gdHw','rc_gdLbIn','rc_gdBkSeen','rc_gdBkHold','rc_satKey','rc_v3dBox','rc_clTick']);   // never in the backup
+const GD_SKIP=new Set(['rc_naipsCred','rc_gdCred','rc_gdIds','rc_gdDone','rc_gdLast','rc_gdHw','rc_gdLbIn','rc_gdBkSeen','rc_gdBkHold','rc_gdAfter','rc_satKey','rc_v3dBox','rc_clTick']);   // never in the backup
 async function gdKey(create){ const db=await nbIdb(), st=m=>db.transaction('k',m).objectStore('k');
   let key=await new Promise((res,rej)=>{ const q=st('readonly').get('gdrive'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
   if(!key&&create){ key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
@@ -6806,7 +6806,7 @@ async function gdFirst(){
     if(id&&!ls.get('gdBkSeen',false)){ const o=await (await gdFetch(GD_API+'/drive/v3/files/'+id+'?alt=media')).json(); ls.set('gdBkSeen',true);
       if(o&&o.app==='Radio Calls AU'&&o.keys){
         if(confirm(`Google Drive has settings saved ${new Date(o.t).toLocaleString('en-AU',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})} (another phone or an earlier install): aircraft, weight and balance, saved plans, call wording and options.\n\nOK: use them on this phone (it reloads).\nCancel: keep this phone's settings. The copy in Drive is left as it is until you tap Save now here.`)){
-          cfgWrite(o); location.reload(); return; }
+          cfgWrite(o); ls.set('gdAfter',true); location.reload(); return; }   // the save on connecting runs straight after the reload (gdAfter)
         ls.set('gdBkHold',true); } }
     ls.set('gdBkSeen',true); }
   catch(e){ GD.err=e.message; gdUI(); }
@@ -6927,6 +6927,9 @@ setInterval(()=>{ if(GD.auto&&gdOn()&&!document.hidden) gdSync('auto'); },5*60e3
 addEventListener('online',()=>{ if(GD.auto&&gdOn()) setTimeout(()=>gdSync('auto'),5000); });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&GD.auto&&gdOn()) setTimeout(()=>gdSync('auto'),8000); });
 if(GD.auto&&gdOn()) setTimeout(()=>gdSync('auto'),20000);
+// connecting took the Drive settings and reloaded: do the connect save now (it saves the flights still on this phone even
+// with Save after each flight off; 21 Nov 2026, Michael: "Upload flights to Drive even if not connected later")
+if(ls.get('gdAfter',false)){ ls.set('gdAfter',false); if(gdOn()) setTimeout(()=>gdSync('connect'),3000); }
 
 function appUpdated(){ if(!APP_BUILT) return ''; const d=new Date(APP_BUILT), m=(Date.now()-APP_BUILT)/60000;
   const ago= m<1?'just now' : m<60?Math.round(m)+' min ago' : m<48*60?Math.round(m/60)+' h ago' : Math.round(m/1440)+' days ago';
