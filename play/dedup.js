@@ -5,6 +5,8 @@ const {chromium}=require('playwright'); const {PX9,TAB}=require('./px9.js');
   const vis=(p,id)=>p.evaluate(id=>{ const e=$(id); return !!e&&!e.hidden&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().height>0; },id);
   for(const [n,prof,fs] of [['phone classic',PX9,false],['phone full screen',PX9,true],['tablet',TAB,true]]){
     const ctx=await b.newContext({...prof,storageState:{cookies:[],origins:[{origin:'http://localhost:8811',localStorage:[{name:'rc_fsMap',value:String(fs)}]}]}});
+    // the → TWR / → ATC checks need Moorabbin Tower open: the clock is pinned to local midday (0130Z), so the test doesn't fail at night
+    await ctx.addInitScript(()=>{ const D=Date, off=D.parse('2026-11-01T01:30:00Z')-D.now(); window.Date=class extends D{ constructor(...a){ super(...(a.length?a:[D.now()+off])); } static now(){ return D.now()+off; } }; });
     const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(e.message));
     await p.goto('http://localhost:8811/index.html?sim=-38.16,144.98&alt=1500&trk=040&gs=95'); await p.waitForFunction(()=>typeof render==='function'&&st.pos);
     await p.evaluate(()=>{ const a=DATA.ap.find(x=>x.i==='YMMB'); setGo({k:'AD',c:a.i,n:a.n,la:a.la,lo:a.lo}); ls.set('pcWsrc','set'); ls.set('pcWind',{dir:300,kt:18}); ls.set('pcGs',95); render(); }); await p.waitForTimeout(500);
