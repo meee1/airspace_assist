@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795290400953;
+const APP_BUILT=1795344788135;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -3350,6 +3350,18 @@ function projMake(la0,lo0){
     return [Math.asin(Math.max(-1,Math.min(1,cs*s0+y*sc*c0/rho)))/R, lo0+Math.atan2(x*sc, rho*c0*cs-y*s0*sc)/R]; };
   return [fwd,inv]; }
 function drawMap(...a){ if(!PF.on) return drawMap0(...a); pfStart('map'); try{ return drawMap0(...a); } finally{ pfEnd(); } }
+// where a w × h label fits inside a screen polygon sp (and on screen, 6 px in): a grid over the visible part of its box, each
+// point inside with the whole label box inside, scored by its distance to the nearest edge; the best one, else null
+function sigLabelAt(sp,W,Hh,w,h,sw=w,sh=h){ const n=sp.length; if(n<3) return null;   // sw/sh: the label's size for keeping it on screen (w/h: what must be inside)
+  const pip=(x,y)=>{ let c=false; for(let i=0,j=n-1;i<n;j=i++){ const [xi,yi]=sp[i],[xj,yj]=sp[j]; if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi) c=!c; } return c; };
+  const edge=(x,y)=>{ let m=Infinity; for(let i=0,j=n-1;i<n;j=i++){ const [ax,ay]=sp[j],[bx,by]=sp[i], dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy, t=L? Math.max(0,Math.min(1,((x-ax)*dx+(y-ay)*dy)/L)) : 0; m=Math.min(m,Math.hypot(x-ax-dx*t,y-ay-dy*t)); } return m; };
+  const xs=sp.map(q=>q[0]), ys=sp.map(q=>q[1]), x0=Math.max(6+sw/2,Math.min(...xs)), x1=Math.min(W-6-sw/2,Math.max(...xs)), y0=Math.max(6+sh/2,Math.min(...ys)), y1=Math.min(Hh-6-sh/2,Math.max(...ys));
+  if(x0>x1||y0>y1) return null; let best=null, bs=-1;
+  const N=w||h? 16 : 40;   // the deepest-point search needs a finer grid to find a thin band
+  for(let i=0;i<=N;i++) for(let j=0;j<=N;j++){ const x=x0+(x1-x0)*i/N, y=y0+(y1-y0)*j/N;
+    if(!pip(x,y)||![[x-w/2,y-h/2],[x+w/2,y-h/2],[x-w/2,y+h/2],[x+w/2,y+h/2],[x-w/2,y],[x+w/2,y]].every(q=>pip(q[0],q[1]))) continue;
+    const e=edge(x,y); if(e>bs){ bs=e; best=[x,y]; } }
+  return best; }
 // a "227°/5NM" box on a line at (x,y), turned along it (never upside down), with a drawn arrowhead pointing the way the line
 // goes (ang = direction of travel on screen). Used on the line to the selected aerodrome and on each flight-plan leg.
 function brgBox(g,x,y,ang,lab,col,C,bold){
@@ -3621,9 +3633,15 @@ function drawMap0(la,lo,h,pick,AS,altFt){
       const xs=sp.map(q=>q[0]), ys=sp.map(q=>q[1]); if(Math.max(...xs)<0||Math.max(...ys)<0||Math.min(...xs)>W||Math.min(...ys)>Hh) continue;
       g.beginPath(); sp.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])); g.closePath();
       g.globalAlpha=.08; g.fillStyle=C.Q; g.fill(); g.globalAlpha=.9; g.strokeStyle=C.Q; g.lineWidth=2; g.setLineDash([12,5]); g.stroke(); g.setLineDash([]); g.globalAlpha=1;
-      let cx=xs.reduce((a,b)=>a+b,0)/xs.length, cy=ys.reduce((a,b)=>a+b,0)/ys.length; cx=Math.max(60,Math.min(W-60,cx)); cy=Math.max(20,Math.min(Hh-20,cy));
+      // the label goes where it fits inside the polygon's visible part (it was the corners' average, which can lie outside an
+      // L-shaped or half-off-screen area: 22 Nov 2026, Michael "Sigmets text is outside the polygon"); else the name alone; else none
+      const L1=z.name, L2=z.wx+(sigLim(z)?' '+sigLim(z):''), w2=Math.max(g.measureText(L1).width,g.measureText(L2).width)+8, w1=g.measureText(L1).width+8;
+      // a thin band (Michael's screenshot: a narrow chevron) fits neither: then both lines at its deepest point, centred on the band
+      const at=sigLabelAt(sp,W,Hh,w2,26)||null, at1= at? null : sigLabelAt(sp,W,Hh,w1,14), at0= at||at1? null : sigLabelAt(sp,W,Hh,0,0,w2,26);
       g.lineWidth=3; g.strokeStyle=C.bg; g.fillStyle=C.Q;
-      for(const [t,dy] of [[z.name,-2],[z.wx+(sigLim(z)?' '+sigLim(z):''),9]]){ g.strokeText(t,cx,cy+dy); g.fillText(t,cx,cy+dy); } }
+      if(at) for(const [t,dy] of [[L1,-2],[L2,9]]){ g.strokeText(t,at[0],at[1]+dy); g.fillText(t,at[0],at[1]+dy); }
+      else if(at1){ g.strokeText(L1,at1[0],at1[1]+3); g.fillText(L1,at1[0],at1[1]+3); }
+      else if(at0) for(const [t,dy] of [[L1,-2],[L2,9]]){ g.strokeText(t,at0[0],at0[1]+dy); g.fillText(t,at0[0],at0[1]+dy); } }
     g.textAlign='left'; }
   // briefing obstacles: a tower symbol with its top (ft AMSL); red when the top is within 300 ft below you or higher
   if(ntHave()&&MAP.range<=20){ const O=ntObstacles(), seen=[]; g.font='700 9.5px "IBM Plex Mono", monospace'; g.textAlign='center';
@@ -4490,7 +4508,7 @@ function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!
   set('nHdgS', !hd? 'no compass' : hd.src==='sim'? 'sim: track' : st.trk!=null&&st.gs>20? 'drift '+navLR(((st.trk-hd.deg+540)%360)-180)+'°' : CMP.n>=CMP_MIN? 'aligned' : 'not aligned');
   // targets
   const dct=FP&&FP.dct&&GO, fpT=FP&&!FP.dct&&FP.pts[FP.i], nx= fpT? {c:fpT.c||fpT.n,la:fpT.la,lo:fpT.lo} : GO? {c:GO.c||GO.n,la:GO.la,lo:GO.lo} : null;
-  const last=FP&&!dct? FP.pts[FP.pts.length-1] : null, dest= last&&last!==fpT? {c:last.c||last.n,la:last.la,lo:last.lo} : null;
+  const last=FP&&!dct? FP.pts[FP.pts.length-1] : null; let dest= last&&last!==fpT? {c:last.c||last.n,la:last.la,lo:last.lo} : null;
   // GS, and the wind along your track
   { let t=''; if(W&&st.trk!=null&&st.gs>20){ const c=W.kt*Math.cos((W.dir-st.trk)*R); t=(c>=0?'HW ':'TW ')+Math.round(Math.abs(c)); }
     const wv=$('sWind').textContent; if(wv&&tilesOffNow().has('trk')) t=t? t+' · '+wv.replace(/^W\/V /,'') : wv;   // TRK hidden (a heading tape): its GPS wind goes on the GS tile
@@ -4502,14 +4520,20 @@ function navUI(la,lo,varE){ const now=Date.now(), W=navWind(la,lo), gsNow=st.gs!
   set('nToS', `${String(nx.c||'').slice(0,8)} ${dN<10?dN.toFixed(1):Math.round(dN)} NM${triN? ' WCA '+navLR(triN.wca)+'°' : ' · no wind'}`);
   $('nTo').title=`Heading to steer (°M) to ${nx.c||'the next point'}${W? `, wind ${fmt3(W.dir-varE)}/${Math.round(W.kt)} (${W.src}), TAS ${Math.round(W.tas)}` : ': no wind known (GPS estimate or Plan check), so this is the plain bearing'}`;
   // TOT: next point at your GS now (else the wind triangle's, else Plan check's speed); the rest of the plan per leg
-  const gsN= gsNow || (triN&&triN.gs) || (+ls.get('pcGs',90)||90), tN=now+dN/gsN*3600e3;
-  set('nTotV', hhmmZ(tN)); set('nTotS', `${String(nx.c||'').slice(0,8)} ${navMin(tN-now)}${gsNow?'':' at '+Math.round(gsN)+' kt'}`);
-  if(dest){ let t=tN, D=dN, pa=nx.la, po=nx.lo; for(let k=FP.i+1;k<FP.pts.length;k++){ const q=FP.pts[k], [L,b]=distBrg(pa,po,q.la,q.lo); D+=L;
+  const gsN= gsNow || (triN&&triN.gs) || (+ls.get('pcGs',90)||90);
+  let tN=now+dN/gsN*3600e3, nxT=nx, eI=FP&&!FP.dct? FP.i : -1;
+  // on a coast leg the next point for TOT is the leg's end, not its turn points (22 Nov 2026, Michael: "Tot includes cst
+  // waypoints, dont"): the time along the turn points to it; →HDG still steers to the turn point
+  if(fpT&&fpT.cg){ let pa=fpT.la, po=fpT.lo; for(let k=FP.i+1;k<FP.pts.length;k++){ const q=FP.pts[k], [L,b]=distBrg(pa,po,q.la,q.lo); tN+=L/(W? (windTri(b,W.tas,W.dir,W.kt).gs||gsN) : gsN)*3600e3; pa=q.la; po=q.lo; eI=k; if(!q.cg) break; }
+    const e=FP.pts[eI]; nxT={c:e.c||e.n,la:e.la,lo:e.lo}; }
+  set('nTotV', hhmmZ(tN)); set('nTotS', `${String(nxT.c||'').slice(0,8)} ${navMin(tN-now)}${gsNow?'':' at '+Math.round(gsN)+' kt'}`);
+  if(dest&&eI===FP.pts.length-1) dest=null;   // the coast leg ends at the destination: one line
+  if(dest){ let t=now+dN/gsN*3600e3, D=dN, pa=nx.la, po=nx.lo; for(let k=FP.i+1;k<FP.pts.length;k++){ const q=FP.pts[k], [L,b]=distBrg(pa,po,q.la,q.lo); D+=L;
       const g= W? (windTri(b,W.tas,W.dir,W.kt).gs||gsN) : gsN; t+=L/g*3600e3; pa=q.la; po=q.lo; }
     const [dD,bD]=distBrg(la,lo,dest.la,dest.lo), triD= W? windTri(bD,W.tas,W.dir,W.kt) : null;
     set('nToD', `${String(dest.c||'').slice(0,8)} ${fmt3((triD?triD.hdg:bD)-varE)} · ${Math.round(D)} NM`); set('nTotD', `${String(dest.c||'').slice(0,8)} ${hhmmZ(t)} · ${navMin(t-now)}`);
-    $('nTot').title=`Time over target (UTC): ${nx.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local), ${dest.c} ${hhmmZ(t)} (${new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local) along the plan`; }
-  else { set('nToD',''); set('nTotD',''); $('nTot').title=`Time over target (UTC): ${nx.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local)`; } }
+    $('nTot').title=`Time over target (UTC): ${nxT.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local), ${dest.c} ${hhmmZ(t)} (${new Date(t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local) along the plan`; }
+  else { set('nToD',''); set('nTotD',''); $('nTot').title=`Time over target (UTC): ${nxT.c} ${hhmmZ(tN)} (${new Date(tN).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})} local)`; } }
 // Time to an aerodrome along the flight plan (21 Nov 2026, Michael: the inbound call's "estimate circuit at time mm" should
 // follow a coast route and the waypoints on the way): when the aerodrome is a plan point at or after the active one (not
 // during a direct-to), your position -> the active point at your GS now (else the wind triangle's, else Plan check's speed),

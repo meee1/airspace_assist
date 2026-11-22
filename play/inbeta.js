@@ -11,13 +11,13 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   // the estimate in the call, the straight-line one and the plan one, at a given position
   const est=()=>p.evaluate(()=>{ const a=DATA.ap.find(x=>x.i==='YMMB'), [d,bb]=distBrg(st.pos[0],st.pos[1],a.la,a.lo), c=inboundCall(a,d,bb), m=/estimate circuit at time (\d\d)/.exec(c.txt);
     const mm=t=>String(new Date(t).getUTCMinutes()).padStart(2,'0'), pe=planEtaTo(a);
-    return {call:m&&m[1], straight:mm(Date.now()+d/st.gs*3600e3), plan:pe&&mm(pe.t), D:pe&&pe.D, d, tot:$('nTotD').textContent}; });
+    return {call:m&&m[1], straight:mm(Date.now()+d/st.gs*3600e3), plan:pe&&mm(pe.t), D:pe&&pe.D, d, tot:$('nTotV').textContent+' '+$('nTotS').textContent}; });
   // 1. coast leg YBRS -> YMMB, flying it from a turn point about two thirds of the way back
   await p.evaluate(async()=>{ ls.set('coastOff',500); ls.set('coastGap',2); COAST.off=500; COAST.gap=2; fpSet({name:'t',kind:'map',pts:[fpPt(findPoint('YBRS')),fpPt(findPoint('YMMB'))],i:1}); await fpCoastSet(FP.pts[1],true); });
   await p.evaluate(()=>{ const n=FP.pts.length, k=Math.round(n*0.35), q=FP.pts[k]; fpPick(k+1); $('simPos').value=q.la.toFixed(5)+','+q.lo.toFixed(5); simApply(); render(); });
   let r=await est(); console.log(`     coast: ${r.D.toFixed(1)} NM along the route vs ${r.d.toFixed(1)} direct · call :${r.call}, plan :${r.plan}, straight :${r.straight} · TOT ${r.tot}`);
   ok(r.call===r.plan&&r.D>r.d+3,'coast leg: the call uses the time along the coast route');
-  ok(new RegExp('YMMB \\d\\d'+r.call+'Z').test(r.tot),'and it matches the TOT tile\'s time for YMMB');
+  ok(new RegExp('^\\d\\d'+r.call+'Z YMMB ').test(r.tot),'and it matches the TOT tile\'s time for YMMB ('+r.tot+')');
   ok(r.call!==r.straight,'(and isn\'t the straight-line time)');
   // 2. the YBRS plan, YLIL then ACE then YMMB: from near YLIL with ACE active
   await p.setInputFiles('#fpFile',__dirname+'/fixtures/ybrs.gpx'); await p.waitForFunction(()=>FP&&FP.pts.length===14);
