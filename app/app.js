@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795464354792;
+const APP_BUILT=1795466696182;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -7023,4 +7023,47 @@ async function offlineStatus(){
     let cst=''; try{ await coastIndex(); const h=(await coastStored()).have.size; cst=`, coastline ${h>=COAST.c.size?'all':h+'/'+COAST.c.size} areas`; }catch(e){}
     el.innerHTML=` <b>Offline:</b> ${app?'app and AIP data stored':'app not stored yet'}${TER.ok?`, terrain ${n}/${want} tiles`:''}${CH.need?`, charts ${CH.have}/${CH.need} tiles`:''}${cst}${app&&(!TER.ok||n>=want)&&CH.have>=CH.need?' — ready to fly without signal.':'.'}`;
   }catch(e){ el.textContent=''; } }
-window.__boot&&window.__boot.ready();   // app started: hide the loading screen
+/* ---------- loading screen, part two: the offline content (24 Nov 2026, Michael: "Update the loading screen to include the other
+   static content like coast line etc"). Once the app has started, the screen lists what's stored for use without signal:
+   terrain tiles (the service worker's precache), coastline areas (coastAuto), the chart sheets you've picked (chartsPrecache)
+   and power lines (put in the cache here, as the first visit isn't under the service worker yet), with counts and a bar.
+   All stored (a normal launch) -> it closes as before. Otherwise it stays with **Start now** (the downloads carry on in the
+   background; the footer's Offline line shows them); it closes by itself when everything is stored, after 2.5 s without
+   signal, or when nothing has moved for 15 s. Without a service worker (file://, http) there's nothing to wait for.
+   An automated browser (navigator.webdriver: the tests) doesn't wait unless ls bootTest is set. */
+async function bootOffline(){ const B=$('boot'); if(!B||!window.__boot) return;
+  const sw='serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')&&!!window.caches;
+  if(!sw||(navigator.webdriver&&!ls.get('bootTest',false))) return __boot.ready();
+  const ul=$('bootSteps'), fill=$('bootFill'), msg=$('bootMsg'), rows={}, t0=Date.now(), RT=[];
+  const navEta=s=>s<60? Math.max(1,Math.round(s))+' s' : Math.round(s/60)+' min'; let last='', lastT=Date.now(), btn=null, plTried=false;
+  const row=(k,t)=>{ if(rows[k]) return rows[k]; const li=document.createElement('li'); li.className='on'; li.innerHTML='<i>…</i><span></span><small></small>'; li.children[1].textContent=t; ul.appendChild(li); return rows[k]=li; };
+  // download speed (Michael: "Include the download speed if possible"): the terrain tiles come through the service worker, where
+  // the page can't see bytes, so each row counts items stored and an average size per item (terrain: the build's total from
+  // window.__SIZES; coastline: its index's kb; charts: the picked sheets' bytes over their tiles) gives bytes; the speed is
+  // those bytes per second over the last ~4 s
+  const chAvg=()=>{ let B=0,T=0; for(const e of (CH.idx||[])){ if(!e||!e.bytes||!e.levels) continue; B+=e.bytes; for(const l of e.levels) T+=(l.tiles||[]).length; } return T? B/T : 60e3; };
+  async function counts(){ const C=[];
+    if(TER.ok){ const n=(await (await caches.open('radio-au-terrain')).keys()).filter(k=>/\.bin\.z$/.test(k.url)).length; C.push(['t','Terrain',Math.min(n,TER.have.size),TER.have.size,'tiles',(window.__SIZES&&window.__SIZES.terrain||TER.have.size*12.4e3)/TER.have.size]); }
+    try{ await coastIndex(); const h=(await coastStored()).have.size; C.push(['c','Coastline',Math.min(h,COAST.c.size),COAST.c.size,'areas',((COAST.idx.kb||1600)*1024)/COAST.c.size]); }catch(e){}
+    if(CH.need) C.push(['h','Charts you picked',Math.min(CH.have,CH.need),CH.need,'tiles',chAvg()]);
+    if(PL.err!=='none'){ const wc=await caches.open('radio-au-wires'); let w=await wc.match('powerlines.json');
+      if(!w&&!plTried&&navigator.onLine){ plTried=true; try{ const r=await fetch('powerlines.json'); if(r.ok){ await wc.put('powerlines.json',r); w=true; } }catch(e){} }
+      if(w||!plTried) C.push(['w','Power lines',w?1:0,1,'',480e3]); }
+    return C; }
+  const tick=async()=>{ if(!document.getElementById('boot')) return;
+    let C; try{ C=await counts(); }catch(e){ return __boot.ready(); }
+    let a=0; for(const [k,t,h,w,u] of C){ const li=row(k,t), ok=h>=w; li.children[2].textContent= ok? (u? w+' '+u : 'stored') : `${h} / ${w}${u?' '+u:''}`; if(ok){ li.className='ok'; li.children[0].textContent='✓'; } a+= w? Math.min(1,h/w) : 1; }
+    const all=C.every(x=>x[2]>=x[3]); fill.style.width=(C.length? a/C.length*100 : 100)+'%';
+    { const got=C.reduce((s,x)=>s+x[2]*x[5],0), left=C.reduce((s,x)=>s+Math.max(0,x[3]-x[2])*x[5],0), now=Date.now(); RT.push([now,got]); while(RT.length>2&&now-RT[0][0]>4e3) RT.shift();
+      const [ta,ga]=RT[0], v= now-ta>800? Math.max(0,(got-ga)/((now-ta)/1000)) : 0, mbs=x=>x>=1048576? (x/1048576).toFixed(1)+' MB' : Math.round(x/1024)+' kB';
+      let re=$('bootRate'); if(!re){ re=document.createElement('div'); re.id='bootRate'; re.className='msg mono'; fill.parentElement.after(re); }
+      re.textContent= all? '' : `${v>0? 'about '+mbs(v)+'/s · ' : ''}${mbs(left)} to go${v>2048? ' · about '+navEta(left/v) : ''}`; }
+    if(all&&(TER.ok||Date.now()-t0>1200)) return __boot.ready();   // (before the terrain list is in, give the downloads a moment to start)
+    if(!all&&!btn){ msg.className='msg'; msg.innerHTML='Storing maps and data on this device so the app works without signal. You can start now: it carries on in the background (the Offline line at the bottom of the page shows how far it has got).';
+      btn=document.createElement('button'); btn.type='button'; btn.className='btn primary'; btn.id='bootGo'; btn.textContent='Start now'; btn.onclick=()=>__boot.ready(); msg.after(btn); }
+    const sig=C.map(x=>x[2]).join(); if(sig!==last){ last=sig; lastT=Date.now(); }
+    if(!all&&!navigator.onLine){ msg.textContent='No signal: starting with what is stored. The rest downloads the next time there is signal.'; return setTimeout(()=>__boot.ready(),2500); }
+    if(!all&&Date.now()-lastT>15e3){ msg.textContent='The download has paused: starting now. It carries on later.'; return setTimeout(()=>__boot.ready(),1500); }
+    setTimeout(tick, all? 300 : 1000); };
+  msg.textContent='Checking what is stored for offline use…'; setTimeout(tick,300); }
+bootOffline();   // app started: the loading screen goes once the offline content is stored (or Start now)

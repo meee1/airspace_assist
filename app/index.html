@@ -416,7 +416,7 @@ button.chgo{flex:none;padding:0;border:0;background:none;position:relative;curso
 #boot li.on{color:var(--ink)} #boot li.ok i{color:var(--ok)} #boot li.err{color:var(--warn)}
 #boot li small{margin-left:auto;white-space:nowrap;font-family:var(--f-mono);font-size:12px;color:var(--dim)}
 #boot .bar{height:6px;border-radius:3px;background:var(--chip);overflow:hidden} #boot .bar b{display:block;height:100%;width:0;background:var(--freq);transition:width .15s}
-#boot .msg{margin-top:12px;font-size:13px;color:var(--dim);line-height:1.4} #boot .msg.err{color:var(--warn)}
+#boot .msg{margin-top:12px;font-size:13px;color:var(--dim);line-height:1.4} #boot .msg.err{color:var(--warn)} #boot #bootRate{margin-top:6px;font-size:12px} #boot #bootGo{margin-top:14px;width:100%;min-height:48px;font-size:16px}
 .bootErr{margin:12px;padding:12px 14px;border-radius:8px;background:var(--panel);border:2px solid var(--warn);color:var(--ink);font-size:14px}
 .prof-ctl{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:4px} .prof-ctl .lbl{margin-right:auto} .prof-ctl .btn{padding:4px 9px;font-size:13px;min-width:30px} .prof-ctl select{font:500 13px var(--f-mono);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink)}
 .prof-ctl .mono{font-size:12px;min-width:52px;text-align:center}
@@ -1079,7 +1079,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
 // Shows a loading screen (#boot) with each step, MB received and errors, until app.js has run.
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 window.__SETS=[[1788364800000, "data.json?v=f125575d9a", "03 SEP 2026"], [1795622400000, "data-next.json?v=a653815da6", "26 NOV 2026"]];   // [effective ms (1600 UTC day before), file, ERSA date]
-window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1855883};  // uncompressed bytes per file, for the progress bar (Content-Length is the gzip size)
+window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1855883, "terrain": 11356660};  // uncompressed bytes per file, for the progress bar (Content-Length is the gzip size)
 (()=>{
   const ul=document.getElementById('bootSteps'), fill=document.getElementById('bootFill'), msg=document.getElementById('bootMsg'), L={}, prog={};
   const mb=n=>(n/1048576).toFixed(1);
@@ -1112,7 +1112,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=8046f3e6d8';
+    const s=document.createElement('script'); s.src='app.js?v=5c193c9263';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

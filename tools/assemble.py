@@ -108,6 +108,9 @@ for name in ('data.json','data-next.json'):
 sets.sort()
 urbt=json.dumps({'urb':urb or [],'sal':sal or []},separators=(',',':')); open(os.path.join(out,'urban.json'),'w').write(urbt)
 sizes={n:os.path.getsize(os.path.join(out,n)) for n in ('data.json','data-next.json','urban.json') if os.path.exists(os.path.join(out,n))}
+# the terrain tiles' total size, for the loading screen's download speed (the terrain index has no sizes)
+_td=os.path.join(here,'..','app','terrain')
+if os.path.isdir(_td): sizes['terrain']=sum(os.path.getsize(os.path.join(_td,f)) for f in os.listdir(_td) if f.endswith('.bin.z'))
 data=''.join(s_[1] for s_ in sets)+h(urbt)          # for the build version hash
 tpl=open(os.path.join(here,'template.html')).read()
 i=tpl.index('<script>\n'); j=tpl.rindex('</script>')
