@@ -167,6 +167,23 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
 .fu-big{font:700 22px var(--f-mono);margin:6px 0} .fu-big small{display:block;font:500 13px var(--f-label);color:var(--dim)} .fu-opt{display:flex;align-items:center;gap:10px;margin:8px 0} .fu-opt span{flex:1} .fu-opt small{color:var(--dim)}
 #sFuel{cursor:pointer} #sSar,#sChk,#sStt{cursor:pointer}
+/* flight computer (training): always dark, as on the owner's pick of the mock-ups */
+#e6bDlg{--bg:#0d1417;--panel:#152024;--ink:#e6efe9;--dim:#8a9ba0;--rule:#26353a;--freq:#5fe0a8;--accent:#ffad4d;--wp:#d78cf0;--chip:#1d2b30;--ok:#5fe0a8;--warn:#ff7a66;
+  color-scheme:dark;background:var(--bg);color:var(--ink);width:min(560px,calc(100vw - 12px));max-height:calc(100dvh - 12px);padding:12px;outline:none}
+#e6bDlg .btn{background:var(--panel);color:var(--ink);border-color:var(--rule)} #e6bDlg .btn.primary{background:#0b5c45;border-color:#0b5c45;color:#fff} #e6bDlg .btn.on{background:#3a2a10;border-color:var(--accent);color:var(--accent)}
+#e6bDlg select{background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:7px;padding:5px 6px;font:600 13px var(--f-body);max-width:100%}
+.e6b-tag{font:700 12px var(--f-label);letter-spacing:.6px;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:1px 6px;margin-right:auto;margin-left:8px}
+.e6b-seg{display:flex;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin:6px 0 8px} .e6b-seg button{flex:1;border:0;background:none;color:var(--dim);padding:9px 0;font:600 14px var(--f-body);cursor:pointer} .e6b-seg button.on{background:var(--chip);color:var(--ink)}
+.e6b-svg{display:block;width:100%;max-height:58dvh;touch-action:none;user-select:none;-webkit-user-select:none} .e6b-psvg{max-height:40dvh}
+.e6b-rd{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px;color:var(--dim)} .e6b-rd:empty{display:none}
+.e6b-rd .r{display:flex;justify-content:space-between;align-items:baseline;gap:8px} .e6b-rd b{font:700 16px var(--f-mono);color:var(--freq);white-space:nowrap}
+.e6b-btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0} .e6b-btns .btn{flex:1 1 0;min-width:70px} .e6b-chk{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--dim);flex:1 1 0;min-width:90px}
+.e6b-pq{display:flex;gap:8px;flex-wrap:wrap} .e6b-pq label{flex:1 1 150px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:3px}
+.e6b-card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:8px 0;font-size:14px;line-height:1.35} .e6b-card .leg{font:700 15px var(--f-mono);color:var(--wp)} .e6b-card small{color:var(--dim)}
+.e6b-steps{font-size:13px;margin:4px 0} .e6b-steps div{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--dim)} .e6b-steps i{font-style:normal;width:18px;flex:none} .e6b-steps .ok{color:var(--ink)} .e6b-steps .ok i{color:var(--ok)} .e6b-steps .now{color:var(--ink);font-weight:600} .e6b-steps .now i{color:var(--accent)} .e6b-steps .hint{display:block;font-weight:400;color:var(--accent);font-size:12px;margin-top:2px}
+.e6b-ans{display:flex;gap:6px;margin:6px 0} .e6b-ans label{flex:1 1 0;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:5px 8px;font-size:11px;color:var(--dim)} .e6b-ans input{display:block;width:100%;background:none;border:0;color:var(--ink);font:700 20px var(--f-mono);padding:2px 0;outline:none}
+.e6b-ans label.good{border-color:var(--ok)} .e6b-ans label.bad{border-color:var(--warn)}
+.e6b-res{font-size:13px;color:var(--dim);line-height:1.4;min-height:1em} .e6b-res b{color:var(--ink)} .e6b-res .good{color:var(--ok)} .e6b-res .bad{color:var(--warn)}
 #briefBox{position:fixed;inset:0;z-index:70;background:var(--panel);color:var(--ink);display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top,0px)) 16px max(12px,env(safe-area-inset-bottom,0px))} #briefBox[hidden]{display:none}
 .bf-h{display:flex;align-items:center;gap:10px;font-size:18px} .bf-h b{flex:1} .bf-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:20px 4px;cursor:pointer}
 .bf-sec{font:700 clamp(16px,3.5vw,24px) var(--f-label);letter-spacing:.5px;text-transform:uppercase;color:var(--dim)} .bf-c{font:600 clamp(28px,7vw,56px)/1.2 var(--f-body)} .bf-r{font:500 clamp(22px,5vw,40px)/1.25 var(--f-body);color:var(--accent)}
@@ -849,6 +866,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
     <button class="btn" id="bFuel" aria-haspopup="dialog" title="Fuel timer: fuel on board, burn rate, start/stop, reminders">Fuel timer</button>
     <button class="btn" id="bPad" aria-haspopup="dialog" title="Read-back pad: write down a clearance with your finger, with the squawk, level and ATIS letter">Read-back pad</button>
+    <button class="btn" id="bE6b" aria-haspopup="dialog" title="Flight computer (E6B) for training: computer side, wind side and practice problems">Flight computer</button>
     <button class="btn" id="bBrief" aria-haspopup="dialog" title="Passenger briefing: your briefing items full screen, one at a time, for the passengers">Passenger brief</button>
     <button class="btn" id="bSar" aria-haspopup="dialog" title="SARTIME or flight note: countdown, and a reminder to cancel it once you've landed">SARTIME</button>
     <button class="btn" id="bLog" aria-haspopup="dialog" title="Your logbook: legs from the GPS log, totals, and CSV export for your logbook app">Logbook</button>
@@ -985,6 +1003,33 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <label class="fu-opt"><input type="checkbox" id="fuAuto"> <span><b>Start and stop by itself</b><br><small>Starts when you're moving at 40 kt or more, stops after 3 minutes below 5 kt.</small></span></label>
     <label class="fu-opt"><span><b>Fuel check reminder</b><br><small>Spoken (and a vibration) while the timer runs.</small></span><select id="fuRem"><option value="0">Off</option><option value="15">every 15 min</option><option value="20">every 20 min</option><option value="30">every 30 min</option></select></label>
     <div class="vnote">Fuel left = what you set minus burn × time the timer has run. Reserve: your setting, else CASA's final reserve (helicopter 20 / 30 min, aeroplane 30 / 45 min, day / night). Range = time to the reserve × your groundspeed now (Plan check's GS when you're slow), so it already includes the wind along your track, but not on other headings. It's an estimate: dip or gauge the tanks.</div>
+  </dialog>
+  <dialog class="opts e6bdlg" id="e6bDlg" aria-labelledby="e6bTitle" tabindex="-1">
+    <div class="opts-head"><b id="e6bTitle">Flight computer</b><span class="e6b-tag">TRAINING</span><button class="btn" id="e6bClose" aria-label="Close">✕</button></div>
+    <div class="e6b-seg" id="e6bSeg" role="tablist"><button type="button" data-t="comp" class="on">Computer</button><button type="button" data-t="wind">Wind</button><button type="button" data-t="prob">Problems</button></div>
+    <div id="e6bComp" class="e6b-pane">
+      <svg id="e6bCompSvg" class="e6b-svg" viewBox="-195 -195 390 390" role="img" aria-label="Computer side: circular slide rule"></svg>
+      <div class="e6b-rd" id="e6bCompRd"></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-c="gs">Speed</button><button type="button" class="btn" data-c="fuel">Fuel</button><button type="button" class="btn" data-c="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowC" checked> Readout</label></div>
+      <div class="vnote">Drag the blue disc to turn it, and drag on the outer scale to move the red cursor. The scales are logarithmic, so you place the decimal point yourself: 11 can be 1.1, 11 or 110. <b>Speed</b> puts the 60 index under your groundspeed (or Plan check's speed), <b>Fuel</b> under Plan check's burn. Untick Readout to practise reading the scales.</div>
+    </div>
+    <div id="e6bWind" class="e6b-pane" hidden>
+      <svg id="e6bWindSvg" class="e6b-svg" viewBox="-195 -235 390 430" role="img" aria-label="Wind side: rotating plate over a sliding grid"></svg>
+      <div class="e6b-rd" id="e6bWindRd"></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-w="mark">✎ Mark</button><button type="button" class="btn" data-w="erase">Erase</button><button type="button" class="btn" data-w="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowW" checked> Readout</label></div>
+      <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
+    </div>
+    <div id="e6bProb" class="e6b-pane" hidden>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="fuel">Fuel for a time</option></select></label></div>
+      <div class="e6b-card" id="e6bPCard"></div>
+      <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
+      <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
+      <div class="e6b-btns" id="e6bPTools"><button type="button" class="btn" data-pw="mark">✎ Mark</button><button type="button" class="btn" data-pw="erase">Erase</button></div>
+      <div class="e6b-steps" id="e6bPSteps"></div>
+      <div class="e6b-ans" id="e6bPAns"></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-p="hint">Hint</button><button type="button" class="btn" data-p="show">Show me</button><button type="button" class="btn primary" data-p="check">Check answer</button><button type="button" class="btn" data-p="next">Next ▶</button></div>
+      <div class="e6b-res" id="e6bPRes"></div>
+    </div>
   </dialog>
   <dialog class="opts" id="sarDlg" aria-labelledby="sarTitle">
     <div class="opts-head"><b id="sarTitle">SARTIME</b><button class="btn" id="sarClose" aria-label="Close">✕</button></div>
@@ -8143,6 +8188,175 @@ async function bootOffline(){ const B=$('boot'); if(!B||!window.__boot) return;
     if(!all&&Date.now()-lastT>15e3){ msg.textContent='The download has paused: starting now. It carries on later.'; return setTimeout(()=>__boot.ready(),1500); }
     setTimeout(tick, all? 300 : 1000); };
   msg.textContent='Checking what is stored for offline use…'; setTimeout(tick,300); }
+
+/* ---------- flight computer (24 Nov 2026, Michael: "a mechanical flight computer for training and simulation", built from
+   mock-ups A computer side, B wind side, C trainer; "Build all three, dark theme"). An E6B-style computer for practice: it
+   computes nothing for you except in the readouts (which can be hidden) and in the trainer's Check, which uses the app's
+   own wind triangle (windTri) and arithmetic.
+   Computer side (E6Comp): outer scale fixed, inner disc turned by dragging (rot: the inner value v sits at angle L(v)+rot),
+   a cursor (cur) dragged on the outer scale. Both scales are the same log scale 10-100 round the circle (L(v) =
+   frac(log10 v) x 360). Inner hours ring at 60/90/12/18/24/30/36/48 minutes. Readout: the outer value over the 60 index,
+   and the outer / inner values at the cursor.
+   Wind side (E6Wind): a plate turned by dragging its ring (rotP = the degrees under the TRUE INDEX), a grid of speed arcs
+   (every 2 kt) and drift lines (every 2°) that slides up and down (G = the speed under the grommet), pencil dots kept in
+   the plate's own frame (so they turn with it). Scale: R/60 px per kt. Readout: index, GS under the grommet, the last
+   dot's arc (kt) and drift, and its wind (direction and speed from the grommet in the plate's frame).
+   Problems (E6P): wind (heading, GS, WCA), time from distance (minutes), fuel for a time (litres), from your plan's legs
+   (Plan check's speed, burn and entered wind; a coast leg's pieces skipped) or random; steps tick themselves off from
+   the instrument's state; Hint, Show me (sets the instrument and fills the answers), Check (±2°/±2 kt, ±2% or 1 min/1 L),
+   Next; score in ls e6bScore. */
+const E6NS='http://www.w3.org/2000/svg';
+const e6el=(p,t,a={},txt)=>{ const e=document.createElementNS(E6NS,t); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; p.appendChild(e); return e; };
+const e6L=v=>((Math.log10(v)%1)+1)%1*360, e6V=a=>10**(1+((a%360)+360)%360/360), e6N=v=>10**(1+((Math.log10(v)%1)+1)%1);   // angle of a value; value (10-100) at an angle; a value normalised to 10-100
+const e6f=v=>v>=99.95? v.toFixed(0) : v.toFixed(1), e6ad=(a,b)=>((a-b)%360+540)%360-180;
+const e6pt=(svg,e)=>{ const p=svg.createSVGPoint(); p.x=e.clientX; p.y=e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+const e6ang=(x,y)=>(Math.atan2(x,-y)*180/Math.PI+360)%360;   // 0 = up, clockwise
+function e6LogRing(g,r,dir,col,fs){ for(let v=10;v<100;v+= v<20?0.5:v<50?1:2){ const a=(e6L(v)-90)*Math.PI/180, maj= v<20? v%1===0 : v<50? v%5===0 : v%10===0, len=maj?12:6;
+    e6el(g,'line',{x1:r*Math.cos(a),y1:r*Math.sin(a),x2:(r+dir*len)*Math.cos(a),y2:(r+dir*len)*Math.sin(a),stroke:col,'stroke-width':maj?1.6:0.9}); }
+  for(const v of [10,11,12,13,14,15,16,18,20,25,30,35,40,45,50,60,70,80,90]){ const ad=e6L(v), a=(ad-90)*Math.PI/180, rr=r+dir*(fs+10), x=rr*Math.cos(a), y=rr*Math.sin(a);
+    e6el(g,'text',{x,y:y+fs*0.35,fill:col,'font-size':fs,'font-family':'IBM Plex Mono','font-weight':600,'text-anchor':'middle',transform:`rotate(${ad} ${x} ${y})`},String(v)); } }
+class E6Comp{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=onChange; this.rot=0; this.cur=e6L(30); this.show=true; this.build(); this.bind(); this.draw(); }
+  build(){ const s=this.svg; s.innerHTML='';
+    e6el(s,'circle',{r:186,fill:'#c8d0d4'}); e6el(s,'circle',{r:186,fill:'none',stroke:'#7d8a90','stroke-width':3});
+    e6LogRing(e6el(s,'g'),152,1,'#10202a',13);
+    this.g=e6el(s,'g'); const g=this.g;
+    e6el(g,'circle',{r:150,fill:'#1b3a55'}); e6el(g,'circle',{r:150,fill:'none',stroke:'#0e2233','stroke-width':2});
+    e6LogRing(g,148,-1,'#ffffff',12);
+    for(const [v,h] of [[60,'1:00'],[90,'1:30'],[12,'2:00'],[18,'3:00'],[24,'4:00'],[30,'5:00'],[36,'6:00'],[48,'8:00']]){ const ad=e6L(v), a=(ad-90)*Math.PI/180, x=100*Math.cos(a), y=100*Math.sin(a);
+      e6el(g,'text',{x,y:y+3,fill:'#9fc4e8','font-size':9,'font-family':'IBM Plex Mono','text-anchor':'middle',transform:`rotate(${ad} ${x} ${y})`},h); }
+    { const ad=e6L(60), a=(ad-90)*Math.PI/180, x=116*Math.cos(a), y=116*Math.sin(a); e6el(g,'path',{d:`M ${x} ${y} l -6 0 l 6 -10 l 6 10 z`,fill:'#ffad4d',transform:`rotate(${ad} ${x} ${y})`}); }
+    const lab=e6el(s,'g',{'pointer-events':'none'});   // level labels: they don't turn with the disc
+    e6el(lab,'text',{x:0,y:-34,fill:'#cfe3f5','font-size':11,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'OUTER: MILES · LITRES');
+    e6el(lab,'text',{x:0,y:-20,fill:'#cfe3f5','font-size':11,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'INNER: MINUTES · ▲ 60 = INDEX');
+    e6el(lab,'text',{x:0,y:30,fill:'#cfe3f5','font-size':13,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1.5},'TIME · SPEED · DISTANCE');
+    e6el(lab,'text',{x:0,y:45,fill:'#9fc4e8','font-size':10,'font-family':'IBM Plex Sans','text-anchor':'middle'},'FUEL · RATE · CONVERSIONS');
+    e6el(s,'circle',{r:6,fill:'#7d8a90'});
+    this.cl=e6el(s,'line',{x1:0,y1:0,x2:0,y2:-190,stroke:'#ff4d4d','stroke-width':2}); this.cc=e6el(s,'circle',{cx:0,cy:-176,r:8,fill:'none',stroke:'#ff4d4d','stroke-width':2}); }
+  bind(){ const s=this.svg; let d=null;
+    s.addEventListener('pointerdown',e=>{ const p=e6pt(s,e), r=Math.hypot(p.x,p.y); if(r>190) return; e.preventDefault(); s.setPointerCapture(e.pointerId);
+      d={k: r<=150? 'disc' : 'cur', a0:e6ang(p.x,p.y), rot0:this.rot}; if(d.k==='cur'){ this.cur=d.a0; this.draw(); } });
+    s.addEventListener('pointermove',e=>{ if(!d) return; const p=e6pt(s,e), a=e6ang(p.x,p.y); if(d.k==='disc') this.rot=(d.rot0+e6ad(a,d.a0)+360)%360; else this.cur=a; this.draw(); });
+    const up=()=>{ d=null; }; s.addEventListener('pointerup',up); s.addEventListener('pointercancel',up); }
+  setIndex(v){ this.rot=((e6L(v)-e6L(60))%360+360)%360; this.draw(); }
+  idx(){ return e6V(e6L(60)+this.rot); }
+  draw(){ this.g.setAttribute('transform',`rotate(${this.rot})`); const a=(this.cur-90)*Math.PI/180; this.cl.setAttribute('x2',190*Math.cos(a)); this.cl.setAttribute('y2',190*Math.sin(a)); this.cc.setAttribute('cx',176*Math.cos(a)); this.cc.setAttribute('cy',176*Math.sin(a));
+    if(this.rd) this.rd.innerHTML= this.show? `<div class="r"><span>60 index under</span><b>${e6f(this.idx())}</b></div><div class="r"><span>Cursor: outer / inner</span><b>${e6f(e6V(this.cur))} / ${e6f(e6V(this.cur-this.rot))}</b></div>` : '';
+    if(this.on) this.on(); } }
+class E6Wind{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=onChange; this.R=140; this.sc=this.R/60; this.rotP=0; this.G=100; this.dots=[]; this.mark=false; this.show=true; this.build(); this.bind(); this.draw(); }
+  build(){ const s=this.svg, R=this.R, sc=this.sc; s.innerHTML='';
+    const id='e6c'+Math.random().toString(36).slice(2,7), d=e6el(s,'defs'), cp=e6el(d,'clipPath',{id}); e6el(cp,'rect',{x:-185,y:-205,width:370,height:395,rx:14});
+    const clip=e6el(s,'g',{'clip-path':`url(#${id})`}); e6el(clip,'rect',{x:-185,y:-205,width:370,height:395,fill:'#e9ecd8'});
+    this.grid=e6el(clip,'g'); const g=this.grid;
+    for(let v=10; v<=250; v+=2){ const maj=v%10===0; e6el(g,'circle',{cx:0,cy:0,r:v*sc,fill:'none',stroke:maj?'#2c6e49':'#9fb8a7','stroke-width':maj?1.3:0.6});
+      if(maj) e6el(g,'text',{x:3,y:-v*sc-2,fill:'#1d4d33','font-size':9,'font-family':'IBM Plex Mono'},String(v)); }
+    for(let a=-44; a<=44; a+=2){ const maj=a%10===0, t=(a-90)*Math.PI/180; e6el(g,'line',{x1:0,y1:0,x2:260*sc*Math.cos(t),y2:260*sc*Math.sin(t),stroke:maj?'#2c6e49':'#b7c9bb','stroke-width':maj?1:0.5});
+      if(maj&&a) for(const v of [60,100,140,180]){ const x=v*sc*Math.cos(t)+(a>0?3:-3), y=v*sc*Math.sin(t); e6el(g,'text',{x,y,fill:'#1d4d33','font-size':8,'font-family':'IBM Plex Mono','text-anchor':a>0?'start':'end'},Math.abs(a)+'°'); } }
+    e6el(clip,'circle',{cx:0,cy:0,r:R+30,fill:'rgba(230,240,255,.16)',stroke:'#88a','stroke-width':2});
+    this.plate=e6el(clip,'g'); const pl=this.plate;
+    e6el(pl,'circle',{cx:0,cy:0,r:R+30,fill:'none',stroke:'#334','stroke-width':26,'stroke-opacity':.88});
+    for(let dg=0; dg<360; dg+=5){ const t=(dg-90)*Math.PI/180, maj=dg%10===0; e6el(pl,'line',{x1:(R+18)*Math.cos(t),y1:(R+18)*Math.sin(t),x2:(R+(maj?28:23))*Math.cos(t),y2:(R+(maj?28:23))*Math.sin(t),stroke:'#fff','stroke-width':maj?1.4:0.8});
+      if(dg%30===0){ const x=(R+37)*Math.cos(t), y=(R+37)*Math.sin(t); e6el(pl,'text',{x,y:y+4,fill:'#fff','font-size':11,'font-family':'IBM Plex Mono','font-weight':700,'text-anchor':'middle',transform:`rotate(${dg} ${x} ${y})`},String(dg/10).padStart(2,'0')); } }
+    this.dg=e6el(pl,'g');
+    e6el(clip,'circle',{cx:0,cy:0,r:5,fill:'#fff',stroke:'#334','stroke-width':2});
+    e6el(s,'rect',{x:-40,y:-R-67,width:80,height:18,rx:9,fill:'#0d1417',opacity:.9}); e6el(s,'path',{d:`M -9 ${-R-48} L 9 ${-R-48} L 0 ${-R-34} Z`,fill:'#ffad4d'}); e6el(s,'text',{x:0,y:-R-54,fill:'#ffad4d','font-size':11,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'TRUE INDEX'); }
+  bind(){ const s=this.svg; let d=null;
+    s.addEventListener('pointerdown',e=>{ const p=e6pt(s,e), r=Math.hypot(p.x,p.y); e.preventDefault(); s.setPointerCapture(e.pointerId);
+      if(this.mark&&r<this.R){ const t=this.rotP*Math.PI/180, x=p.x/this.sc, y=p.y/this.sc; this.dots=[{x:x*Math.cos(t)-y*Math.sin(t), y:x*Math.sin(t)+y*Math.cos(t)}]; this.mark=false; this.draw(); d=null; return; }
+      d= r>this.R&&r<this.R+46? {k:'ring', a0:e6ang(p.x,p.y), r0:this.rotP} : {k:'grid', y0:p.y, G0:this.G}; });
+    s.addEventListener('pointermove',e=>{ if(!d) return; const p=e6pt(s,e);
+      if(d.k==='ring') this.rotP=((d.r0-e6ad(e6ang(p.x,p.y),d.a0))%360+360)%360; else this.G=Math.max(20,Math.min(240,d.G0+(p.y-d.y0)/this.sc)); this.draw(); });
+    const up=()=>{ d=null; }; s.addEventListener('pointerup',up); s.addEventListener('pointercancel',up); }
+  dotScr(q){ const t=-this.rotP*Math.PI/180; return [ (q.x*Math.cos(t)-q.y*Math.sin(t))*this.sc, (q.x*Math.sin(t)+q.y*Math.cos(t))*this.sc ]; }
+  dotWind(q){ return {dir:e6ang(q.x,q.y), kt:Math.hypot(q.x,q.y)}; }   // the dot as marked: its direction from the grommet in the plate's frame and length
+  dotGrid(q){ const [x,y]=this.dotScr(q), cy=this.G*this.sc; return {arc:Math.hypot(x,y-cy)/this.sc, drift:Math.atan2(x,-(y-cy))*180/Math.PI}; }
+  draw(){ const sc=this.sc; this.grid.setAttribute('transform',`translate(0 ${this.G*sc})`); this.plate.setAttribute('transform',`rotate(${-this.rotP})`);
+    this.dg.innerHTML=''; for(const q of this.dots){ e6el(this.dg,'line',{x1:0,y1:0,x2:q.x*sc,y2:q.y*sc,stroke:'#1340d0','stroke-width':1,'stroke-dasharray':'3 2'}); e6el(this.dg,'circle',{cx:q.x*sc,cy:q.y*sc,r:5,fill:'#1340d0',stroke:'#fff','stroke-width':1.5}); }
+    if(this.rd){ const q=this.dots[this.dots.length-1], w=q&&this.dotWind(q), gr=q&&this.dotGrid(q);
+      this.rd.innerHTML= this.show? `<div class="r"><span>Under the true index</span><b>${fmt3(Math.round(this.rotP)%360)}°</b></div><div class="r"><span>Under the grommet (GS)</span><b>${Math.round(this.G)} kt</b></div>`+
+        (q? `<div class="r"><span>Wind dot ${fmt3(Math.round(w.dir)%360)}°/${w.kt.toFixed(0)} kt is on</span><b>${gr.arc.toFixed(0)} kt · ${Math.abs(gr.drift).toFixed(0)}° ${gr.drift>=0?'R':'L'}</b></div>` : '<div class="r"><span>No wind dot yet: ✎ Mark, then tap</span></div>') : ''; }
+    if(this.on) this.on(); }
+  // the instrument set for a wind problem: wind dot at (wd, wk), tc under the index, grid slid so the dot is on the TAS arc
+  solve(tc,tas,wd,wk){ const t=wd*Math.PI/180; this.dots=[{x:wk*Math.sin(t), y:-wk*Math.cos(t)}]; this.rotP=tc;
+    const [x,y]=this.dotScr(this.dots[0]); this.G=(y+Math.sqrt((tas*this.sc)**2-x*x))/this.sc; this.draw(); } }
+const E6={tab:'comp', comp:null, wind:null, pw:null, pc:null};
+const E6P={p:null, sc:ls.get('e6bScore',{n:0,ok:0}), legI:0, hint:false, done:false};
+function e6Tab(t){ E6.tab=t; for(const b of $('e6bSeg').children) b.classList.toggle('on',b.dataset.t===t); $('e6bComp').hidden=t!=='comp'; $('e6bWind').hidden=t!=='wind'; $('e6bProb').hidden=t!=='prob'; if(t==='prob'&&!E6P.p) e6New(); }
+function e6Open(){ setTimeout(()=>$('e6bDlg').focus({preventScroll:true}),0);   /* the dialog, not the ✕ (its focus ring) or a tab */ if(!E6.comp){ E6.comp=new E6Comp($('e6bCompSvg'),$('e6bCompRd')); E6.wind=new E6Wind($('e6bWindSvg'),$('e6bWindRd')); E6.pw=new E6Wind($('e6bPWSvg'),null,e6Steps); E6.pc=new E6Comp($('e6bPCSvg'),null,e6Steps); }
+  const d=$('e6bDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); e6Tab(E6.tab); }
+const e6rand=(a,b,st=1)=>a+Math.floor(Math.random()*((b-a)/st+1))*st;
+function e6Legs(){ if(!FP||FP.pts.length<2) return []; const P_=FP.pts, out=[];   // the plan's legs between real points (a coast leg's turn points skipped)
+  let a=0; for(let k=1;k<P_.length;k++){ if(P_[k].cg) continue; if(k-a===1){ const [L,b]=distBrg(P_[a].la,P_[a].lo,P_[k].la,P_[k].lo); if(L>=1) out.push({from:P_[a].c||P_[a].n, to:P_[k].c||P_[k].n, L, tc:Math.round(b)%360}); } a=k; }
+  return out; }
+function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='plan', legs=plan? e6Legs() : [], leg= legs.length? legs[E6P.legI++%legs.length] : null;
+  const tas=+ls.get('pcGs',0)||e6rand(70,140,5), burn=+ls.get('pcBurn',0)||e6rand(40,120,5), W=(typeof pcWind==='function'&&pcWind())||null, pw= W&&W.src==='set'&&W.kt>0? W : null;
+  let p;
+  if(type==='wind'){ for(let i=0;i<20;i++){ const tc= leg? leg.tc : e6rand(0,355,5), T= leg? tas : e6rand(70,140,5), wd= leg&&pw? Math.round(pw.dir) : e6rand(0,350,10), wk= leg&&pw? Math.round(pw.kt) : e6rand(5,35,5);
+      const r=windTri(tc,T,wd,wk); if(r.gs==null) continue; let wca=e6ad(r.hdg,tc); p={type, leg, tc, tas:T, wd, wk, hdg:(Math.round(r.hdg)+360)%360, gs:r.gs, wca, plan:!!leg, pw:!!(leg&&pw)}; break; } }
+  else if(type==='tsd'){ const gs= leg? tas : e6rand(60,180,5), d= leg? +leg.L.toFixed(1) : e6rand(8,140); p={type, leg, gs, d, min:d/gs*60, plan:!!leg}; }
+  else { const b= leg? burn : e6rand(30,150,5), min= leg? Math.max(5,Math.round(leg.L/(tas||90)*60)) : e6rand(10,150,5); p={type, leg, burn:b, min, fuel:b*min/60, plan:!!leg}; }
+  E6P.p=p; E6P.hint=false; E6P.done=false;
+  E6.pw.dots=[]; E6.pw.rotP=0; E6.pw.G=100; E6.pw.mark=false; E6.pw.draw(); E6.pc.rot=0; E6.pc.cur=0; E6.pc.draw();
+  $('e6bPWSvg').hidden=type!=='wind'; $('e6bPTools').hidden=type!=='wind'; $('e6bPCSvg').hidden=type==='wind';
+  const lg= leg? `Leg <span class="leg">${esc(leg.from)} → ${esc(leg.to)}</span> · ` : '';
+  const src= p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>') : (plan&&!legs.length? '<small>(no flight plan loaded: a random problem)</small>' : '');
+  $('e6bPCard').innerHTML=`<b>Problem ${E6P.sc.n+1}</b> <small>· ${E6P.sc.ok} right of ${E6P.sc.n}</small><br>`+lg+
+    (type==='wind'? `TC <b>${fmt3(p.tc)}°T</b> · TAS <b>${p.tas} kt</b> · wind <b>${fmt3(p.wd)}°T / ${p.wk} kt</b>. Find the heading, groundspeed and wind correction.` :
+     type==='tsd'? `Groundspeed <b>${p.gs} kt</b>, distance <b>${p.d} NM</b>. How many minutes?` :
+     `Fuel burn <b>${p.burn} L/h</b>, flight time <b>${p.min} min</b>. How much fuel?`)+' '+src;
+  const box=(k,l)=>`<label data-k="${k}">${l}<input inputmode="decimal" autocomplete="off" spellcheck="false" data-k="${k}"></label>`;
+  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : type==='tsd'? box('min','Time min') : box('fuel','Fuel L');
+  $('e6bPRes').textContent=''; e6Steps(); }
+function e6StepList(){ const p=E6P.p; if(!p) return [];
+  if(p.type==='wind'){ const W=E6.pw, q=W.dots[W.dots.length-1], w=q&&W.dotWind(q), gr=q&&W.dotGrid(q);
+    const s1=Math.abs(e6ad(W.rotP,p.wd))<=2.5||!!q, s2=!!q&&Math.abs(e6ad(w.dir,p.wd))<=4&&Math.abs(w.kt-p.wk)<=1.5, s3=s2&&Math.abs(e6ad(W.rotP,p.tc))<=2.5, s4=s3&&Math.abs(gr.arc-p.tas)<=1.5;
+    return [[`Turn the plate: ${fmt3(p.wd)} under the true index`,s1,'Drag the dark ring until the wind direction sits under the orange TRUE INDEX.'],
+      [`✎ Mark the wind dot ${p.wk} kt straight up from the grommet`,s2,`Tap ✎ Mark, then tap on the centre line ${p.wk} kt above the white grommet (each grid arc is 2 kt; the bold ones every 10).`],
+      [`Turn the plate: ${fmt3(p.tc)} (the true course) under the true index`,s3,'The dot turns with the plate.'],
+      [`Slide the grid until the dot is on the ${p.tas} kt arc`,s4,'Drag inside the ring to slide the grid up or down.'],
+      ['Read the GS under the grommet and the drift under the dot',E6P.done,'Heading = true course + drift to the side the dot is on (right = add).']]; }
+  const C=E6.pc, idx=C.idx(), near=(a,b)=>Math.abs(Math.log10(e6N(a))-Math.log10(e6N(b)))<0.007;
+  if(p.type==='tsd'){ const s1=near(idx,p.gs), s2=s1&&near(e6V(C.cur),p.d);
+    return [[`Turn the disc: the 60 index under ${p.gs} (${e6f(e6N(p.gs))} on the outer scale)`,s1,'Drag the blue disc until the orange triangle (60) sits under the groundspeed on the outer scale.'],
+      [`Move the cursor to ${p.d} NM on the outer scale (${e6f(e6N(p.d))})`,s2,'Drag on the outer grey scale to move the red cursor.'],
+      ['Read the minutes under the cursor on the inner scale',E6P.done,'Place the decimal point with a quick mental estimate.']]; }
+  const s1=near(idx,p.burn), s2=s1&&near(e6V(C.cur-C.rot),p.min);
+  return [[`Turn the disc: the 60 index under ${p.burn} (litres per hour)`,s1,'Fuel works like speed: litres per hour instead of knots.'],
+    [`Move the cursor to ${p.min} minutes on the inner scale`,s2,'Drag on the outer grey scale; read the inner value under the cursor.'],
+    ['Read the litres above it on the outer scale',E6P.done,'Place the decimal point with a quick mental estimate.']]; }
+function e6Steps(){ if(!E6P.p) return; const L=e6StepList(); let now=-1; L.forEach((x,i)=>{ if(now<0&&!x[1]) now=i; });
+  $('e6bPSteps').innerHTML=L.map((x,i)=>`<div class="${x[1]&&(now<0||i<now)?'ok':i===now?'now':''}"><i>${x[1]&&(now<0||i<now)?'✓':i===now?'▸':i+1}</i><span>${esc(x[0])}${i===now&&E6P.hint?`<span class="hint">${esc(x[2])}</span>`:''}</span></div>`).join(''); }
+function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAns').querySelector(`input[data-k="${k}"]`); return i? i.value.trim().toUpperCase() : ''; };
+  const mark=(k,good)=>{ const l=$('e6bPAns').querySelector(`label[data-k="${k}"]`); if(l){ l.classList.toggle('good',good); l.classList.toggle('bad',!good); } return good; };
+  const num=t=>{ const m=/-?\d+(\.\d+)?/.exec(t); return m? +m[0] : NaN; };
+  let ok=true, ans='';
+  if(p.type==='wind'){ const h=num(v('hdg')), g=num(v('gs')), wt=v('wca'); let w=num(wt); if(/L/.test(wt)) w=-Math.abs(w); else if(/R/.test(wt)) w=Math.abs(w);
+    ok=mark('hdg',Math.abs(e6ad(h,p.hdg))<=2)&ok; ok=mark('gs',Math.abs(g-p.gs)<=2)&ok; ok=mark('wca',/[LR-]/.test(wt)? Math.abs(w-p.wca)<=2 : Math.abs(Math.abs(w)-Math.abs(p.wca))<=2)&ok;
+    ans=`heading ${fmt3(p.hdg)}°T, GS ${Math.round(p.gs)} kt, WCA ${p.wca>=0?'R':'L'}${Math.abs(p.wca).toFixed(0)}`; }
+  else if(p.type==='tsd'){ const m=num(v('min')); ok=mark('min',Math.abs(m-p.min)<=Math.max(1,p.min*0.02)); ans=`${p.min.toFixed(1)} min`; }
+  else { const f=num(v('fuel')); ok=mark('fuel',Math.abs(f-p.fuel)<=Math.max(1,p.fuel*0.02)); ans=`${p.fuel.toFixed(1)} L`; }
+  ok=!!ok; if(!E6P.done){ E6P.sc.n++; if(ok) E6P.sc.ok++; ls.set('e6bScore',E6P.sc); } E6P.done=true; e6Steps();
+  $('e6bPRes').innerHTML= ok? `<span class="good">✓ Right.</span> The app's answer: <b>${ans}</b>.` : `<span class="bad">✕ Not quite.</span> The app's answer: <b>${ans}</b>. Show me sets the computer to it.`;
+  $('e6bPCard').querySelector('small').textContent=`· ${E6P.sc.ok} right of ${E6P.sc.n}`; }
+function e6Show(){ const p=E6P.p; if(!p) return;
+  if(p.type==='wind'){ E6.pw.solve(p.tc,p.tas,p.wd,p.wk); }
+  else if(p.type==='tsd'){ E6.pc.setIndex(p.gs); E6.pc.cur=e6L(p.d); E6.pc.draw(); }
+  else { E6.pc.setIndex(p.burn); E6.pc.cur=(e6L(p.min)+E6.pc.rot)%360; E6.pc.draw(); }
+  $('e6bPRes').innerHTML='Set up as it should be: read the answer off the computer, then Check.'; }
+$('bE6b').onclick=e6Open; $('e6bClose').onclick=()=>$('e6bDlg').close();
+$('e6bSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(b) e6Tab(b.dataset.t); });
+$('e6bComp').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b) return; const k=b.dataset.c, C=E6.comp;
+  if(k==='gs') C.setIndex(st.gs>20? st.gs : +ls.get('pcGs',90)||90); else if(k==='fuel') C.setIndex(+ls.get('pcBurn',0)||60); else { C.rot=0; C.cur=e6L(30); C.draw(); } });
+$('e6bShowC').onchange=()=>{ E6.comp.show=$('e6bShowC').checked; E6.comp.draw(); };
+$('e6bWind').addEventListener('click',e=>{ const b=e.target.closest('[data-w]'); if(!b) return; const k=b.dataset.w, W=E6.wind;
+  if(k==='mark'){ W.mark=!W.mark; b.classList.toggle('on',W.mark); } else if(k==='erase'){ W.dots=[]; W.draw(); } else { W.dots=[]; W.rotP=0; W.G=100; W.draw(); } });
+$('e6bWindSvg').addEventListener('pointerup',()=>{ const b=$('e6bWind').querySelector('[data-w="mark"]'); b.classList.toggle('on',E6.wind.mark); });
+$('e6bShowW').onchange=()=>{ E6.wind.show=$('e6bShowW').checked; E6.wind.draw(); };
+$('e6bPTools').addEventListener('click',e=>{ const b=e.target.closest('[data-pw]'); if(!b) return; if(b.dataset.pw==='mark'){ E6.pw.mark=!E6.pw.mark; b.classList.toggle('on',E6.pw.mark); } else { E6.pw.dots=[]; E6.pw.draw(); } });
+$('e6bPWSvg').addEventListener('pointerup',()=>{ $('e6bPTools').querySelector('[data-pw="mark"]').classList.toggle('on',E6.pw.mark); });
+$('e6bProb').addEventListener('click',e=>{ const b=e.target.closest('[data-p]'); if(!b) return; const k=b.dataset.p;
+  if(k==='hint'){ E6P.hint=true; e6Steps(); } else if(k==='show') e6Show(); else if(k==='check') e6Check(); else if(k==='next') e6New(); });
+$('e6bPType').onchange=e6New; $('e6bPSrc').onchange=()=>{ E6P.legI=0; e6New(); };
+$('e6bPAns').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); e6Check(); } });
 bootOffline();   // app started: the loading screen goes once the offline content is stored (or Start now)
 </script>
 <div id="perfBox" hidden></div>

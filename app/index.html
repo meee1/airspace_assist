@@ -167,6 +167,23 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .wxd.atis{display:grid;gap:2px} .wxd.atis small{font:600 10px var(--f-label);letter-spacing:.05em;color:var(--dim);display:inline-block;min-width:62px} .wxd.atis .chg b{color:var(--accent)}
 .fu-big{font:700 22px var(--f-mono);margin:6px 0} .fu-big small{display:block;font:500 13px var(--f-label);color:var(--dim)} .fu-opt{display:flex;align-items:center;gap:10px;margin:8px 0} .fu-opt span{flex:1} .fu-opt small{color:var(--dim)}
 #sFuel{cursor:pointer} #sSar,#sChk,#sStt{cursor:pointer}
+/* flight computer (training): always dark, as on the owner's pick of the mock-ups */
+#e6bDlg{--bg:#0d1417;--panel:#152024;--ink:#e6efe9;--dim:#8a9ba0;--rule:#26353a;--freq:#5fe0a8;--accent:#ffad4d;--wp:#d78cf0;--chip:#1d2b30;--ok:#5fe0a8;--warn:#ff7a66;
+  color-scheme:dark;background:var(--bg);color:var(--ink);width:min(560px,calc(100vw - 12px));max-height:calc(100dvh - 12px);padding:12px;outline:none}
+#e6bDlg .btn{background:var(--panel);color:var(--ink);border-color:var(--rule)} #e6bDlg .btn.primary{background:#0b5c45;border-color:#0b5c45;color:#fff} #e6bDlg .btn.on{background:#3a2a10;border-color:var(--accent);color:var(--accent)}
+#e6bDlg select{background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:7px;padding:5px 6px;font:600 13px var(--f-body);max-width:100%}
+.e6b-tag{font:700 12px var(--f-label);letter-spacing:.6px;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:1px 6px;margin-right:auto;margin-left:8px}
+.e6b-seg{display:flex;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin:6px 0 8px} .e6b-seg button{flex:1;border:0;background:none;color:var(--dim);padding:9px 0;font:600 14px var(--f-body);cursor:pointer} .e6b-seg button.on{background:var(--chip);color:var(--ink)}
+.e6b-svg{display:block;width:100%;max-height:58dvh;touch-action:none;user-select:none;-webkit-user-select:none} .e6b-psvg{max-height:40dvh}
+.e6b-rd{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px;color:var(--dim)} .e6b-rd:empty{display:none}
+.e6b-rd .r{display:flex;justify-content:space-between;align-items:baseline;gap:8px} .e6b-rd b{font:700 16px var(--f-mono);color:var(--freq);white-space:nowrap}
+.e6b-btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0} .e6b-btns .btn{flex:1 1 0;min-width:70px} .e6b-chk{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--dim);flex:1 1 0;min-width:90px}
+.e6b-pq{display:flex;gap:8px;flex-wrap:wrap} .e6b-pq label{flex:1 1 150px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:3px}
+.e6b-card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:8px 0;font-size:14px;line-height:1.35} .e6b-card .leg{font:700 15px var(--f-mono);color:var(--wp)} .e6b-card small{color:var(--dim)}
+.e6b-steps{font-size:13px;margin:4px 0} .e6b-steps div{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--dim)} .e6b-steps i{font-style:normal;width:18px;flex:none} .e6b-steps .ok{color:var(--ink)} .e6b-steps .ok i{color:var(--ok)} .e6b-steps .now{color:var(--ink);font-weight:600} .e6b-steps .now i{color:var(--accent)} .e6b-steps .hint{display:block;font-weight:400;color:var(--accent);font-size:12px;margin-top:2px}
+.e6b-ans{display:flex;gap:6px;margin:6px 0} .e6b-ans label{flex:1 1 0;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:5px 8px;font-size:11px;color:var(--dim)} .e6b-ans input{display:block;width:100%;background:none;border:0;color:var(--ink);font:700 20px var(--f-mono);padding:2px 0;outline:none}
+.e6b-ans label.good{border-color:var(--ok)} .e6b-ans label.bad{border-color:var(--warn)}
+.e6b-res{font-size:13px;color:var(--dim);line-height:1.4;min-height:1em} .e6b-res b{color:var(--ink)} .e6b-res .good{color:var(--ok)} .e6b-res .bad{color:var(--warn)}
 #briefBox{position:fixed;inset:0;z-index:70;background:var(--panel);color:var(--ink);display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top,0px)) 16px max(12px,env(safe-area-inset-bottom,0px))} #briefBox[hidden]{display:none}
 .bf-h{display:flex;align-items:center;gap:10px;font-size:18px} .bf-h b{flex:1} .bf-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:20px 4px;cursor:pointer}
 .bf-sec{font:700 clamp(16px,3.5vw,24px) var(--f-label);letter-spacing:.5px;text-transform:uppercase;color:var(--dim)} .bf-c{font:600 clamp(28px,7vw,56px)/1.2 var(--f-body)} .bf-r{font:500 clamp(22px,5vw,40px)/1.25 var(--f-body);color:var(--accent)}
@@ -849,6 +866,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <button class="btn" id="bSim" aria-pressed="false">Simulate</button>
     <button class="btn" id="bFuel" aria-haspopup="dialog" title="Fuel timer: fuel on board, burn rate, start/stop, reminders">Fuel timer</button>
     <button class="btn" id="bPad" aria-haspopup="dialog" title="Read-back pad: write down a clearance with your finger, with the squawk, level and ATIS letter">Read-back pad</button>
+    <button class="btn" id="bE6b" aria-haspopup="dialog" title="Flight computer (E6B) for training: computer side, wind side and practice problems">Flight computer</button>
     <button class="btn" id="bBrief" aria-haspopup="dialog" title="Passenger briefing: your briefing items full screen, one at a time, for the passengers">Passenger brief</button>
     <button class="btn" id="bSar" aria-haspopup="dialog" title="SARTIME or flight note: countdown, and a reminder to cancel it once you've landed">SARTIME</button>
     <button class="btn" id="bLog" aria-haspopup="dialog" title="Your logbook: legs from the GPS log, totals, and CSV export for your logbook app">Logbook</button>
@@ -986,6 +1004,33 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <label class="fu-opt"><span><b>Fuel check reminder</b><br><small>Spoken (and a vibration) while the timer runs.</small></span><select id="fuRem"><option value="0">Off</option><option value="15">every 15 min</option><option value="20">every 20 min</option><option value="30">every 30 min</option></select></label>
     <div class="vnote">Fuel left = what you set minus burn × time the timer has run. Reserve: your setting, else CASA's final reserve (helicopter 20 / 30 min, aeroplane 30 / 45 min, day / night). Range = time to the reserve × your groundspeed now (Plan check's GS when you're slow), so it already includes the wind along your track, but not on other headings. It's an estimate: dip or gauge the tanks.</div>
   </dialog>
+  <dialog class="opts e6bdlg" id="e6bDlg" aria-labelledby="e6bTitle" tabindex="-1">
+    <div class="opts-head"><b id="e6bTitle">Flight computer</b><span class="e6b-tag">TRAINING</span><button class="btn" id="e6bClose" aria-label="Close">✕</button></div>
+    <div class="e6b-seg" id="e6bSeg" role="tablist"><button type="button" data-t="comp" class="on">Computer</button><button type="button" data-t="wind">Wind</button><button type="button" data-t="prob">Problems</button></div>
+    <div id="e6bComp" class="e6b-pane">
+      <svg id="e6bCompSvg" class="e6b-svg" viewBox="-195 -195 390 390" role="img" aria-label="Computer side: circular slide rule"></svg>
+      <div class="e6b-rd" id="e6bCompRd"></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-c="gs">Speed</button><button type="button" class="btn" data-c="fuel">Fuel</button><button type="button" class="btn" data-c="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowC" checked> Readout</label></div>
+      <div class="vnote">Drag the blue disc to turn it, and drag on the outer scale to move the red cursor. The scales are logarithmic, so you place the decimal point yourself: 11 can be 1.1, 11 or 110. <b>Speed</b> puts the 60 index under your groundspeed (or Plan check's speed), <b>Fuel</b> under Plan check's burn. Untick Readout to practise reading the scales.</div>
+    </div>
+    <div id="e6bWind" class="e6b-pane" hidden>
+      <svg id="e6bWindSvg" class="e6b-svg" viewBox="-195 -235 390 430" role="img" aria-label="Wind side: rotating plate over a sliding grid"></svg>
+      <div class="e6b-rd" id="e6bWindRd"></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-w="mark">✎ Mark</button><button type="button" class="btn" data-w="erase">Erase</button><button type="button" class="btn" data-w="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowW" checked> Readout</label></div>
+      <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
+    </div>
+    <div id="e6bProb" class="e6b-pane" hidden>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="fuel">Fuel for a time</option></select></label></div>
+      <div class="e6b-card" id="e6bPCard"></div>
+      <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
+      <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
+      <div class="e6b-btns" id="e6bPTools"><button type="button" class="btn" data-pw="mark">✎ Mark</button><button type="button" class="btn" data-pw="erase">Erase</button></div>
+      <div class="e6b-steps" id="e6bPSteps"></div>
+      <div class="e6b-ans" id="e6bPAns"></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-p="hint">Hint</button><button type="button" class="btn" data-p="show">Show me</button><button type="button" class="btn primary" data-p="check">Check answer</button><button type="button" class="btn" data-p="next">Next ▶</button></div>
+      <div class="e6b-res" id="e6bPRes"></div>
+    </div>
+  </dialog>
   <dialog class="opts" id="sarDlg" aria-labelledby="sarTitle">
     <div class="opts-head"><b id="sarTitle">SARTIME</b><button class="btn" id="sarClose" aria-label="Close">✕</button></div>
     <div class="fu-big" id="sarNow"></div>
@@ -1112,7 +1157,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=5c193c9263';
+    const s=document.createElement('script'); s.src='app.js?v=21b267ceec';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
