@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795471641006;
+const APP_BUILT=1795474764086;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -7222,16 +7222,22 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
     else if(type==='endur'){ pv=plan&&hasB&&fob>0; R= pv? burn : e6rand(30,150,5); O= pv? fob : e6rand(60,400,10); I=O/R*60; }
     else { I=e6rand(20,180,5); O=Math.round(e6rand(30,150,5)*I/60); R=O/I*60; }
     const v= Q.f==='R'? R : Q.f==='O'? O : I; p={type, Q, leg, R, O, I, v, plan:pv}; p[Q.k]=v; if(type==='tsd'){ p.gs=R; p.d=O; } if(type==='fuel'){ p.burn=R; p.min=I; } }
+  else if(type==='pa'){ /* (24 Nov 2026, Michael: "Add the pressure altitude from QNH problem too"): elevation + (1013 - QNH) x 30 ft, as the weather card's density altitude */
+    const pl= plan&&FP? FP.pts.map(fpAd).filter(a=>a&&a.e!=null) : [], me=st.pos||[-37.98,145.1];
+    let ad= pl.length? pl[E6P.legI++%pl.length] : null;
+    if(!ad){ const near=DATA.ap.filter(a=>a.e!=null&&a.cS==='E'&&distBrg(me[0],me[1],a.la,a.lo)[0]<150); ad=near.length? near[Math.floor(Math.random()*near.length)] : null; }
+    const e= ad? Math.round(ad.e) : e6rand(0,3000,10), q=e6rand(990,1035);
+    p={type, ad, e, q, v:e+(1013-q)*30, plan:!!pl.length}; }
   else if(type==='tas'){ const pa=e6rand(0,12000,500), isa=15-1.98*pa/1000, t=Math.max(-40,Math.min(45,Math.round(isa/5)*5+e6rand(-15,20,5))), cas=e6rand(70,150,5), A=e6Air(pa,t);
     p={type, pa, t, cas, tas:cas*A.k, da:A.da, rot:A.rot}; }
   else { const c=E6CONV[Math.floor(Math.random()*E6CONV.length)], x=e6rand(c[4],c[5],c[5]>=400?10:c[5]>=100?5:1), f= c[1]? E6ARR[c[1]]/E6ARR[c[0]] : E6ARR[c[0]]/E6FL;
     p={type, c, x, v:x*f}; }
-  E6P.p=p; E6P.hint=false; E6P.done=false;
+  E6P.p=p; E6P.hint=false; E6P.all=false; E6P.done=false;
   E6.pw.dots=[]; E6.pw.rotP=0; E6.pw.G=100; E6.pw.mark=false; E6.pw.draw(); E6.pc.rot=0; E6.pc.cur=0; E6.pc.draw();
-  $('e6bPWSvg').toggleAttribute('hidden',type!=='wind'); $('e6bPTools').hidden=type!=='wind'; $('e6bPCSvg').toggleAttribute('hidden',type==='wind');   /* SVG elements have no .hidden property: the attribute */
+  $('e6bPWSvg').toggleAttribute('hidden',type!=='wind'); $('e6bPTools').hidden=type!=='wind'; $('e6bPCSvg').toggleAttribute('hidden',type==='wind'||type==='pa');   /* SVG elements have no .hidden property: the attribute */
   const lg= p.leg? `Leg <span class="leg">${esc(p.leg.from)} → ${esc(p.leg.to)}</span> · ` : '';
-  const src= p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : type==='range'||type==='endur'? '<small>(Plan check\'s speed, burn and fuel)</small>' : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>')
-    : plan? (type==='tas'||type==='conv'||type==='cons'? '<small>(this type doesn\'t use the plan: random)</small>' : type==='range'||type==='endur'? '<small>(no speed, burn and fuel in Plan check: random)</small>' : '<small>(no flight plan loaded: a random problem)</small>') : '';
+  const src= p.plan&&type==='pa'? '<small>(an aerodrome on your plan)</small>' : p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : type==='range'||type==='endur'? '<small>(Plan check\'s speed, burn and fuel)</small>' : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>')
+    : type==='pa'? (plan? '<small>(no plan aerodrome with an elevation: one near you)</small>' : '') : plan? (type==='tas'||type==='conv'||type==='cons'? '<small>(this type doesn\'t use the plan: random)</small>' : type==='range'||type==='endur'? '<small>(no speed, burn and fuel in Plan check: random)</small>' : '<small>(no flight plan loaded: a random problem)</small>') : '';
   const hm=m=>m>=60? ` (${e6hm(m)})` : '';
   $('e6bPCard').innerHTML=`<b>Problem ${E6P.sc.n+1}</b> <small>· ${E6P.sc.ok} right of ${E6P.sc.n}</small><br>`+lg+
     (type==='wind'? `TC <b>${fmt3(p.tc)}°T</b> · TAS <b>${p.tas} kt</b> · wind <b>${fmt3(p.wd)}°T / ${p.wk} kt</b>. Find the heading, groundspeed and wind correction.` :
@@ -7241,11 +7247,12 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
      type==='fuel'? `Fuel burn <b>${p.R} L/h</b>, flight time <b>${p.I} min</b>. How much fuel?` :
      type==='endur'? `Fuel burn <b>${p.R} L/h</b>, usable fuel <b>${p.O} L</b>. What's the endurance?` :
      type==='cons'? `You used <b>${p.O} L</b> in <b>${p.I} min</b>${hm(p.I)}. What's the fuel burn?` :
+     type==='pa'? `${p.ad? `<b>${esc(p.ad.i||'')}</b> ${esc(titleCase(p.ad.n||''))}, e` : 'E'}levation <b>${p.e} ft</b>, QNH <b>${p.q} hPa</b>. What's the pressure altitude?` :
      type==='tas'? `Pressure altitude <b>${p.pa} ft</b>, OAT <b>${p.t} °C</b>, CAS <b>${p.cas} kt</b>. Find the TAS and the density altitude. <small>(Pressure altitude: 1013 on the subscale and read the altimeter, or elevation + (1013 − QNH) × 30 ft.)</small>` :
      !p.c[1]? `<b>${p.x} ${p.c[2]}</b>: how many kg? <small>(marked at ${p.c[0]==='AVGAS KG'?'0.72':'0.80'} kg/L; use the fuel docket's density when you have it)</small>` :
      `Convert <b>${p.x} ${p.c[2]}</b> to ${p.c[3]}.`)+' '+src;
   const box=(k,l)=>`<label data-k="${k}">${l}<input inputmode="decimal" autocomplete="off" spellcheck="false" data-k="${k}"></label>`;
-  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : E6RATE[type]? box(p.Q.k,p.Q.l) : type==='tas'? box('tas','TAS kt')+box('da','Density alt ft') : box('v',p.c[3]);
+  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : E6RATE[type]? box(p.Q.k,p.Q.l) : type==='pa'? box('pa','Pressure alt ft') : type==='tas'? box('tas','TAS kt')+box('da','Density alt ft') : box('v',p.c[3]);
   $('e6bPRes').textContent=''; e6Steps(); }
 function e6StepList(){ const p=E6P.p; if(!p) return [];
   if(p.type==='wind'){ const W=E6.pw, q=W.dots[W.dots.length-1], w=q&&W.dotWind(q), gr=q&&W.dotGrid(q);
@@ -7262,6 +7269,8 @@ function e6StepList(){ const p=E6P.p; if(!p) return [];
     if(Q.f==='O'){ const s1=idxS[1], s2=s1&&near(e6V(inner),I); return [idxS, [`Move the cursor to ${I} min on the inner scale${hm}`,s2,'Drag on the outer grey scale; read the inner value under the cursor.'], [`Read the ${Q.uO==='NM'?'distance':'litres'} above it on the outer scale`,D,'Place the decimal point with a quick mental estimate.']]; }
     const s1=near(e6V(C.cur),O), s2=s1&&near(e6V(inner),I);
     return [[`Move the cursor to ${O} ${Q.uO} on the outer scale`,s1,'Drag on the outer grey scale to move the red cursor.'], [`Turn the disc until ${I} min (inner scale${hm}) is under the cursor`,s2,'Drag the blue disc.'], [`Read the ${Q.uR==='kt'?'groundspeed':'burn'} on the outer scale over the 60 index`,D,'The orange triangle; place the decimal point with a mental estimate.']]; }
+  if(p.type==='pa'){ const d=1013-p.q; return [['1013 − QNH = the difference in hPa',D,`1013 − ${p.q} = ${d}. QNH below 1013: pressure altitude is higher than the elevation; above 1013: lower.`],
+      ['× 30 ft per hPa',D,`${d} × 30 = ${d*30} ft.`], ['Add it to the elevation',D,`${p.e} ${d<0?'−':'+'} ${Math.abs(d*30)} = ${p.v} ft. (On the ground: set 1013 on the subscale and read the altimeter.)`]]; }
   if(p.type==='tas'){ const s1=Math.abs(e6ad(C.rot,p.rot))<=1, s2=s1&&near(e6V(inner),p.cas);
     return [[`In the °C / PA window, turn the disc until ${p.t} °C is against ${p.pa/1000} (thousand ft)`,s1,'The window is the dark band on the disc: °C on the disc along its inner edge, pressure altitude (thousands of ft) on the base showing through along its outer edge.'],
       [`Move the cursor to ${p.cas} kt (CAS) on the inner scale`,s2,'Leave the disc where the window set it.'],
@@ -7275,7 +7284,7 @@ function e6StepList(){ const p=E6P.p; if(!p) return [];
   return [[`Turn the disc: ${p.x} (inner scale) under the ${c[0]} arrow on the rim`,s1,'The red arrows are on the outer rim, outside the numbers.'],
     [`Move the cursor to the ${c[1]} arrow`,s2,'Drag on the outer grey scale.'], [`Read the ${c[3]} on the inner scale under it`,D,'Place the decimal point with a quick mental estimate.']]; }
 function e6Steps(){ if(!E6P.p) return; const L=e6StepList(); let now=-1; L.forEach((x,i)=>{ if(now<0&&!x[1]) now=i; });
-  $('e6bPSteps').innerHTML=L.map((x,i)=>`<div class="${x[1]&&(now<0||i<now)?'ok':i===now?'now':''}"><i>${x[1]&&(now<0||i<now)?'✓':i===now?'▸':i+1}</i><span>${esc(x[0])}${i===now&&E6P.hint?`<span class="hint">${esc(x[2])}</span>`:''}</span></div>`).join(''); }
+  $('e6bPSteps').innerHTML=L.map((x,i)=>`<div class="${x[1]&&(now<0||i<now)?'ok':i===now?'now':''}"><i>${x[1]&&(now<0||i<now)?'✓':i===now?'▸':i+1}</i><span>${esc(x[0])}${(i===now||E6P.all)&&E6P.hint?`<span class="hint">${esc(x[2])}</span>`:''}</span></div>`).join(''); }
 function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAns').querySelector(`input[data-k="${k}"]`); return i? i.value.trim().toUpperCase() : ''; };
   const mark=(k,good)=>{ const l=$('e6bPAns').querySelector(`label[data-k="${k}"]`); if(l){ l.classList.toggle('good',good); l.classList.toggle('bad',!good); } return good; };
   const num=t=>{ const h=/(\d+):(\d{1,2})/.exec(t); if(h) return +h[1]*60 + +h[2]; const m=/-?\d+(\.\d+)?/.exec(t.replace(/,/g,'')); return m? +m[0] : NaN; };
@@ -7285,6 +7294,7 @@ function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAn
     ok=mark('hdg',Math.abs(e6ad(h,p.hdg))<=2)&ok; ok=mark('gs',Math.abs(g-p.gs)<=2)&ok; ok=mark('wca',/[LR-]/.test(wt)? Math.abs(w-p.wca)<=2 : Math.abs(Math.abs(w)-Math.abs(p.wca))<=2)&ok;
     ans=`heading ${fmt3(p.hdg)}°T, GS ${Math.round(p.gs)} kt, WCA ${p.wca>=0?'R':'L'}${Math.abs(p.wca).toFixed(0)}`; }
   else if(p.Q){ ok=mark(p.Q.k,near2(num(v(p.Q.k)),p.v)); const u={min:'min',gs:'kt',nm:'NM',fuel:'L',burn:'L/h'}[p.Q.k]; ans=`${p.v.toFixed(1)} ${u}${p.Q.k==='min'&&p.v>=60?' ('+e6hm(p.v)+')':''}`; }
+  else if(p.type==='pa'){ ok=mark('pa',Math.abs(num(v('pa'))-p.v)<=50); ans=`${p.v} ft (${p.e} ${p.q<=1013?'+':'−'} ${Math.abs((1013-p.q)*30)})`; }
   else if(p.type==='tas'){ ok=mark('tas',Math.abs(num(v('tas'))-p.tas)<=Math.max(2,p.tas*0.02))&ok; ok=mark('da',Math.abs(num(v('da'))-p.da)<=400)&ok; ans=`TAS ${Math.round(p.tas)} kt, density altitude ${Math.round(p.da/100)*100} ft`; }
   else { ok=mark('v',Math.abs(num(v('v'))-p.v)<=Math.max(0.5,p.v*0.02)); ans=`${p.v.toFixed(1)} ${p.c[3]}`; }
   ok=!!ok; if(!E6P.done){ E6P.sc.n++; if(ok) E6P.sc.ok++; ls.set('e6bScore',E6P.sc); } E6P.done=true; e6Steps();
@@ -7293,6 +7303,7 @@ function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAn
 function e6Show(){ const p=E6P.p; if(!p) return; const C=E6.pc, m=a=>((a%360)+360)%360;
   if(p.type==='wind'){ E6.pw.solve(p.tc,p.tas,p.wd,p.wk); }
   else if(p.Q){ if(p.Q.f==='R'){ C.rot=m(e6L(p.O)-e6L(p.I)); C.cur=e6L(p.O); } else { C.rot=m(e6L(p.R)-e6L(60)); C.cur= p.Q.f==='I'? e6L(p.O) : m(e6L(p.I)+C.rot); } C.draw(); }
+  else if(p.type==='pa'){ E6P.hint=true; E6P.all=true; e6Steps(); $('e6bPRes').innerHTML='The working is under each step: type the answer, then Check.'; return; }
   else if(p.type==='tas'){ C.rot=m(p.rot); C.cur=m(e6L(p.cas)+C.rot); C.draw(); }
   else if(!p.c[1]){ C.rot=m(e6L(E6ARR[p.c[0]])-e6L(E6FL)); C.cur=m(e6L(p.x)+C.rot); C.draw(); }
   else { C.rot=m(e6L(E6ARR[p.c[0]])-e6L(p.x)); C.cur=e6L(E6ARR[p.c[1]]); C.draw(); }

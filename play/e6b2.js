@@ -27,6 +27,14 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
       for(const k of keys){ const i=$('e6bPAns').querySelector(`input[data-k="${k}"]`); i.value= k==='tas'? Math.round(P.tas) : k==='da'? Math.round(P.da/100)*100 : (k==='min'&&P.v>=60? `${Math.floor(Math.round(P.v)/60)}:${String(Math.round(P.v)%60).padStart(2,'0')}` : P.v.toFixed(1)); }
       e6Check(); return {steps, rel, res:$('e6bPRes').innerText, card:$('e6bPCard').innerText.split('\n').slice(1).join(' '), da:t==='tas'? e6DAof(C.rot)-P.da : 0}; },t);
     ok(r.steps.slice(0,t==='tas'?2:-1).every(c=>c==='ok')&&r.rel<0.001&&Math.abs(r.da)<1&&/Right/.test(r.res),`${t}: Show me ticks the steps, the scale reads the answer · ${r.card.slice(0,90)} → ${r.res.replace(/^.*answer: /,'').slice(0,50)}`); }
+  // pressure altitude from QNH (24 Nov 2026): elevation + (1013 - QNH) x 30; no computer shown; Show me gives the working
+  for(const src of ['rand','plan']){ if(src==='plan'){ await p.setInputFiles('#fpFile',__dirname+'/fixtures/ybrs.gpx'); await p.waitForFunction(()=>FP&&FP.pts.length>5); }
+    r=await p.evaluate(src=>{ $('e6bPSrc').value=src; $('e6bPType').value='pa'; e6New(); const P=E6P.p, vis=id=>$(id).getBoundingClientRect().height>0;
+      const out={v:P.v, e:P.e, q:P.q, ad:P.ad&&P.ad.i, plan:P.plan, svg:vis('e6bPWSvg')||vis('e6bPCSvg'), card:$('e6bPCard').innerText.split(String.fromCharCode(10)).slice(1).join(' ')};
+      e6Show(); out.work=[...$('e6bPSteps').querySelectorAll('.hint')].map(h=>h.textContent).join(' | ');
+      const i=$('e6bPAns').querySelector('input[data-k="pa"]'); i.value=String(P.v+40); e6Check(); out.ok=/Right/.test($('e6bPRes').innerText);
+      e6New(); $('e6bPAns').querySelector('input[data-k="pa"]').value=String(E6P.p.e); e6Check(); out.bad=Math.abs(E6P.p.q-1013)<=1||/Not quite/.test($('e6bPRes').innerText); return out; },src);
+    ok(r.v===r.e+(1013-r.q)*30&&!r.svg&&r.work.split('|').length===3&&r.ok&&r.bad&&(src==='rand'? !!r.ad : r.plan),`pressure altitude (${src}): ${r.card.slice(0,80)} = ${r.v} ft; working "${r.work.slice(0,90)}"; ±40 right, elevation alone wrong; no computer shown`); }
   // window against ISA: PA 10,000 ft, 0 °C, CAS 100 -> TAS 117.4 kt (sigma 0.7255), DA 10,565 ft (rule of thumb 10,000 + 120 x 4.8 = 10,576)
   r=await p.evaluate(()=>{ const A=e6Air(10000,0), C=E6.pc; C.rot=((A.rot%360)+360)%360; C.cur=(e6L(100)+C.rot)%360; C.draw(); return {tas:e6V(C.cur), da:e6DAof(C.rot), rd:$('e6bCompRd').innerText}; });
   ok(Math.abs(r.tas*10-117.4)<0.3&&Math.abs(r.da-10565)<30,`PA 10,000 / 0 °C / CAS 100: TAS ${(r.tas*10).toFixed(1)} kt, DA ${r.da.toFixed(0)} ft`);
