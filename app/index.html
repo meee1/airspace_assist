@@ -174,7 +174,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 #e6bDlg select{background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:7px;padding:5px 6px;font:600 13px var(--f-body);max-width:100%}
 .e6b-tag{font:700 12px var(--f-label);letter-spacing:.6px;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:1px 6px;margin-right:auto;margin-left:8px}
 .e6b-seg{display:flex;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin:6px 0 8px} .e6b-seg button{flex:1;border:0;background:none;color:var(--dim);padding:9px 0;font:600 14px var(--f-body);cursor:pointer} .e6b-seg button.on{background:var(--chip);color:var(--ink)}
-.e6b-svg{display:block;width:100%;max-height:58dvh;touch-action:none;user-select:none;-webkit-user-select:none} .e6b-psvg{max-height:40dvh}
+#e6bDlg [hidden]{display:none!important} .e6b-svg{display:block;width:100%;max-height:58dvh;touch-action:none;user-select:none;-webkit-user-select:none} .e6b-psvg{max-height:40dvh}
 .e6b-rd{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px;color:var(--dim)} .e6b-rd:empty{display:none}
 .e6b-rd .r{display:flex;justify-content:space-between;align-items:baseline;gap:8px} .e6b-rd b{font:700 16px var(--f-mono);color:var(--freq);white-space:nowrap}
 .e6b-btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0} .e6b-btns .btn{flex:1 1 0;min-width:70px} .e6b-chk{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--dim);flex:1 1 0;min-width:90px}
@@ -1011,7 +1011,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <svg id="e6bCompSvg" class="e6b-svg" viewBox="-195 -195 390 390" role="img" aria-label="Computer side: circular slide rule"></svg>
       <div class="e6b-rd" id="e6bCompRd"></div>
       <div class="e6b-btns"><button type="button" class="btn" data-c="gs">Speed</button><button type="button" class="btn" data-c="fuel">Fuel</button><button type="button" class="btn" data-c="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowC" checked> Readout</label></div>
-      <div class="vnote">Drag the blue disc to turn it, and drag on the outer scale to move the red cursor. The scales are logarithmic, so you place the decimal point yourself: 11 can be 1.1, 11 or 110. <b>Speed</b> puts the 60 index under your groundspeed (or Plan check's speed), <b>Fuel</b> under Plan check's burn. Untick Readout to practise reading the scales.</div>
+      <div class="vnote">Drag the blue disc to turn it, and drag on the outer scale to move the red cursor. The scales are logarithmic, so you place the decimal point yourself: 11 can be 1.1, 11 or 110. <b>Speed</b> puts the 60 index under your groundspeed (or Plan check's speed), <b>Fuel</b> under Plan check's burn. Untick Readout to practise reading the scales.<br><b>Windows</b> (dark bands on the disc): set the OAT (°C, on the disc) against the pressure altitude (thousands of ft, on the base); then CAS on the inner scale reads TAS on the outer, and the DENS ALT pointer reads density altitude. <b>Red arrows</b> on the rim: put a value (inner) under one arrow and read it (inner) under another of the same kind (NAUT / STAT / KM, LITRES / US GAL, KG / LB). Fuel weight: the disc's FUEL L arrow under AVGAS KG (0.72 kg/L) or JET KG (0.80 kg/L), then kg (outer) over litres (inner).</div>
     </div>
     <div id="e6bWind" class="e6b-pane" hidden>
       <svg id="e6bWindSvg" class="e6b-svg" viewBox="-195 -235 390 430" role="img" aria-label="Wind side: rotating plate over a sliding grid"></svg>
@@ -1020,7 +1020,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
     </div>
     <div id="e6bProb" class="e6b-pane" hidden>
-      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="fuel">Fuel for a time</option></select></label></div>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
       <div class="e6b-card" id="e6bPCard"></div>
       <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
       <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
@@ -1157,7 +1157,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=21b267ceec';
+    const s=document.createElement('script'); s.src='app.js?v=e6100cda74';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

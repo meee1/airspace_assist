@@ -174,7 +174,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 #e6bDlg select{background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:7px;padding:5px 6px;font:600 13px var(--f-body);max-width:100%}
 .e6b-tag{font:700 12px var(--f-label);letter-spacing:.6px;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:1px 6px;margin-right:auto;margin-left:8px}
 .e6b-seg{display:flex;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin:6px 0 8px} .e6b-seg button{flex:1;border:0;background:none;color:var(--dim);padding:9px 0;font:600 14px var(--f-body);cursor:pointer} .e6b-seg button.on{background:var(--chip);color:var(--ink)}
-.e6b-svg{display:block;width:100%;max-height:58dvh;touch-action:none;user-select:none;-webkit-user-select:none} .e6b-psvg{max-height:40dvh}
+#e6bDlg [hidden]{display:none!important} .e6b-svg{display:block;width:100%;max-height:58dvh;touch-action:none;user-select:none;-webkit-user-select:none} .e6b-psvg{max-height:40dvh}
 .e6b-rd{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:13px;color:var(--dim)} .e6b-rd:empty{display:none}
 .e6b-rd .r{display:flex;justify-content:space-between;align-items:baseline;gap:8px} .e6b-rd b{font:700 16px var(--f-mono);color:var(--freq);white-space:nowrap}
 .e6b-btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0} .e6b-btns .btn{flex:1 1 0;min-width:70px} .e6b-chk{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--dim);flex:1 1 0;min-width:90px}
@@ -1011,7 +1011,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <svg id="e6bCompSvg" class="e6b-svg" viewBox="-195 -195 390 390" role="img" aria-label="Computer side: circular slide rule"></svg>
       <div class="e6b-rd" id="e6bCompRd"></div>
       <div class="e6b-btns"><button type="button" class="btn" data-c="gs">Speed</button><button type="button" class="btn" data-c="fuel">Fuel</button><button type="button" class="btn" data-c="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowC" checked> Readout</label></div>
-      <div class="vnote">Drag the blue disc to turn it, and drag on the outer scale to move the red cursor. The scales are logarithmic, so you place the decimal point yourself: 11 can be 1.1, 11 or 110. <b>Speed</b> puts the 60 index under your groundspeed (or Plan check's speed), <b>Fuel</b> under Plan check's burn. Untick Readout to practise reading the scales.</div>
+      <div class="vnote">Drag the blue disc to turn it, and drag on the outer scale to move the red cursor. The scales are logarithmic, so you place the decimal point yourself: 11 can be 1.1, 11 or 110. <b>Speed</b> puts the 60 index under your groundspeed (or Plan check's speed), <b>Fuel</b> under Plan check's burn. Untick Readout to practise reading the scales.<br><b>Windows</b> (dark bands on the disc): set the OAT (°C, on the disc) against the pressure altitude (thousands of ft, on the base); then CAS on the inner scale reads TAS on the outer, and the DENS ALT pointer reads density altitude. <b>Red arrows</b> on the rim: put a value (inner) under one arrow and read it (inner) under another of the same kind (NAUT / STAT / KM, LITRES / US GAL, KG / LB). Fuel weight: the disc's FUEL L arrow under AVGAS KG (0.72 kg/L) or JET KG (0.80 kg/L), then kg (outer) over litres (inner).</div>
     </div>
     <div id="e6bWind" class="e6b-pane" hidden>
       <svg id="e6bWindSvg" class="e6b-svg" viewBox="-195 -235 390 430" role="img" aria-label="Wind side: rotating plate over a sliding grid"></svg>
@@ -1020,7 +1020,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
     </div>
     <div id="e6bProb" class="e6b-pane" hidden>
-      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="fuel">Fuel for a time</option></select></label></div>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
       <div class="e6b-card" id="e6bPCard"></div>
       <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
       <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
@@ -8215,32 +8215,62 @@ function e6LogRing(g,r,dir,col,fs){ for(let v=10;v<100;v+= v<20?0.5:v<50?1:2){ c
     e6el(g,'line',{x1:r*Math.cos(a),y1:r*Math.sin(a),x2:(r+dir*len)*Math.cos(a),y2:(r+dir*len)*Math.sin(a),stroke:col,'stroke-width':maj?1.6:0.9}); }
   for(const v of [10,11,12,13,14,15,16,18,20,25,30,35,40,45,50,60,70,80,90]){ const ad=e6L(v), a=(ad-90)*Math.PI/180, rr=r+dir*(fs+10), x=rr*Math.cos(a), y=rr*Math.sin(a);
     e6el(g,'text',{x,y:y+fs*0.35,fill:col,'font-size':fs,'font-family':'IBM Plex Mono','font-weight':600,'text-anchor':'middle',transform:`rotate(${ad} ${x} ${y})`},String(v)); } }
+/* Density altitude / TAS window and conversion arrows (24 Nov 2026, Michael: "Add 1-4" after comparing with an E6B
+   course: the density altitude and TAS window, the unit arrows, more problem types). ISA, so the disc's turn when
+   OAT is set against pressure altitude is exactly TAS/CAS = 1/sqrt(sigma): pressure altitude on the base at
+   A0 - 180 log10(P/P0), OAT on the disc at A0 - 180 log10(T/T0); rot = -180 log10(sigma), so CAS (inner) reads TAS
+   (outer). The density altitude pointer on the disc at B0 reads the base's DA scale at B0 - 180 log10(sigma_ISA(DA)).
+   Arrows on the base: values in the same family convert by setting the value (inner) under one arrow and reading the
+   inner scale under the other (NAUT/STAT/KM; LITRES/US GAL; KG/LB). Fuel weight: the disc's FUEL L arrow under AVGAS KG
+   (0.72 kg/L) or JET KG (0.80 kg/L), then kg (outer) over litres (inner). */
+const E6A0=0, E6B0=115, E6FL=50;
+const e6Pr=pa=>(1-6.8756e-6*pa)**5.2559, e6SigI=h=>(1-6.8756e-6*h)**4.2559;
+const e6aPA=pa=>E6A0-180*Math.log10(e6Pr(pa)), e6aT=t=>E6A0-180*Math.log10((t+273.15)/288.15), e6aDA=h=>E6B0-180*Math.log10(e6SigI(h));
+const e6Air=(pa,t)=>{ const s=e6Pr(pa)*288.15/(t+273.15); return {s, rot:-180*Math.log10(s), da:(1-s**(1/4.2559))/6.8756e-6, k:1/Math.sqrt(s)}; };
+const e6DAof=rot=>{ const s=10**(-e6ad(rot,0)/180); return (1-s**(1/4.2559))/6.8756e-6; };
+const E6ARR={NAUT:66, STAT:66*1852/1609.344, KM:66*1.852, LITRES:58, 'US GAL':58/3.785411784, KG:20, LB:20*2.20462262, 'AVGAS KG':E6FL*0.72, 'JET KG':E6FL*0.8};
+const e6sect=(g,a0,a1,r0,r1,att)=>{ const P=(a,r)=>{ const t=(a-90)*Math.PI/180; return `${(r*Math.cos(t)).toFixed(2)} ${(r*Math.sin(t)).toFixed(2)}`; }, big=a1-a0>180?1:0;
+  return e6el(g,'path',Object.assign({d:`M ${P(a0,r1)} A ${r1} ${r1} 0 ${big} 1 ${P(a1,r1)} L ${P(a1,r0)} A ${r0} ${r0} 0 ${big} 0 ${P(a0,r0)} Z`},att)); };
+const e6tick=(g,ad,r0,r1,col,w)=>{ const t=(ad-90)*Math.PI/180; e6el(g,'line',{x1:r0*Math.cos(t),y1:r0*Math.sin(t),x2:r1*Math.cos(t),y2:r1*Math.sin(t),stroke:col,'stroke-width':w}); };
+const e6txt=(g,ad,r,s,col,fs,flip)=>{ const t=(ad-90)*Math.PI/180, x=r*Math.cos(t), y=r*Math.sin(t); e6el(g,'text',{x,y:y+fs*0.35,fill:col,'font-size':fs,'font-family':'IBM Plex Mono','font-weight':600,'text-anchor':'middle',transform:`rotate(${flip?ad-180:ad} ${x} ${y})`},s); };
 class E6Comp{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=onChange; this.rot=0; this.cur=e6L(30); this.show=true; this.build(); this.bind(); this.draw(); }
   build(){ const s=this.svg; s.innerHTML='';
-    e6el(s,'circle',{r:186,fill:'#c8d0d4'}); e6el(s,'circle',{r:186,fill:'none',stroke:'#7d8a90','stroke-width':3});
+    e6el(s,'circle',{r:194,fill:'#c8d0d4'}); e6el(s,'circle',{r:194,fill:'none',stroke:'#7d8a90','stroke-width':3});
     e6LogRing(e6el(s,'g'),152,1,'#10202a',13);
+    for(const k in E6ARR){ const ad=e6L(E6ARR[k]); e6el(s,'path',{d:'M 0 -181 l -4 7 l 8 0 z',fill:'#b0331c',transform:`rotate(${ad})`}); e6txt(s,ad,189,k,'#b0331c',6.5); }
     this.g=e6el(s,'g'); const g=this.g;
     e6el(g,'circle',{r:150,fill:'#1b3a55'}); e6el(g,'circle',{r:150,fill:'none',stroke:'#0e2233','stroke-width':2});
     e6LogRing(g,148,-1,'#ffffff',12);
-    for(const [v,h] of [[60,'1:00'],[90,'1:30'],[12,'2:00'],[18,'3:00'],[24,'4:00'],[30,'5:00'],[36,'6:00'],[48,'8:00']]){ const ad=e6L(v), a=(ad-90)*Math.PI/180, x=100*Math.cos(a), y=100*Math.sin(a);
-      e6el(g,'text',{x,y:y+3,fill:'#9fc4e8','font-size':9,'font-family':'IBM Plex Mono','text-anchor':'middle',transform:`rotate(${ad} ${x} ${y})`},h); }
+    for(const [v,h] of [[60,'1:00'],[90,'1:30'],[12,'2:00'],[18,'3:00'],[24,'4:00'],[30,'5:00'],[36,'6:00'],[48,'8:00']]){ const ad=e6L(v), a=(ad-90)*Math.PI/180, x=62*Math.cos(a), y=62*Math.sin(a);
+      e6el(g,'text',{x,y:y+3,fill:'#9fc4e8','font-size':8,'font-family':'IBM Plex Mono','text-anchor':'middle',transform:`rotate(${ad} ${x} ${y})`},h); }
     { const ad=e6L(60), a=(ad-90)*Math.PI/180, x=116*Math.cos(a), y=116*Math.sin(a); e6el(g,'path',{d:`M ${x} ${y} l -6 0 l 6 -10 l 6 10 z`,fill:'#ffad4d',transform:`rotate(${ad} ${x} ${y})`}); }
+    { const ad=e6L(E6FL); e6el(g,'path',{d:'M 0 -122 l -4 6 l 8 0 z',fill:'#ffad4d',transform:`rotate(${ad})`}); e6txt(g,ad,111,'FUEL L','#ffad4d',6); }
+    /* the windows: dark bands on the disc (holes onto the base); °C and the DA pointer are on the disc */
+    e6sect(g,E6A0-20,E6A0+22,72,118,{fill:'#08131c',stroke:'#4d7ea3','stroke-width':1});
+    for(let t=-50;t<=50;t+=5){ const ad=e6aT(t); e6tick(g,ad,96,t%10?101:104,'#ffd9a8',t%10?0.7:1.2); if(t%20===0) e6txt(g,ad,111,String(t),'#ffd9a8',7.5); }
+    e6txt(g,E6A0-16,111,'°C','#ffd9a8',7.5); e6txt(g,E6A0-16,82,'PA','#9fc4e8',7.5);
+    e6sect(g,E6B0-15,E6B0+15,72,118,{fill:'#08131c',stroke:'#4d7ea3','stroke-width':1});
+    e6tick(g,E6B0,96,110,'#ffad4d',1.6); e6el(g,'path',{d:'M 0 -96 l -3.5 -6 l 7 0 z',fill:'#ffad4d',transform:`rotate(${E6B0})`});
+    e6txt(g,E6B0-8,111,'DENS','#ffad4d',7); e6txt(g,E6B0+7,111,'ALT','#ffad4d',7);
+    this.fx=e6el(s,'g',{'pointer-events':'none'});   // base scales seen through the windows (redrawn as the disc turns)
     const lab=e6el(s,'g',{'pointer-events':'none'});   // level labels: they don't turn with the disc
-    e6el(lab,'text',{x:0,y:-34,fill:'#cfe3f5','font-size':11,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'OUTER: MILES · LITRES');
-    e6el(lab,'text',{x:0,y:-20,fill:'#cfe3f5','font-size':11,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'INNER: MINUTES · ▲ 60 = INDEX');
-    e6el(lab,'text',{x:0,y:30,fill:'#cfe3f5','font-size':13,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1.5},'TIME · SPEED · DISTANCE');
-    e6el(lab,'text',{x:0,y:45,fill:'#9fc4e8','font-size':10,'font-family':'IBM Plex Sans','text-anchor':'middle'},'FUEL · RATE · CONVERSIONS');
+    const L=(y,t,fs,col)=>e6el(lab,'text',{x:0,y,fill:col,'font-size':fs,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},t);
+    L(-24,'OUTER',10,'#cfe3f5'); L(-13,'miles · fuel · TAS',9,'#9fc4e8'); L(9,'INNER',10,'#cfe3f5'); L(20,'min · CAS · ▲60',9,'#9fc4e8');
     e6el(s,'circle',{r:6,fill:'#7d8a90'});
     this.cl=e6el(s,'line',{x1:0,y1:0,x2:0,y2:-190,stroke:'#ff4d4d','stroke-width':2}); this.cc=e6el(s,'circle',{cx:0,cy:-176,r:8,fill:'none',stroke:'#ff4d4d','stroke-width':2}); }
   bind(){ const s=this.svg; let d=null;
-    s.addEventListener('pointerdown',e=>{ const p=e6pt(s,e), r=Math.hypot(p.x,p.y); if(r>190) return; e.preventDefault(); s.setPointerCapture(e.pointerId);
+    s.addEventListener('pointerdown',e=>{ const p=e6pt(s,e), r=Math.hypot(p.x,p.y); if(r>196) return; e.preventDefault(); s.setPointerCapture(e.pointerId);
       d={k: r<=150? 'disc' : 'cur', a0:e6ang(p.x,p.y), rot0:this.rot}; if(d.k==='cur'){ this.cur=d.a0; this.draw(); } });
     s.addEventListener('pointermove',e=>{ if(!d) return; const p=e6pt(s,e), a=e6ang(p.x,p.y); if(d.k==='disc') this.rot=(d.rot0+e6ad(a,d.a0)+360)%360; else this.cur=a; this.draw(); });
     const up=()=>{ d=null; }; s.addEventListener('pointerup',up); s.addEventListener('pointercancel',up); }
   setIndex(v){ this.rot=((e6L(v)-e6L(60))%360+360)%360; this.draw(); }
   idx(){ return e6V(e6L(60)+this.rot); }
-  draw(){ this.g.setAttribute('transform',`rotate(${this.rot})`); const a=(this.cur-90)*Math.PI/180; this.cl.setAttribute('x2',190*Math.cos(a)); this.cl.setAttribute('y2',190*Math.sin(a)); this.cc.setAttribute('cx',176*Math.cos(a)); this.cc.setAttribute('cy',176*Math.sin(a));
-    if(this.rd) this.rd.innerHTML= this.show? `<div class="r"><span>60 index under</span><b>${e6f(this.idx())}</b></div><div class="r"><span>Cursor: outer / inner</span><b>${e6f(e6V(this.cur))} / ${e6f(e6V(this.cur-this.rot))}</b></div>` : '';
+  drawWin(){ const f=this.fx; while(f.firstChild) f.removeChild(f.firstChild); const rs=this.rot;
+    for(let pa=-1000;pa<=24000;pa+=500){ const ad=e6aPA(pa), o=e6ad(ad-rs,E6A0); if(o<-14||o>21) continue; const k=pa%1000===0; e6tick(f,ad,k?88:91,96,'#cfe3f5',k?1.1:0.6); if(pa%2000===0) e6txt(f,ad,81,String(pa/1000),'#cfe3f5',7.5); }
+    for(let h=-2000;h<=24000;h+=1000){ const ad=e6aDA(h), o=e6ad(ad-rs,E6B0); if(o<-14||o>14) continue; const k=h%2000===0; e6tick(f,ad,k?87:91,96,'#cfe3f5',k?1.1:0.6); if(h%4000===0) e6txt(f,ad,81,String(h/1000),'#cfe3f5',7.5); } }
+  draw(){ this.g.setAttribute('transform',`rotate(${this.rot})`); this.drawWin(); const a=(this.cur-90)*Math.PI/180; this.cl.setAttribute('x2',190*Math.cos(a)); this.cl.setAttribute('y2',190*Math.sin(a)); this.cc.setAttribute('cx',176*Math.cos(a)); this.cc.setAttribute('cy',176*Math.sin(a));
+    const rs=e6ad(this.rot,0), da= rs>-6&&rs<56? e6DAof(this.rot) : null;
+    if(this.rd) this.rd.innerHTML= this.show? `<div class="r"><span>60 index under</span><b>${e6f(this.idx())}</b></div><div class="r"><span>Cursor: outer / inner</span><b>${e6f(e6V(this.cur))} / ${e6f(e6V(this.cur-this.rot))}</b></div>`+(da!=null&&da<25000? `<div class="r"><span>Density altitude pointer</span><b>${Math.round(da/100)*100} ft</b></div>` : '') : '';
     if(this.on) this.on(); } }
 class E6Wind{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=onChange; this.R=140; this.sc=this.R/60; this.rotP=0; this.G=100; this.dots=[]; this.mark=false; this.show=true; this.build(); this.bind(); this.draw(); }
   build(){ const s=this.svg, R=this.R, sc=this.sc; s.innerHTML='';
@@ -8261,16 +8291,22 @@ class E6Wind{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=on
     e6el(s,'rect',{x:-40,y:-R-67,width:80,height:18,rx:9,fill:'#0d1417',opacity:.9}); e6el(s,'path',{d:`M -9 ${-R-48} L 9 ${-R-48} L 0 ${-R-34} Z`,fill:'#ffad4d'}); e6el(s,'text',{x:0,y:-R-54,fill:'#ffad4d','font-size':11,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'TRUE INDEX'); }
   bind(){ const s=this.svg; let d=null;
     s.addEventListener('pointerdown',e=>{ const p=e6pt(s,e), r=Math.hypot(p.x,p.y); e.preventDefault(); s.setPointerCapture(e.pointerId);
-      if(this.mark&&r<this.R){ const t=this.rotP*Math.PI/180, x=p.x/this.sc, y=p.y/this.sc; this.dots=[{x:x*Math.cos(t)-y*Math.sin(t), y:x*Math.sin(t)+y*Math.cos(t)}]; this.mark=false; this.draw(); d=null; return; }
+      if(this.mark&&r<this.R){ this.dots=[this.dotAt(p)]; this.drag=true; d={k:'dot'}; this.draw(); return; }
       d= r>this.R&&r<this.R+46? {k:'ring', a0:e6ang(p.x,p.y), r0:this.rotP} : {k:'grid', y0:p.y, G0:this.G}; });
     s.addEventListener('pointermove',e=>{ if(!d) return; const p=e6pt(s,e);
+      if(d.k==='dot'){ this.dots=[this.dotAt(p)]; this.draw(); return; }
       if(d.k==='ring') this.rotP=((d.r0-e6ad(e6ang(p.x,p.y),d.a0))%360+360)%360; else this.G=Math.max(20,Math.min(240,d.G0+(p.y-d.y0)/this.sc)); this.draw(); });
-    const up=()=>{ d=null; }; s.addEventListener('pointerup',up); s.addEventListener('pointercancel',up); }
+    const up=()=>{ if(d&&d.k==='dot'){ this.mark=false; this.drag=false; this.draw(); } d=null; }; s.addEventListener('pointerup',up); s.addEventListener('pointercancel',up); }
+  // a pencil dot at a screen point: snapped onto the centre line above the grommet (within 2.5 kt of it) and to whole knots
+  // (24 Nov 2026, Michael: "i cant mark up 15 kts": it took the exact tap, within 4 deg, about 2 px at 15 kt)
+  dotAt(p){ let x=p.x/this.sc, y=p.y/this.sc; if(Math.abs(x)<2.5&&y<0) x=0; const L=Math.hypot(x,y), Lr=Math.max(1,Math.round(L)); if(L>0){ x*=Lr/L; y*=Lr/L; }
+    const t=this.rotP*Math.PI/180; return {x:x*Math.cos(t)-y*Math.sin(t), y:x*Math.sin(t)+y*Math.cos(t)}; }
   dotScr(q){ const t=-this.rotP*Math.PI/180; return [ (q.x*Math.cos(t)-q.y*Math.sin(t))*this.sc, (q.x*Math.sin(t)+q.y*Math.cos(t))*this.sc ]; }
   dotWind(q){ return {dir:e6ang(q.x,q.y), kt:Math.hypot(q.x,q.y)}; }   // the dot as marked: its direction from the grommet in the plate's frame and length
   dotGrid(q){ const [x,y]=this.dotScr(q), cy=this.G*this.sc; return {arc:Math.hypot(x,y-cy)/this.sc, drift:Math.atan2(x,-(y-cy))*180/Math.PI}; }
   draw(){ const sc=this.sc; this.grid.setAttribute('transform',`translate(0 ${this.G*sc})`); this.plate.setAttribute('transform',`rotate(${-this.rotP})`);
-    this.dg.innerHTML=''; for(const q of this.dots){ e6el(this.dg,'line',{x1:0,y1:0,x2:q.x*sc,y2:q.y*sc,stroke:'#1340d0','stroke-width':1,'stroke-dasharray':'3 2'}); e6el(this.dg,'circle',{cx:q.x*sc,cy:q.y*sc,r:5,fill:'#1340d0',stroke:'#fff','stroke-width':1.5}); }
+    this.dg.innerHTML=''; if(this.dg.lab){ this.dg.lab.remove(); this.dg.lab=null; } for(const q of this.dots){ e6el(this.dg,'line',{x1:0,y1:0,x2:q.x*sc,y2:q.y*sc,stroke:'#1340d0','stroke-width':1,'stroke-dasharray':'3 2'}); e6el(this.dg,'circle',{cx:q.x*sc,cy:q.y*sc,r:5,fill:'#1340d0',stroke:'#fff','stroke-width':1.5}); }
+    if(this.drag&&this.dots.length){ const q=this.dots[0], [x,y]=this.dotScr(q), t=e6el(this.svg,'text',{x:x+10,y:y-8,fill:'#1340d0',stroke:'#fff','stroke-width':3,'paint-order':'stroke','font-size':14,'font-family':'IBM Plex Mono','font-weight':700},`${Math.round(Math.hypot(q.x,q.y))} kt`); this.dg.lab=t; }
     if(this.rd){ const q=this.dots[this.dots.length-1], w=q&&this.dotWind(q), gr=q&&this.dotGrid(q);
       this.rd.innerHTML= this.show? `<div class="r"><span>Under the true index</span><b>${fmt3(Math.round(this.rotP)%360)}°</b></div><div class="r"><span>Under the grommet (GS)</span><b>${Math.round(this.G)} kt</b></div>`+
         (q? `<div class="r"><span>Wind dot ${fmt3(Math.round(w.dir)%360)}°/${w.kt.toFixed(0)} kt is on</span><b>${gr.arc.toFixed(0)} kt · ${Math.abs(gr.drift).toFixed(0)}° ${gr.drift>=0?'R':'L'}</b></div>` : '<div class="r"><span>No wind dot yet: ✎ Mark, then tap</span></div>') : ''; }
@@ -8287,60 +8323,101 @@ const e6rand=(a,b,st=1)=>a+Math.floor(Math.random()*((b-a)/st+1))*st;
 function e6Legs(){ if(!FP||FP.pts.length<2) return []; const P_=FP.pts, out=[];   // the plan's legs between real points (a coast leg's turn points skipped)
   let a=0; for(let k=1;k<P_.length;k++){ if(P_[k].cg) continue; if(k-a===1){ const [L,b]=distBrg(P_[a].la,P_[a].lo,P_[k].la,P_[k].lo); if(L>=1) out.push({from:P_[a].c||P_[a].n, to:P_[k].c||P_[k].n, L, tc:Math.round(b)%360}); } a=k; }
   return out; }
-function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='plan', legs=plan? e6Legs() : [], leg= legs.length? legs[E6P.legI++%legs.length] : null;
-  const tas=+ls.get('pcGs',0)||e6rand(70,140,5), burn=+ls.get('pcBurn',0)||e6rand(40,120,5), W=(typeof pcWind==='function'&&pcWind())||null, pw= W&&W.src==='set'&&W.kt>0? W : null;
+/* problem types: rate problems share one pattern, outer = rate x inner minutes / 60 (f = which one is asked: R at the
+   index, O on the outer scale, I minutes on the inner); tas = TAS and density altitude from the window; conv = the arrows */
+const E6RATE={tsd:{f:'I',k:'min',l:'Time min',uR:'kt',uO:'NM'}, gs:{f:'R',k:'gs',l:'GS kt',uR:'kt',uO:'NM'}, range:{f:'O',k:'nm',l:'Distance NM',uR:'kt',uO:'NM'},
+  fuel:{f:'O',k:'fuel',l:'Fuel L',uR:'L/h',uO:'L'}, endur:{f:'I',k:'min',l:'Time (min or h:mm)',uR:'L/h',uO:'L'}, cons:{f:'R',k:'burn',l:'Burn L/h',uR:'L/h',uO:'L'}};
+const E6CONV=[['NAUT','STAT','NM','SM',10,250],['NAUT','KM','NM','km',10,250],['STAT','KM','SM','km',10,250],['LITRES','US GAL','L','US gal',20,400],['US GAL','LITRES','US gal','L',5,100],
+  ['KG','LB','kg','lb',20,400],['LB','KG','lb','kg',40,800],['AVGAS KG',null,'L of avgas','kg',20,400],['JET KG',null,'L of Jet A-1','kg',20,400]];
+const e6hm=m=>{ const r=Math.round(m); return `${Math.floor(r/60)}:${String(r%60).padStart(2,'0')}`; }, e6r=v=>+(+v).toFixed(1);
+function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='plan', legs=plan&&['wind','tsd','gs','fuel'].includes(type)? e6Legs() : [], leg= legs.length? legs[E6P.legI++%legs.length] : null;
+  const tas=+ls.get('pcGs',0)||e6rand(70,140,5), burn=+ls.get('pcBurn',0)||e6rand(40,120,5), fob=+ls.get('pcFuel',0)||0, W=(typeof pcWind==='function'&&pcWind())||null, pw= W&&W.src==='set'&&W.kt>0? W : null;
+  const hasGs=!!+ls.get('pcGs',0), hasB=!!+ls.get('pcBurn',0);
   let p;
   if(type==='wind'){ for(let i=0;i<20;i++){ const tc= leg? leg.tc : e6rand(0,355,5), T= leg? tas : e6rand(70,140,5), wd= leg&&pw? Math.round(pw.dir) : e6rand(0,350,10), wk= leg&&pw? Math.round(pw.kt) : e6rand(5,35,5);
       const r=windTri(tc,T,wd,wk); if(r.gs==null) continue; let wca=e6ad(r.hdg,tc); p={type, leg, tc, tas:T, wd, wk, hdg:(Math.round(r.hdg)+360)%360, gs:r.gs, wca, plan:!!leg, pw:!!(leg&&pw)}; break; } }
-  else if(type==='tsd'){ const gs= leg? tas : e6rand(60,180,5), d= leg? +leg.L.toFixed(1) : e6rand(8,140); p={type, leg, gs, d, min:d/gs*60, plan:!!leg}; }
-  else { const b= leg? burn : e6rand(30,150,5), min= leg? Math.max(5,Math.round(leg.L/(tas||90)*60)) : e6rand(10,150,5); p={type, leg, burn:b, min, fuel:b*min/60, plan:!!leg}; }
+  else if(E6RATE[type]){ const Q=E6RATE[type]; let R, O, I, pv=!!leg;
+    if(type==='tsd'){ R= leg? tas : e6rand(60,180,5); O= leg? e6r(leg.L) : e6rand(8,140); I=O/R*60; }
+    else if(type==='gs'){ O= leg? e6r(leg.L) : e6rand(8,120); const g= leg? tas : e6rand(60,180,5); I=Math.max(2,Math.round(O/g*60)); R=O/I*60; }
+    else if(type==='range'){ pv=plan&&hasGs&&hasB&&fob>0; R= pv? tas : e6rand(60,180,5); I= pv? Math.max(10,Math.round(fob/burn*60/5)*5) : e6rand(30,300,10); O=R*I/60; }
+    else if(type==='fuel'){ R= leg? burn : e6rand(30,150,5); I= leg? Math.max(5,Math.round(leg.L/(tas||90)*60)) : e6rand(10,150,5); O=R*I/60; }
+    else if(type==='endur'){ pv=plan&&hasB&&fob>0; R= pv? burn : e6rand(30,150,5); O= pv? fob : e6rand(60,400,10); I=O/R*60; }
+    else { I=e6rand(20,180,5); O=Math.round(e6rand(30,150,5)*I/60); R=O/I*60; }
+    const v= Q.f==='R'? R : Q.f==='O'? O : I; p={type, Q, leg, R, O, I, v, plan:pv}; p[Q.k]=v; if(type==='tsd'){ p.gs=R; p.d=O; } if(type==='fuel'){ p.burn=R; p.min=I; } }
+  else if(type==='tas'){ const pa=e6rand(0,12000,500), isa=15-1.98*pa/1000, t=Math.max(-40,Math.min(45,Math.round(isa/5)*5+e6rand(-15,20,5))), cas=e6rand(70,150,5), A=e6Air(pa,t);
+    p={type, pa, t, cas, tas:cas*A.k, da:A.da, rot:A.rot}; }
+  else { const c=E6CONV[Math.floor(Math.random()*E6CONV.length)], x=e6rand(c[4],c[5],c[5]>=400?10:c[5]>=100?5:1), f= c[1]? E6ARR[c[1]]/E6ARR[c[0]] : E6ARR[c[0]]/E6FL;
+    p={type, c, x, v:x*f}; }
   E6P.p=p; E6P.hint=false; E6P.done=false;
   E6.pw.dots=[]; E6.pw.rotP=0; E6.pw.G=100; E6.pw.mark=false; E6.pw.draw(); E6.pc.rot=0; E6.pc.cur=0; E6.pc.draw();
-  $('e6bPWSvg').hidden=type!=='wind'; $('e6bPTools').hidden=type!=='wind'; $('e6bPCSvg').hidden=type==='wind';
-  const lg= leg? `Leg <span class="leg">${esc(leg.from)} → ${esc(leg.to)}</span> · ` : '';
-  const src= p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>') : (plan&&!legs.length? '<small>(no flight plan loaded: a random problem)</small>' : '');
+  $('e6bPWSvg').toggleAttribute('hidden',type!=='wind'); $('e6bPTools').hidden=type!=='wind'; $('e6bPCSvg').toggleAttribute('hidden',type==='wind');   /* SVG elements have no .hidden property: the attribute */
+  const lg= p.leg? `Leg <span class="leg">${esc(p.leg.from)} → ${esc(p.leg.to)}</span> · ` : '';
+  const src= p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : type==='range'||type==='endur'? '<small>(Plan check\'s speed, burn and fuel)</small>' : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>')
+    : plan? (type==='tas'||type==='conv'||type==='cons'? '<small>(this type doesn\'t use the plan: random)</small>' : type==='range'||type==='endur'? '<small>(no speed, burn and fuel in Plan check: random)</small>' : '<small>(no flight plan loaded: a random problem)</small>') : '';
+  const hm=m=>m>=60? ` (${e6hm(m)})` : '';
   $('e6bPCard').innerHTML=`<b>Problem ${E6P.sc.n+1}</b> <small>· ${E6P.sc.ok} right of ${E6P.sc.n}</small><br>`+lg+
     (type==='wind'? `TC <b>${fmt3(p.tc)}°T</b> · TAS <b>${p.tas} kt</b> · wind <b>${fmt3(p.wd)}°T / ${p.wk} kt</b>. Find the heading, groundspeed and wind correction.` :
-     type==='tsd'? `Groundspeed <b>${p.gs} kt</b>, distance <b>${p.d} NM</b>. How many minutes?` :
-     `Fuel burn <b>${p.burn} L/h</b>, flight time <b>${p.min} min</b>. How much fuel?`)+' '+src;
+     type==='tsd'? `Groundspeed <b>${p.R} kt</b>, distance <b>${p.O} NM</b>. How many minutes?` :
+     type==='gs'? `You covered <b>${p.O} NM</b> in <b>${p.I} min</b>. What's the groundspeed?` :
+     type==='range'? `Groundspeed <b>${p.R} kt</b>, endurance <b>${p.I} min${hm(p.I)}</b>. How far can you fly (NM)?` :
+     type==='fuel'? `Fuel burn <b>${p.R} L/h</b>, flight time <b>${p.I} min</b>. How much fuel?` :
+     type==='endur'? `Fuel burn <b>${p.R} L/h</b>, usable fuel <b>${p.O} L</b>. What's the endurance?` :
+     type==='cons'? `You used <b>${p.O} L</b> in <b>${p.I} min</b>${hm(p.I)}. What's the fuel burn?` :
+     type==='tas'? `Pressure altitude <b>${p.pa} ft</b>, OAT <b>${p.t} °C</b>, CAS <b>${p.cas} kt</b>. Find the TAS and the density altitude. <small>(Pressure altitude: 1013 on the subscale and read the altimeter, or elevation + (1013 − QNH) × 30 ft.)</small>` :
+     !p.c[1]? `<b>${p.x} ${p.c[2]}</b>: how many kg? <small>(marked at ${p.c[0]==='AVGAS KG'?'0.72':'0.80'} kg/L; use the fuel docket's density when you have it)</small>` :
+     `Convert <b>${p.x} ${p.c[2]}</b> to ${p.c[3]}.`)+' '+src;
   const box=(k,l)=>`<label data-k="${k}">${l}<input inputmode="decimal" autocomplete="off" spellcheck="false" data-k="${k}"></label>`;
-  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : type==='tsd'? box('min','Time min') : box('fuel','Fuel L');
+  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : E6RATE[type]? box(p.Q.k,p.Q.l) : type==='tas'? box('tas','TAS kt')+box('da','Density alt ft') : box('v',p.c[3]);
   $('e6bPRes').textContent=''; e6Steps(); }
 function e6StepList(){ const p=E6P.p; if(!p) return [];
   if(p.type==='wind'){ const W=E6.pw, q=W.dots[W.dots.length-1], w=q&&W.dotWind(q), gr=q&&W.dotGrid(q);
-    const s1=Math.abs(e6ad(W.rotP,p.wd))<=2.5||!!q, s2=!!q&&Math.abs(e6ad(w.dir,p.wd))<=4&&Math.abs(w.kt-p.wk)<=1.5, s3=s2&&Math.abs(e6ad(W.rotP,p.tc))<=2.5, s4=s3&&Math.abs(gr.arc-p.tas)<=1.5;
+    const s1=Math.abs(e6ad(W.rotP,p.wd))<=2.5||!!q, s2=!!q&&Math.abs(w.kt-p.wk)<=1.5&&(Math.abs(e6ad(w.dir,p.wd))<=4||Math.abs(w.kt*Math.sin(e6ad(w.dir,p.wd)*Math.PI/180))<=1.2), s3=s2&&Math.abs(e6ad(W.rotP,p.tc))<=2.5, s4=s3&&Math.abs(gr.arc-p.tas)<=1.5;
     return [[`Turn the plate: ${fmt3(p.wd)} under the true index`,s1,'Drag the dark ring until the wind direction sits under the orange TRUE INDEX.'],
-      [`✎ Mark the wind dot ${p.wk} kt straight up from the grommet`,s2,`Tap ✎ Mark, then tap on the centre line ${p.wk} kt above the white grommet (each grid arc is 2 kt; the bold ones every 10).`],
+      [`✎ Mark the wind dot ${p.wk} kt straight up from the grommet`,s2,`Tap ✎ Mark, then press on the centre line above the white grommet and slide to ${p.wk} kt (the label shows it; each grid arc is 2 kt). It snaps to the centre line and whole knots.`],
       [`Turn the plate: ${fmt3(p.tc)} (the true course) under the true index`,s3,'The dot turns with the plate.'],
       [`Slide the grid until the dot is on the ${p.tas} kt arc`,s4,'Drag inside the ring to slide the grid up or down.'],
       ['Read the GS under the grommet and the drift under the dot',E6P.done,'Heading = true course + drift to the side the dot is on (right = add).']]; }
-  const C=E6.pc, idx=C.idx(), near=(a,b)=>Math.abs(Math.log10(e6N(a))-Math.log10(e6N(b)))<0.007;
-  if(p.type==='tsd'){ const s1=near(idx,p.gs), s2=s1&&near(e6V(C.cur),p.d);
-    return [[`Turn the disc: the 60 index under ${p.gs} (${e6f(e6N(p.gs))} on the outer scale)`,s1,'Drag the blue disc until the orange triangle (60) sits under the groundspeed on the outer scale.'],
-      [`Move the cursor to ${p.d} NM on the outer scale (${e6f(e6N(p.d))})`,s2,'Drag on the outer grey scale to move the red cursor.'],
-      ['Read the minutes under the cursor on the inner scale',E6P.done,'Place the decimal point with a quick mental estimate.']]; }
-  const s1=near(idx,p.burn), s2=s1&&near(e6V(C.cur-C.rot),p.min);
-  return [[`Turn the disc: the 60 index under ${p.burn} (litres per hour)`,s1,'Fuel works like speed: litres per hour instead of knots.'],
-    [`Move the cursor to ${p.min} minutes on the inner scale`,s2,'Drag on the outer grey scale; read the inner value under the cursor.'],
-    ['Read the litres above it on the outer scale',E6P.done,'Place the decimal point with a quick mental estimate.']]; }
+  const C=E6.pc, idx=C.idx(), near=(a,b)=>Math.abs(Math.log10(e6N(a))-Math.log10(e6N(b)))<0.007, inner=C.cur-C.rot, D=E6P.done;
+  if(p.Q){ const Q=p.Q, R=e6r(p.R), O=e6r(p.O), I=e6r(p.I), hm=p.I>=60? ` (${e6hm(p.I)} on the hours ring)` : '';
+    const idxS=[`Turn the disc: the 60 index under ${R} ${Q.uR} (${e6f(e6N(R))} on the outer scale)`,near(idx,R),`Drag the blue disc until the orange triangle (60) sits under ${R} on the outer scale. ${Q.uR==='L/h'?'Fuel works like speed: litres per hour instead of knots.':''}`];
+    if(Q.f==='I'){ const s1=idxS[1], s2=s1&&near(e6V(C.cur),O); return [idxS, [`Move the cursor to ${O} ${Q.uO} on the outer scale (${e6f(e6N(O))})`,s2,'Drag on the outer grey scale to move the red cursor.'], ['Read the minutes under the cursor on the inner scale',D,'Place the decimal point with a quick mental estimate; over 60 min the hours ring gives h:mm.']]; }
+    if(Q.f==='O'){ const s1=idxS[1], s2=s1&&near(e6V(inner),I); return [idxS, [`Move the cursor to ${I} min on the inner scale${hm}`,s2,'Drag on the outer grey scale; read the inner value under the cursor.'], [`Read the ${Q.uO==='NM'?'distance':'litres'} above it on the outer scale`,D,'Place the decimal point with a quick mental estimate.']]; }
+    const s1=near(e6V(C.cur),O), s2=s1&&near(e6V(inner),I);
+    return [[`Move the cursor to ${O} ${Q.uO} on the outer scale`,s1,'Drag on the outer grey scale to move the red cursor.'], [`Turn the disc until ${I} min (inner scale${hm}) is under the cursor`,s2,'Drag the blue disc.'], [`Read the ${Q.uR==='kt'?'groundspeed':'burn'} on the outer scale over the 60 index`,D,'The orange triangle; place the decimal point with a mental estimate.']]; }
+  if(p.type==='tas'){ const s1=Math.abs(e6ad(C.rot,p.rot))<=1, s2=s1&&near(e6V(inner),p.cas);
+    return [[`In the °C / PA window, turn the disc until ${p.t} °C is against ${p.pa/1000} (thousand ft)`,s1,'The window is the dark band on the disc: °C on the disc along its inner edge, pressure altitude (thousands of ft) on the base showing through along its outer edge.'],
+      [`Move the cursor to ${p.cas} kt (CAS) on the inner scale`,s2,'Leave the disc where the window set it.'],
+      ['Read the TAS above it on the outer scale',D,'Place the decimal point with a quick mental estimate.'],
+      ['Read the density altitude at the DENS ALT pointer (the other window)',D,'Thousands of feet; each mark is 1,000 ft.']]; }
+  const c=p.c, aF=e6L(E6ARR[c[0]]);
+  if(!c[1]){ const s1=Math.abs(e6ad(e6L(E6FL)+C.rot,aF))<=1, s2=s1&&near(e6V(inner),p.x);
+    return [[`Turn the disc: the FUEL L arrow (on the disc) under the ${c[0]} arrow (on the rim)`,s1,'Both arrows are orange/red triangles; the disc arrow is just inside the inner numbers.'],
+      [`Move the cursor to ${p.x} (litres) on the inner scale`,s2,'Drag on the outer grey scale.'], ['Read the kg above it on the outer scale',D,'Place the decimal point with a quick mental estimate.']]; }
+  const s1=Math.abs(e6ad(e6L(p.x)+C.rot,aF))<=1, s2=s1&&Math.abs(e6ad(C.cur,e6L(E6ARR[c[1]])))<=1;
+  return [[`Turn the disc: ${p.x} (inner scale) under the ${c[0]} arrow on the rim`,s1,'The red arrows are on the outer rim, outside the numbers.'],
+    [`Move the cursor to the ${c[1]} arrow`,s2,'Drag on the outer grey scale.'], [`Read the ${c[3]} on the inner scale under it`,D,'Place the decimal point with a quick mental estimate.']]; }
 function e6Steps(){ if(!E6P.p) return; const L=e6StepList(); let now=-1; L.forEach((x,i)=>{ if(now<0&&!x[1]) now=i; });
   $('e6bPSteps').innerHTML=L.map((x,i)=>`<div class="${x[1]&&(now<0||i<now)?'ok':i===now?'now':''}"><i>${x[1]&&(now<0||i<now)?'✓':i===now?'▸':i+1}</i><span>${esc(x[0])}${i===now&&E6P.hint?`<span class="hint">${esc(x[2])}</span>`:''}</span></div>`).join(''); }
 function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAns').querySelector(`input[data-k="${k}"]`); return i? i.value.trim().toUpperCase() : ''; };
   const mark=(k,good)=>{ const l=$('e6bPAns').querySelector(`label[data-k="${k}"]`); if(l){ l.classList.toggle('good',good); l.classList.toggle('bad',!good); } return good; };
-  const num=t=>{ const m=/-?\d+(\.\d+)?/.exec(t); return m? +m[0] : NaN; };
+  const num=t=>{ const h=/(\d+):(\d{1,2})/.exec(t); if(h) return +h[1]*60 + +h[2]; const m=/-?\d+(\.\d+)?/.exec(t.replace(/,/g,'')); return m? +m[0] : NaN; };
+  const near2=(a,b)=>Math.abs(a-b)<=Math.max(1,b*0.02);
   let ok=true, ans='';
   if(p.type==='wind'){ const h=num(v('hdg')), g=num(v('gs')), wt=v('wca'); let w=num(wt); if(/L/.test(wt)) w=-Math.abs(w); else if(/R/.test(wt)) w=Math.abs(w);
     ok=mark('hdg',Math.abs(e6ad(h,p.hdg))<=2)&ok; ok=mark('gs',Math.abs(g-p.gs)<=2)&ok; ok=mark('wca',/[LR-]/.test(wt)? Math.abs(w-p.wca)<=2 : Math.abs(Math.abs(w)-Math.abs(p.wca))<=2)&ok;
     ans=`heading ${fmt3(p.hdg)}°T, GS ${Math.round(p.gs)} kt, WCA ${p.wca>=0?'R':'L'}${Math.abs(p.wca).toFixed(0)}`; }
-  else if(p.type==='tsd'){ const m=num(v('min')); ok=mark('min',Math.abs(m-p.min)<=Math.max(1,p.min*0.02)); ans=`${p.min.toFixed(1)} min`; }
-  else { const f=num(v('fuel')); ok=mark('fuel',Math.abs(f-p.fuel)<=Math.max(1,p.fuel*0.02)); ans=`${p.fuel.toFixed(1)} L`; }
+  else if(p.Q){ ok=mark(p.Q.k,near2(num(v(p.Q.k)),p.v)); const u={min:'min',gs:'kt',nm:'NM',fuel:'L',burn:'L/h'}[p.Q.k]; ans=`${p.v.toFixed(1)} ${u}${p.Q.k==='min'&&p.v>=60?' ('+e6hm(p.v)+')':''}`; }
+  else if(p.type==='tas'){ ok=mark('tas',Math.abs(num(v('tas'))-p.tas)<=Math.max(2,p.tas*0.02))&ok; ok=mark('da',Math.abs(num(v('da'))-p.da)<=400)&ok; ans=`TAS ${Math.round(p.tas)} kt, density altitude ${Math.round(p.da/100)*100} ft`; }
+  else { ok=mark('v',Math.abs(num(v('v'))-p.v)<=Math.max(0.5,p.v*0.02)); ans=`${p.v.toFixed(1)} ${p.c[3]}`; }
   ok=!!ok; if(!E6P.done){ E6P.sc.n++; if(ok) E6P.sc.ok++; ls.set('e6bScore',E6P.sc); } E6P.done=true; e6Steps();
   $('e6bPRes').innerHTML= ok? `<span class="good">✓ Right.</span> The app's answer: <b>${ans}</b>.` : `<span class="bad">✕ Not quite.</span> The app's answer: <b>${ans}</b>. Show me sets the computer to it.`;
   $('e6bPCard').querySelector('small').textContent=`· ${E6P.sc.ok} right of ${E6P.sc.n}`; }
-function e6Show(){ const p=E6P.p; if(!p) return;
+function e6Show(){ const p=E6P.p; if(!p) return; const C=E6.pc, m=a=>((a%360)+360)%360;
   if(p.type==='wind'){ E6.pw.solve(p.tc,p.tas,p.wd,p.wk); }
-  else if(p.type==='tsd'){ E6.pc.setIndex(p.gs); E6.pc.cur=e6L(p.d); E6.pc.draw(); }
-  else { E6.pc.setIndex(p.burn); E6.pc.cur=(e6L(p.min)+E6.pc.rot)%360; E6.pc.draw(); }
+  else if(p.Q){ if(p.Q.f==='R'){ C.rot=m(e6L(p.O)-e6L(p.I)); C.cur=e6L(p.O); } else { C.rot=m(e6L(p.R)-e6L(60)); C.cur= p.Q.f==='I'? e6L(p.O) : m(e6L(p.I)+C.rot); } C.draw(); }
+  else if(p.type==='tas'){ C.rot=m(p.rot); C.cur=m(e6L(p.cas)+C.rot); C.draw(); }
+  else if(!p.c[1]){ C.rot=m(e6L(E6ARR[p.c[0]])-e6L(E6FL)); C.cur=m(e6L(p.x)+C.rot); C.draw(); }
+  else { C.rot=m(e6L(E6ARR[p.c[0]])-e6L(p.x)); C.cur=e6L(E6ARR[p.c[1]]); C.draw(); }
   $('e6bPRes').innerHTML='Set up as it should be: read the answer off the computer, then Check.'; }
 $('bE6b').onclick=e6Open; $('e6bClose').onclick=()=>$('e6bDlg').close();
 $('e6bSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(b) e6Tab(b.dataset.t); });
