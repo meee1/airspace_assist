@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data sources and limits · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Data sources and limits</h1>
+<p class="lead">Where everything in the app comes from, how sources are tagged, and what the app doesn't know.</p>
+<div class="bad"><p><b>Not an authoritative source.</b> Confirm against the current ERSA, charts, NOTAMs and ATIS.</p></div>
+
+<h2 id="rule">The AIP comes first</h2>
+<ul>
+  <li>ERSA and the DAH are the primary source for every frequency, aerodrome and airspace limit.</li>
+  <li>Other data is used only where the AIP has nothing, and is tagged with its source. Every value carries a tag: <b>green for AIP</b> (ERSA, DAH, an AIP rule, a charted CTAF), <b>orange for anything else</b>.</li>
+  <li>Where sources disagree, the AIP value is shown and the other mentioned as a note ("OurAirports says …").</li>
+  <li>The app never makes up or "fixes" a frequency, limit or procedure. Where the AIP is unclear (Moorabbin's two tower frequencies, for example) it shows what the AIP says and points you to the ATIS.</li>
+</ul>
+
+<h2 id="sources">Sources</h2>
+<div class="tw"><table>
+<tr><th>Source (tag)</th><th>Used for</th></tr>
+<tr><td><b>ERSA</b> (Airservices)</td><td>Aerodromes, positions, elevations; CTAF, ATIS, AWIS, tower, ground, delivery, approach, departures, UNICOM; area frequency per aerodrome; tower hours; procedures and reporting points; runways (lengths, surface, width); right-hand circuits; VFR waypoints; navaid frequencies; the SUA list (restricted/danger area status, hours, activity, contacts); FAC sheets; the controlling unit for each zone and step.</td></tr>
+<tr><td><b>DAH</b> (Airservices)</td><td>All airspace (C, D, E, A, control zones, restricted, danger, military operating areas) with step limits; area (FIA) and class E frequency boundaries; broadcast areas; runway thresholds; navaids; IFR waypoints (search and simulation only). Boundaries that follow a coast, river or road are drawn as straight lines between the published points.</td></tr>
+<tr><td><b>VTC / VNC</b> (charted CTAF)</td><td>Where ERSA has no CTAF but the chart prints one beside the aerodrome, that frequency (AIP ENR 1.1 makes it the CTAF), tagged VTC, VNC or VTC/VNC with the sheet named.</td></tr>
+<tr><td>AIP default</td><td>Any other aerodrome: CTAF 126.7, or the broadcast area frequency inside one.</td></tr>
+<tr><td><b>VATPAC</b></td><td>The vatSys flight-sim dataset. Only names a controlling unit where ERSA has none (e.g. class A).</td></tr>
+<tr><td><b>OurAirports</b></td><td>Strips not in ERSA (with Include non-ERSA strips on), and notes where it disagrees.</td></tr>
+<tr><td><b>XC Australia</b></td><td>Unofficial airspace, only if no DAH is loaded.</td></tr>
+<tr><td>VTC / VNC chart underlay</td><td>Airservices charts (39 sheets), as a picture under the app's own airspace. Fitted to their graticule within about 10 m; the app's airspace lines (from the DAH) won't sit exactly on the printed ones.</td></tr>
+<tr><td>WAC charts</td><td>46 old (2009) World Aeronautical Charts, under the VNC/VTC. For the picture only, not airspace or frequencies.</td></tr>
+<tr><td>SRTM terrain (NASA)</td><td>Height above ground, AGL limits, terrain shading, profile, LSALT guide, 3D. 30″ grid (about 900 m), highest point per cell, all of Australia.</td></tr>
+<tr><td>EGM96 geoid</td><td>Converting Android GPS height to height above mean sea level.</td></tr>
+<tr><td>GA coastline (Geoscience Australia, 1:100,000)</td><td>Coast legs and the Coast layer. CC BY 4.0.</td></tr>
+<tr><td>GA power lines (Geoscience Australia)</td><td>The Wires layer and warning: 66 kV and up, overhead. CC BY 4.0. <b>Local distribution lines are not included.</b></td></tr>
+<tr><td>ABS towns and suburbs (2021)</td><td>Populous areas for minimum heights, town and suburb names on the map and in search. CC BY 4.0.</td></tr>
+<tr><td>NAIPS briefing (Airservices)</td><td>NOTAMs, METAR/TAF, ATIS, area QNH, SIGMET/AIRMET, restricted area status. Only what you loaded.</td></tr>
+<tr><td>RainViewer</td><td>Rain radar layer (personal and educational use).</td></tr>
+<tr><td>adsb.lol / adsb.fi</td><td>ADS-B traffic, through the proxy.</td></tr>
+<tr><td>Esri</td><td>Satellite imagery (credit shown on the map).</td></tr>
+</table></div>
+<p>The VTC, VNC and ERSA are Airservices copyright.</p>
+
+<h2 id="airac">AIRAC sets and the effective-date banner</h2>
+<ul>
+  <li>The app carries the AIRAC data in force when it was built and, near a change, the next one. It picks whichever is in force on the phone's clock: AIRAC data takes effect at 1600 UTC the day before the effective date (AIP GEN 3.1).</li>
+  <li>Both sets are stored for offline use. If the change happens while the app is open, a banner offers a reload.</li>
+  <li><b>The effective-date banner</b> shows when the data isn't in force yet, and the app warns when the data is more than two cycles old.</li>
+  <li>The ERSA FAC sheets are from the same cycle as the frequencies on screen.</li>
+</ul>
+
+<h2 id="limits">What the app doesn't know</h2>
+<ul>
+  <li><b>Public holidays and NOTAM changes to tower hours.</b> Confirm on the ATIS.</li>
+  <li><b>NOTAMs you haven't loaded.</b> There is no live feed; get a fresh NAIPS briefing before each flight.</li>
+  <li><b>Pressure altitude.</b> GPS altitude is geometric, not pressure altitude. Near a step, go by the altimeter.</li>
+  <li><b>Obstacles</b> other than NOTAM obstacles: masts, buildings and most wires aren't in the terrain. Terrain is for awareness only.</li>
+  <li><b>Traffic not transmitting ADS-B</b> or not heard by a ground receiver. It isn't TCAS.</li>
+  <li><b>Winds aloft:</b> the NAIPS text briefing has none; enter the grid point wind yourself.</li>
+  <li><b>Aircraft performance:</b> W&amp;B and hover figures are only what you enter from your flight manual.</li>
+  <li><b>What was said on the radio:</b> transcription mishears. It's an aid only.</li>
+  <li><b>Local procedures</b> beyond ERSA: check the clearance request and call wording against AIP ENR 1.1 and local procedures.</li>
+</ul>
+
+<nav class="pager" aria-label="Pages">
+  <a href="options.html"><small>Previous</small>← Options</a>
+  <a class="next" href="index.html"><small>Back to</small>Help contents →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

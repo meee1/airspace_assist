@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight plan and Go to · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Flight plan and Go to</h1>
+<p class="lead">Load a GPX route or build one on the phone. The active waypoint moves on by itself like a GNSS navigator, and the aerodrome card, frequencies and alerts follow the plan.</p>
+<ul class="toc-in">
+  <li><a href="#gpx">Import and save GPX</a></li>
+  <li><a href="#panel">Next waypoint and leg list</a></li>
+  <li><a href="#edit">Building and editing</a></li>
+  <li><a href="#coast">Coast legs</a></li>
+  <li><a href="#saved">Saved plans</a></li>
+  <li><a href="#share">Share a plan</a></li>
+  <li><a href="#seq">Waypoint sequencing</a></li>
+  <li><a href="#direct">Direct to and Resume</a></li>
+  <li><a href="#profile">Elevation profile</a></li>
+  <li><a href="#alt">Suggested altitudes</a></li>
+  <li><a href="#wpts">Your own waypoints</a></li>
+  <li><a href="#goto">Go to and search</a></li>
+</ul>
+
+<h2 id="gpx">Import and save GPX</h2>
+<ul>
+  <li><span class="btn">Import GPX</span>: pick a route exported from OzRunways, AvPlan or similar. It reads the route points; without a route, the waypoints; then a track (thinned to 60 points).</li>
+  <li>Each point is matched to the AIP by name and position, e.g. "RLR VFR waypoint · Rosslynne Resv". Unmatched points keep their GPX description.</li>
+  <li><span class="btn">Save GPX</span>: downloads the plan as it is now, edits included, as a GPX route named like <code>YBRS-YMMB-2026-10-28.gpx</code>, with your leg altitudes and land marks. It opens in OzRunways or AvPlan, or here again.</li>
+  <li>The plan is kept on the phone until you remove it or load another.</li>
+</ul>
+
+<h2 id="panel">Next waypoint and leg list</h2>
+<ul>
+  <li>The panel shows the active waypoint with bearing °M, distance, cross-track error (L/R), ETE at your groundspeed, leg course, and distance and time to go.</li>
+  <li>The leg list gives each leg's course, distance and suggested altitude. Tap a leg to make it active.</li>
+  <li>Buttons: Prev, Next, Edit, Reverse, Remove, Save GPX, Share, Flight log, <b>Plan check</b> and <b>Weight &amp; balance</b>. In the header: <b>New plan</b>, <b>Plans</b>, <b>Waypoints</b>, <b>Checklists</b>, <b>Import GPX</b>.</li>
+  <li>On the map the route is purple with each leg's track and distance in a box.</li>
+</ul>
+
+<h2 id="edit">Building and editing</h2>
+<p>Tap <span class="btn">Edit</span> (or <span class="btn">New plan</span> with none loaded).</p>
+<ul>
+  <li><b>Add:</b> the search box uses the same fuzzy search as Go to. Tap a match or press Enter; the box stays open. The menu beside it says where it goes: <b>at end</b>, <b>best fit</b> (least added distance) or <b>as next</b> (it becomes the active waypoint).</li>
+  <li><b>From the map:</b> press and hold → <b>Start flight plan at …</b>, <b>Insert … after …</b> or <b>Add … at end of plan</b>.</li>
+  <li><b>Reorder and delete:</b> ▲ and ▼ move a point, ✕ deletes it. The active waypoint stays the same point.</li>
+  <li><b>Replace:</b> ⇄ marks a point; the next point you pick (search, or <b>Replace … with …</b> in the map menu) takes its place. Tap ⇄ again to cancel.</li>
+  <li><b>Land / no land:</b> each aerodrome has a Land toggle (the last point is Land by default; a LAND tag shows in the list). This decides inbound vs transit calls, squawk, and where Plan check and hover performance look.</li>
+  <li><b>Altitude override:</b> each leg has an altitude box. Type 2500, A045, FL095, or 45 (= 4,500 ft). Empty goes back to the suggestion. The app warns when your altitude is below the minimum height, above the controlled airspace base less your buffer, or not a VFR table level at 3,000 ft and above ("2,500 !").</li>
+  <li>Tap <span class="btn">Done</span> to finish. The original GPX file isn't changed.</li>
+  <li><b>Reverse</b> turns the plan round for the trip home.</li>
+</ul>
+
+<h2 id="coast">Coast legs</h2>
+<p>In Edit, the <b>≈</b> button on a waypoint makes the leg to it follow the coast a set distance off the shore.</p>
+<ul>
+  <li><b>≈ Coast legs</b> settings: offset 300, 500, 1,000 or 1,500 ft, 0.5 or 1 NM (default 500 ft); gap none, 0.5, 1, 2, 3 or 5 NM (default 2 NM). The gap is the most open water it hops straight across (the Rip, river mouths, bay entrances) instead of following it in.</li>
+  <li>The route is worked out on the phone from Geoscience Australia's 1:100,000 coastline and goes into the plan as turn points CST1, CST2… (hidden in the list and map except the next one). The next-waypoint panel, profile, Plan check and GPX follow it.</li>
+  <li>From or to an inland point (Moorabbin, Carrum) the route meets the coast close by and follows it.</li>
+  <li>Tap ≈ again for a direct leg. Changing a setting redoes every coast leg.</li>
+  <li>Editing works a coast leg out again when the change touches it (a new start, a point added among its turn points, its end replaced, the point before it moved or deleted). Adding at the end or reversing leaves it as is.</li>
+  <li><b>Offline:</b> the whole coastline (about 1.6 MB) downloads in the background the first time you have signal. ≈ Coast legs shows how much is stored, with <b>Store now</b> while some is missing. Turn points are saved with the plan, so flying a coast leg never needs the coastline; only making or changing one does.</li>
+  <li>Plan check, TOT and the inbound call treat a coast leg as one leg to its end.</li>
+</ul>
+<div class="warn"><p>Coast legs are for planning, not terrain or obstacle clearance. Check the chart.</p></div>
+
+<h2 id="saved">Saved plans</h2>
+<p><span class="btn">Plans</span> keeps plans on the phone by name.</p>
+<ul>
+  <li><b>Save current plan</b> (with altitudes and land marks). Saving under an existing name replaces it (it asks first).</li>
+  <li><b>Load</b> one later, or <b>⇄</b> to load it backwards. Loading asks first if your current plan isn't saved.</li>
+  <li>With six or more plans a find box appears (name, or a point such as YTYA).</li>
+  <li>Saved plans travel in the settings backup and settings file, and combine across phones through Google Drive.</li>
+</ul>
+
+<h2 id="share">Share a plan</h2>
+<p><span class="btn">Share</span> (in the plan buttons, or beside a saved plan) shows a link and QR code with the plan inside it: points, leg altitudes, land / overfly, and coast legs with their settings. Opening the link or scanning the code on another phone asks, then loads it. Nothing is uploaded. <b>Copy link</b>, <b>Share…</b> and <b>Save GPX</b> are in the same box.</p>
+
+<h2 id="seq">Waypoint sequencing</h2>
+<p>The active waypoint moves on, like a GNSS navigator, when:</p>
+<ul>
+  <li>you're within 0.5 NM of it;</li>
+  <li>you cross the turn bisector at it within 5 NM (passing a mile or two off track, or cutting the corner, still counts);</li>
+  <li>you leave the first point of the plan;</li>
+  <li><b>catch-up:</b> after a GPS gap, you're clearly on a later leg (within 2 NM of it and tracking along it).</li>
+</ul>
+<p>A waypoint picked by hand (Prev, Next, a leg tap) only sequences within 0.5 NM until you've flown 1 NM towards it. Every change is written to the flight log.</p>
+
+<h2 id="direct">Direct to and Resume</h2>
+<ul>
+  <li>With a plan loaded, choosing a Go to yourself (search, or Go to in the map menu) is a <b>direct-to</b>: Go to, PLAN (labelled DIRECT), the next-frequency lines and the simulator all point at it, and the plan is <b>paused</b>.</li>
+  <li>The flight plan shows "Direct to … Plan paused at 4/13 YMMB" with <b>Resume plan</b>; the Go to bar has <b>Resume plan</b> in place of Clear.</li>
+  <li>Choosing a point that is in the plan (e.g. YLIL) just makes it the next waypoint, with no pause.</li>
+  <li>A direct-to aerodrome counts as a landing (inbound call, tower, squawk) until you resume.</li>
+  <li>Prev, Next or a leg tap also ends it. It's remembered across restarts.</li>
+</ul>
+
+<h2 id="profile">Elevation profile</h2>
+<p>Under the next-waypoint panel, the whole route side-on:</p>
+<ul>
+  <li>terrain (highest point in each 30″ cell), controlled airspace and restricted/danger areas from the DAH with each base as a solid line, waypoints as dashed lines, and you when within 5 NM of the route;</li>
+  <li>a <b>red line</b> where terrain comes within 1,000 ft of the airspace base above it;</li>
+  <li>suggested leg altitudes in purple, the minimum height as a red dashed line, populous areas as a grey strip;</li>
+  <li>+ and − set the top altitude (1,000 to 25,000 ft); <b>Auto</b> fits the route;</li>
+  <li>tap for the distance, leg, terrain and airspace stack at that point.</li>
+</ul>
+<p>The summary gives the highest terrain, lowest controlled-airspace base, control zones from the surface you cross, and the tightest terrain-to-base gap.</p>
+<div class="warn"><p>Terrain is along straight legs and the grid can miss a narrow peak or mast. It's for planning awareness, not obstacle clearance.</p></div>
+
+<h2 id="alt">Suggested altitudes</h2>
+<ul>
+  <li><b>VFR levels</b> from AIP ENR 1.7 Table B by magnetic track: 000–179° 1,500, 3,500, 5,500…; 180–359° 2,500, 4,500, 6,500…. The table applies at 3,000 ft and above; below that a non-table altitude is offered when no table level fits (orange).</li>
+  <li><b>Minimum height</b> (CASR 91.265/91.267, MOS 12.01 note): over populous areas 1,000 ft above the highest terrain within 600 m (300 m for helicopters); elsewhere 500 ft above the highest terrain within 300 m. Not counted within 2 NM of the first and last aerodrome.</li>
+  <li><b>Ceiling:</b> the base of class C, D or A less a buffer (500 ft by default). Class E isn't a ceiling; the note says when you'd be in E. The control zone of the aerodrome at either end of a leg is left out.</li>
+  <li><b>Flagged red:</b> "split" (needs different levels along the leg: add a waypoint), or "!" (minimum height above the airspace limit: get a clearance or re-route).</li>
+</ul>
+<div class="warn"><p>Masts and buildings are not in the data. Check the VTC/VNC.</p></div>
+
+<h2 id="wpts">Your own waypoints</h2>
+<ul>
+  <li>Press and hold the map → <b>Save as waypoint…</b>, give it a name (e.g. FUEL DRUM) and an optional note.</li>
+  <li>It shows as a ★ on the map (tap for its menu), comes up in search and Go to, and can go in plans.</li>
+  <li><span class="btn">Waypoints</span> lists them (go to, edit, delete), with <b>Add where I am</b> and <b>Add by position</b> (<code>-38.1234, 144.5678</code> or <code>S38 12.3 E144 30.1</code>).</li>
+  <li>They're in the settings backup and file, and combine across phones through Google Drive.</li>
+</ul>
+
+<h2 id="goto">Go to and search</h2>
+<ul>
+  <li>Type in <b>Go to</b> (or the simulator's Position) for a pick list as you type. It searches aerodromes, VFR waypoints, navaids, IFR waypoints, your ★ waypoints, towns and suburbs.</li>
+  <li><b>Fuzzy:</b> prefixes, any word, substrings, small typos ("geelng"), no spaces ("stkilda"), letters in order. Aerodromes and nearby places rank first.</li>
+  <li><b>Phonetic alphabet:</b> "yankee lima india lima" finds YLIL, "charlie alpha romeo romeo" CARR. A leading "go to" or "direct to" is ignored.</li>
+  <li><b>Mic button:</b> say a place or spell a code. What you said goes in the box with the list open; tap the match to confirm. Chrome on the phone recognises speech on the device where it can (it downloads its English pack once with signal). Offline without that, use the keyboard's mic (Gboard voice typing works offline).</li>
+  <li>The Go to bar shows bearing (°M), distance and an arrow; the map draws a dotted line and a target. It's kept until you clear it. A plain map tap never sets Go to.</li>
+</ul>
+
+<nav class="pager" aria-label="Pages">
+  <a href="radio-calls.html"><small>Previous</small>← Radio calls</a>
+  <a class="next" href="preflight.html"><small>Next</small>Pre-flight brief →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

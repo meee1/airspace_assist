@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADS-B traffic · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>ADS-B traffic</h1>
+<p class="lead">The <span class="btn">Traffic</span> button on the map shows ADS-B traffic from the internet, with TCAS-style symbols and spoken alerts.</p>
+<div class="bad"><p><b>Not TCAS.</b> Internet ADS-B only shows aircraft transmitting ADS-B that a ground receiver hears, typically 5–10 s late, and coverage is patchy at low level. It doesn't replace looking out or the radio.</p></div>
+
+<h2 id="source">Where it comes from</h2>
+<ul>
+  <li>Positions from adsb.lol (adsb.fi as a fallback), fetched through a small proxy (a Cloudflare Worker) every 10 seconds while there's signal and the app is in front.</li>
+  <li>The proxy address is <b>Traffic proxy</b> in NOTAMs (NAIPS) and traffic. Empty turns traffic off.</li>
+  <li>If the feed says it's busy, the app waits as asked and the status line says when it will try again.</li>
+</ul>
+
+<h2 id="symbols">Symbols</h2>
+<div class="tw"><table>
+<tr><th>Symbol</th><th>Meaning</th></tr>
+<tr><td>Grey hollow diamond</td><td>Other traffic.</td></tr>
+<tr><td>Cyan filled diamond</td><td>Within 6 NM and ±1,200 ft.</td></tr>
+<tr><td>Large red dot, white edge, red ring</td><td>Warning: within 2.5 NM and ±600 ft. Drawn on top of everything.</td></tr>
+</table></div>
+<ul>
+  <li>The number is the height difference in hundreds of feet (+03 = 300 ft above), with ↑ or ↓ when climbing or descending more than 500 ft/min.</li>
+  <li>Every airborne target has a stick along its track; cyan and warning targets also have a line to where they'll be in 1 minute.</li>
+  <li>Heights are GNSS altitude converted to mean sea level, to compare with your GPS altitude; pressure altitude when there's no GNSS altitude.</li>
+  <li>The corner of the map shows "ADS-B 3 · 2 s". After 30 s without an update it says "stale", the symbols fade and there are no alerts.</li>
+</ul>
+
+<h2 id="select">Selecting a target</h2>
+<p>Tap a target for a dashed ring and a box with registration and callsign, type, altitude (and the difference from yours), track °M and groundspeed, and distance, bearing and clock position from you. It updates live. Tap it again or anywhere else to clear.</p>
+
+<h2 id="alerts">Alerts</h2>
+<ul>
+  <li>For the nearest warning target, a red <b>TRAFFIC</b> row: "11 o'clock 1.7 NM · 300 ft above · VH-VOZ C172".</li>
+  <li>Spoken: "Traffic, 11 o'clock, 2 miles, 300 feet above", once a minute per aircraft. Turn it off with <b>Speak traffic alerts</b> (NOTAMs (NAIPS) and traffic).</li>
+  <li>Only with data under 30 seconds old.</li>
+</ul>
+
+<h2 id="settings">Settings</h2>
+<ul>
+  <li><b>Traffic distance</b> (Options → ADS-B traffic): 10, 15, 25, 40, 60 or 100 NM around you (default 25). Further shows more but uses more data. The status line says if the proxy limited it.</li>
+  <li><b>Traffic symbol size</b> (Options → ADS-B traffic): Small to Largest. The tap area grows with it.</li>
+  <li><b>Speak traffic alerts</b> also covers the spoken power line warning.</li>
+</ul>
+
+<h2 id="own">Your own aircraft</h2>
+<p>Your aircraft never raises an alert or shows as a target. It's recognised by:</p>
+<ol>
+  <li>registration or flight id matching the callsign in Radio calls (ABC → VH-ABC);</li>
+  <li>its ICAO address once learnt;</li>
+  <li>moving with you: within 0.6 NM, track within 25°, groundspeed within 20 kt, height within 600 ft; or simply within 0.15 NM and 300 ft.</li>
+</ol>
+<p>A target matching (3) on two updates in a row is learnt as yours for that callsign. The status line shows "Own aircraft ignored: 7C… VH-ABC". Set your callsign so another aircraft you fly isn't mixed up.</p>
+<div class="warn"><p>A close formation partner on the same track and speed would also be treated as you.</p></div>
+
+<h2 id="log">Traffic in the flight log</h2>
+<p>With Traffic on, every update is saved with the flight log while you're flying (20 kt or more in the last 5 minutes; not on the ground, in the simulator, or your own aircraft). Each flight's GPX then has one track per aircraft, named by registration or flight and type, with its altitude, speed, track, distance from you, warning level and closest approach. Kept 90 days like the rest of the log.</p>
+
+<nav class="pager" aria-label="Pages">
+  <a href="weather-notams.html"><small>Previous</small>← Weather and NOTAMs</a>
+  <a class="next" href="fuel-wb.html"><small>Next</small>Fuel, W&amp;B and hover →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

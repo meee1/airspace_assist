@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather and NOTAMs · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Weather and NOTAMs</h1>
+<p class="lead">NOTAMs and weather come only from a NAIPS briefing you load into the app. There is no live NOTAM feed. The app reads the briefing and puts each item where it matters: the aerodrome card, the map, the top bar and the pre-flight brief.</p>
+<div class="bad"><p><b>Get a fresh NAIPS briefing before each flight.</b> The app only knows what was in the last briefing you loaded, and says when it has expired.</p></div>
+
+<h2 id="load">Loading a NAIPS briefing</h2>
+<p>The settings are in <b>NOTAMs (NAIPS) and traffic</b> (the NOTAMs tab on the full-screen map).</p>
+<ol>
+  <li>Set your <b>NAIPS areas</b> (e.g. 9300, up to five, comma separated).</li>
+  <li>Tap <span class="btn">Brief in NAIPS ↗</span>. It opens an area briefing (NOTAMs, 12 h) in your browser, signed in as you. <b>NAIPS area page ↗</b> just opens the form. Tick weather in NAIPS if you want METARs, TAFs, SIGMETs and area QNH.</li>
+  <li>Bring the result back, any of these ways:
+    <ul>
+      <li>copy it and paste into <b>NAIPS briefing</b> (or <span class="btn">Paste from clipboard</span>), then <span class="btn">Load briefing</span>;</li>
+      <li>on Android, <b>share</b> the text or a saved PDF to the installed app;</li>
+      <li><span class="btn">Open PDF / file</span>: a briefing saved with the browser's Save as PDF / Print, or a .txt.</li>
+    </ul></li>
+</ol>
+<p>The app only opens NAIPS; it never reads it. The briefing is kept on the phone for offline use. <span class="btn">Clear briefing</span> removes it. The section header shows how many NOTAMs are active, or that the briefing has expired.</p>
+<div class="warn"><p><b>Download with your NAIPS login</b> appears in the same section but <b>is not available yet</b>. NAIPS's terms prohibit automated access without Airservices' written authorisation, which has been requested. Until then, use Brief in NAIPS and bring the briefing back as above.</p></div>
+
+<h2 id="read">What the app reads</h2>
+<ul>
+  <li>Each NOTAM's location, number, replaces, FROM/TO, EST, PERM, schedules (HJ, HN, DAILY 1800-0700) and active periods.</li>
+  <li>Limits (SFC TO 400FT AGL, 4000FT AMSL TO FL210) and positions (WI 3NM RADIUS OF ARP, PSN of obstacles).</li>
+  <li>Restricted and danger area NOTAMs (R352 PARTIAL ACT, R360D ACT) tied to the area.</li>
+  <li>The "no current NOTAM" list at the end ("none current" on those aerodromes' cards).</li>
+  <li>METARs/SPECIs, TAFs, ATIS, area QNH and SIGMETs/AIRMETs from the weather part.</li>
+</ul>
+
+<h2 id="where">Where NOTAMs show</h2>
+<ul>
+  <li><b>CTAF and Go to tiles:</b> "YMMB · 2 NOTAM".</li>
+  <li><b>Aerodrome card:</b> a NOTAMs box, open by itself for CLSD / U/S / NOT AVBL, key words highlighted, UTC with local time in brackets.</li>
+  <li><b>Map:</b> dashed red circles for airspace and warning NOTAMs; temporary zones as red dashed polygons; obstacles as tower symbols (red within 300 ft of your altitude or above).</li>
+  <li><b>Press and hold:</b> NOTAMs covering that point, NOTAMs naming a restricted or danger area there, and obstacles within 1 NM.</li>
+  <li><b>Flight plan and pre-flight brief:</b> NOTAMs within 1 NM of a leg and for its aerodromes, grouped by leg.</li>
+  <li><b>IN row:</b> NOTAM temporary zones and circles with limits that you're inside.</li>
+</ul>
+
+<h2 id="sua">Restricted and danger area status</h2>
+<p>From the loaded briefing each R, D and M area gets a status:</p>
+<ul>
+  <li><b>ACTIVE</b> when a NOTAM activates it ("R352 PARTIAL ACT", "R360CEF ACT" = R360C, E and F), with the NOTAM's limits and end time. When the briefing lists it under "no current NOTAM", it's active if ERSA says H24, or by its ERSA daily hours or HJ/HN.</li>
+  <li><b>OFF</b> when a NOTAM deactivates it ("D342 DEACTIVATED"), or it's under "no current NOTAM" and ERSA says it's activated only by NOTAM.</li>
+  <li>A NOTAM's own schedule is applied, with sunrise and sunset worked out for the area.</li>
+  <li>With no briefing, or once it has expired, there's no status and the app says "check status".</li>
+</ul>
+<p>Active areas are stronger on the map with "ACT →1300Z"; areas that are off are grey dashed, "OFF". The IN row leads with "ACTIVE NOTAM C4/26 →1300Z". NEXT CLASS ignores an R area that will be off when you get there; the CLASS tile ignores areas that are off.</p>
+
+<h2 id="sigmet">SIGMET and AIRMET</h2>
+<ul>
+  <li>Current SIGMET/AIRMET areas are drawn on the map in amber long dashes, labelled with the phenomenon and levels. The same area in two FIRs is shown once.</li>
+  <li>Press and hold inside one to see it, with its raw text.</li>
+  <li><b>IN row</b> when you're inside one at its levels.</li>
+  <li><b>AHEAD:</b> one on the rest of your plan (at each leg's altitude) or straight ahead within 60 NM / 40 min: "AHEAD SIGMET … in 36 NM · 18 min". Optionally spoken (Options → Spoken alerts).</li>
+  <li>Cancelled ones are dropped.</li>
+</ul>
+
+<h2 id="qnh">Area QNH</h2>
+<p>From the briefing's "AREA … QNH" blocks: shown in each aerodrome's Weather section (even without a METAR there) and on the briefing status line.</p>
+
+<h2 id="metar">METAR and ATIS</h2>
+<p>The aerodrome card's Weather box decodes the METAR: wind, QNH, temperature and dew point, density altitude, and crosswind and headwind per runway (magnetic wind, best runway first). An ATIS from the briefing shows first, with changed fields highlighted and an old ATIS flagged. An ATIS you captured from the radio shows as "ATIS heard hhmmZ" (see <a href="transcription.html#atis">ATIS capture</a>).</p>
+
+<h2 id="taf">TAF decoder</h2>
+<p>The TAF is shown as an hour-by-hour table (scroll sideways; the current hour highlighted; local times):</p>
+<ul>
+  <li><b>Flight category</b> badge: VFR, MVFR, IFR or LIFR from ceiling and visibility (US-style; a guide only).</li>
+  <li>Weather icon and words, visibility, ceiling, cloud layers, wind (arrow pointing downwind, °T), speed and gusts.</li>
+  <li>The RMK temperatures and QNH (3-hourly, interpolated between).</li>
+  <li>A TEMPO / INTER row with the temporary conditions and their category when worse.</li>
+  <li>FM replaces the forecast from its time; BECMG changes what it lists from the start of its period.</li>
+  <li>Turbulence remarks, TAF3 and amendments are shown as notes; CNL and NIL get a one-line message.</li>
+  <li>The raw TAF is under <b>Original</b>.</li>
+</ul>
+
+<h2 id="rings">Weather rings on the map</h2>
+<p>The <b>Wx</b> layer (on by default) rings each aerodrome with a METAR or TAF in its flight category: green VFR, blue MVFR, red IFR, purple LIFR.</p>
+<ul>
+  <li>It uses the METAR for now (when under 90 minutes old), else the TAF.</li>
+  <li>For aerodromes still ahead on your plan, the TAF at your ETA there.</li>
+  <li>A dashed outer ring means a TEMPO, INTER or PROB period is worse.</li>
+  <li>Tap the aerodrome for its card and the decoded weather.</li>
+</ul>
+
+<h2 id="radar">Rain radar</h2>
+<p>The <b>Radar</b> layer lays the latest RainViewer radar image over the map (Australian radars, 10-minute steps, about 1 km detail), with its time and age at the bottom left, red once over 30 minutes old. Online only; refreshed every 5 minutes. RainViewer's free service is for personal and educational use.</p>
+
+<nav class="pager" aria-label="Pages">
+  <a href="preflight.html"><small>Previous</small>← Pre-flight brief</a>
+  <a class="next" href="traffic.html"><small>Next</small>ADS-B traffic →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Top bar tiles and alert rows · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Top bar tiles and alert rows</h1>
+<p class="lead">The top bar is what you glance at in flight. Tiles are always there; alert rows only appear when there is something to tell you. On the phone's full-screen map the main tiles float over the map; tap one for the whole bar.</p>
+<ul class="toc-in">
+  <li><a href="#tiles">Status tiles</a></li>
+  <li><a href="#freq">CTAF and AREA</a></li>
+  <li><a href="#goto">→ tiles (where you're going)</a></li>
+  <li><a href="#ctl">Controlled aerodrome row</a></li>
+  <li><a href="#nav">Nav row and heading tape</a></li>
+  <li><a href="#alerts">Alert rows</a></li>
+  <li><a href="#enlarge">Tap to enlarge</a></li>
+  <li><a href="#flash">Frequency change flash</a></li>
+  <li><a href="#onoff">Tiles on and off</a></li>
+</ul>
+
+<h2 id="tiles">Status tiles</h2>
+<div class="tw"><table>
+<tr><th>Tile</th><th>What it shows</th></tr>
+<tr><td>GPS</td><td>An icon only. Green: accuracy better than 50 m; orange to 300 m; red worse, no fix or no permission; grey before the first fix. Orange with SIM in the simulator. If no new fix arrives for 5 s it turns orange with the age under it ("7s"), red from 15 s. Hold or hover for the accuracy.</td></tr>
+<tr><td>TRK / HDG</td><td>GPS track in °M, or the compass heading (HDG) when you're too slow for a track. W/V from the GPS wind estimate after you've turned through 120° or more in 3 minutes. Hidden while heading tape A or D is on (the tape shows your track).</td></tr>
+<tr><td>GS</td><td>Groundspeed in kt, with last light under it ("last 0920Z" or "night"), and the head or tail wind along your track when the wind is known ("HW 12", "TW 7 · 258/20").</td></tr>
+<tr><td>PLAN</td><td>Magnetic bearing to the active waypoint (or Go to), its name, and the turn from your track (L/R; orange at 10° or more). No wind correction. The label says <b>PLAN</b>, <b>DIRECT</b> (direct-to, plan paused) or <b>GO TO</b> (no plan).</td></tr>
+<tr><td>ALT</td><td>GPS altitude in ft above mean sea level, with height above the terrain (AGL) under it.</td></tr>
+<tr><td>CLASS</td><td>The airspace class at your position and altitude, e.g. G, or G·D when you're also in a danger area, with its name under it (D373).</td></tr>
+<tr><td>CAP / LL</td><td>"CAP A085": the top of the band you're in (where the next class starts), and "LL SFC": its lower limit.</td></tr>
+</table></div>
+<div class="note"><p><b>GPS altitude is geometric, not pressure altitude.</b> On Android the app turns the GPS height into height above mean sea level with an EGM96 geoid grid (+2 m at Barwon Heads, +62 m at Cairns, −32 m at Perth). iPhones already report sea-level altitude. Near a step boundary go by your altimeter. AGL is from the terrain grid and errs low.</p></div>
+
+<h2 id="freq">CTAF and AREA</h2>
+<h3>CTAF tile</h3>
+<ul>
+  <li>The CTAF of the aerodrome closest to you, with its code and, on a line of its own, the name to use on the radio and where you are from the field: <b>Riddell traffic · 4.0 NM NW</b>, or "overhead" within 0.5 NM.</li>
+  <li>It follows the map's CTAF areas: with <b>Split overlapping CTAF areas</b> on, the tile changes at the halfway line between two aerodromes on different frequencies. Elsewhere it keeps the aerodrome you're in while within 10 NM of it.</li>
+  <li><b>During tower hours</b> it shows <b>TWR</b>. A split tower shows your side: at Moorabbin <b>TWR W 123.0</b> west of the field, <b>TWR E 118.1</b> east. ERSA reporting-point rules win over the bearing: near Carrum it reads <b>TWR W 123.0 · via CARR (RWY 17/35)</b>. Without a side it says "see ATIS".</li>
+  <li><b>On the ground</b> at a towered aerodrome (under 30 kt, within 200 ft of its elevation) it shows <b>GND</b>.</li>
+  <li><b>Passing a towered aerodrome</b> that isn't in your plan or Go to, or <b>transiting its zone</b> more than 3 NM from the field, it shows the approach unit, e.g. <b>APP 133.55</b> Avalon App.</li>
+  <li><b>No aerodrome within 10 NM:</b> the broadcast area frequency if you're in one ("127.1 · Abrolhos broadcast area"), else the area frequency for your altitude (<b>AREA 123.35</b> Melbourne Ctr, "no aerodrome within 10 NM (YAPO 51 NM)"). The AREA tile then hides so the frequency isn't shown twice.</li>
+  <li><b>CARD YMMB ✕</b> badge: the Aerodrome card shows another aerodrome (you tapped it). Tap ✕ to go back to the closest. CARD without ✕: the flight plan chose it.</li>
+  <li>"YMMB · 2 NOTAM" when the aerodrome has active NOTAMs from your briefing.</li>
+  <li>Tap it (a second tap if tiles enlarge) within 15 NM to bring back the inbound or transit call (see <a href="radio-calls.html#recall">Radio calls</a>).</li>
+</ul>
+<h3>AREA tile</h3>
+<ul>
+  <li>The class G/E area frequency at your position and altitude, or <b>ATC</b> (coloured by class) in controlled airspace, with the unit ("Melbourne Ctr", "Moorabbin Twr").</li>
+  <li>Where more than one area frequency is stacked over you, the unit line adds where yours starts ("Melbourne Ctr · LL SFC").</li>
+  <li>In a control zone you're transiting it shows the approach unit ("APP 133.55 Avalon App · zone transit").</li>
+</ul>
+<h3>"next" lines</h3>
+<p>Under each: the frequency you can expect next and how far away, e.g. "next 121.6 in 9.0 NM · YMEL" or "next ATC 132.0 in 4.0 NM · Melbourne App". The path ahead is the rest of your plan, or your track (out to 80 NM) at your current altitude. Nothing is shown when you're stationary.</p>
+
+<h2 id="goto">→ tiles (where you're going)</h2>
+<p>Dashed and marked →, while a Go to or plan is set:</p>
+<ul>
+  <li><b>→ CTAF / → TWR:</b> the aerodrome at the Go to point or the nearest within 10 NM of it, with distance and time to go. Tower hours are checked at your ETA ("TWR closed at ETA"); a split tower gives the side you're approaching from.</li>
+  <li><b>→ AREA / → ATC:</b> the area or ATC frequency over the Go to point at your current altitude.</li>
+  <li>Badges show PLAN 2/14, DIRECT or GO TO. When → TWR and → ATC are the same frequency, only → TWR shows.</li>
+  <li>They hide within 0.3 NM of the point or when they'd repeat the top tiles. On the phone's map they're compact (frequency, aerodrome or unit, badge).</li>
+</ul>
+
+<h2 id="ctl">Controlled aerodrome row</h2>
+<p>When the closest aerodrome has a tower or approach in ERSA: ATIS (or AWIS), TWR (E/W at a split tower), GND, DEL, APP and the first DEP. At Moorabbin: ATIS 120.9 · TWR 118.1 E · TWR 123.0 W · GND 134.25. Outside tower hours it says "TWR closed" and strikes through TWR, GND and DEL. A second row does the same for your Go to aerodrome. Tap the ATIS frequency to open <b>ATIS and clearance</b>.</p>
+
+<h2 id="nav">Nav row and heading tape</h2>
+<ul>
+  <li><b>HDG:</b> compass heading in °M (with the learnt alignment), and drift when moving.</li>
+  <li><b>→HDG:</b> heading to steer to the next waypoint or Go to, corrected for the wind (the GPS wind estimate under 20 minutes old, else Plan check's wind). Shows "WCA R6°" or "no wind". Second line: heading and distance to the destination.</li>
+  <li><b>TOT:</b> time over the next waypoint in UTC at your groundspeed (Plan check's speed below 20 kt), with the time to go, and the destination's time along the rest of the plan. On a coast leg the next point is the leg's end, not the turn point. Hold for local times.</li>
+</ul>
+<p>With heading tape A (the default) or D on, the tape replaces HDG and →HDG, so the row is just TOT. Tape A sits at the very top. See <a href="map.html#heading">Heading display</a> for styles A, C and D.</p>
+
+<h2 id="alerts">Alert rows</h2>
+<div class="tw"><table>
+<tr><th>Row</th><th>When it shows</th></tr>
+<tr><td><b>NEXT CLASS</b> (red)</td><td>Class A, C or D (including control zones) or a restricted area starts within 10 NM ahead at your altitude: class or area, limits, distance, unit and frequency (your side of a split tower), ATIS where the zone has one, "clearance". Ignores G/E changes, danger areas, and an R area that will be off when you get there. Tap for ATIS and clearance.</td></tr>
+<tr><td><b>IN</b></td><td>You're inside a restricted, prohibited or danger area at its levels: name, limits, status (RA1/2/3), activity, hours, and the NOTAM status from your briefing. Also NOTAM temporary zones and SIGMETs/AIRMETs you're in. One line per area; an area that is off is greyed.</td></tr>
+<tr><td><b>AHEAD</b> (in the IN row)</td><td>A SIGMET/AIRMET on your plan (at each leg's altitude) or track within 60 NM / 40 min: "AHEAD SIGMET … in 36 NM · 18 min".</td></tr>
+<tr><td><b>LSALT</b></td><td>While moving or with a plan: highest terrain or NOTAM obstacle within 2 NM of your next 10 NM plus 1,000 ft, rounded up to 100 ft, and where it is. Amber when that point is within 500 ft below you, red at or above. A guide from 30″ terrain, not the published IFR LSALT.</td></tr>
+<tr><td><b>WIRES</b> (red)</td><td>Your track crosses a transmission line within 2 NM while you're under 500 ft above terrain at 20 kt or more. Local distribution lines aren't in the data.</td></tr>
+<tr><td><b>TRAFFIC</b></td><td>The nearest warning target (within 2.5 NM and ±600 ft): clock position, distance, height, registration and type. Red.</td></tr>
+<tr><td><b>INBOUND CALL</b> / <b>TRANSIT CALL</b></td><td>Crossing 10 NM towards an aerodrome: the call filled in. With <b>SQUAWK 3000</b> (etc.) where you land at a towered field. See <a href="radio-calls.html#inbound">Radio calls</a>.</td></tr>
+<tr><td><b>CLEARANCE CALL</b></td><td>Controlled airspace within 5 NM ahead at your level: frequency and the clearance request. Tap to dismiss.</td></tr>
+<tr><td><b>CLEARANCE</b></td><td>Your clearance notes (squawk, level, route, ATIS letter, read-back pad picture) while in or about to enter controlled airspace.</td></tr>
+<tr><td><b>FUEL</b></td><td>The fuel timer: fuel left, time and distance to your reserve. Amber under 30 min to reserve, red at it.</td></tr>
+<tr><td><b>SARTIME</b></td><td>Countdown to your SARTIME or flight note. Amber in the last 30 min or once landed, red once passed.</td></tr>
+<tr><td><b>CHECKLIST</b></td><td>A checklist offered for the phase of flight. Tap to open.</td></tr>
+<tr><td><b>RADIO</b></td><td>The last two transcribed transmissions (within 2 min), with <b>Use</b> suggestions and the read-back check. Orange for 30 s when your callsign is heard.</td></tr>
+<tr><td><b>LAST LIGHT</b></td><td>From 30 min before last light: "LAST LIGHT in 20 min 0920Z (8:20 pm)", amber then red from 10 min; after it, "NIGHT … first light …".</td></tr>
+</table></div>
+
+<h2 id="enlarge">Tap a tile to enlarge it</h2>
+<p>On a small screen, tap a tile and it grows in place and stays big until you tap somewhere else. Tap it again while it's big for what it normally does (the whole top bar, the fuel timer, your clearance notes). In landscape the enlarged tile pops in front of the map. Turn it off in Options → Top bar tiles → <b>Tap a tile to enlarge it</b> (on by default); then one tap acts straight away.</p>
+
+<h2 id="flash">Frequency change flash</h2>
+<p>When the CTAF or AREA tile changes frequency (or CTAF → TWR, AREA → ATC) it pulses amber, 5 times by default. Options → Top bar tiles → <b>Flash CTAF and AREA when they change</b> sets the number; 0 turns it off.</p>
+
+<h2 id="onoff">Tiles on and off</h2>
+<p>Options → <b>Top bar tiles</b> lists every tile and alert row with a small example. Each has two ticks: one for the phone (and a tablet held upright), one for the tablet in landscape. The column in use now is highlighted. The tablet's ticks start as a copy of the phone's. All are on by default; the others widen to fill the row.</p>
+<div class="warn"><p>Alert rows only appear when there's something to show. Think twice before hiding NEXT CLASS, IN, TRAFFIC or LAST LIGHT.</p></div>
+
+<nav class="pager" aria-label="Pages">
+  <a href="map.html"><small>Previous</small>← The map</a>
+  <a class="next" href="aerodrome.html"><small>Next</small>Aerodrome card →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

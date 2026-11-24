@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radio audio and transcription · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Radio audio and transcription</h1>
+<p class="lead">The app can listen to the radio through your headset or the audio panel and write each transmission down, flag calls with your callsign, offer the ATIS and clearance details for your notes, capture an ATIS and check your read-back. Everything is in Options → <b>Radio audio and transcription</b>.</p>
+<div class="bad"><p><b>Transcription and suggestions are an aid only.</b> The speech model mishears callsigns and numbers. Your ears and your read-back come first. Nothing is filled in without your tap: check it against what you heard.</p></div>
+<ul class="toc-in">
+  <li><a href="#input">1. Audio input test</a></li>
+  <li><a href="#engines">2. Engines</a></li>
+  <li><a href="#transcribe">3. Transcribe</a></li>
+  <li><a href="#callsign">Callsign heard</a></li>
+  <li><a href="#use">Use suggestions</a></li>
+  <li><a href="#atis">ATIS capture</a></li>
+  <li><a href="#readback">Read-back check</a></li>
+  <li><a href="#log">In the flight log</a></li>
+  <li><a href="#memory">Memory</a></li>
+  <li><a href="#handsfree">Hands-free checklists</a></li>
+</ul>
+
+<h2 id="input">1. Audio input test</h2>
+<p>First check what audio the tablet can actually hear.</p>
+<ol>
+  <li>Connect the headset (a Bluetooth headset such as the Bose A30), or a cable from the audio panel through a USB-C audio adapter.</li>
+  <li>Tap <span class="btn">List inputs</span> (allow the microphone once) and pick the input. Bluetooth and USB inputs are named as such.</li>
+  <li>Tap <span class="btn">Listen</span> and watch the meter while you talk on the intercom, then while the radio plays an ATIS or a CTAF call.</li>
+</ol>
+<p class="note">A Bluetooth headset may send the tablet only its own boom microphone (in "call" mode), not the radio and intercom audio: the meter and a 30 s recording show what actually arrives. If the radio isn't there, use a cable from the audio panel's recording or music output into a USB-C audio adapter.</p>
+<ul>
+  <li><b>Meter moves for the radio:</b> radio audio reaches the tablet.</li>
+  <li><b>Moves only when you talk:</b> the headset sends just your microphone. Use the audio panel cable instead.</li>
+  <li><b>Raw audio</b> (ticked by default) turns off the phone's echo cancelling, noise suppression and automatic gain, which can cut radio audio as "noise".</li>
+  <li><span class="btn">Record 30 s</span>, <span class="btn">Play back</span> and <span class="btn">Save recording</span> let you hear what the tablet got.</li>
+</ul>
+<p>A Bluetooth headset sends call-quality audio while the tablet listens to it. Nothing leaves the device (except with the online speech service, below).</p>
+
+<h2 id="engines">2. Engines</h2>
+<div class="tw"><table>
+<tr><th></th><th>Whisper (on the tablet, slower)</th><th>Browser speech recognition (fast)</th></tr>
+<tr><td>Where it runs</td><td>On the tablet. Works offline once the model is downloaded.</td><td>The browser's own recogniser. Offline and on-device only where the browser has an offline speech pack.</td></tr>
+<tr><td>Speed</td><td>A few seconds per call (on a desktop about a third of the call's length; a tablet is slower). If it falls behind it skips the oldest waiting call and says so.</td><td>Text as the call is spoken.</td></tr>
+<tr><td>Setup</td><td>Pick a model and <span class="btn">Download model</span> once with signal: <b>Standard model (41 MB)</b> or <b>Better model (77 MB, about 2x slower)</b>. It stays stored across updates; <span class="btn">Delete model</span> removes it.</td><td><span class="btn">Install offline pack</span> appears when one can be downloaded.</td></tr>
+<tr><td>Privacy</td><td>Nothing leaves the device.</td><td>Without an offline pack it uses <b>Google's online speech service</b>: the audio goes to Google and it needs signal. The Engine note says so.</td></tr>
+</table></div>
+<p>The browser engine listens to the input picked in the audio test (Chrome; an older browser uses the default microphone and says so). Both engines are told local names so they come out right: aerodromes within 30 NM (with Tower/Ground/Approach where ERSA has them), VFR points within 20 NM, the current area unit, and your type and callsign. Without that, "Moorabbin Tower … Carrum" came out "Murabintaur … Karam". The log, alerts, Use suggestions, ATIS capture, read-back check, flight-log transcripts and hands-free checklists work with either engine.</p>
+
+<h2 id="transcribe">3. Transcribe</h2>
+<ul>
+  <li>Tick <b>Transcribe the input</b>. Each transmission (picked out from the background hiss) becomes a line with its time, newest first.</li>
+  <li><b>Sensitivity</b> (Low / Normal / High) sets how much louder than the hiss a sound must be to count. Higher catches quieter calls but also more noise.</li>
+  <li>Your callsign is highlighted; frequencies, squawk codes, QNH, heights, runways and the ATIS letter are bold. Spoken numbers ("three four zero one", "one thousand five hundred") are read as digits.</li>
+  <li>The last two lines (within 2 minutes) show on a <b>RADIO</b> row in the top bar, which stays while Options is closed. Tap it for the whole log. Turn the row off under Top bar tiles.</li>
+  <li>It keeps listening when Options is closed, until you untick it.</li>
+  <li><span class="btn">Transcribe the recording</span> does the same for the 30 s recording. <span class="btn">Copy</span> puts the log on the clipboard; <span class="btn">Clear</span> empties it.</li>
+</ul>
+
+<h2 id="callsign">Your callsign heard</h2>
+<p>When a transmission has your callsign (the last three letters, spoken phonetically or as letters, from Radio calls), the tablet vibrates twice, plays a two-note chime (through the headset when that's the sound output) and marks the RADIO row orange for 30 s. Turn it off with <b>Alert when my callsign is heard</b>.</p>
+
+<h2 id="use">Use suggestions</h2>
+<p>A <b>Use</b> button appears on the log line and the RADIO row when a transmission has:</p>
+<ul>
+  <li>an ATIS letter ("information Charlie") and/or QNH;</li>
+  <li>and, with your callsign: a squawk code, a level ("not above 1,500", "climb to 3,000", "maintain…", "flight level 95") and a "cleared …" route.</li>
+</ul>
+<p>Tap <b>Use</b> to put them in the <b>ATIS and clearance</b> notes. The ATIS goes to the aerodrome named in the transmission, else the one nearby. Nothing is filled in without the tap.</p>
+
+<h2 id="atis">ATIS capture</h2>
+<p>In the <b>ATIS and clearance</b> window there's a <span class="btn">Listen to ATIS</span> button. It needs the input set up as above.</p>
+<ol>
+  <li>Tune the ATIS on the radio.</li>
+  <li>Tap <b>Listen to ATIS</b>. The app listens through the chosen engine for up to 2 minutes, or until the broadcast repeats. <span class="btn">Stop</span> ends early.</li>
+  <li>It shows what it heard as fields: <b>Information</b> (letter), <b>Runway</b>, <b>Wind</b>, <b>Visibility</b>, <b>Cloud</b>, <b>Temperature</b>, <b>QNH</b>, <b>Other</b>.</li>
+  <li>Tap <span class="btn">Use</span> to save the letter, QNH and the fields as the ATIS for that aerodrome.</li>
+</ol>
+<p>The saved ATIS shows in the dialog and in the aerodrome card's Weather section as <b>ATIS heard hhmmZ</b>, and the letter goes into your calls. The ATIS text doesn't go into the radio log.</p>
+<div class="warn"><p>An aid only: check each field against what you hear.</p></div>
+
+<h2 id="readback">Read-back check</h2>
+<p>With transcription on and <b>Check my read-back</b> ticked (on by default):</p>
+<ul>
+  <li>When a clearance or instruction to your callsign is heard with a squawk, level, heading, QNH, runway or frequency, the next transmission within 30 s that has your callsign or those items is treated as your read-back and compared.</li>
+  <li>The log line and RADIO row show <b>Read-back ✓</b>, or what differs or is missing, e.g.:<br>
+    <span class="call">Read-back: not above 1500 (cleared 1000) · missed squawk 3401</span></li>
+  <li>A mismatch gives a short vibration.</li>
+</ul>
+<div class="warn"><p>It can only compare what both transmissions were heard as, and it can't tell who is speaking. A ✓ doesn't mean your read-back was right; a mismatch may be the model mishearing. Your own ears decide.</p></div>
+
+<h2 id="log">In the flight log</h2>
+<p>Each transcribed line is kept with its time and position (not in the simulator). Each flight's GPX (Flight log button, Options → Flight logs, Google Drive) has them as waypoints named "Radio 0412Z" with the words as the description. <b>Replay</b> shows them on the RADIO row at their time.</p>
+
+<h2 id="memory">Memory</h2>
+<p>The transcription section shows how much memory the speech model takes: about 290 MB for the standard model once it has run, on top of the app. It's freed when the app is closed or the model deleted. Options → Render timing has a memory line too (the app's own memory, the speech model, roughly the device's RAM, and how much is stored).</p>
+
+<h2 id="handsfree">Hands-free checklists</h2>
+<p>A checklist can read itself out and listen for your responses through the same input. See <a href="checklists.html#handsfree">Checklists</a>.</p>
+
+<nav class="pager" aria-label="Pages">
+  <a href="logbook-drive.html"><small>Previous</small>← Logbook and Drive</a>
+  <a class="next" href="checklists.html"><small>Next</small>Checklists →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

@@ -192,6 +192,11 @@ if os.path.isdir(fac_dir):
             try: shutil.rmtree(os.path.join(fac_dir,c)); print('removed expired ERSA FAC sheets',c)
             except OSError as e: print('note: could not remove',c,e)
 _bf=["'./app.js?v=%s'"%av,"'./urban.json?v=%s'"%h(urbt)]+["'./%s'"%s_[1] for s_ in sets]
+# help pages (app/docs, 25 Nov 2026): precached with the build so Help works offline; the HTML and CSS are kept in the repo, not generated
+_dd=os.path.join(here,'..','app','docs')
+if os.path.isdir(_dd):
+    sys.path.insert(0,here); import docsindex; _n,_b=docsindex.build(_dd); print('help search index:',_n,'sections,',_b//1024,'KB')
+    _bf+=["'./docs/%s'"%f for f in sorted(os.listdir(_dd)) if f.endswith(('.html','.css','.js','.json'))]
 open(os.path.join(out,'sw.js'),'w').write(SW.replace('__VER__',ver).replace('__BUILDFILES__',','.join(_bf)))
 json.dump({"name":"Radio Calls AU","short_name":"Radio AU","start_url":"./","display":"standalone","orientation":"any",
   "background_color":"#0d1417","theme_color":"#0d1417",

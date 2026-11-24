@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The map · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>The map</h1>
+<p class="lead">The airspace map shows where you are against airspace, CTAF areas, charts, terrain and your plan. This page covers moving it around, the press-and-hold menu, and every layer.</p>
+<ul class="toc-in">
+  <li><a href="#gestures">Gestures</a></li>
+  <li><a href="#tap">Tapping the map</a></li>
+  <li><a href="#menu">Press-and-hold menu</a></li>
+  <li><a href="#layers">Layers</a></li>
+  <li><a href="#airspace">Airspace drawing</a></li>
+  <li><a href="#legend">Legend</a></li>
+  <li><a href="#lines">Lines, boxes and targets</a></li>
+  <li><a href="#heading">Heading display</a></li>
+  <li><a href="#notams">NOTAMs, obstacles, SIGMETs</a></li>
+  <li><a href="#3d">3D view</a></li>
+</ul>
+
+<h2 id="gestures">Gestures</h2>
+<ul>
+  <li><b>Pan:</b> drag with one finger. While panned the map stays put as you move. Tap <span class="btn">◎ Centre</span> to go back to your position.</li>
+  <li><b>Zoom:</b> pinch with two fingers (2.5 to 320 NM), or use − and + to step through 2.5, 5, 10, 20, 40, 80, 160 and 320 NM. On a computer, the mouse wheel.</li>
+  <li><b>Rotate:</b> turn two fingers. It only starts turning after a definite twist, so a pinch alone doesn't rotate it. The button then shows which way is up, e.g. <b>092° up</b>.</li>
+  <li><b>North up / Track up:</b> the button switches between them. A map turned by hand goes to north up. While panned, track up holds the track of that moment rather than following you.</li>
+  <li><b>Press and hold</b> (right-click on a computer) opens the map menu for that point. See <a href="#menu">below</a>.</li>
+</ul>
+<p>The map uses a projection that keeps everything at its true bearing from the centre; distances on screen are within about 0.1% out to 380 NM. Zoomed out to 160 or 320 NM, aerodrome dots get smaller, and the CTAF layer, NOTAM circles, waypoints and labels only show at 80 NM and closer.</p>
+
+<h2 id="tap">Tapping the map</h2>
+<p>A plain tap never changes your Go to. This stops an accidental tap overriding a flight plan.</p>
+<ul>
+  <li><b>Tap an aerodrome:</b> it becomes the aerodrome on the Aerodrome card (frequencies, calls). The CTAF tile shows a <b>CARD YMMB ✕</b> badge; tap the ✕ (or Back to auto on the card) to go back to the closest aerodrome.</li>
+  <li><b>Tap a VFR waypoint, navaid or one of your own ★ waypoints:</b> its menu opens. Choose <b>Go to</b> there if you want it.</li>
+  <li><b>Tap a traffic target:</b> selects it (see <a href="traffic.html#select">Traffic</a>).</li>
+  <li><b>While measuring:</b> a tap adds a measure point.</li>
+</ul>
+
+<h2 id="menu">Press-and-hold menu</h2>
+<p>Hold a finger still on the map for about half a second (right-click on a computer). A crosshair marks the point and the menu shows:</p>
+<ul>
+  <li><b>Where it is:</b> the nearest town, locality or suburb ("1.6 NM N of Seville East").</li>
+  <li><b>Its position:</b> degrees and decimal minutes plus decimal lat/lon, distance and bearing from you, terrain height there.</li>
+  <li><b>Frequencies there</b>, in two groups:
+    <ul>
+      <li>the nearest aerodrome within 10 NM: CTAF, ATIS or AWIS, TWR (split towers with the side the point is on underlined), GND, DEL, APP, DEP, UNICOM and the ERSA area frequency. Tower-only frequencies are struck through outside tower hours. With no aerodrome nearby, the broadcast area CTAF or 126.7;</li>
+      <li><b>Airspace here, SFC up:</b> every band over the point with its frequency, unit and limits. The band at your altitude is outlined.</li>
+    </ul></li>
+  <li><b>Special use airspace there:</b> every prohibited, restricted, danger and military operating area at all levels, with DAH limits, ERSA hours (HJ, H24, NOTAM explained), activity, the controlling authority with a tap-to-call number, and the RA1/RA2/RA3 status with what ERSA says it means. With a briefing loaded, its NOTAM status too.</li>
+  <li><b>NOTAMs</b> whose circle covers the point, <b>obstacles</b> within 1 NM, and any <b>SIGMET/AIRMET</b> there.</li>
+</ul>
+<p><b>Buttons:</b></p>
+<ul>
+  <li><b>Go to this point</b>, or <b>Go to</b> the nearest aerodrome, VFR waypoint or navaid within 2 NM. With a plan loaded this is a direct-to (see <a href="flight-plan.html#direct">Direct to</a>).</li>
+  <li><b>Start flight plan at …</b> (no plan), or <b>Insert … after …</b> (where it adds the least distance) and <b>Add … at end of plan</b>. Within 0.3 NM of an aerodrome, waypoint or navaid, that point is added instead of a bare position. In Edit, <b>Replace … with …</b>.</li>
+  <li><b>Measure from …</b> / <b>Measure to …</b>.</li>
+  <li><b>Save as waypoint…</b> (or Edit / Delete on one of your ★ waypoints).</li>
+  <li><b>Copy lat/lon</b>, and in the simulator <b>Move simulator here</b>.</li>
+</ul>
+<p>Close it by tapping elsewhere, dragging the map, or ✕. On the full-screen map the menu always sits above the tiles, and the sheet closes so it has room.</p>
+
+<h2 id="layers">Layers</h2>
+<p>On the full-screen map, the <span class="btn">Layers</span> button (stacked sheets, beside Traffic and North up) opens a grid of layer buttons over the map. It stays open while you switch layers; tap anywhere else to close it. On the classic page the buttons are in a row under the map. Each choice is remembered.</p>
+<div class="tw"><table>
+<tr><th>Button</th><th>What it shows</th><th>Default</th></tr>
+<tr><td>CTAF</td><td>Each aerodrome's 10 NM CTAF area and the DAH broadcast areas, coloured by frequency. Details below.</td><td>Off</td></tr>
+<tr><td>Terrain</td><td>Terrain shading and warnings. Details below.</td><td>On</td></tr>
+<tr><td>Sat</td><td>Esri satellite imagery under the airspace. Needs a proxy or an Esri key (Options → Satellite imagery).</td><td>Off</td></tr>
+<tr><td>Charts</td><td>The VTC/VNC/WAC chart underlay. Details below.</td><td>On</td></tr>
+<tr><td>Lead</td><td>An orange dashed line 10 NM ahead along your track (or compass heading when slow), a cross line every NM and every second one numbered.</td><td>On</td></tr>
+<tr><td>Wires</td><td>The 66 kV and up transmission network (Geoscience Australia), with pylon ticks, dashed where under construction, voltage at 10 NM. Shows at 40 NM and closer.</td><td>Off</td></tr>
+<tr><td>Coast</td><td>The coastline and islands as a teal line, from the stored coastline data. Shows up to 160 NM range.</td><td>Off</td></tr>
+<tr><td>Radar</td><td>The latest RainViewer rain radar image, with its time and age bottom left (red over 30 min old). Online only.</td><td>Off</td></tr>
+<tr><td>Measure</td><td>Measure distances and bearings. Details below.</td><td>Off</td></tr>
+<tr><td>Range</td><td>Fuel range circle from the fuel timer (see <a href="fuel-wb.html#range">Range circle</a>).</td><td>Off</td></tr>
+<tr><td>Log</td><td>Your track over the last 6 hours, coloured by altitude.</td><td>Off</td></tr>
+<tr><td>Wx</td><td>Flight category rings round aerodromes from your briefing (see <a href="weather-notams.html#rings">Weather rings</a>).</td><td>On</td></tr>
+<tr><td>Side</td><td>A side view strip of terrain and airspace for the next 20 NM.</td><td>Off</td></tr>
+<tr><td>Traffic</td><td>ADS-B traffic (separate button; see <a href="traffic.html">Traffic</a>).</td><td>Off</td></tr>
+</table></div>
+
+<h3 id="ctaf">CTAF layer</h3>
+<ul>
+  <li>Each aerodrome gets a 10 NM area (the AIP CTAF call distance). Areas on the same frequency merge into one shape with one colour. The AIP default 126.7 is grey so specific CTAFs stand out.</li>
+  <li>A tower aerodrome gets its whole control zone instead of a circle, on its after-hours CTAF (Moorabbin 118.1, Avalon 120.1), or on the tower frequency labelled TWR where there is no CTAF.</li>
+  <li>Up to eight frequencies in view get different colours. There's no red, orange or magenta: those are for restricted and danger areas.</li>
+  <li><b>Split overlapping CTAF areas</b> (Options, on): where two aerodromes with different CTAFs are under 20 NM apart, their circles are cut halfway between them. The CTAF tile changes at the same line. <b>Split 126.7 areas too</b> (off) includes the grey 126.7 circles in the split.</li>
+</ul>
+<h3 id="terrain">Terrain</h3>
+<ul>
+  <li>Terrain at or above your altitude is red; within 500 ft below you, amber (cross-hatched red and hatched orange in rainbow mode).</li>
+  <li><b>Rainbow topographic terrain</b> (Options, on by default): ground coloured by height from teal at sea level through green, yellow, orange and red to purple on the highest ranges (about 7,000 ft). Untick it for grey relief.</li>
+  <li>Over a chart or satellite imagery only the warnings are drawn.</li>
+</ul>
+<div class="warn"><p>Terrain is for awareness only. Each 30″ cell (about 900 m) holds the highest SRTM point in it; buildings, masts and wires aren't included.</p></div>
+<h3 id="charts">Chart underlay and the chart picker</h3>
+<ul>
+  <li><b>Charts</b> turns the underlay on and off. <b>Chart underlay</b> (in the Legend tab, or under the map on the classic page) opens a pop-up with the opacity slider, import, <b>Turn on every chart in this view</b> and <b>Choose charts…</b>.</li>
+  <li>All 39 Airservices VTC/VNC sheets are available (except the Tindal VNC and the Sydney inset VTC), plus 46 old (2009) WACs drawn under them. The Melbourne VNC and VTC download by default.</li>
+  <li><b>Choose charts</b> in Options → <b>Chart downloads (VNC / VTC / WAC)</b>:
+    <ul>
+      <li>a map of Australia shows every chart's area: ticked ones filled, others dashed, your current map view in red. Tap an area to tick or untick the smallest chart there;</li>
+      <li><b>Tick charts in this map view</b>, <b>Only charts in this view</b> (asks first; unticked charts' tiles are removed), <b>Tick charts along the flight plan</b>;</li>
+      <li>tabs All / VTC / VNC / WAC / Ticked, and a search box that finds a chart by name or by a place on it (YMMB, Mildura);</li>
+      <li>tap a chart's small map (⌖) to show it on the main map for 10 seconds, without ticking it.</li>
+    </ul></li>
+  <li>You can import a newer Airservices PDF on the phone; it replaces the built-in sheet until removed.</li>
+  <li>WACs are old editions: use them for the picture, not for airspace or frequencies.</li>
+</ul>
+<h3 id="measure">Measure</h3>
+<p>Tap <span class="btn">Measure</span>, then tap points (aerodromes and waypoints snap to their exact position). It shows each leg's distance and magnetic bearing, the total, the time at your groundspeed, and you to the last point. <b>From me</b> starts at your position; <b>Undo</b>, <b>Clear</b>, <b>Done</b>. Dragging still pans.</p>
+<h3 id="log">Log</h3>
+<p>Your track over the last 6 hours, coloured by altitude (blue near the surface through green and yellow to red at 6,000 ft and above), fading with age and broken at gaps. A ring marked →4 shows where the plan moved on to waypoint 4. In the simulator the simulated track shows in grey and isn't stored.</p>
+<h3 id="side">Side view</h3>
+<p>A strip at the bottom of the map with the next 20 NM along your plan (or your track, or heading when stopped): terrain, airspace steps and restricted/danger areas in map colours, and your altitude as a dashed orange line. Terrain within 500 ft of your altitude or above it is red, and a dashed line marks where your altitude would enter class A, C, D or a restricted area. The caption says what and how far ("class D in 5.5 NM"). ✕ closes it.</p>
+
+<h2 id="airspace">Airspace drawing</h2>
+<ul>
+  <li>Chart conventions: C solid blue, D and CTR dashed blue, E violet, restricted areas red, danger areas dashed orange. Area frequency boundaries are dotted green with the frequency inside.</li>
+  <li>Labels give class, then upper over lower limit, and sit wholly inside their area.</li>
+  <li>The airspace you're in at your altitude is shaded. Only airspace starting below FL125, or below 5,000 ft above you, is drawn.</li>
+  <li><b>Highlight the area you're in</b> (Options, on): the control zone you're inside gets a bold edge; otherwise the CTAF area of the aerodrome on the CTAF tile gets a bold green ring, with a dot at its nearest edge and <b>edge 2.9 NM</b>.</li>
+  <li>Runways are drawn at 5 NM and closer, labelled at 2.5 NM.</li>
+  <li>Towns show at 20 NM and below, localities at 10 NM, suburbs at 5 NM; they're hidden while a chart shows.</li>
+</ul>
+
+<h2 id="legend">Legend</h2>
+<p>In the sheet's <b>Legend</b> tab (under the map on the classic page). Tap an item (C, D / CTR, E, R, Danger, Area freq boundary, VFR waypoint, Terrain, Navaids) to hide or show it; hidden items are struck through and remembered.</p>
+<ul>
+  <li><b>Navaids</b> (NDB, VOR, DME, VOR/DME, TACAN) are hidden by default. Tap Navaids to show them (at 20 NM and closer). They can still be found with search either way.</li>
+  <li>The CTAF legend lists the frequencies in view; the Log, Wx and rainbow terrain legends show while those layers are on.</li>
+</ul>
+
+<h2 id="lines">Lines, boxes and targets</h2>
+<ul>
+  <li><b>Selected aerodrome line:</b> dashed orange from your aircraft to the card's aerodrome, with a box such as <b>227°/5NM ▶</b> (magnetic bearing / whole NM).</li>
+  <li><b>Flight plan:</b> purple route with waypoint labels; the active waypoint filled in.</li>
+  <li><b>Leg boxes:</b> each leg has a box with its magnetic track and distance ("204°/15NM", one decimal under 10 NM). A coast leg gets one box, e.g. "coast/57NM". The active leg's box has a thicker edge.</li>
+  <li><b>Go to target:</b> a purple target with the name at the end of the dotted Go to line. Off the map, a small target with an arrow at the edge, e.g. <b>CATANI 29 NM</b>.</li>
+  <li><b>Your aircraft:</b> arrow, 2-blade helicopter or fixed wing, in five sizes (Options → Map → Your aircraft).</li>
+  <li><b>Your own waypoints:</b> ★ with their names.</li>
+</ul>
+
+<h2 id="heading">Heading display</h2>
+<p>Options → Map → <b>Heading display</b>. Each style shows your track in °M (the compass heading, marked HDG, when you're slow), a filled magenta bug for the wind-corrected heading to steer to the next waypoint or Go to, and a hollow bug for the straight bearing.</p>
+<ul>
+  <li><b>A · Tape at the top</b> (default): a tape across the top of the screen, with "STEER 030 · turn left 10° → CARR 8.4 NM" under it where there's room.</li>
+  <li><b>C · Arc round your aircraft:</b> a 110° compass arc on the map round your symbol.</li>
+  <li><b>D · Tape in the nav tiles:</b> a compact tape in place of the HDG and →HDG tiles.</li>
+  <li>Or <b>A + C</b>, <b>C + D</b>, or <b>Off</b>.</li>
+</ul>
+<p>See also <a href="top-bar.html#nav">the nav row</a>.</p>
+
+<h2 id="notams">NOTAMs, obstacles and SIGMETs</h2>
+<p>All from the NAIPS briefing you load (see <a href="weather-notams.html">Weather and NOTAMs</a>).</p>
+<ul>
+  <li><b>NOTAM circles:</b> airspace and warning NOTAMs (restricted area activations, parachuting, drones) as dashed red circles, labelled at 40 NM and closer.</li>
+  <li><b>Temporary zones:</b> NOTAM areas with three or more coordinates as red dashed polygons, dimmer in the 3 hours before they start.</li>
+  <li><b>Restricted/danger areas:</b> active ones get a stronger fill and an "ACT →1300Z" line; those that are off are thin grey dashed, labelled OFF.</li>
+  <li><b>Obstacles:</b> tower symbols at their NOTAM position within 20 NM range, height (ft AMSL) at 10 NM and closer, red when within 300 ft of your altitude or above it.</li>
+  <li><b>SIGMET/AIRMET:</b> amber long dashes with the phenomenon and levels, the label placed inside the area.</li>
+</ul>
+
+<h2 id="3d">3D view (development)</h2>
+<p>Options → Map → <b>3D view (development)</b> opens a floating window with a 3D view around you (up to 40 NM). Drag the title bar to move it and the corner to resize.</p>
+<ul>
+  <li><b>Camera:</b> Cockpit (drag to look around), Chase, or Orbit (drag, pinch or scroll). Double-tap or ⟲ resets.</li>
+  <li><b>Surface:</b> Chart, Relief or Satellite.</li>
+  <li><b>Layers:</b> Airspace walls, Clearance (terrain at or above you red, within 500 ft amber), Plan, Traffic, Obstacles.</li>
+  <li><b>Preview ▶:</b> flies your plan at its leg altitudes, ending at circuit height over the destination (500 ft above it for a helicopter, 1,000 ft for an aeroplane). 10, 20 or 40 NM per minute.</li>
+</ul>
+<div class="warn"><p>The 3D view is a work in progress, for trying out only. Not for navigation.</p></div>
+
+<nav class="pager" aria-label="Pages">
+  <a href="getting-started.html"><small>Previous</small>← Getting started</a>
+  <a class="next" href="top-bar.html"><small>Next</small>Top bar →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

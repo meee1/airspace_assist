@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklists and passenger briefing · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Checklists and passenger briefing</h1>
+<p class="lead">Checklists live under <b>Flight plan → Checklists</b>. Tick items by tap or by voice, have the right list come up by itself at each phase of flight, and show a passenger briefing full screen.</p>
+<div class="warn"><p>Checklist items come from your flight manual and operator's procedures. The app doesn't invent any.</p></div>
+
+<h2 id="builtin">Built-in Bell 206B3 checklist</h2>
+<p>The app comes with a Bell 206B3 checklist transcribed as written from an operator's sheet, in four lists:</p>
+<ul>
+  <li><b>Pre start</b></li>
+  <li><b>Start</b> (with "Start – continued")</li>
+  <li><b>Pre lift off checks</b></li>
+  <li><b>Shutdown</b> (offered after landing)</li>
+</ul>
+<p>You can edit or delete them. A deleted one stays deleted, also across your devices. Check them against your own operator's checklist before use.</p>
+
+<h2 id="edit">Making and editing a checklist</h2>
+<ul>
+  <li>Add your own by typing or pasting from the flight manual, one item per line.</li>
+  <li>A line starting with <code>#</code> is a heading.</li>
+  <li><code>Item .... response</code> (or <code>Item : response</code>) puts the response on the right.</li>
+  <li>Choose the <b>aircraft</b> (your weight and balance profiles) or every aircraft.</li>
+  <li><b>Offer it</b> chooses when it comes up by itself (below), or <b>Passenger briefing</b>.</li>
+  <li>Lists combine across your devices through Google Drive and travel in the settings backup and file.</li>
+</ul>
+
+<h2 id="run">Running a checklist</h2>
+<ul>
+  <li>Open one and tap items to tick them. The next item is marked and the count shows at the top.</li>
+  <li><b>Reset</b> clears the ticks.</li>
+  <li>Ticks stay on this device and survive closing the app.</li>
+</ul>
+
+<h2 id="phase">Offered by phase of flight</h2>
+<div class="tw"><table>
+<tr><th>Offer it</th><th>Comes up when</th></tr>
+<tr><td>Before take-off</td><td>You start moving (5 kt or more) after being stopped for a minute.</td></tr>
+<tr><td>Pre-landing</td><td>The 10 NM inbound call fires for an aerodrome you're landing at.</td></tr>
+<tr><td>After landing</td><td>You've stopped for 30 s after flying at 30 kt or more.</td></tr>
+</table></div>
+<p>The list's ticks are cleared and a <b>CHECKLIST</b> row shows ("Pre-landing · Before landing · tap to open") until it's complete, or for 10 minutes. Tap the row to open it. With spoken alerts on, its name is said aloud.</p>
+
+<h2 id="handsfree">Hands-free</h2>
+<p>In a checklist, <span class="btn">🎙 Hands-free</span> reads the next item aloud and listens for your response through the input picked under <a href="transcription.html#input">Radio audio and transcription</a>. With the Whisper engine, download the speech model first.</p>
+<div class="tw"><table>
+<tr><th>Say</th><th>Does</th></tr>
+<tr><td>check, checked, done, next, set, on, off, complete, confirmed… or the item's own response</td><td>Ticks it and reads the next.</td></tr>
+<tr><td>repeat, say again</td><td>Reads it again.</td></tr>
+<tr><td>back, previous</td><td>Unticks the one before.</td></tr>
+<tr><td>stop, cancel, pause, finish</td><td>Ends hands-free.</td></tr>
+</table></div>
+<ul>
+  <li>Section headings are read when they change. At the end it says "&lt;name&gt; complete" and stops.</li>
+  <li>What the microphone hears while the tablet is speaking is ignored, so its own voice can't tick an item.</li>
+  <li>A tap on an item still works. Closing the checklist stops it.</li>
+</ul>
+
+<h2 id="brief">Passenger briefing card</h2>
+<ul>
+  <li>Make a checklist with <b>Offer it: Passenger briefing</b> and type your briefing items (from your operator's procedures or flight manual; the app has none of its own).</li>
+  <li><b>More → Passenger brief</b> shows them full screen, one at a time in large text with the section heading, for passengers to read with you. Tap the text or <b>Next</b> to go on; <b>Back</b>; ✕ or Esc closes.</li>
+  <li><b>Done</b> ticks the list and records the time.</li>
+  <li>With several briefing lists for the aircraft, it shows the list to pick from. With none yet, the button starts one. A briefing list's run view also has <b>Full screen</b>.</li>
+</ul>
+
+<nav class="pager" aria-label="Pages">
+  <a href="transcription.html"><small>Previous</small>← Radio audio and transcription</a>
+  <a class="next" href="alerts-sartime.html"><small>Next</small>SARTIME and alerts →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

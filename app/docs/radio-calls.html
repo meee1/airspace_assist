@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radio calls · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Radio calls</h1>
+<p class="lead">The radio call guide fills in the calls for the aerodrome on the card, from your position, level and callsign. Reminders bring the right call up at the right time. Check the wording against AIP ENR 1.1 and local procedures.</p>
+<ul class="toc-in">
+  <li><a href="#setup">Your aircraft and callsign</a></li>
+  <li><a href="#ctaf">CTAF calls</a></li>
+  <li><a href="#tower">Class D (tower) calls</a></li>
+  <li><a href="#own">Your own wording</a></li>
+  <li><a href="#inbound">Inbound and transit reminders</a></li>
+  <li><a href="#recall">Bringing a call back</a></li>
+  <li><a href="#clearance">Clearance request</a></li>
+  <li><a href="#transit">Zone transit</a></li>
+  <li><a href="#squawk">Squawk on the approach</a></li>
+  <li><a href="#atis">ATIS and clearance notes</a></li>
+  <li><a href="#pad">Read-back pad</a></li>
+  <li><a href="#sos">Emergency (SOS)</a></li>
+</ul>
+
+<h2 id="setup">Your aircraft and callsign</h2>
+<p>Open <b>Radio calls</b> and enter your aircraft type and callsign, and choose aeroplane or helicopter. All are saved on the device.</p>
+<ul>
+  <li>Type the callsign as the registration (<code>ABC</code> or <code>VH-ABC</code>) and it's spelled phonetically: "ALPHA BRAVO CHARLIE". VH- is dropped, 9 is NINER.</li>
+  <li>Anything with spaces (<code>POLAIR 31</code>) or one word of 5+ letters (<code>RESCUE</code>) is left as typed.</li>
+  <li><b>Category</b> (aeroplane / helicopter) also sets minimum heights for altitude suggestions, the CASA fuel reserve and highlighting of helicopter procedures.</li>
+  <li><b>Runway</b> picker: the aerodrome's runways (RH marked). The calls use the runway you pick.</li>
+</ul>
+
+<h2 id="ctaf">CTAF calls (non-towered aerodromes)</h2>
+<p>The standard calls from AIP ENR 1.1: inbound, overflying, joining, straight-in, taxiing, lining up and departing. Distance, compass point and level are filled in from your position. Within 1.5 NM of a VFR waypoint the position starts with it ("over Carrum, 5 miles south").</p>
+
+<h2 id="tower">Class D (tower) calls</h2>
+<p>When the tower is open (from ERSA's tower hours, allowing for daylight saving):</p>
+<ul>
+  <li>listen to the ATIS and note the letter;</li>
+  <li>taxi call to Ground, ready call;</li>
+  <li><b>Transponder · before entering the CTR</b> (the squawk code);</li>
+  <li>inbound call naming the ERSA reporting points (e.g. CARR, BAW, BTO, ACE, SHOL or GMH at Moorabbin) at the CTR entry altitude ("over Carrum" once within 3 NM of a reporting point);</li>
+  <li>the downwind report where ERSA requires it.</li>
+</ul>
+<p>Type comes before callsign: "Moorabbin Tower, Bell 206 ALPHA BRAVO CHARLIE, …". Outside tower hours it switches to CTAF calls. You can force Tower or CTAF. The ATIS letter you've noted goes into the calls ("received Charlie").</p>
+
+<h2 id="own">Your own wording</h2>
+<p>Tap <b>✎</b> on any call to change how it's worded, e.g. at Moorabbin "…, inbound for the southern approach."</p>
+<ul>
+  <li>The call is a template: <code>{station}</code>, <code>{type}</code>, <code>{callsign}</code>, <code>{position}</code>, <code>{level}</code>, <code>{atis}</code>, <code>{runway}</code> and <code>{place}</code> take the values of the moment. Tap a token to insert it. Words in [brackets] show as yours to fill.</li>
+  <li>A preview shows the call as it would be said now.</li>
+  <li>Save it for <b>this aerodrome</b> or <b>every aerodrome</b> (per procedure: tower or CTAF). An aerodrome's own wording wins over the every-aerodrome one.</li>
+  <li>Your wording is marked YOURS (YOURS · ALL) and also used for the 10 NM inbound reminder.</li>
+  <li><b>Back to the standard call</b> removes it.</li>
+</ul>
+
+<h2 id="inbound">Inbound and transit reminders</h2>
+<p>Crossing 10 NM towards an aerodrome (closing, more than 3 NM out), a row appears once per approach with the call filled in.</p>
+<h3>INBOUND CALL (where you land)</h3>
+<span class="call">Lilydale traffic, Bell 206 ALPHA BRAVO CHARLIE, 10 miles south, 1,500 feet, inbound, estimate circuit at time 36, [joining intentions], Lilydale</span>
+<ul>
+  <li>"time 36" is the UTC minutes of your ETA. With the aerodrome in your plan, the ETA follows the plan (a coast route and reporting points included, wind-corrected where a wind is known). With only a Go to, it's the straight line at your groundspeed.</li>
+  <li>For a tower open at your ETA it's the tower call on the frequency the tower tile would use (reporting-point rules included), with the ATIS placeholder, and a <b>SQUAWK</b> badge.</li>
+  <li>The Go to tile flashes. Distance and level keep updating.</li>
+  <li>It goes when you tap it, inside 4 NM, or after 4 minutes. It re-arms beyond 12 NM.</li>
+</ul>
+<h3>TRANSIT CALL (fields you pass)</h3>
+<span class="call">Ballarat traffic, Cessna 175, ALPHA BRAVO CHARLIE, 10 miles north, 4,500 feet, transiting east to west, Ballarat</span>
+<ul>
+  <li>For non-towered aerodromes (or a tower that's closed) within reach that you're not landing at. Direction from your track.</li>
+  <li>None while you're in controlled airspace, none for strips inside an open tower's zone, and none within 15 NM of where you're landing.</li>
+  <li>It goes once you're back outside 10.5 NM or after 4 minutes.</li>
+</ul>
+<h3>Which aerodrome counts as landing</h3>
+<ul>
+  <li><b>No plan:</b> your Go to aerodrome, or one of its ERSA reporting points (a Go to CARR counts as landing at Moorabbin). A town or other point near an aerodrome doesn't.</li>
+  <li><b>With a plan:</b> points marked <b>Land</b> (the last point by default; change it in Edit), plus the aerodrome of a direct-to (a diversion) until you resume.</li>
+</ul>
+
+<h2 id="recall">Bringing a call back</h2>
+<p>After you've dismissed it (or it went by itself), tap the <b>→ CTAF</b> tile (your Go to or plan aerodrome) or the <b>CTAF</b> tile within 15 NM. The call comes back, worked out for where you are now: inbound where you land, transit for a field you pass (none for a towered field with its tower open you're only passing). It stays until you tap it, are 15 NM away, or 4 minutes pass. With tile enlarging on, the first tap enlarges the tile and the second brings the call back.</p>
+
+<h2 id="clearance">Clearance request</h2>
+<p>When class A, C or D airspace (or a control zone) is within 10 NM ahead at your level, the first call in the list is a clearance request:</p>
+<span class="call">Avalon Approach, Bell 206 ALPHA BRAVO CHARLIE, 2 miles east of Torquay, 1,500 feet, received [ATIS YMAV], request clearance to transit [direction / via …] at 1,500 feet</span>
+<ul>
+  <li>A zone transit goes to the approach unit ERSA lists (by sector where there are several). With no approach unit in ERSA it goes to the tower (your side of a split tower).</li>
+  <li>When you're landing at the zone's aerodrome there's no clearance request: the tower inbound call is the request.</li>
+  <li>Within 5 NM a <b>CLEARANCE CALL</b> row appears in the top bar with the same request. Tap it to dismiss for that airspace; it goes once you're inside or after 4 minutes.</li>
+</ul>
+<div class="warn"><p>The clearance request is a trial. Some zones, such as Moorabbin, are entered with an inbound report at a reporting point rather than a clearance request. The ATIS letter and route are yours to fill.</p></div>
+
+<h2 id="transit">Zone transit</h2>
+<p>Inside a control zone you're transiting (not landing at its aerodrome), Radio calls shows the zone's calls on the unit you entered with: <b>In the zone</b> (position report when ATC asks) and <b>Clear of the zone</b>, instead of the CTAF calls of strips under it. The CTAF and ATC tiles show the approach unit ("APP 133.55 Avalon App · zone transit"). Within 3 NM of the field the tower shows when you're departing or in the circuit; a transit that came in from outside stays with approach.</p>
+
+<h2 id="squawk">Squawk on the approach</h2>
+<p>When you're landing at a towered aerodrome, the inbound row shows the code to set before entering the zone:</p>
+<ul>
+  <li>a code you typed in the clearance notes wins;</li>
+  <li>else a VFR code from ERSA, e.g. <b>SQUAWK 0100</b> for Essendon;</li>
+  <li>else the AIP ENR 1.6 class C/D code <b>3000</b> (Moorabbin's ERSA gives no VFR code).</li>
+</ul>
+<p>The same code is on the tower Radio calls card and the tower row of Plan check. Flying past without landing shows no code. Leaving the zone, the calls remind you of 1200 for VFR in class G/E.</p>
+
+<h2 id="atis">ATIS and clearance notes</h2>
+<p>Open <b>ATIS and clearance</b> from the <b>ATIS / clearance</b> button at the top of Radio calls, the NEXT CLASS row, the CLEARANCE row, or the ATIS frequency in the controlled aerodrome row.</p>
+<ul>
+  <li><b>ATIS letter:</b> pick the letter you heard (A–Z) for that aerodrome. It goes into the tower, taxi, clearance-request and inbound calls and shows after the ATIS frequency ("ATIS 120.9 (C)") for 60 minutes.</li>
+  <li><b>Listen to ATIS</b>: tune the ATIS, tap it, and the app transcribes the broadcast into fields you can <b>Use</b>. See <a href="transcription.html#atis">ATIS capture</a>.</li>
+  <li><b>Squawk</b>, <b>Level</b> and <b>Route / instructions</b>: shown on a <b>CLEARANCE 4123 · A015 · via CARR · ATIS C</b> row while you're in or about to enter controlled airspace.</li>
+  <li>The notes clear 2 minutes after you leave controlled airspace, or 45 minutes after you wrote them if you never went in. <b>Clear all</b> clears them now; <b>Done</b> closes.</li>
+  <li>With transcription on, a <b>Use</b> button on a heard transmission can fill the letter, QNH, squawk, level and route for you (only when you tap it).</li>
+</ul>
+
+<h2 id="pad">Read-back pad</h2>
+<p>In the same window (also <b>More → Read-back pad</b>): a lined pad to write a clearance with your finger, like a kneeboard. <b>Undo</b> takes back the last stroke, <b>Wipe pad</b> clears it. A second finger or your palm is ignored. A picture of what you wrote shows on the CLEARANCE row so it stays in sight while you read back. It clears with the notes.</p>
+<p>With transcription on, the app can also compare your spoken read-back with the clearance (see <a href="transcription.html#readback">Read-back check</a>).</p>
+
+<h2 id="sos">Emergency (SOS)</h2>
+<p>The red <b>SOS</b> button on the map opens <b>Emergency</b>:</p>
+<ul>
+  <li><b>MAYDAY</b> / <b>PAN PAN</b>, and choose the <b>Emergency</b> (engine failure, smoke in the cabin, low fuel, medical, uncertain of position, weather …), <b>Intentions</b> (forced landing, landing immediately, diverting to the nearest aerodrome, returning) and <b>People on board</b>.</li>
+  <li>The call in order: MAYDAY ×3, station, type and callsign, nature, intentions, position (from the nearest aerodrome or VFR waypoint, e.g. "5 miles north-east of Leopold"), level, heading, POB.</li>
+  <li><b>Who to call and on what frequency</b> for where you are: the ATC unit for your band, the tower in a zone, else the CTAF.</li>
+  <li><b>Squawk 7700</b>, ELT/PLB, and <b>121.5</b> if no answer (or relay through another aircraft).</li>
+  <li>Your lat/long, GPS altitude, track, groundspeed and UTC.</li>
+  <li><b>Nearest places to land:</b> aerodromes and helipads with °M, NM and TWR/CTAF. Tap one to set it as Go to.</li>
+</ul>
+<div class="warn"><p>From GPS and the app's data: check before you rely on it.</p></div>
+
+<nav class="pager" aria-label="Pages">
+  <a href="aerodrome.html"><small>Previous</small>← Aerodrome card</a>
+  <a class="next" href="flight-plan.html"><small>Next</small>Flight plan →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

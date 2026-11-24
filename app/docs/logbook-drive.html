@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight log, logbook and Google Drive · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Flight log, logbook and Google Drive</h1>
+<p class="lead">The app records every flight on the device, works out your flight times for the logbook, and can save it all to your own Google Drive.</p>
+<ul class="toc-in">
+  <li><a href="#log">The flight log</a></li>
+  <li><a href="#flights">Flight logs list</a></li>
+  <li><a href="#times">Automatic flight times</a></li>
+  <li><a href="#edit">Editing legs</a></li>
+  <li><a href="#totals">Totals and CSV</a></li>
+  <li><a href="#replay">Replay</a></li>
+  <li><a href="#drive">Google Drive</a></li>
+  <li><a href="#phones">Two phones</a></li>
+  <li><a href="#file">Settings file</a></li>
+</ul>
+
+<h2 id="log">The flight log</h2>
+<ul>
+  <li>Every GPS fix (one per 5 s) and each waypoint change is stored on the device as it happens, and <b>kept for 90 days</b>.</li>
+  <li>With Traffic on, ADS-B traffic is saved too; with transcription on, each transcribed transmission with time and position.</li>
+  <li>The simulator is never logged.</li>
+  <li><span class="btn">Flight log</span> (under the plan's leg list) downloads the last 6 hours as GPX. The map's <b>Log</b> layer shows the same 6 hours.</li>
+</ul>
+
+<h2 id="flights">Flight logs list</h2>
+<p><b>More → Logbook</b> (or Options → <b>Logbook and flight logs (kept 90 days)</b>) lists each flight (fixes split at gaps over 30 minutes) with date, time and length.</p>
+<ul>
+  <li><b>GPX</b> downloads that flight, with its traffic tracks and radio transcripts (as waypoints named "Radio 0412Z").</li>
+  <li><b>CSV</b> downloads a logbook file for that flight.</li>
+  <li><b>▶</b> replays it (see <a href="#replay">Replay</a>).</li>
+</ul>
+
+<h2 id="times">Automatic flight times</h2>
+<p>Each flight is split into legs from the GPS:</p>
+<ul>
+  <li><b>Off</b> when groundspeed reaches 20 kt.</li>
+  <li><b>On</b> at the start of a stop under 5 kt lasting 3 minutes or more, or the end of the log.</li>
+  <li><b>From / to:</b> the aerodrome within 3 NM, a helicopter landing site within 1 NM, else the coordinates.</li>
+  <li>Each leg shows off and on times, airborne time (h:mm), distance and maximum altitude.</li>
+  <li><b>Night</b> is the time after last light and before first light (civil twilight) at the departure point.</li>
+</ul>
+<div class="warn"><p>A hover taxi or a hover of 3 minutes or more reads as a landing. Check the times before copying them into your logbook.</p></div>
+
+<h2 id="edit">Editing legs</h2>
+<p>Each leg has <b>Edit</b>:</p>
+<ul>
+  <li>change <b>From</b> / <b>To</b> and the number of <b>landings</b>;</li>
+  <li><b>Merge with next leg</b> (a hover taxi or long hover that split one flight in two); <b>Split again</b> undoes it;</li>
+  <li><b>Not a flight</b>: struck out, left out of totals and CSV.</li>
+</ul>
+
+<h2 id="totals">Totals and CSV</h2>
+<ul>
+  <li><b>Totals</b> for the last 7, 28 and 365 days: hours, legs, landings, night.</li>
+  <li>A short summary of each leg is kept for good (beyond the 90 days of fixes), so the 365-day total keeps counting.</li>
+  <li><b>Logbook CSV</b> ("CSV: all N legs since …") has every leg ever logged on this device: date, aircraft (your callsign), type, from, to, UTC and local times, h:mm, decimal hours, day and night hours, landings, NM and max altitude.</li>
+</ul>
+
+<h2 id="replay">Replay</h2>
+<ul>
+  <li><b>▶</b> next to a flight, or <b>Replay GPX</b> in the simulator (a Flight log download or any GPX with timed points).</li>
+  <li>Play at 1×, 2×, 5× or 10×, pause, or drag the slider. The app runs exactly as in flight (tiles, alerts, reminders, map) in simulator mode, so nothing is logged.</li>
+  <li>Radio transcripts show on the RADIO row at their time.</li>
+  <li>The app's clock isn't shifted: tower hours, last light and NOTAMs are for now, not the time of the flight.</li>
+</ul>
+
+<h2 id="drive">Google Drive</h2>
+<p>Options → <b>Google Drive</b> → <span class="btn">Connect Google Drive</span> signs in once. With <b>Save after each flight</b> on (the default), a few minutes after a flight ends (35 minutes with no movement), when there's signal, the app saves to a <b>Radio Calls AU</b> folder in your Drive:</p>
+<ul>
+  <li><b>one GPX per flight</b> (with traffic and radio transcripts), e.g. <code>Flight 2026-11-06 0912.gpx</code>;</li>
+  <li><b>Logbook.csv</b>, rewritten with every leg ever logged (it reads the Drive copy first and keeps legs it doesn't have);</li>
+  <li><b>Settings backup.json</b>: aircraft, W&amp;B, saved plans, waypoints, checklists, call wording and options. Not your NAIPS login, Drive sign-in or satellite key.</li>
+</ul>
+<ul>
+  <li><b>Flights from before you connected count too.</b> The device keeps 90 days of flights; on connecting (or reconnecting) every one not already in the folder is saved. Connect within 90 days of a flight to keep it.</li>
+  <li><span class="btn">Save now</span> saves straight away. <span class="btn">Restore settings</span> loads the backup. <span class="btn">Disconnect</span> removes the sign-in and withdraws access; the files stay in Drive.</li>
+  <li>The app can only see the files it made. Your sign-in is kept on the device, encrypted.</li>
+</ul>
+<div class="note"><p>Drive needs a one-off setup of your own Google sign-in client and the proxy. See the project README if Connect doesn't work.</p></div>
+
+<h2 id="phones">Two phones, one folder</h2>
+<ul>
+  <li>Every device signed in to the same Google account uses the same folder.</li>
+  <li><b>Connecting another device:</b> if Drive already has a settings backup, the app asks first whether to use it here (it reloads with those settings). Say no and the Drive backup is left alone until you tap Save now on that device.</li>
+  <li><b>Saved plans, your waypoints and checklists combine</b> across devices: one saved on either appears on both, and one deleted on one is removed from the others.</li>
+  <li>Other settings are whichever device saved last. Each device's logbook legs stay in Logbook.csv.</li>
+</ul>
+
+<h2 id="file">Settings file (no Drive needed)</h2>
+<p>Options → <b>Settings file</b>:</p>
+<ul>
+  <li><span class="btn">Export settings</span> saves aircraft, W&amp;B, plans, call wording and options to a .json file. No passwords or keys; no logs or charts.</li>
+  <li><span class="btn">Import settings</span> reads that file on any device after you confirm, then reloads the app.</li>
+</ul>
+
+<nav class="pager" aria-label="Pages">
+  <a href="fuel-wb.html"><small>Previous</small>← Fuel, W&amp;B and hover</a>
+  <a class="next" href="transcription.html"><small>Next</small>Radio audio and transcription →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

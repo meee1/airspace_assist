@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Getting started</h1>
+<p class="lead">Install the app, let it store its data for offline use, and learn the three screen layouts. The app is built for and tested on a Google Pixel 9 Pro (Chrome on Android); iPhones and 8–10" Android tablets work too.</p>
+
+<h2 id="install">Install</h2>
+<h3>Android (Pixel and others)</h3>
+<ol>
+  <li>Open the app's address in <b>Chrome</b>.</li>
+  <li>Tap <span class="btn">Install app</span> (in the More buttons, or Chrome's ⋮ menu → Install app).</li>
+  <li>Open the installed app and tap <span class="btn">Start GPS &amp; compass</span>. Allow location and keep <b>Precise</b> on.</li>
+</ol>
+<p>The installed app runs full screen and Android keeps its stored data.</p>
+<h3>iPhone</h3>
+<ol>
+  <li>Open the same address in <b>Safari</b> and tap Start.</li>
+  <li>Share → <b>Add to Home Screen</b>.</li>
+</ol>
+<div class="warn"><p>On iPhone use the Home Screen app, not a Safari tab. Safari can clear a website's stored data after a few weeks without visits, which would remove your offline data and settings.</p></div>
+
+<h2 id="loading">First launch and the loading screen</h2>
+<p>While the app starts, a loading screen lists each step (aerodromes and airspace with the ERSA date, towns and suburbs, app code) with the amount received, and says whether it is loading from offline storage. If something can't load, it shows which step failed and why.</p>
+<p>It also shows what is stored for use without signal:</p>
+<ul>
+  <li><b>Terrain tiles</b> (all of Australia, about 11 MB)</li>
+  <li><b>Coastline areas</b> (about 1.6 MB, used by coast legs and the Coast layer)</li>
+  <li><b>Chart sheets you have picked</b> (the Melbourne VNC and VTC by default)</li>
+  <li><b>Power lines</b></li>
+</ul>
+<p>Each row has a count, and a line under them gives the download speed, what is left and roughly how long, e.g. "about 1.2 MB/s · 9.6 MB to go · about 8 s". The time is an estimate from the number of items stored and their average size.</p>
+<ul>
+  <li>The first time (or after new content) it stays until everything is stored. <span class="btn">Start now</span> opens the app straight away and the downloads carry on in the background. The footer's Offline line shows how they're going.</li>
+  <li>With everything already stored, it closes as soon as the app is ready.</li>
+  <li>Without signal, it starts after a few seconds with what is there.</li>
+</ul>
+
+<h2 id="offline">Working offline</h2>
+<p>After one load with signal everything below works without a connection: GPS, compass, the map, charts you've ticked, terrain, coastline, search, the elevation profile, flight plans, checklists, the flight log and (once its model is downloaded) transcription.</p>
+<p><b>Needs signal:</b> live ADS-B traffic, satellite imagery you haven't viewed before, rain radar, Google Drive saves, and opening NAIPS. NOTAMs and weather come from the NAIPS briefing you load, which is then kept on the phone.</p>
+<ul>
+  <li><b>Check you're ready:</b> the footer at the bottom of the page shows what is stored ("ready to fly without signal" when it's all there). The pre-flight brief also has a <b>Ready to fly without signal?</b> check for your route (see <a href="preflight.html#offline">Pre-flight brief</a>).</li>
+  <li><b>Weak signal:</b> the app waits up to 3 seconds for the network, then starts from the stored copy, so a poor connection in flight doesn't hold it up.</li>
+  <li><b>ERSA FAC sheets</b> are stored when first opened. The sheets for your plan and Go to aerodromes are fetched in the background while you have signal.</li>
+</ul>
+
+<h2 id="updates">Updates</h2>
+<ul>
+  <li>Updates arrive the next time you open the app with signal.</li>
+  <li>If an update lands while the app is open, a bar says <b>App updated · tap to reload</b>. Tap it to switch to the new version.</li>
+  <li><b>Which version you have:</b> the footer starts with "App updated &lt;date and time&gt; (&lt;how long ago&gt;)". If it's older than you expect, close the app and open it again with signal.</li>
+  <li>The app carries the current AIRAC data and, near a cycle change, the next one. It switches by itself at 1600 UTC the day before the effective date (see <a href="data-sources.html#airac">AIRAC sets</a>).</li>
+</ul>
+
+<h2 id="simulator">Simulator</h2>
+<p>Try the app on the ground without GPS. Tap <span class="btn">Simulate</span> (in More) to open the simulator panel:</p>
+<ul>
+  <li><b>Position</b> accepts decimal degrees (<code>-38.04, 144.47</code>; a missing minus is taken as south), DMS (<code>38 02 22S 144 28 10E</code>), degrees and minutes (<code>3802.4S 14428.2E</code>), an aerodrome code (<code>YMAV</code>), a VFR waypoint (<code>CARR</code> or <code>CARRUM</code>), a navaid ident (<code>AV</code>) or an IFR waypoint.</li>
+  <li><b>Alt</b> (ft), <b>Track</b> (°M) and <b>GS</b> (kt) apply as you type. No Enter needed.</li>
+  <li><b>Fly</b> moves you along the track at the groundspeed. With a flight plan loaded it flies the route; typing a track takes over until you press Fly again.</li>
+  <li>From the map's press-and-hold menu, <b>Move simulator here</b> jumps the simulator to that point.</li>
+  <li><b>Replay GPX</b> plays a recorded flight back through the app (see <a href="logbook-drive.html#replay">Replay</a>).</li>
+</ul>
+<p>You can also start the simulator from the address: add <code>?sim=YMMB&amp;alt=1000&amp;trk=110&amp;gs=0</code> to the app's address. <code>sim=</code> takes the same kinds of position as the Position box.</p>
+<div class="note"><p>Nothing is logged in the simulator, and it doesn't change your compass alignment. The GPS tile is orange with SIM under it. Simulated altitudes are taken as above mean sea level.</p></div>
+
+<h2 id="layouts">Screen layouts</h2>
+<h3>Phone: full-screen map (default)</h3>
+<p>Once GPS (or the simulator) is running the map fills the screen.</p>
+<ul>
+  <li>The key tiles float over the map: CTAF and AREA top left (with the dashed → tiles when you have a Go to or plan), and the alert rows under them. GPS, ALT, TRK, GS and CLASS are top right. Heading tape A runs across the top.</li>
+  <li>Tap a floating tile for the whole top bar; <b>▲ Back to the map</b> closes it.</li>
+  <li><b>The sheet</b> at the bottom holds everything else in tabs: Aerodrome, Radio calls, Flight plan, Go to, Legend, NOTAMs, Nearby and More. Tap a tab to open the sheet half way at that section; tap it again to close. Drag the tab bar to settle it closed, half or nearly full.</li>
+  <li>Zoom, Traffic, Layers, Track up and ⤡ float on the map's right edge.</li>
+</ul>
+<h3>Classic page</h3>
+<p><b>⤡</b> goes back to the classic page: the top bar, then the map, then Go to, simulator, flight plan, aerodrome card, Nearby and settings, all on one scrolling page. <b>⤢</b> returns to full screen. Options → Map → <b>Full-screen map</b> sets which one you start in.</p>
+<h3>Tablet in landscape</h3>
+<ul>
+  <li>The whole top bar is a column on the left and the map fills the rest at full height.</li>
+  <li><b>The splitter:</b> drag the grip on the edge between the column and the map to make the column wider or narrower (240 px up to 45% of the screen). Arrow keys work too. The width is kept.</li>
+  <li>Alert rows sit at the top of the column so they never scroll out of sight.</li>
+  <li>A tablet held upright uses the phone's full-screen layout.</li>
+</ul>
+<p>On the classic page, tablets in portrait get a two-column layout, and in landscape the map is fixed on the left with everything else scrolling on the right.</p>
+<div class="note"><p>Tiles can be turned on or off separately for the phone layout and the tablet-landscape layout: Options → <b>Top bar tiles</b> (see <a href="top-bar.html#onoff">Top bar</a>).</p></div>
+
+<nav class="pager" aria-label="Pages">
+  <a href="index.html"><small>Previous</small>← Help contents</a>
+  <a class="next" href="map.html"><small>Next</small>The map →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

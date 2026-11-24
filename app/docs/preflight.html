@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pre-flight brief (Plan check) · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Pre-flight brief (Plan check)</h1>
+<p class="lead"><span class="btn">Plan check</span>, under the flight plan's leg list, opens the <b>Pre-flight brief</b>: everything along your plan at a planned altitude, speed and departure time, in one list you can copy or print.</p>
+<ul class="toc-in">
+  <li><a href="#inputs">Inputs</a></li>
+  <li><a href="#brief">The brief at the top</a></li>
+  <li><a href="#route">Along the route</a></li>
+  <li><a href="#wind">Wind by leg</a></li>
+  <li><a href="#fuel">Time and fuel</a></li>
+  <li><a href="#reserve">Final reserve</a></li>
+  <li><a href="#lsalt">LSALT</a></li>
+  <li><a href="#notams">NOTAMs by leg</a></li>
+  <li><a href="#wb">Weight and balance</a></li>
+  <li><a href="#hover">Hover performance</a></li>
+  <li><a href="#offline">Ready to fly without signal?</a></li>
+  <li><a href="#copy">Copy and print</a></li>
+</ul>
+
+<h2 id="inputs">Inputs</h2>
+<p>All are kept on the phone. Tap <span class="btn">Check</span> to run it again after a change.</p>
+<div class="tw"><table>
+<tr><th>Box</th><th>Use</th></tr>
+<tr><td>Altitude ft</td><td>Planned altitude for legs without their own altitude (leg overrides from Edit are used where set).</td></tr>
+<tr><td>GS kt (TAS kt with a wind)</td><td>Your speed. With a wind chosen it's taken as TAS and each leg gets its own groundspeed.</td></tr>
+<tr><td>Wind</td><td><b>none</b>; <b>entered</b>: one wind for the route (from °T, kt) read off the grid point wind chart; <b>nearest TAF</b>: each leg takes the surface wind forecast by the closest aerodrome TAF in your briefing at the time you'd be there.</td></tr>
+<tr><td>Departure (local)</td><td>Your departure time. ETAs, tower hours, NOTAM times, SIGMETs and day/night use it.</td></tr>
+<tr><td>Burn L/h, Fuel L</td><td>Fuel flow and fuel on board, for the time and fuel table.</td></tr>
+<tr><td>Reserve min</td><td>Your own final reserve. Empty = the CASA figure.</td></tr>
+<tr><td>OAT</td><td>Outside air temperature for hover performance where no TAF or METAR gives one.</td></tr>
+</table></div>
+<div class="note"><p>A TAF wind is the wind on the ground, not at your altitude; the NAIPS text briefing has no winds aloft. An entered wind from the grid point wind chart is the better figure.</p></div>
+
+<h2 id="brief">The brief at the top</h2>
+<ul>
+  <li><b>NAIPS briefing:</b> when it was issued, warned when over 6 hours old, ending before you arrive, or missing one of the plan's aerodromes.</li>
+  <li><b>Weather at each plan aerodrome at its ETA:</b> TAF category, wind and weather then, with any TEMPO/INTER/PROB; the METAR; the ATIS.</li>
+  <li><b>Area QNH</b>, and the number of <b>SIGMETs/AIRMETs</b> on the route at your level.</li>
+</ul>
+
+<h2 id="route">Along the route</h2>
+<p>In order, with distance and ETA:</p>
+<ul>
+  <li>waypoints (a coast leg's turn points are left out);</li>
+  <li>the CTAF or tower of the nearest aerodrome as it changes: tower hours at your ETA, the split-tower side, the call name ("Barwon Heads traffic"); broadcast areas;</li>
+  <li>area or ATC frequency changes at your altitude (class, limits, "clearance required"); zones list their ATIS frequency; the squawk at a tower where you land;</li>
+  <li>restricted, prohibited and danger areas you'd enter at that altitude, with activity and status at ETA;</li>
+  <li>NOTAM temporary zones, and NOTAM obstacles within 1 NM of track;</li>
+  <li>SIGMETs/AIRMETs at your planned level at ETA;</li>
+  <li>last light, if the plan ends after it.</li>
+</ul>
+
+<h2 id="wind">Wind by leg</h2>
+<p>With a wind chosen: each leg's heading (°M), groundspeed and time. A coast leg is one row: "track along the coast", "HDG varies", average groundspeed.</p>
+
+<h2 id="fuel">Time and fuel</h2>
+<p>With <b>Burn L/h</b> (and optionally <b>Fuel L</b>): time and fuel per leg, fuel remaining at the end of each leg, and totals. Rows below the reserve are red. Leg times use the wind when one is chosen.</p>
+
+<h2 id="reserve">Final reserve</h2>
+<p>The CASA final reserve (Part 91 MOS 19.02), VFR:</p>
+<div class="tw"><table>
+<tr><th></th><th>Day</th><th>Night</th></tr>
+<tr><td>Helicopter</td><td>20 min</td><td>30 min</td></tr>
+<tr><td>Aeroplane</td><td>30 min</td><td>45 min</td></tr>
+</table></div>
+<ul>
+  <li>The category is the Aeroplane / Helicopter choice in Radio calls.</li>
+  <li>It's night when the departure or the arrival is outside first to last light, using the Departure time.</li>
+  <li>The fuel line says which applies, e.g. "reserve 20 min (helicopter, VFR day, CASA Part 91 MOS 19.02) = 33 L".</li>
+  <li>Enter <b>Reserve min</b> to use your own figure. The line then says "your setting" and notes when it's below the CASA minimum. Clear the box to go back.</li>
+</ul>
+<div class="warn"><p>This is the fixed final reserve only. Add any variable or contingency fuel your operator requires.</p></div>
+
+<h2 id="lsalt">LSALT</h2>
+<p>For each leg: the highest terrain or NOTAM obstacle within 2 NM of track, +1,000 ft, rounded up. If terrain isn't loaded for part of a leg it says "terrain partly loaded" and retries while the window is open. This is a guide from 30″ terrain data, not a published LSALT.</p>
+
+<h2 id="notams">NOTAMs by leg</h2>
+<p>Aerodrome NOTAMs are listed under the leg arriving there (departure under leg 1); area NOTAMs under the first leg that passes within 1 NM; the rest under "Other".</p>
+
+<h2 id="wb">Weight and balance</h2>
+<p>With a W&amp;B profile set up, a row gives the take-off, landing and zero-fuel result against the envelope (see <a href="fuel-wb.html#wb">Weight and balance</a>).</p>
+
+<h2 id="hover">Hover performance</h2>
+<p>When your W&amp;B profile has hover ceiling tables (see <a href="fuel-wb.html#hover">Hover performance inputs</a>), the brief has a <b>Hover performance</b> table for the departure and every point you land at:</p>
+<div class="tw"><table>
+<tr><th>Column</th><th>From</th></tr>
+<tr><td>ETA</td><td>The plan's time there.</td></tr>
+<tr><td>Temperature</td><td>The TAF at ETA, else the METAR, else the <b>OAT</b> you enter in Plan check.</td></tr>
+<tr><td>QNH</td><td>TAF, METAR or area QNH; else 1013 hPa assumed, and the table says so.</td></tr>
+<tr><td>Pressure altitude</td><td>Aerodrome elevation + (1013 − QNH) × 30 ft.</td></tr>
+<tr><td>Density altitude</td><td>Pressure altitude + 120 ft per °C above ISA.</td></tr>
+<tr><td>Weight</td><td>Your W&amp;B take-off weight less the fuel burnt to that point.</td></tr>
+<tr><td>IGE / OGE max</td><td>The maximum weights from your hover ceiling tables at that density altitude.</td></tr>
+<tr><td>Margin</td><td>How far under the limit you are.</td></tr>
+</table></div>
+<ul>
+  <li><b>Amber</b> when the margin is under 5%.</li>
+  <li><b>Red</b> when you're over the limit, or the density altitude is outside your table.</li>
+</ul>
+<div class="warn"><p>Density altitude here is an approximation. The flight manual's hover charts govern. The app has no performance figures of its own: the table only uses the numbers you copied from your flight manual.</p></div>
+
+<h2 id="offline">Ready to fly without signal?</h2>
+<p>At the end, the brief checks this device has:</p>
+<ul>
+  <li>the app and AIP data;</li>
+  <li>terrain along the route (3 NM either side);</li>
+  <li>chart tiles for each ticked sheet the route crosses;</li>
+  <li>a NAIPS briefing under 6 hours old and valid to arrival.</li>
+</ul>
+<p>It names chart sheets on the route you haven't ticked, with a <b>Tick them</b> button. Coast legs: "turn points stored with the plan".</p>
+
+<h2 id="copy">Copy and print</h2>
+<p><span class="btn">Copy text</span> copies the whole brief as plain text. <span class="btn">Print / PDF</span> opens it for printing or saving as a PDF.</p>
+
+<nav class="pager" aria-label="Pages">
+  <a href="flight-plan.html"><small>Previous</small>← Flight plan</a>
+  <a class="next" href="weather-notams.html"><small>Next</small>Weather and NOTAMs →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

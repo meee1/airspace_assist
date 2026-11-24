@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight computer (training) · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Flight computer (training)</h1>
+<p class="lead"><b>More → Flight computer</b> is an E6B-style mechanical flight computer to practise with, in three tabs: <b>Computer</b>, <b>Wind</b> and <b>Problems</b>. It always shows in a dark theme.</p>
+<div class="warn"><p>It's a training aid. Use your own computer and the app's figures for real planning.</p></div>
+
+<h2 id="comp">Computer side</h2>
+<p>The circular slide rule.</p>
+<ul>
+  <li><b>Drag the blue disc</b> to turn it. <b>Drag on the outer scale</b> to move the red cursor.</li>
+  <li>Outer scale: miles or litres. Inner scale: minutes. The ▲ 60 is the speed index. An hours ring sits inside the minutes.</li>
+  <li><span class="btn">Speed</span> sets the index to your groundspeed (or Plan check's speed). <span class="btn">Fuel</span> sets it to Plan check's burn. <span class="btn">Reset</span>.</li>
+  <li><b>Readout</b> gives the values over the index and at the cursor. Untick it to practise reading the scales yourself.</li>
+</ul>
+<h3 id="tsd">Time, speed, distance and fuel</h3>
+<p>Put the speed (or burn per hour) on the outer scale over the ▲ 60. Then every distance (or fuel) on the outer scale sits over its time on the inner scale. Example: 60 under 110 kt, and 55 NM sits over 30 min.</p>
+<h3 id="da">Density altitude and TAS windows</h3>
+<ul>
+  <li>In the window at the top of the disc, set the <b>OAT</b> (°C, on the disc) against the <b>pressure altitude</b> (thousands of feet, showing through from the base).</li>
+  <li>CAS on the inner scale then reads <b>TAS</b> on the outer scale.</li>
+  <li>The <b>DENS ALT</b> pointer in the other window reads density altitude.</li>
+  <li>Both follow the standard atmosphere (ISA), so they agree with the 120 ft per °C rule of thumb.</li>
+</ul>
+<h3 id="conv">Conversion arrows</h3>
+<ul>
+  <li>Red arrows on the rim. Put a value (inner scale) under one arrow and read it (inner scale) under another of the same kind: <b>NAUT / STAT / KM</b>, <b>LITRES / US GAL</b>, <b>KG / LB</b>.</li>
+  <li>Fuel weight: put the disc's <b>FUEL L</b> arrow under <b>AVGAS KG</b> (0.72 kg/L) or <b>JET KG</b> (0.80 kg/L), then read kg (outer) over litres (inner). Use your fuel docket's density when you have it.</li>
+</ul>
+
+<h2 id="wind">Wind side</h2>
+<p>Worked the "wind dot up" way.</p>
+<ul>
+  <li><b>Drag the dark ring</b> to turn the plate. <b>Drag inside it</b> to slide the grid.</li>
+  <li><span class="btn">✎ Mark</span> puts the wind dot: press on the centre line and slide. A label shows the knots, and the dot snaps to the centre line and to whole knots. In a problem, once the plate is on the wind a plain tap marks the dot. <span class="btn">Erase</span> removes it.</li>
+  <li>The grid's arcs count from the grid's centre: with 100 under the grommet, 15 kt up is the 115 arc.</li>
+  <li>The readout gives the course under the TRUE INDEX, the groundspeed under the grommet, and the dot's arc and drift.</li>
+  <li><span class="btn">Crosswind</span> shows a square grid round the grommet for crosswind and headwind components.</li>
+</ul>
+
+<h2 id="problems">Problems</h2>
+<p>Choose <b>Problems</b>: <b>From your flight plan</b> (its legs, with Plan check's speed, burn and entered wind) or <b>Random</b>, and the <b>Type</b>:</p>
+<div class="tw"><table>
+<tr><th>Type</th><th>You work out</th></tr>
+<tr><td>Wind: heading and GS</td><td>Heading, groundspeed and wind correction angle.</td></tr>
+<tr><td>Time from distance</td><td>Time for a distance at a groundspeed.</td></tr>
+<tr><td>Groundspeed from time</td><td>Groundspeed from a distance and time.</td></tr>
+<tr><td>Range</td><td>Distance in a time.</td></tr>
+<tr><td>Fuel for a time</td><td>Fuel used at a burn rate.</td></tr>
+<tr><td>Endurance</td><td>Time from fuel and burn.</td></tr>
+<tr><td>Fuel burn from fuel used</td><td>Burn rate from fuel used and time.</td></tr>
+<tr><td>Weight and balance</td><td>A load sheet from your selected W&amp;B profile with random loads (or a made-up example aircraft without one): each moment as weight × arm on the slide rule, then CG = total moment ÷ total weight, and whether it's in the envelope. The front-seat minimum and lateral limits aren't part of it.</td></tr>
+<tr><td>Crosswind component</td><td>Crosswind and head/tailwind for a runway at a plan aerodrome or one near you, with an ATIS-style wind.</td></tr>
+<tr><td>Pressure altitude from QNH</td><td>Elevation + (1013 − QNH) × 30 ft, at an aerodrome on your plan or near you.</td></tr>
+<tr><td>TAS and density altitude</td><td>From pressure altitude, OAT and CAS.</td></tr>
+<tr><td>Conversions</td><td>Distance, volume, weight and fuel weight.</td></tr>
+</table></div>
+<ul>
+  <li>The steps tick themselves off as you set the computer.</li>
+  <li><span class="btn">Hint</span> explains the next step. <span class="btn">Show me</span> sets the computer to the answer (with the working for pressure altitude).</li>
+  <li><span class="btn">Check answer</span> compares with the app's own wind triangle and arithmetic: ±2° and ±2 kt; 2%, 1 minute or 1 L; density altitude ±400 ft; CG 0.3%. Times can be typed as minutes or h:mm.</li>
+  <li><span class="btn">Next ▶</span> for another. Your score is kept.</li>
+</ul>
+
+<h2 id="ex-wind">Worked example: wind</h2>
+<p>True course 157°, TAS 90 kt, wind 270°T / 15 kt.</p>
+<ol>
+  <li>Turn the plate until <b>270</b> is under the TRUE INDEX.</li>
+  <li>Slide the grid so a convenient arc (say 100) is under the grommet, and mark the wind dot 15 kt straight up (on the 115 arc).</li>
+  <li>Turn the plate until the course, <b>157</b>, is under the TRUE INDEX.</li>
+  <li>Slide the grid until the dot sits on the TAS arc, <b>90</b>.</li>
+  <li>Read the groundspeed under the grommet: about <b>95 kt</b>.</li>
+  <li>Read the drift at the dot: about <b>9° right</b> of the centre line. The wind is from the right, so steer into it: heading = 157 + 9 = <b>166°T</b>.</li>
+</ol>
+<p>(Wind triangle: WCA 8.8° R, GS 94.8 kt.) Apply variation for a magnetic heading.</p>
+
+<h2 id="ex-da">Worked example: TAS and density altitude</h2>
+<p>Pressure altitude 4,000 ft, OAT +20 °C, CAS 100 kt.</p>
+<ol>
+  <li>In the window, set <b>+20</b> against pressure altitude <b>4</b> (thousand).</li>
+  <li>Read <b>DENS ALT</b>: about <b>5,500 ft</b> (the standard atmosphere gives 5,490). Check: ISA at 4,000 ft is +7 °C, so it's 13° above ISA; 4,000 + 13 × 120 ≈ 5,560 ft, close enough for the rule of thumb.</li>
+  <li>Find <b>100</b> (CAS) on the inner scale and read TAS above it on the outer scale: about <b>109 kt</b>.</li>
+</ol>
+
+<h2 id="ex-xw">Worked example: crosswind</h2>
+<p>Runway 17 (170°M), ATIS wind 220°M / 20 kt.</p>
+<ol>
+  <li>Turn the plate until <b>220</b> is under the index, and mark the dot <b>20 kt</b> up from the grommet.</li>
+  <li>Tap <span class="btn">Crosswind</span> for the square grid, and turn the runway heading, <b>170</b>, under the index.</li>
+  <li>Read the dot: across = crosswind, up = headwind (down = tailwind). Here the wind is 50° off the runway: about <b>15 kt crosswind from the right</b> and <b>13 kt headwind</b>.</li>
+</ol>
+<p>(20 × sin 50° = 15.3; 20 × cos 50° = 12.9.)</p>
+
+<nav class="pager" aria-label="Pages">
+  <a href="alerts-sartime.html"><small>Previous</small>← SARTIME and alerts</a>
+  <a class="next" href="options.html"><small>Next</small>Options →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

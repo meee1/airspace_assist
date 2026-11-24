@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795515510568;
+const APP_BUILT=1795551962846;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1617,7 +1617,8 @@ function atisHtml(A){ if(!A) return ''; const old=atisAge(A)>3*3600e3, F=A.field
   return `<div class="nt"><div class="h"><b>ATIS ${esc(A.info)}</b> ${hhmmZ(A.t)}${old?' · <span class="w">old ('+Math.round(atisAge(A)/3600e3)+' h)</span>':''} <small>(briefing)</small></div>`+
     `<div class="wxd atis">${F.map(f=>`<div${f.chg?' class="chg" title="changed since the last ATIS"':''}>${f.k?`<small>${esc(ATIS_K[f.k]||f.k)}</small> `:''}${f.chg?'<b>':''}${esc(f.v)}${f.chg?'</b>':''}</div>`).join('')}</div></div>`; }
 function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i], AQ=NTN&&NTN.aq&&NTN.aq.length? NTN.aq : null, AT=NTN&&NTN.atis&&NTN.atis[a.i];
-  if(!M&&!AQ&&!AT){ el.hidden=true; el.innerHTML=''; return; }
+  let AH=null; try{ const x=ATIS[a.i]; if(x&&x.f&&Date.now()-x.t<90*60e3) AH=x; }catch(e){}   // ATIS heard and transcribed (Listen to ATIS)
+  if(!M&&!AQ&&!AT&&!AH){ el.hidden=true; el.innerHTML=''; return; }
   const was=el.open; el.hidden=false; let h=''; const age=t=>{ if(!t) return ''; const m=Math.round((Date.now()-t)/60e3); return m<0?'':m<90? m+' min ago' : Math.round(m/60)+' h ago'; };
   if(M&&M.metar){ const d=metDecode(M.metar.raw), old=M.metar.t&&Date.now()-M.metar.t>90*60e3; const bits=[];
     if(d.spd!=null) bits.push(`wind <b>${d.vrb?'VRB':String(d.dir).padStart(3,'0')+'°T'} ${d.spd}${d.gust?'G'+d.gust:''} kt</b>`);
@@ -1631,6 +1632,7 @@ function wxBox(a){ const el=$('adWx'), M=NTN&&NTN.met&&NTN.met[a.i], AQ=NTN&&NTN
     h+=`<div class="nt"><div class="h"><b>TAF</b> ${esc(age(M.taf.t))}</div>${tt}<details class="tafraw"><summary>Original</summary><div class="tx mono">${esc(M.taf.raw).replace(/ (FM\d{6}|BECMG|TEMPO|INTER|PROB\d{2}|RMK)/g,'<br>$1')}</div></details></div>`; }
   const d=M&&M.metar?metDecode(M.metar.raw):null;
   h=atisHtml(AT)+h;   // the ATIS first: it's what you'll be flying with
+  if(AH) h=`<div class="nt"><div class="h"><b>ATIS ${esc(AH.l||'')}</b> heard ${hhmmZ(AH.heard||AH.t)} (transcribed: check it)</div><div class="wxd">${ATIS_FK.filter(([k])=>k!=='info'&&AH.f[k]!=null&&AH.f[k]!=='').map(([k,l])=>`${l} <b>${esc(String(AH.f[k]))}</b>`).join(' · ')}</div></div>`+h;
   if(AQ) h+=`<div class="nt"><div class="h"><b>Area QNH</b> (briefing)</div><div class="wxd">${AQ.map(q=>esc(aqTxt(q))).join('<br>')}</div></div>`;
   el.innerHTML=`<summary>Weather ${esc(a.i)}${AT?' · ATIS '+esc(AT.info):''}${d&&d.spd!=null?' · '+(d.vrb?'VRB':String(d.dir).padStart(3,'0'))+'/'+d.spd+(d.gust?'G'+d.gust:'')+(d.qnh?' · Q'+d.qnh:''):''} <small>(NAIPS briefing, trial)</small></summary>`+h; el.open=was; }
 function goTarget(){ // the Go to point (flight plan waypoints set it too) and its aerodrome: the point itself, or the nearest within 10 NM
@@ -2286,6 +2288,7 @@ function clrOpen(ad){ ad=ad||atisAdNow(); const d=$('clrDlg'); d.dataset.ad=ad?a
   const cur=ad&&atisOf(ad.i);
   $('clrAtis').innerHTML= ad&&ad.a? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c=>`<button type="button" class="btn${cur===c?' on':''}" data-l="${c}">${c}</button>`).join('') : '';
   $('clrSq').value=CLR.sq||''; $('clrLvl').value=CLR.lvl||''; $('clrRt').value=CLR.rt||'';
+  try{ if(!ATC.on){ ATC.ad=ad&&ad.a? ad : null; ATC.why=''; } atisCapUI(); }catch(e){}
   if(d.showModal) d.showModal(); else d.setAttribute('open',''); requestAnimationFrame(padDraw); }
 function clrSave(){ ls.set('atis',ATIS); ls.set('clr',CLR); }
 $('clrAtis').addEventListener('click',e=>{ const b=e.target.closest('[data-l]'); if(!b) return; const ad=$('clrDlg').dataset.ad; if(!ad) return;
@@ -3994,8 +3997,53 @@ function pcLegGroups(R,W){ const out=[]; R.forEach((l,i)=>{ const w=W[i]||{}, [s
   for(const g of out){ g.coast=g.n>1; g.gs= g.ms? g.L/(g.ms/3600e3) : null; }
   return out; }
 const legLab=l=>`${l.from.c||l.from.n||''} → ${l.to.c||l.to.n||''}${l.coast?' (coast)':''}`;
+/* ---------- hover performance (25 Nov 2026, Michael chose suggestion 4): for the departure and every point you land at, the
+   density altitude at your ETA (temperature: TAF RMK T at ETA, else a METAR under 90 min old when the ETA is within 90 min,
+   else Plan check's OAT; QNH: TAF RMK Q, else METAR, else the briefing's lowest area QNH, else 1013 assumed; the station is
+   the aerodrome itself or the nearest one in the briefing within 40 NM), your weight there (W&B take-off weight less the
+   fuel burnt at Plan check's burn), and the hover ceilings the pilot entered in the W&B profile (P.hige / P.hoge:
+   "density altitude ft, max weight" per line, interpolated, never extrapolated). DA = PA + 118.8 x (T - ISA), PA = elevation
+   + (1013.25 - QNH) x 30, as the weather card. */
+function hpTable(txt){ return wbPoly(txt).map(([a,w])=>({d:a,w})).filter(p=>isFinite(p.d)&&p.w>0).sort((x,y)=>x.d-y.d); }
+function hpMax(T,da){ if(T.length<2||da<T[0].d-1e-6||da>T[T.length-1].d+1e-6) return null; for(let i=1;i<T.length;i++){ const a=T[i-1], b=T[i]; if(da<=b.d) return b.d===a.d? Math.min(a.w,b.w) : a.w+(b.w-a.w)*(da-a.d)/(b.d-a.d); } return T[T.length-1].w; }
+function hpStation(la,lo){ if(!NTN||!NTN.met) return null; let best=null;
+  for(const icao in NTN.met){ const a=DATA.ap.find(x=>x.i===icao); if(!a) continue; const d=distBrg(la,lo,a.la,a.lo)[0]; if(d<=40&&(!best||d<best.d)) best={icao,a,d}; } return best; }
+function hpWx(la,lo,t){ const S=hpStation(la,lo), out={T:null, Ts:'', Q:null, Qs:''}; const M=S&&NTN.met[S.icao];
+  if(M&&M.taf){ try{ const D=tafDecode(M.taf.raw,M.taf.t), at=k=>{ const a=D.tq[k]; if(!a||!a.length) return null; const f=(t-D.from)/(3*3600e3), i=Math.floor(f); if(f<0||f>a.length-1) return null; return i===a.length-1? a[i] : a[i]+(a[i+1]-a[i])*(f-i); };
+      const T=at('T'), Q=at('Q'); if(T!=null){ out.T=Math.round(T); out.Ts='TAF '+S.icao; } if(Q!=null){ out.Q=Math.round(Q); out.Qs='TAF '+S.icao; } }catch(e){} }
+  if(M&&M.metar&&(out.T==null||out.Q==null)){ const d=metDecode(M.metar.raw), fresh=M.metar.t&&Date.now()-M.metar.t<90*60e3&&Math.abs(t-Date.now())<90*60e3;
+    if(fresh){ if(out.T==null&&d.temp!=null){ out.T=d.temp; out.Ts=M.metar.kind+' '+S.icao; } if(out.Q==null&&d.qnh){ out.Q=d.qnh; out.Qs=M.metar.kind+' '+S.icao; } } }
+  if(out.T==null){ const o=ls.get('pcOat',null); if(o!=null&&o!==''){ out.T=+o; out.Ts='OAT entered'; } }
+  if(out.Q==null&&NTN&&NTN.aq&&NTN.aq.length){ const qs=NTN.aq.flatMap(a=>a.parts||[]).map(x=>+x.q).filter(q=>q>=900); if(qs.length){ out.Q=Math.min(...qs); out.Qs='area QNH (lowest)'; } }
+  if(out.Q==null){ out.Q=1013; out.Qs='assumed'; }
+  return out; }
+function hpRows(dep,gs,tAt){ const pts=FP.pts, S=wbSummary(), P=S&&S.P, IGE=P? hpTable(P.hige) : [], OGE=P? hpTable(P.hoge) : [];
+  const burn=+ls.get('pcBurn',0)||0, U=P&&WB_U[P.u], fuelW=P? (P.u==='lb'? burn/3.785411784*(P.dens||U.dens) : burn*(P.dens||U.dens)) : 0;   // weight burnt per hour
+  const rows=[]; let D=0;
+  pts.forEach((p,k)=>{ if(k) D+=distBrg(pts[k-1].la,pts[k-1].lo,p.la,p.lo)[0]; if(p.cg) return; if(k&&!(typeof fpLand==='function'? fpLand(k) : k===pts.length-1)) return;
+    const t= k? (tAt? tAt(D) : dep+D/gs*3600e3) : dep, a=fpAd(p), elev= a&&a.e!=null? a.e : (typeof terrainFt==='function'? terrainFt(p.la,p.lo) : null);
+    const W=hpWx(p.la,p.lo,t), r={k, name:p.c||p.n||'point', t, elev, W};
+    if(elev!=null&&W.T!=null){ r.pa=elev+(1013.25-W.Q)*30; r.da=Math.round((r.pa+118.8*(W.T-(15-1.98*r.pa/1000)))/10)*10; }
+    if(S){ r.w=S.r.to.w-fuelW*(t-dep)/3600e3; r.u=U.w; }
+    if(r.da!=null&&r.w!=null){ r.ige=hpMax(IGE,r.da); r.oge=hpMax(OGE,r.da); }
+    rows.push(r); });
+  return {rows, P, has:IGE.length>=2||OGE.length>=2}; }
+function hpHtml(dep,gs,tAt){ if(!FP||FP.pts.length<2) return {html:'',txt:''}; const H=hpRows(dep,gs,tAt), lt=t=>hhmmZ(t), f0=v=>Math.round(v).toLocaleString('en-AU');
+  let h=`<div class="pc-sec">Hover performance (density altitude at ETA${H.P? ', '+esc(H.P.name) : ''})</div>`, txt='Hover performance\n';
+  if(!H.P) h+='<div class="vnote">No complete W&amp;B profile and load: only density altitude is shown. Set them up in Flight plan → W&amp;B.</div>';
+  else if(!H.has) h+='<div class="vnote">Enter Hover ceiling IGE and OGE in your W&amp;B profile (from the flight manual\'s hover charts) to check the weights.</div>';
+  h+='<table class="pc-t"><tbody>'+H.rows.map(r=>{ const cm=(m,lab)=>{ if(!H.has) return ''; if(m==null) return `<span class="w">${lab}: outside your table</span>`; const mg=(m-r.w)/m; return `<span class="${mg<0?'w':mg<0.05?'a':''}">${lab} max ${f0(m)} · ${mg<0?'<b>over by '+f0(-mg*m)+'</b>':'margin '+f0(mg*m)+' ('+Math.round(mg*100)+'%)'}</span>`; };
+      const worst= !H.has||r.da==null? '' : [r.ige,r.oge].some(m=>m==null||m<r.w)? 'w' : [r.ige,r.oge].some(m=>m!=null&&(m-r.w)/m<0.05)? 'a' : '';
+      const wx= r.W.T==null? '<span class="w">no temperature: enter the OAT above</span>' : `${r.W.T}°C (${esc(r.W.Ts)}) · QNH ${r.W.Q} (${esc(r.W.Qs)})`;
+      const da= r.da!=null? `PA ${f0(r.pa)} · <b>DA ${f0(r.da)} ft</b>` : r.elev==null? '<span class="w">no elevation</span>' : '';
+      const line=[cm(r.ige,'IGE'),cm(r.oge,'OGE')].filter(Boolean).join('<br>');
+      txt+=`${r.name} ${lt(r.t)}: ${r.W.T!=null?r.W.T+'C':'no temp'} QNH ${r.W.Q}${r.da!=null?' DA '+r.da+' ft':''}${r.w!=null?' weight '+Math.round(r.w)+' '+r.u:''}${H.has&&r.ige!=null?' IGE max '+Math.round(r.ige):''}${H.has&&r.oge!=null?' OGE max '+Math.round(r.oge):''}\n`;
+      return `<tr class="${worst}"><td class="k">${esc(r.name)}<br><small>${r.k?'land':'departure'} ${lt(r.t)}</small></td><td>${da}${da?'<br>':''}<small>${wx}${r.elev!=null?' · elev '+f0(r.elev)+' ft':''}</small>${r.w!=null?`<br>weight ${f0(r.w)} ${esc(r.u)}`:''}${line?'<br>'+line:''}</td></tr>`; }).join('')+'</tbody></table>'+
+    '<div class="vnote">Density altitude here is an approximation (pressure altitude + 120 ft per °C above ISA) from the forecast; the flight manual\'s charts at the actual conditions govern.</div>';
+  return {html:h, txt}; }
 function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vnote">Load or build a flight plan first.</div>'; return; }
   const alt=+$('pcAlt').value||1500, gs=Math.max(20,+$('pcGs').value||90), tv=$('pcDep').value||'';
+  { const o=$('pcOat').value.trim(); ls.set('pcOat', o!==''&&isFinite(+o)? +o : null); }
   const burn=+$('pcBurn').value||0, fob=+$('pcFuel').value||0, resIn=$('pcRes').value.trim(); ls.set('pcRes', resIn!==''&&+resIn>=0? +resIn : null); ls.set('pcAlt',alt); ls.set('pcGs',gs); ls.set('pcBurn',burn||null); ls.set('pcFuel',fob||null);
   ls.set('pcDep',tv?{v:tv,t:Date.now()}:null); const dep=pcDepMs(tv);
   { const src=$('pcWsrc').value, d=+$('pcWdir').value, k=+$('pcWkt').value; ls.set('pcWsrc',src); if(src==='set') ls.set('pcWind', $('pcWdir').value!==''&&k>0&&d>=0&&d<=360? {dir:d%360,kt:Math.min(99,k)} : null); pcWindUI(); }
@@ -4018,12 +4066,14 @@ function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vn
   const N=ntRoute(), NL=ntByLeg(N); h+=`<div class="pc-sec">NOTAMs along the route (${N.length}), by leg</div>`+(N.length? '<table class="pc-t"><tbody>'+NL.map(([lab,ns])=>`<tr class="wp"><td class="k" colspan="2">${esc(lab)}</td></tr>`+ns.map(n=>`<tr><td class="k">${esc(n.loc||'')} ${esc(n.id||'')}</td><td>${esc((n.text||'').slice(0,240))}</td></tr>`).join('')).join('')+'</tbody></table>' : `<div class="vnote">${ntHave()?'None in the loaded briefing.':'No NAIPS briefing loaded: load one for NOTAMs, area status and obstacles.'}</div>`);
   { const S=wbSummary(); if(S){ const {P,r}=S, f=p=>`${wbFmtW(P,p.w)} CG ${wbFmtA(P,p.a)}`;   // weight and balance from your profile and load
     h+=`<div class="pc-sec">Weight and balance (${esc(P.name)})</div><table class="pc-t"><tbody><tr class="${r.ok?'':'w'}"><td class="k">${r.ok?'OK':'OUT'}</td><td>Take-off ${f(r.to)}${r.ld?' · landing '+f(r.ld):''} · zero fuel ${f(r.zf)}${r.ok?'':' · <span class="w">'+r.why.map(esc).join(' · ')+'</span>'}${r.pf?` · fuel ${Math.round(r.F)} ${WB_U[P.u].f} on board, ${Math.ceil(r.pf.need)} needed with ${r.pf.res} min reserve${r.F<r.pf.need?' <span class="w">(short)</span>':''}`:''}</td></tr></tbody></table>`; } }
+  let HPT=''; try{ const X=hpHtml(dep,gs,PL.wind?PL.tAt:null); h+=X.html; HPT=X.txt; }catch(e){}
   h+='<div class="pc-sec">Ready to fly without signal?</div><div id="pcOff" class="vnote">Checking what\'s stored on this device…</div>';
   PC.offTxt=''; $('pcOut').innerHTML=h; routeReady(FP.pts,dep,dep+Ttot).then(R_=>{ const el=$('pcOff'); if(el) el.outerHTML=R_.html; PC.offTxt=R_.txt; });
   $('pcStat').textContent= r.legs.some(l=>l.unk)? 'Some terrain along the route isn\'t loaded yet: checking again…' : 'Planned altitude, GS and departure are kept on this device. Tower hours and area status are at your ETA; check the ATIS, NOTAMs and ERSA before flight.';
   PC.text=`PLAN CHECK ${FP.name||''} ${fmtD(r.D)} NM ${alt} ft ${gs} kt${PL.wind?' TAS':''} dep ${lt(dep)}\n`+(PL.wind? 'Wind by leg ('+(PL.src==='set'?'entered':'nearest TAF, surface')+')\n'+RL.map(l=>`${legLab(l).replace(' → ',' -> ')}: TR ${l.coast?'along the coast':fmt3(l.trk-varE)+'M'} wind ${l.w? (l.w.kt>0? fmt3(l.w.dir)+'T/'+l.w.kt : 'calm') : 'none'} HDG ${l.bad?'-':l.coast?'varies':fmt3(l.hdg-varE)+'M'} GS ${l.bad?'-':Math.round(l.gs)} ${hmm(l.ms)}`).join('\n')+'\n\n' : '')+r.ev.map(e=>`${String(fmtD(e.D)).padStart(5)} NM ${lt(e.t)}  ${e.k.padEnd(8)} ${e.txt}`).join('\n')+'\n\nLSALT by leg\n'+RL.map(l=>`${legLab(l).replace(' → ',' -> ')}: ${l.hi?'LSALT '+lsaltOf(l.hi.ft)+' (highest '+Math.round(l.hi.ft)+' ft '+l.hi.what+')':'terrain not loaded'}${l.unk?' (terrain partly loaded)':''}`).join('\n')+(burn?'\n\nTime and fuel\n'+RL.map((l,k)=>`${legLab(l).replace(' → ',' -> ')}: ${hmm(fl[k].t)} ${Math.round(fl[k].f)} L${fob?' ('+Math.round(fl[k].rem)+' L left)':''}`).join('\n'):'')+'\n\nNOTAMs along the route\n'+NL.map(([lab,ns])=>lab+'\n'+ns.map(n=>`  ${n.loc||''} ${n.id||''}: ${n.text||''}`).join('\n')).join('\n')+'\n';
+  if(HPT) PC.text+=String.fromCharCode(10)+HPT;
   if(r.legs.some(l=>l.unk)&&TER.ok&&(PC.retry=(PC.retry||0)+1)<=12&&$('pcDlg').open) setTimeout(pcRun,2000); else { PC.retry=0; if(r.legs.some(l=>l.unk)) $('pcStat').textContent='Terrain isn\'t available for part of the route (not downloaded, or offline): those legs\' LSALT may be low.'; } }
-$('fpCheck').onclick=()=>{ { const v=ls.get('pcRes',null); $('pcRes').value= v==null? '' : v; } $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>30?Math.round(st.alt/100)*100:1500); $('pcGs').value=ls.get('pcGs',90); $('pcBurn').value=ls.get('pcBurn','')||''; $('pcFuel').value=ls.get('pcFuel','')||'';
+$('fpCheck').onclick=()=>{ { const v=ls.get('pcRes',null); $('pcRes').value= v==null? '' : v; } { const v=ls.get('pcOat',null); $('pcOat').value= v==null? '' : v; } $('pcAlt').value=ls.get('pcAlt',st.alt!=null&&st.gs>30?Math.round(st.alt/100)*100:1500); $('pcGs').value=ls.get('pcGs',90); $('pcBurn').value=ls.get('pcBurn','')||''; $('pcFuel').value=ls.get('pcFuel','')||'';
   { const w=ls.get('pcWind',null); $('pcWsrc').value=ls.get('pcWsrc','none'); $('pcWdir').value= w? w.dir : ''; $('pcWkt').value= w? w.kt : ''; pcWindUI(); }
   if(!$('pcDep').value){ const d=new Date(); $('pcDep').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
   if(FP) for(const p of FP.pts) terPrefetch(p.la,p.lo);
@@ -4239,7 +4289,10 @@ function wbRender(){ const P=wbCur(), box=$('wbOut'); $('wbProfSel').innerHTML=W
    <div class="ctl"><button class="btn" id="wbAddSt">Add station</button></div>
    <label class="wb-ta">CG envelope: one corner per line, "arm, weight", in order around the shape (POH)<textarea data-f="env" rows="5" spellcheck="false" placeholder="e.g.\n2340, 680\n2340, 1000\n2480, 1135\n2550, 1135\n2550, 680">${esc(P.env||'')}</textarea></label>
    <label class="wb-ta">Fuel gauge calibration (optional): "indicated, litres" per line, from the placard<textarea data-f="fcal" rows="3" spellcheck="false" placeholder="e.g.\nE, 0\n10, 50\nFULL, 360">${esc(P.fcal||'')}</textarea></label>
-   <label class="wb-ta">Lateral CG limits (optional): "lateral arm, weight" per line<textarea data-f="lenv" rows="3" spellcheck="false" placeholder="e.g.\n-76, 680\n-76, 1135\n76, 1135\n76, 680">${esc(P.lenv||'')}</textarea></label>`;
+   <label class="wb-ta">Lateral CG limits (optional): "lateral arm, weight" per line<textarea data-f="lenv" rows="3" spellcheck="false" placeholder="e.g.\n-76, 680\n-76, 1135\n76, 1135\n76, 680">${esc(P.lenv||'')}</textarea></label>
+   <label class="wb-ta">Hover ceiling IGE (optional, from your flight manual's hover chart): "density altitude ft, max weight ${U.w}" per line<textarea data-f="hige" rows="3" spellcheck="false" placeholder="density altitude, max weight">${esc(P.hige||'')}</textarea></label>
+   <label class="wb-ta">Hover ceiling OGE (optional, from your flight manual's hover chart): "density altitude ft, max weight ${U.w}" per line<textarea data-f="hoge" rows="3" spellcheck="false" placeholder="density altitude, max weight">${esc(P.hoge||'')}</textarea></label>
+   <div class="vnote">The hover ceilings feed the Pre-flight brief's hover performance check. Nothing is built in: copy the points off the flight manual charts (at the configuration you fly). The app interpolates between your points and doesn't extrapolate.</div>`;
   // load sheet
   const miss=wbReady(P);
   // load sheet: one row per station (weight box, arm, moment, how much more fits); the boxes are built once, the numbers update in place
@@ -4283,7 +4336,7 @@ $('wbDel').onclick=()=>{ const P=wbCur(); if(!P||!confirmDel(P)) return; WB.prof
 function confirmDel(P){ const b=$('wbDel'); if(b.dataset.arm===P.id){ delete b.dataset.arm; b.textContent='Delete'; return true; } b.dataset.arm=P.id; b.textContent='Tap again to delete'; setTimeout(()=>{ if(b.dataset.arm){ delete b.dataset.arm; b.textContent='Delete'; } },4000); return false; }   // no browser confirm(): a second tap
 $('wbEd').addEventListener('input',e=>{ const P=wbCur(); if(!P) return; const t=e.target, f=t.dataset.f, sk=t.dataset.s, tr=t.closest('tr[data-k]');
   const nv=v=>v===''?null:+v;
-  if(f){ if(f==='name'||f==='env'||f==='lenv'||f==='fcal') P[f]=t.value; else if(f==='u'){ P.u=t.value; P.dens=WB_U[P.u].dens; $('wbEd').innerHTML=''; } else P[f]=nv(t.value); }
+  if(f){ if(f==='name'||f==='env'||f==='lenv'||f==='fcal'||f==='hige'||f==='hoge') P[f]=t.value; else if(f==='u'){ P.u=t.value; P.dens=WB_U[P.u].dens; $('wbEd').innerHTML=''; } else P[f]=nv(t.value); }
   else if(sk&&tr&&sk!=='del'){ const s=P.st[+tr.dataset.k]; if(sk==='n'||sk==='k') s[sk]=t.value; else s[sk]=nv(t.value); if(sk==='k') $('wbLoad').innerHTML=''; }
   wbSave(); if(f==='name'){ const o=$('wbProfSel').selectedOptions[0]; if(o) o.textContent=P.name; } wbRenderSoon(); });
 $('wbEd').addEventListener('change',e=>{ if(e.target.tagName==='SELECT'){ $('wbEd').innerHTML=''; $('wbLoad').innerHTML=''; wbRender(); } });
@@ -4784,7 +4837,7 @@ async function sttQueue(pcm,sr,t){ const x=await sttTo16k(pcm,sr); STT.q.push({i
   if(!STT.ready) sttLoad(); sttNext(); }
 function sttNext(){ if(STT.busy||!STT.ready||!STT.q.length) return; const j=STT.q.shift(); STT.busy=j; if(STT.sink&&!j.sink) j.sink=STT.sink;
   sttSt(`Working on a ${(j.pcm.length/16000).toFixed(1)} s transmission…${STT.q.length?' ('+STT.q.length+' waiting)':''}`);
-  STT.w.postMessage({t:'run', id:j.id, pcm:j.pcm, prompt:j.sink? hfPrompt() : sttPrompt()},[j.pcm.buffer]); }
+  STT.w.postMessage({t:'run', id:j.id, pcm:j.pcm, prompt:j.sink? (j.sink.prompt? j.sink.prompt() : hfPrompt()) : sttPrompt()},[j.pcm.buffer]); }
 function sttPrompt(){ const p=st.pos; if(!p) return STT_WORDS;
   if(STT.pr&&distBrg(p[0],p[1],STT.pr.la,STT.pr.lo)[0]<3&&STT.pr.cs===$('cSign').value&&STT.pr.ty===$('cType').value) return STT.pr.t;
   const W=[], add=w=>{ w=String(w||'').trim(); if(w&&!W.includes(w)) W.push(w); };
@@ -4804,7 +4857,7 @@ function sttGot(d){ const j=STT.busy; STT.busy=false; STT.ms.push(d.ms/1000/Math
   sttSt(`Last: ${d.dur.toFixed(1)} s of audio in ${(d.ms/1000).toFixed(1)} s (about ${r.toFixed(1)}× its length).${STT.q.length?' '+STT.q.length+' waiting.':''}`);
   sttNext(); }
 function sttLine(txt,t,dur){ if(!txt||STT_JUNK.test(txt)) return; const me=sttMe(txt), x={t, text:txt, dur, me, id:++STT.lid};   // one heard transmission (either engine)
-  x.sug=sttSuggest(txt,me); STT.log.push(x); if(STT.log.length>300) STT.log.shift(); txLogAdd(x); if(me) sttAlert(); sttRender(); }
+  x.sug=sttSuggest(txt,me); STT.log.push(x); if(STT.log.length>300) STT.log.shift(); const rb=rbCheck(x); if(rb) x.sug=null; txLogAdd(x); if(me&&!rb) sttAlert(); sttRender(); }
 const STT_NATO=['alpha|alfa','bravo','charl(?:ie|ey|y)','delta','echo','foxtrot','golf','hotel','india','juliett?e?','kilo','lima','mike','november','oscar','papa','quebec','romeo','sierra','tango','uniform','victor','whiske?y','x-?ray','yankee','zulu'];
 function sttMark(t){ let h=esc(t);
   h=h.replace(/\b(1[1-3]\d)\s?(?:[.,]|decimal|point)\s?(\d{1,3})\b/gi,'<b>$1.$2</b>')
@@ -4855,7 +4908,7 @@ function sttUse(id){ const x=STT.log.find(y=>y.id===id); if(!x||!x.sug) return; 
   clrSave(); S.used=true; sttRender(); sttSt('Added to the ATIS and clearance notes: '+S.lab+'.'); render(); }
 const sttUseBtn=x=>x.sug? (x.sug.used? `<small class="sttused">✓ ${esc(x.sug.lab)}</small>` : `<button type="button" class="btn sttuse" data-sug="${x.id}">Use: ${esc(x.sug.lab)}</button>`) : '';
 function sttRender(){ const L=STT.log;
-  $('sttLog').innerHTML=L.slice().reverse().map(x=>`<li${x.me?' class="me"':''}><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)} <small>${x.dur.toFixed(0)} s</small>${sttUseBtn(x)}</li>`).join('');
+  $('sttLog').innerHTML=L.slice().reverse().map(x=>`<li${x.me?' class="me"':''}><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)} <small>${x.dur.toFixed(0)} s</small>${rbTag(x)}${sttUseBtn(x)}</li>`).join('');
   sttRow(); }
 function sttRow(){ const row=$('sStt'), rp=RP.pts.length&&!$('rpBox').hidden&&RP.tx.length;
   if(rp){ const last=RP.tx.filter(r=>r[0]<=RP.t&&RP.t-r[0]<120e3).slice(-2);   // replay: the transcripts logged on that flight, at its time
@@ -4863,7 +4916,7 @@ function sttRow(){ const row=$('sStt'), rp=RP.pts.length&&!$('rpBox').hidden&&RP
   const L=STT.log, now=Date.now(), last=L.filter(x=>now-x.t<120e3).slice(-2);
   if(!STT.on||!AUD.st||!last.length){ row.hidden=true; return; }
   row.hidden=false; rowCls(row,'st nxcls stt'+(STT.meT&&now-STT.meT<30e3?' me':''));
-  row.innerHTML='<small>RADIO</small>'+last.reverse().map((x,i)=>`<span><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)}${i===0&&x.sug&&!x.sug.used?' '+sttUseBtn(x):''}</span>`).join(''); }
+  row.innerHTML='<small>RADIO</small>'+last.reverse().map((x,i)=>`<span><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)}${rbTag(x)}${i===0&&x.sug&&!x.sug.used?' '+sttUseBtn(x):''}</span>`).join(''); }
 setInterval(()=>{ if(STT.on) sttRow(); },10e3);
 async function sttSet(on){ STT.on=on; $('sttOn').checked=on;
   if(on){ if(STT.eng!=='web'&&!STT.have[STT.model]&&!navigator.onLine){ STT.on=false; $('sttOn').checked=false; sttSt('Download the model first (needs signal once).'); return; }
@@ -4918,8 +4971,94 @@ function srwStop(){ SRW.on=false; clearTimeout(SRW.timer); SRW.t0=0; const r=SRW
 function srwFinal(t,t0){ const txt=String(t||'').replace(/\s+/g,' ').trim(); if(!txt) return;
   if(STT.sink){ if(HF.quietT!==Infinity&&t0>=HF.quietT&&!STT_JUNK.test(txt)) STT.sink(txt); return; }   // hands-free: not the tablet's own voice
   const dur=Math.max(0.5,(Date.now()-t0)/1000); sttLine(txt,t0,dur); sttSt(`Last: ${hhmmZ(Date.now())} · browser speech recognition${SRW.local?' (on this tablet)':' (online)'}.`); }
+$('sttRb').checked=ls.get('sttRb',true)!==false; $('sttRb').onchange=()=>ls.set('sttRb',$('sttRb').checked);
 $('sttEng').onchange=()=>{ STT.eng=$('sttEng').value==='web'?'web':'whisper'; ls.set('sttEng',STT.eng); if(STT.on||STT.sink){ sttDetach(); if(STT.eng!=='web') sttLoad(); sttAttach(); } srwUI(); };
 $('sttWebInst').onclick=srwInstall;
+/* ---------- ATIS capture (25 Nov 2026, Michael chose suggestion 2): "Listen to ATIS" in the ATIS and clearance dialog routes the
+   transcription engine (Whisper or the browser's) to atisHeard instead of the radio log (STT.sink, like the hands-free
+   checklist) for up to 2 min or until the information letter has been heard twice (the broadcast repeats). atisParse turns
+   the text into fields by keyword (information, runway, wind, visibility, cloud/CAVOK, temperature, QNH; the rest = Other),
+   later transmissions overriding earlier ones. Use saves ATIS[icao] = {l, q, t, f, heard} (the letter and QNH feed the calls
+   as before; f shows in the dialog and on the aerodrome card's weather). Never applied without the tap. */
+const ATC={on:false, ad:null, t0:0, f:{}, seen:{}, timer:0, opened:false, n:0, why:''};
+const ATIS_FK=[['info','Information'],['rwy','Runway'],['wind','Wind'],['vis','Visibility'],['cloud','Cloud'],['temp','Temperature'],['qnh','QNH'],['other','Other']];
+function atisNorm(t){ return sttDigits(String(t||'')).replace(/\b(\d)\s+(?=\d\b)/g,'$1').replace(/\b(\d)\s+(?=\d\b)/g,'$1').replace(/\s+/g,' ').trim(); }
+function atisParse(raw){ const t=atisNorm(raw), F={}, KW=/\b(information|runways?|wind|visibility|cloud|cavok|temperature|dew ?point|qnh)\b/gi;
+  const hits=[]; let m; while((m=KW.exec(t))) hits.push({k:m[1].toLowerCase(), i:m.index, e:m.index+m[0].length});
+  const seg=k=>t.slice(hits[k].e, k+1<hits.length? hits[k+1].i : t.length).replace(/^[\s,.:]+|[\s,.]+$/g,'');
+  const other=[]; if(hits.length&&hits[0].i>0){ const pre=t.slice(0,hits[0].i).replace(/^[\s,.]+|[\s,.]+$/g,''); if(pre&&!/\b(terminal|tower|ATIS)\b/i.test(pre)&&pre.split(' ').length>3) other.push(pre); }
+  hits.forEach((h,k)=>{ const v=seg(k);
+    if(h.k==='information'){ const w=/^([a-z-]+)/i.exec(v); const l=w&&STT_W4[w[1].toLowerCase().slice(0,4)]; if(l) F.info=l; const rest=v.replace(/^[a-z-]+[\s,.]*/i,''); if(rest&&rest.split(' ').length>2) other.push(rest); }
+    else if(/^runways?$/.test(h.k)) F.rwy=v.replace(/\b(\d{1,2})\s*(left|right|centre|center)\b/gi,(x,n,s)=>n.padStart(2,'0')+s[0].toUpperCase()).replace(/\s+for\s+/i,' · ').slice(0,60);
+    else if(h.k==='wind'){ const w=/^(\d{3})\s*(?:degrees)?\s*(?:at\s*)?(\d{1,2})\s*(?:knots|kt)?/i.exec(v); const wr= w? v.slice(w[0].length).replace(/^[\s,.]+/,'') : ''; F.wind= w? `${w[1]}°/${w[2]} kt`+(wr? ', '+wr : '') : v; F.wind=F.wind.slice(0,70); }
+    else if(h.k==='visibility') F.vis=v.slice(0,50);
+    else if(h.k==='cloud') F.cloud=v.slice(0,60);
+    else if(h.k==='cavok'){ F.vis='CAVOK'; F.cloud='CAVOK'; }
+    else if(h.k==='temperature'){ const x=/^(minus\s*)?(\d{1,2})/i.exec(v); if(x) F.temp=(x[1]?'-':'')+x[2]+'°C'; }
+    else if(/dew/.test(h.k)){ const x=/^(minus\s*)?(\d{1,2})/i.exec(v); if(x&&F.temp) F.temp+=' / dew '+(x[1]?'-':'')+x[2]; }
+    else if(h.k==='qnh'){ const x=/^(\d{3,4})/.exec(v); if(x&&+x[1]>=900&&+x[1]<=1100) F.qnh=+x[1]; const rest=v.replace(/^\d{3,4}[\s,.]*/,''); if(rest&&rest.split(' ').length>2) other.push(rest); } });
+  if(other.length) F.other=other.join(' · ').slice(0,200);
+  return F; }
+function atisPrompt(){ const a=ATC.ad; return `${a? callName(a.n,a.i)+' terminal information' : 'Terminal information'}, ${ATIS_W.join(', ')}. Runway, wind, degrees, knots, crosswind, tailwind, visibility, greater than 10 kilometres, cloud, few, scattered, broken, overcast, CAVOK, temperature, dew point, QNH, on first contact, hectopascals.`; }
+function atisHeard(txt){ if(!ATC.on) return; ATC.n++; const F=atisParse(txt); for(const k in F){ const o=ATC.f[k], v=F[k]; if(v==null||v==='') continue; if(typeof o==='string'&&typeof v==='string'&&v.length<o.length&&o.startsWith(v)) continue; ATC.f[k]=v; }   /* a cut-off repeat doesn't replace the whole value */
+  if(F.info){ ATC.seen[F.info]=(ATC.seen[F.info]||0)+1; if(ATC.seen[F.info]>=2&&Date.now()-ATC.t0>20e3){ atisStop('done'); return; } }
+  atisCapUI(); }
+atisHeard.prompt=atisPrompt;
+function atisCapUI(){ const el=$('atisCap'), a=ATC.ad, A=a&&ATIS[a.i], F= ATC.on||ATC.why? ATC.f : A&&A.f&&Date.now()-A.t<90*60e3? A.f : null;
+  if(!F){ el.hidden=true; el.innerHTML=''; return; } el.hidden=false;
+  const rows=ATIS_FK.filter(([k])=>F[k]!=null&&F[k]!=='').map(([k,l])=>`<tr><td class="k">${l}</td><td>${esc(String(F[k]))}</td></tr>`).join('');
+  const head= ATC.on? `<b>Listening to the ATIS…</b> <small>${ATC.n} transmission${ATC.n===1?'':'s'} heard · stops when it repeats or after 2 min</small>` :
+    ATC.why? `<b>${ATC.why==='done'?'Heard the whole broadcast':ATC.why==='time'?'2 minutes up':'Stopped'}</b> <small>check it against what you heard, then Use</small>` :
+    `<b>ATIS ${esc(A.l||'')} heard ${hhmmZ(A.heard||A.t)}</b> <small>(transcribed)</small>`;
+  el.innerHTML=`<div>${head}</div>`+(rows? `<table>${rows}</table>` : '<div class="vnote">Nothing recognised yet.</div>')+
+    `<div class="ctl">${ATC.on? '<button type="button" class="btn" data-ac="stop">Stop</button>' : ''}${(ATC.on||ATC.why)&&rows? '<button type="button" class="btn primary" data-ac="use">Use</button>' : ''}${!ATC.on&&ATC.why? '<button type="button" class="btn" data-ac="drop">Discard</button>' : ''}</div>`; }
+async function atisListen(){ const code=$('clrDlg').dataset.ad, a=code&&DATA.ap.find(x=>x.i===code), say=t=>{ ATC.why=''; $('atisCap').hidden=false; $('atisCap').innerHTML=`<div class="vnote">${t}</div>`; };
+  if(ATC.on){ atisStop('stop'); return; }
+  if(!a||!a.a) return say('No ATIS aerodrome here.');
+  if(HF.on) return say('Stop the hands-free checklist first.');
+  if(STT.eng==='web'){ if(!srwSR()) return say('This browser has no speech recognition: choose Whisper in Options → Radio audio and transcription.'); }
+  else if(!(await sttHave(STT.model))) return say('Download the speech model first: Options → Radio audio and transcription → Download model (needs signal once), or choose the browser engine there.');
+  Object.assign(ATC,{on:true, ad:a, t0:Date.now(), f:{}, seen:{}, n:0, why:'', opened:false}); STT.sink=atisHeard; $('atisLis').textContent='■ Stop listening'; atisCapUI();
+  if(STT.eng!=='web'&&!(await sttLoad())){ atisStop('stop'); return say('The speech model didn\'t load.'); }
+  if(!AUD.st){ if($('audDev').disabled) await audList(); await audStart(); ATC.opened=true; } else sttAttach();
+  if(!AUD.st){ atisStop('stop'); return say('No input: allow the microphone for this site, or pick an input in Options → Radio audio and transcription.'); }
+  clearTimeout(ATC.timer); ATC.timer=setTimeout(()=>atisStop('time'),120e3); }
+function atisStop(why){ if(!ATC.on) return; ATC.on=false; ATC.why=why; clearTimeout(ATC.timer); if(STT.sink===atisHeard) STT.sink=null;
+  STT.q=STT.q.filter(j=>j.sink!==atisHeard); if(STT.eng==='web'){ srwStop(); if(STT.on&&AUD.st) srwStart(); }
+  if(!STT.on){ sttDetach(); if(ATC.opened&&AUD.st&&!$('optsDlg').open) audStop(); }
+  $('atisLis').textContent='🎧 Listen to ATIS'; atisCapUI(); }
+function atisUse(){ const a=ATC.ad, F=ATC.f; if(!a) return; const o=ATIS[a.i]||{};
+  ATIS[a.i]={l:F.info||(Date.now()-(o.t||0)<60*60e3? o.l : undefined), q:F.qnh||undefined, t:Date.now(), heard:Date.now(), f:Object.assign({},F)}; clrSave();
+  ATC.why=''; ATC.f={}; for(const x of $('clrAtis').children) x.classList.toggle('on',atisOf(a.i)===x.dataset.l);
+  const aq=ATIS[a.i].q; $('clrAtisLbl').textContent=`ATIS ${a.i} ${a.a[0]} · letter${aq?' · QNH '+aq:''}`; atisCapUI(); render(); }
+$('atisLis').onclick=atisListen;
+$('atisCap').addEventListener('click',e=>{ const b=e.target.closest('[data-ac]'); if(!b) return; const k=b.dataset.ac;
+  if(k==='stop') atisStop('stop'); else if(k==='use') atisUse(); else { ATC.why=''; ATC.f={}; atisCapUI(); } });
+$('clrDlg').addEventListener('close',()=>{ if(ATC.on) atisStop('stop'); ATC.why=''; });
+
+/* ---------- read-back check (25 Nov 2026, Michael chose suggestion 3): a transmission with your callsign and a clearance item
+   (squawk, level, heading, QNH, runway, frequency: rbItems) arms STT.rb for 30 s; the next transmission with your callsign,
+   or with at least half of those items, is taken as the read-back and compared item by item (x.rb on that line: ok, or
+   the differences and the missing items). A mismatch vibrates. ls sttRb (default on). It can't tell who is speaking. */
+const RB_L={sq:'squawk', lvl:'level', hdg:'heading', q:'QNH', rwy:'runway', fq:'frequency'};
+function rbItems(raw){ const t=atisNorm(raw), I={}; let m;
+  if((m=/\bsquawk(?:ing)?\s*(\d{4})\b/i.exec(t))) I.sq=m[1];
+  if((m=/\b(?:not above|climb(?:ing)?(?: to)?|descend(?:ing)?(?: to)?|maintain(?:ing)?)\s+(?:altitude\s+)?(\d{1,2},\d{3}|\d{3,5})\b/i.exec(t))) I.lvl=m[1].replace(',','');
+  else if((m=/\b(?:flight level|FL)\s*(\d{2,3})\b/i.exec(t))) I.lvl='FL'+m[1];
+  if((m=/\bheading\s+(\d{3})\b/i.exec(t))) I.hdg=m[1];
+  if((m=/\bQNH\s*(\d{3,4})\b/i.exec(t))&&+m[1]>=900&&+m[1]<=1100) I.q=m[1];
+  if((m=/\brunway\s+(\d{1,2})\s*(left|right|centre|center|L|R|C)?\b/i.exec(t))) I.rwy=m[1].padStart(2,'0')+(m[2]?m[2][0].toUpperCase():'');
+  if((m=/\b(?:contact|frequency|call)\b[^.\d]{0,30}?(\d{3})\s*(?:decimal|point|\.)\s*(\d{1,3})\b/i.exec(t))||(m=/\b(1(?:1[89]|2\d|3[0-6]))\s*(?:decimal|point|\.)\s*(\d{1,3})\b/i.exec(t))) I.fq=m[1]+'.'+m[2];   // a read-back often drops "contact"
+  return I; }
+function rbCheck(x){ if(ls.get('sttRb',true)===false) return false; const I=rbItems(x.text), K=Object.keys(I), R=STT.rb;
+  if(R&&x.t-R.t<30e3&&x.id!==R.id){ const C=R.items, CK=Object.keys(C), share=CK.filter(k=>k in I).length;
+    if(x.me||share>=Math.ceil(CK.length/2)){ const diff=[], miss=[];
+      for(const k of CK){ if(!(k in I)) miss.push(`${RB_L[k]} ${C[k]}`); else if(I[k]!==C[k]) diff.push(`${RB_L[k]} ${I[k]} (cleared ${C[k]})`); }
+      x.rb={ok:!diff.length&&!miss.length, txt: diff.length||miss.length? 'Read-back: '+[...diff, ...miss.map(s=>'missed '+s)].join(' · ') : 'Read-back ✓'};
+      STT.rb=null; if(!x.rb.ok) try{ navigator.vibrate&&navigator.vibrate([80,60,80,60,80]); }catch(e){} return true; } }
+  if(x.me&&K.length) STT.rb={id:x.id, t:x.t, items:I};
+  return false; }
+const rbTag=x=>x.rb? `<span class="rb ${x.rb.ok?'ok':'bad'}">${esc(x.rb.txt)}</span>` : '';
 async function sttFile(){ if(!AUD.blob) return; $('sttRecB').disabled=true;
   try{ const ac=new (window.AudioContext||window.webkitAudioContext)(), buf=await ac.decodeAudioData(await AUD.blob.arrayBuffer()); ac.close();
     const pcm=await sttTo16k(buf.getChannelData(0),buf.sampleRate);
@@ -7423,7 +7562,7 @@ function e6Show(){ const p=E6P.p; if(!p) return; const C=E6.pc, m=a=>((a%360)+36
   else if(!p.c[1]){ C.rot=m(e6L(E6ARR[p.c[0]])-e6L(E6FL)); C.cur=m(e6L(p.x)+C.rot); C.draw(); }
   else { C.rot=m(e6L(E6ARR[p.c[0]])-e6L(p.x)); C.cur=e6L(E6ARR[p.c[1]]); C.draw(); }
   $('e6bPRes').innerHTML='Set up as it should be: read the answer off the computer, then Check.'; }
-$('bE6b').onclick=e6Open; $('e6bClose').onclick=()=>$('e6bDlg').close();
+$('bE6b').onclick=e6Open; $('bHelp').onclick=()=>{ const w=window.open('docs/index.html','_blank'); if(!w) location.href='docs/index.html'; };   // help pages (app/docs, precached by the service worker) $('e6bClose').onclick=()=>$('e6bDlg').close();
 $('e6bSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(b) e6Tab(b.dataset.t); });
 $('e6bComp').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b) return; const k=b.dataset.c, C=E6.comp;
   if(k==='gs') C.setIndex(st.gs>20? st.gs : +ls.get('pcGs',90)||90); else if(k==='fuel') C.setIndex(+ls.get('pcBurn',0)||60); else { C.rot=0; C.cur=e6L(30); C.draw(); } });

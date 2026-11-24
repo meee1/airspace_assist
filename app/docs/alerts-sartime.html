@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SARTIME, spoken alerts and the phone · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>SARTIME, spoken alerts and the phone</h1>
+<p class="lead">A SARTIME countdown that reminds you to cancel, spoken alerts for what's ahead, last light, and the phone settings that keep the app useful in the cockpit: keeping the screen on and lining the compass up with the aircraft.</p>
+
+<h2 id="sartime">SARTIME / flight note</h2>
+<p><b>More → SARTIME</b>.</p>
+<ol>
+  <li>Type the time in UTC (<code>0430</code>), or use <span class="btn">+15 min</span>, <span class="btn">+1 h</span> or <span class="btn">Plan ETA + 30 min</span>. A time up to an hour in the past counts as today, otherwise tomorrow.</li>
+  <li>Choose who it's <b>With</b>: Airservices (SARTIME), or a responsible person (flight note, with their name and number under <b>Who to call</b>).</li>
+  <li><span class="btn">Set SARTIME</span>.</li>
+</ol>
+<ul>
+  <li>A row in the top bar counts down: "SARTIME 0430Z in 1:20 · with ATS".</li>
+  <li><b>Amber</b> in the last 30 minutes, and once you've landed (stopped for 30 s after flying at 30 kt or more): "landed: cancel with ATS".</li>
+  <li><b>Red</b> once the time has passed ("passed 0:05 ago: cancel with ATS now"), and the phone vibrates.</li>
+  <li>With spoken alerts on: "SARTIME in 15 minutes" while flying, "Landed. Remember to cancel your SARTIME.", and every 5 minutes after the time.</li>
+  <li>Tap the row, then <span class="btn">Cancelled</span> once you've cancelled it. <span class="btn">Clear</span> removes it.</li>
+</ul>
+<div class="bad"><p>The app cancels nothing itself. Cancel by radio or phone (numbers in ERSA), or call your responsible person.</p></div>
+
+<h2 id="spoken">Spoken alerts</h2>
+<p>Options → <b>Spoken alerts</b>, each on or off:</p>
+<div class="tw"><table>
+<tr><th>Alert</th><th>When</th><th>Default</th></tr>
+<tr><td>Controlled or restricted airspace ahead</td><td>When the NEXT CLASS row appears: "Class D ahead, 5 miles, Moorabbin Tower West, one two three decimal zero". Again after 10 minutes.</td><td>On</td></tr>
+<tr><td>SIGMET / AIRMET ahead</td><td>The first time one is ahead on your plan or track at your level. Again after 30 minutes.</td><td>On</td></tr>
+<tr><td>New CTAF or area frequency</td><td>When the CTAF or AREA tile changes and holds for 3 s: "Lilydale traffic, one one niner decimal one".</td><td>Off</td></tr>
+<tr><td>SARTIME</td><td>15 minutes to go while flying, "landed", and every 5 minutes once passed.</td><td>On</td></tr>
+<tr><td>Checklist for the phase of flight</td><td>Says the checklist's name when it's offered.</td><td>On</td></tr>
+</table></div>
+<ul>
+  <li><span class="btn">Test the voice</span> plays a sample.</li>
+  <li>They use the phone's text-to-speech through the speaker or your headset. Turn the media volume up.</li>
+  <li>Traffic and power line warnings are spoken separately, with <b>Speak traffic alerts</b> (NOTAMs (NAIPS) and traffic). "Wires ahead" is only spoken when you're under 300 ft above the ground at the line.</li>
+  <li>The fuel timer has its own reminder (see <a href="fuel-wb.html#timer">Fuel timer</a>).</li>
+</ul>
+
+<h2 id="lastlight">Last light</h2>
+<ul>
+  <li>The GS tile shows last light at your position under the speed ("last 0920Z", or "night"). Last light is the end of civil twilight (sun 6° below the horizon).</li>
+  <li>From 30 minutes before, a <b>LAST LIGHT</b> row counts down: "LAST LIGHT in 20 min 0920Z (8:20 pm)", amber, then red from 10 minutes.</li>
+  <li>After last light: "NIGHT after last light … · first light …" until first light.</li>
+  <li>The pre-flight brief warns if your plan ends after last light, and the CASA fuel reserve uses day or night from it.</li>
+</ul>
+
+<h2 id="wake">Keep screen on</h2>
+<p><span class="btn">Keep screen on</span> (More) is remembered between launches.</p>
+<ul>
+  <li>The phone drops the lock whenever the app is hidden (screen off, switching app), so it's taken again when you come back or on your next tap.</li>
+  <li>The button says <b>Screen stays on</b> while it holds, and <b>Screen on: tap to re-arm</b> if it has been lost.</li>
+  <li>On older iPhones a tiny silent video keeps the screen awake instead.</li>
+</ul>
+
+<h2 id="compass">Compass alignment</h2>
+<p>A phone in a cradle rarely points exactly along the aircraft, and the airframe bends the compass too. The app lines the compass up with your GPS track by itself.</p>
+<ul>
+  <li>While you fly straight and steady at 20 kt or more, it averages the difference between GPS track and compass (about 20 s to align), and adds it to the compass whenever it falls back to it (hovering, taxiing). So HDG lines up with where the nose points.</li>
+  <li>The button (More) shows "Compass aligned +12°" or "aligning …%". <b>Tap it to reset</b> after moving the phone.</li>
+  <li>It also takes in the wind correction angle at the time, so learn it into wind or in light wind.</li>
+  <li>Kept until you reset it. The simulator doesn't change it.</li>
+</ul>
+<p>While not aligned, the button says what it's waiting for:</p>
+<div class="tw"><table>
+<tr><th>Message</th><th>Meaning</th></tr>
+<tr><td>under 20 kt</td><td>Fly faster.</td></tr>
+<tr><td>not steady</td><td>Track is changing; fly straight.</td></tr>
+<tr><td>compass unsteady</td><td>Vibration, or something magnetic near the phone.</td></tr>
+<tr><td>compass paused</td><td>Android only gives the compass to the app in front, so not in split screen.</td></tr>
+<tr><td>no compass</td><td>No compass readings arrived.</td></tr>
+<tr><td>sensors blocked</td><td>In Chrome allow <b>Motion sensors</b> for the site (the lock icon by the address, or Settings → Site settings → Motion sensors).</td></tr>
+</table></div>
+<p>Hold your finger on the button for the full reason. On Android the heading is worked out from the phone's full orientation, so it's right lying flat or standing upright in a cradle, in portrait or landscape.</p>
+
+<nav class="pager" aria-label="Pages">
+  <a href="checklists.html"><small>Previous</small>← Checklists</a>
+  <a class="next" href="flight-computer.html"><small>Next</small>Flight computer →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

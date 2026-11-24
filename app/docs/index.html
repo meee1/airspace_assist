@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radio Calls AU · Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav></header>
+<main>
+<h1>Radio Calls AU · Help</h1>
+<form class="dsrch big" id="dsBig" role="search" autocomplete="off"><input type="search" placeholder="Search help: squawk, hover, ATIS, crosswind…" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form>
+<p class="lead">Radio Calls AU is a phone and tablet app for VFR pilots in Australia, built with helicopters in mind. It tells you who to talk to, on what frequency, and what to say, wherever you are, and it works without signal once it has loaded.</p>
+
+<h2 id="what">What it does</h2>
+<ul>
+  <li><b>Where you are:</b> the closest aerodrome (or the next one on your plan) with its CTAF, ATIS/AWIS, tower and approach frequencies, the area frequency, and the airspace class, cap and lower limit at your altitude.</li>
+  <li><b>What's ahead:</b> alerts when controlled or restricted airspace starts within 10 NM ahead, a SIGMET is on your track, terrain or power lines are close, or traffic is near.</li>
+  <li><b>What to say:</b> a radio call guide that switches between CTAF and Class D procedures, inbound and transit call reminders, and your own wording.</li>
+  <li><b>A moving map:</b> airspace, CTAF areas, VTC/VNC/WAC charts, terrain, satellite imagery, NOTAMs, ADS-B traffic, your flight plan and log.</li>
+  <li><b>Planning:</b> GPX flight plans or plans built on the phone, coast legs, a pre-flight brief, fuel, weight and balance, hover performance.</li>
+  <li><b>In the cockpit:</b> SARTIME countdown, checklists, a read-back pad, spoken alerts, offline radio transcription, a flight computer to practise with, and a flight log and logbook.</li>
+</ul>
+
+<h2 id="safety">Safety notes: read these first</h2>
+<div class="bad">
+<p><b>Not an authoritative source.</b> Confirm everything against the current ERSA, charts, NOTAMs and ATIS before you rely on it.</p>
+</div>
+<ul>
+  <li><b>The AIP (ERSA and DAH) comes first.</b> Every frequency, aerodrome and airspace limit is taken from ERSA and the DAH. Anything from another source is used only where the AIP has nothing, and is tagged with where it came from (VATPAC, OurAirports, XC Australia). See <a href="data-sources.html">Data sources</a>.</li>
+  <li><b>The app never makes up or "fixes" a frequency, limit or procedure.</b> Where the AIP is unclear it shows what the AIP says and points you to the ATIS, ERSA or NOTAMs.</li>
+  <li><b>Check the effective date.</b> A banner shows when the data isn't in force yet, and the app warns when it is more than two cycles old.</li>
+  <li><b>GPS altitude is geometric, not pressure altitude.</b> Near an airspace step, go by your altimeter and the chart.</li>
+  <li><b>Terrain is for awareness only.</b> It is a 30 arc-second grid without buildings, masts or most wires. It is not terrain or obstacle clearance.</li>
+  <li><b>Transcription and suggestions are an aid only.</b> The speech model mishears callsigns and numbers. Your ears and your read-back come first, and nothing is filled in until you tap it.</li>
+  <li><b>Traffic is not TCAS.</b> Internet ADS-B is late and patchy at low level. Keep looking out.</li>
+  <li><b>NOTAMs come only from the NAIPS briefing you load.</b> Get a fresh one before each flight.</li>
+  <li><b>Tower hours</b> are read from ERSA. Public holidays and NOTAM changes aren't known to the app: confirm on the ATIS.</li>
+</ul>
+
+<h2 id="contents">Contents</h2>
+<ul class="toc">
+  <li><a href="getting-started.html"><b>Getting started</b><span>Install, the loading screen, working offline, the simulator, updates and the screen layouts.</span></a></li>
+  <li><a href="map.html"><b>The map</b><span>Gestures, the press-and-hold menu, every layer, the legend, heading display, 3D view.</span></a></li>
+  <li><a href="top-bar.html"><b>Top bar tiles and alert rows</b><span>What each tile and alert row shows, tap to enlarge, turning tiles on and off.</span></a></li>
+  <li><a href="aerodrome.html"><b>Aerodrome card</b><span>Which aerodrome is shown, CTAF and tower logic, runways, circuits, ERSA FAC sheets, weather, NOTAMs.</span></a></li>
+  <li><a href="radio-calls.html"><b>Radio calls</b><span>The call guide, your own wording, inbound and transit reminders, clearance requests, squawk, ATIS notes, SOS.</span></a></li>
+  <li><a href="flight-plan.html"><b>Flight plan and Go to</b><span>GPX, building and editing plans, coast legs, saved and shared plans, direct-to, profile, own waypoints, search.</span></a></li>
+  <li><a href="preflight.html"><b>Pre-flight brief (Plan check)</b><span>The route timeline, wind, time and fuel, reserve, LSALT, NOTAMs, weather, offline check, hover performance.</span></a></li>
+  <li><a href="weather-notams.html"><b>Weather and NOTAMs</b><span>Loading a NAIPS briefing, SIGMETs, area QNH, the TAF decoder, weather rings, radar, restricted area status.</span></a></li>
+  <li><a href="traffic.html"><b>ADS-B traffic</b><span>Symbols, alerts, distance, symbol size, your own aircraft, traffic in the log.</span></a></li>
+  <li><a href="fuel-wb.html"><b>Fuel, weight and balance, hover performance</b><span>Fuel timer and range circle, W&amp;B profiles and load sheet, hover ceiling tables.</span></a></li>
+  <li><a href="logbook-drive.html"><b>Flight log, logbook and Google Drive</b><span>The 90-day log, flight times, totals and CSV, replay, Drive backup, settings file.</span></a></li>
+  <li><a href="transcription.html"><b>Radio audio and transcription</b><span>Audio input test, the two speech engines, the RADIO row, suggestions, ATIS capture, read-back check.</span></a></li>
+  <li><a href="checklists.html"><b>Checklists and passenger briefing</b><span>The built-in Bell 206B3 lists, editing, lists offered by phase of flight, hands-free, briefing card.</span></a></li>
+  <li><a href="alerts-sartime.html"><b>SARTIME, spoken alerts and the phone</b><span>SARTIME / flight note, spoken alerts, last light, keep screen on, compass alignment.</span></a></li>
+  <li><a href="flight-computer.html"><b>Flight computer (training)</b><span>The E6B computer side, wind side and practice problems, with worked examples.</span></a></li>
+  <li><a href="options.html"><b>Options and the More menu</b><span>Every setting, what it does and its default.</span></a></li>
+  <li><a href="data-sources.html"><b>Data sources and limits</b><span>Where each piece of data comes from, source tags, AIRAC sets, what the app doesn't know.</span></a></li>
+</ul>
+
+<nav class="pager" aria-label="Pages">
+  <a class="next" href="getting-started.html"><small>Next</small>Getting started →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

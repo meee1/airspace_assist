@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aerodrome card · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Aerodrome card</h1>
+<p class="lead">The Aerodrome card (the <b>Aerodrome</b> tab on the full-screen map) shows one aerodrome in detail: frequencies, tower status, runways and circuits, the ERSA FAC sheet, weather and NOTAMs.</p>
+<ul class="toc-in">
+  <li><a href="#which">Which aerodrome</a></li>
+  <li><a href="#head">The header</a></li>
+  <li><a href="#ctaf">CTAF and tower</a></li>
+  <li><a href="#split">Split towers</a></li>
+  <li><a href="#hours">Tower hours</a></li>
+  <li><a href="#runways">Runways and circuits</a></li>
+  <li><a href="#fac">ERSA FAC sheet</a></li>
+  <li><a href="#wx">Weather</a></li>
+  <li><a href="#notams">NOTAMs</a></li>
+  <li><a href="#stack">Frequency stack</a></li>
+  <li><a href="#nearby">Nearby</a></li>
+</ul>
+
+<h2 id="which">Which aerodrome is shown</h2>
+<ul>
+  <li><b>Closest aerodrome</b> by default. With <b>Favour ahead</b> on (More), aerodromes ahead of you are preferred over ones behind ("Closest ahead").</li>
+  <li><b>With a flight plan</b> the card follows the plan:
+    <ul>
+      <li>the next plan aerodrome once you're within 10 NM, so the inbound or overflying call is ready at the CTAF call point;</li>
+      <li>from 15 NM when the active waypoint is one of that aerodrome's ERSA reporting points (e.g. ACE then YMMB), so the tower inbound call is ready;</li>
+      <li>the aerodrome you just left or overflew, out to 5 NM;</li>
+      <li>otherwise the closest.</li>
+    </ul></li>
+  <li><b>Pinned:</b> tap an aerodrome on the map or in Nearby, or pick one in search. The header shows it's selected and the CTAF tile gets a <b>CARD … ✕</b> badge. <b>Back to auto</b> (or the ✕) returns to the closest.</li>
+  <li>The header says which rule applied.</li>
+  <li>Heliports and hospital landing sites are hidden unless <b>Show heliports</b> is on. <b>Include non-ERSA strips</b> adds strips from other sources (tagged).</li>
+</ul>
+<div class="note"><p>The CTAF tile at the top always follows where you are, even when the card is pinned or following the plan.</p></div>
+
+<h2 id="head">The header</h2>
+<p>Code, name, distance and an arrow pointing to it, plus the elevation. It sticks to the top while you scroll the card; once you've scrolled down it shrinks to one line. Tap the slim header to go back to the top of the card.</p>
+
+<h2 id="ctaf">CTAF and tower</h2>
+<ul>
+  <li><b>CTAF</b> from ERSA. If ERSA has none: a CTAF printed on the VTC/VNC (tagged VTC or VNC), else the broadcast area frequency, else the AIP default 126.7.</li>
+  <li><b>Towered aerodromes:</b> ATIS, TWR, GND, DEL, APP, DEP from ERSA. Outside tower hours tower-only frequencies are struck through.</li>
+  <li><b>Key values</b> as chips: CTR entry altitude, circuit altitude, helicopter altitude, reporting points.</li>
+  <li><b>Reporting points</b> at tower aerodromes as chips with name, bearing and distance, nearest first. Tap one to go to it.</li>
+  <li><b>ERSA local procedures:</b> the full ERSA text (communications notes, local traffic regulations, flight procedures). With Helicopter selected in Radio calls, helicopter items are highlighted.</li>
+  <li>Every value carries a source tag: green for AIP, orange for anything else. Where another source disagrees it's shown as a note, e.g. "OurAirports says …".</li>
+</ul>
+<h3 id="passing">Approach when passing</h3>
+<p>For a towered aerodrome that isn't in your plan or Go to and that you're not inside the zone of, the CTAF tile shows its approach unit (by sector at your altitude where ERSA lists several). An aerodrome with no approach unit in ERSA (Moorabbin) shows the tower. Once it's in your plan or Go to, or you're within 3 NM in its zone, it goes back to TWR.</p>
+<h3 id="far">Beyond 10 NM and broadcast areas</h3>
+<p>With no aerodrome within 10 NM, the CTAF tile shows the broadcast area frequency (e.g. Abrolhos 127.1) or the area frequency at your altitude. The card still shows the closest aerodrome.</p>
+
+<h2 id="split">Split towers</h2>
+<p>Where ERSA's procedure text ties a tower frequency to a side, it is labelled with that side and the ERSA text is quoted under it. At Moorabbin, 118.1 is East ("DEP to the E call 118.1", "ARR from E must call 118.1") and 123.0 is West ("DEP to the W call 123.0", "report at CARR on 123.0 … western circuit").</p>
+<ul>
+  <li><b>Which side:</b> your bearing from the field. Over the field: the side of your next plan waypoint; else the side you arrived from (kept 3 minutes); else your track after take-off; else "see ATIS".</li>
+  <li><b>Reporting-point rules win:</b> "When RWY 17 or 35 in use, ARR VFR ACFT from the S should track via and report at CARR on 123.0" applies when you're heading for CARR, within 3 NM of it, or south of the field. So Carrum gives <b>TWR W 123.0 · via CARR (RWY 17/35)</b>. Pick another runway in Radio calls and it goes back to the side rule.</li>
+  <li><b>Departing:</b> the side of the first plan point after the aerodrome.</li>
+</ul>
+<div class="warn"><p>ERSA's COMM line and the VTC only list "TWR 118.1 / 123.0". The East/West labels come from ERSA's procedure text. The ATIS has the final word.</p></div>
+
+<h2 id="hours">Tower hours</h2>
+<ul>
+  <li>Read from ERSA's TWR HR notes, in local time with daylight saving by state. Unknown hours: the tower is assumed active.</li>
+  <li>Outside tower hours the card switches to CTAF calls. Where ERSA says plainly "Outside TWR HR airspace becomes Class G" (Moorabbin, Bankstown, Archerfield, Parafield, Jandakot, Camden and others) the zone is shown as class G. Avalon's zone is also dropped after hours, leaving the DAH's class E steps above 700 ft AGL. Reversions with conditions (Albury, Gold Coast, Tamworth and others) stay as published.</li>
+  <li>You can force Tower or CTAF in Radio calls.</li>
+</ul>
+<div class="warn"><p>Public holidays and NOTAM changes to tower hours aren't known to the app. Confirm on the ATIS.</p></div>
+
+<h2 id="runways">Runways and circuits</h2>
+<ul>
+  <li><b>Diagram:</b> runways to scale with their designators. You're an arrow, or on the edge with your distance when further out, so you can see which side you're joining from. It follows the map's track-up or north-up setting.</li>
+  <li><b>List:</b> designator, length, surface and right-hand circuits, e.g. "17L/35R 1,341 m sealed 35R RH". Tap an RH tag for ERSA's conditions. Other circuits are left-hand unless ERSA says otherwise.</li>
+  <li><b>Right-hand circuits</b> from ERSA, including "all circuits to the WEST" notes (Lilydale: RWY 18 right, 36 left by day; the reverse at night).</li>
+  <li><b>Source:</b> DAH runway thresholds for certified aerodromes; others drawn from ERSA's bearing and length (or the designator), dashed and labelled "schematic".</li>
+</ul>
+
+<h2 id="fac">ERSA FAC sheet</h2>
+<p>Under the name, <b>ERSA FAC YMMB · 7 pages</b> opens that aerodrome's ERSA pages in the app, scrolled to its entry. <b>Zoom</b> doubles the width; <b>Open PDF</b> hands it to the phone's own viewer. It's from the same ERSA cycle as the frequencies. Each sheet is stored when first opened, and those for your plan and Go to aerodromes are fetched in the background with signal so they open offline. Aerodromes without an ERSA entry have no button.</p>
+
+<h2 id="wx">Weather</h2>
+<p>From the NAIPS briefing you load (tick weather in the NAIPS area briefing). It ages with the briefing: check the time on each report.</p>
+<ul>
+  <li><b>ATIS</b> first: from the briefing (runway, wind, cloud, QNH, operational information; changed fields highlighted; an old ATIS flagged), or <b>ATIS heard hhmmZ</b> when you captured it with <b>Listen to ATIS</b> (see <a href="transcription.html#atis">ATIS capture</a>).</li>
+  <li><b>Area QNH</b> for the area.</li>
+  <li><b>METAR</b> decoded: wind, QNH, temperature and dew point, <b>density altitude</b> at the aerodrome, and the crosswind and headwind for each runway (magnetic wind, best runway first).</li>
+  <li><b>TAF</b> as an hour-by-hour table (see <a href="weather-notams.html#taf">TAF decoder</a>). The raw text is under <b>Original</b>.</li>
+</ul>
+
+<h2 id="notams">NOTAMs</h2>
+<p>A NOTAMs box with this aerodrome's NOTAMs from your briefing. It opens by itself when something is closed or unserviceable. Key words such as CLSD, U/S, RWY, FREQ, ACT and PJE are highlighted. Times are UTC with local time in brackets; NOTAMs starting within 24 hours are faded. If the briefing lists the aerodrome under "no current NOTAM", it says "none current". Restricted and danger areas show their status from the briefing with the reason.</p>
+
+<h2 id="stack">Frequency stack</h2>
+<p>The airspace stack above your position from the DAH steps: class G uses the area (FIA) frequency, class E the E frequency, C and D the controlling unit. Your current band is highlighted. At Avalon: SFC–A025 D Avalon Tower 120.1, A025–A045 E Avalon 133.55, A045+ C Melbourne Approach 132.0.</p>
+
+<h2 id="nearby">Nearby</h2>
+<p>The <b>Nearby</b> list (its own tab on the full-screen map) shows aerodromes around you with distance and bearing. Tap one to show it on the card.</p>
+
+<nav class="pager" aria-label="Pages">
+  <a href="top-bar.html"><small>Previous</small>← Top bar</a>
+  <a class="next" href="radio-calls.html"><small>Next</small>Radio calls →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>

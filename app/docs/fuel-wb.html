@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel, weight and balance, hover performance · Radio Calls AU Help</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar"><nav><a href="index.html">← Help contents</a><a href="../index.html">Open the app</a></nav><form class="dsrch" role="search" autocomplete="off"><input type="search" placeholder="Search help" aria-label="Search the help pages" enterkeyhint="search"><ul class="dsres" hidden></ul></form></header>
+<main>
+<h1>Fuel, weight and balance, hover performance</h1>
+<p class="lead">A fuel timer and range circle for the flight, and a weight and balance calculator with your own aircraft's figures. The app never invents aircraft data: the numbers come from your flight manual and weighing report.</p>
+<ul class="toc-in">
+  <li><a href="#timer">Fuel timer</a></li>
+  <li><a href="#range">Range circle</a></li>
+  <li><a href="#wb">Weight and balance</a></li>
+  <li><a href="#profiles">Aircraft profiles</a></li>
+  <li><a href="#load">Load sheet</a></li>
+  <li><a href="#results">Results, plot and fixes</a></li>
+  <li><a href="#hover">Hover performance inputs</a></li>
+</ul>
+
+<h2 id="timer">Fuel timer</h2>
+<p><b>More → Fuel timer</b> (or tap the FUEL row).</p>
+<ul>
+  <li>Enter <b>Fuel on board</b> and <b>Burn</b> (L or L/h; US gal with a lb W&amp;B profile), and optionally <b>Reserve min</b> (empty = CASA's final reserve at your position and time).</li>
+  <li><span class="btn">Set fuel now</span> starts the count from that amount. <span class="btn">Start</span> / Stop runs and pauses it.</li>
+  <li><b>Start and stop by itself:</b> starts when you're moving at 40 kt or more, stops after 3 minutes below 5 kt.</li>
+  <li><b>Fuel check reminder:</b> off, or every 15, 20 or 30 min, spoken with a vibration while the timer runs.</li>
+  <li>The <b>FUEL</b> row in the top bar shows fuel left, and time and distance to your reserve at your groundspeed. Amber under 30 minutes to reserve, red at it.</li>
+</ul>
+<p>Fuel left = what you set minus burn × time the timer has run.</p>
+<div class="warn"><p>It's an estimate. Dip or gauge the tanks.</p></div>
+
+<h2 id="range">Range circle</h2>
+<p>The <b>Range</b> map layer draws a circle round you at the distance you can fly before reaching your reserve at your groundspeed now, and a dashed circle at half that labelled <b>OUT &amp; BACK</b>. It opens the fuel timer if that isn't set. With a wind known (the GPS estimate while flying, or the wind in Plan check) the ring leans downwind, showing the least and most you can go.</p>
+
+<h2 id="wb">Weight and balance</h2>
+<p><span class="btn">Weight &amp; balance</span> sits next to Plan check in the flight plan. Set up your aircraft once, then type each load.</p>
+
+<h3 id="profiles">Aircraft profiles</h3>
+<p>Under <b>Aircraft profile (from the POH and weighing report)</b>:</p>
+<ul>
+  <li>units kg·mm·L or lb·in·USG; empty weight, arm and lateral arm from the weighing report; maximum take-off weight;</li>
+  <li>stations (seats, baggage, fuel tanks, fixed items) with their arms, limits and tank capacities, and fuel density;</li>
+  <li>the CG envelope corners from the flight manual, one "arm, weight" per line, and optional lateral limits;</li>
+  <li><b>Hover ceiling IGE</b> and <b>Hover ceiling OGE</b> (see <a href="#hover">below</a>).</li>
+</ul>
+<p>Keep several aircraft: <b>Aircraft</b> picks one; <b>New profile</b>, <b>Copy</b> and <b>Delete</b> (asks for a second tap). <b>New from</b> starts from a template:</p>
+<ul>
+  <li><b>Bell 206B-3 (91 gal)</b> and <b>Bell 206A/B (76 gal)</b>: stations, fuel and limits from Bell's publications (lb/in, Jet A). The empty weight and arm are left empty for your own aircraft's weighing record.</li>
+  <li><b>Bell 206B (weighed)</b>: kg/mm/L, with one individual aircraft's weighing figures. Replace them with your own aircraft's weighing report.</li>
+  <li><b>Blank</b>.</li>
+</ul>
+<div class="warn"><p>The numbers are yours to check against your flight manual and your aircraft's current weighing report.</p></div>
+
+<h3 id="load">Load sheet</h3>
+<ul>
+  <li>A table of stations with a weight box, arm, moment and <b>can add</b> (the most you could still put there with everything else as loaded).</li>
+  <li><b>Weights in</b> lb or kg and <b>Fuel in</b> US gal, litres or (where the profile has a gauge table) gauge reading. Results stay in the profile's units.</li>
+  <li>Empty weight and fixed items (e.g. engine oil) are always counted.</li>
+</ul>
+
+<h3 id="results">Results, plot and fixes</h3>
+<ul>
+  <li><b>Take-off</b>, <b>landing</b> (after the plan's fuel, at Plan check's GS and burn) and <b>zero-fuel</b> weight and CG against the envelope, and the whole burn line in between.</li>
+  <li>A plot of the envelope with the loading path station by station (and the lateral chart where the profile has lateral limits).</li>
+  <li>The most fuel you can carry (and the endurance), and the fuel for the plan plus the final reserve.</li>
+  <li><b>Fixes</b> when out of limits: less fuel, move or leave out bags, swap passengers (never the pilot), add weight on the other side, or how much to offload. A front-seat minimum, where the profile has one, gets its own line.</li>
+  <li>Plan check shows the result too.</li>
+</ul>
+
+<h2 id="hover">Hover performance inputs</h2>
+<p>Each W&amp;B profile has two boxes:</p>
+<ul>
+  <li><b>Hover ceiling IGE</b> (in ground effect)</li>
+  <li><b>Hover ceiling OGE</b> (out of ground effect)</li>
+</ul>
+<p>Type one line per point, <code>density altitude ft, max weight</code>, copied from your flight manual's hover ceiling charts, in the profile's weight units. Read several points off the chart (for instance at every 1,000 or 2,000 ft of density altitude across the range you fly) : a density altitude outside your table shows red. Use the chart for the configuration you fly (engine, doors, etc.).</p>
+<ul>
+  <li>Nothing is built in. Without these lines the table shows density altitude only.</li>
+  <li>The app interpolates in a straight line between your points and never extrapolates past the first or last one.</li>
+  <li>With them, the pre-flight brief has a <b>Hover performance</b> table for the departure and every point you land at: temperature, QNH, pressure and density altitude, your weight there, the IGE and OGE limits and the margin. Amber under 5% margin; red over the limit or outside your table. See <a href="preflight.html#hover">Pre-flight brief</a>.</li>
+</ul>
+<div class="warn"><p>Density altitude in the app is an approximation (pressure altitude + 120 ft per °C above ISA). The flight manual's charts govern.</p></div>
+
+<nav class="pager" aria-label="Pages">
+  <a href="traffic.html"><small>Previous</small>← ADS-B traffic</a>
+  <a class="next" href="logbook-drive.html"><small>Next</small>Logbook and Drive →</a>
+</nav>
+</main>
+<script src="search.js" defer></script>
+</body>
+</html>
