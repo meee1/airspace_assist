@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795485753419;
+const APP_BUILT=1795515510568;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1968,7 +1968,7 @@ function optsRender(){
   const mb=CH.site.filter(s=>sel.has(s.sheet)).reduce((a,s)=>a+s.bytes,0)/1048576;
   chThumbs(); chOvDraw(); chViewUI(); chFilter();
   $('optsNote').innerHTML=`Ticked charts download in the background with signal and are kept for offline use (${mb.toFixed(1)} MB). Unticking one removes its stored tiles.${CH.need?` Stored now: ${CH.have}/${CH.need} tiles.`:''} Charts you import yourself (Chart underlay under the map) are kept regardless.`; }
-$('bOpts').onclick=()=>{ optsRender(); sttModelUI(); logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); chThumbs(); chOvDraw();
+$('bOpts').onclick=()=>{ optsRender(); sttModelUI(); try{ srwUI(); }catch(e){} logsRender(); tilesOpts(); satUI(); gdPrep(); gdUI(); const d=$('optsDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); chThumbs(); chOvDraw();
   ls.set('chartKnown',CH.site.map(s=>s.sheet)); };   // seen: no longer new
 $('optsClose').onclick=()=>$('optsDlg').close();
 // More → Logbook: Options opened at the logbook (totals, legs, CSV export)
@@ -4713,7 +4713,7 @@ if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener) navigator.me
    (OfflineAudioContext) -> worker -> text. Whisper's stock outputs for silence/noise are dropped. Nothing leaves the device. */
 const STT_M={tiny:{id:'onnx-community/whisper-tiny.en', mb:41, n:'Standard model (41 MB)'}, base:{id:'onnx-community/whisper-base.en', mb:77, n:'Better model (77 MB, about 2x slower)'}};
 const STT_CACHE='transformers-cache';
-const STT={lid:0, meT:0, sink:null, on:false, model:STT_M[ls.get('sttModel')]? ls.get('sttModel') : 'tiny', sens:+(ls.get('sttSens')||11), w:null, ready:false, loading:false, wmodel:'',
+const STT={eng:ls.get('sttEng','whisper')==='web'?'web':'whisper', lid:0, meT:0, sink:null, on:false, model:STT_M[ls.get('sttModel')]? ls.get('sttModel') : 'tiny', sens:+(ls.get('sttSens')||11), w:null, ready:false, loading:false, wmodel:'',
   busy:false, q:[], log:[], id:0, node:null, have:{}, prog:{}, blk:[], blkN:0, floor:-60, seg:null, pre:[], quiet:0, voiced:0, drop:0, ms:[]};
 const STT_JUNK=/^[\s.,!?-]*$|^\s*[\[(][^\])]*[\])]\s*$|^\s*(thank you( (very much|for watching|so much))?|thanks for watching|you|bye|okay|so|\.\.\.|please subscribe.*)[.!]?\s*$/i;
 function sttSt(t){ $('sttSt').textContent=t||''; }
@@ -4748,13 +4748,14 @@ function sttLoad(){ if(STT.ready&&STT.wmodel===STT.model) return Promise.resolve
 const STT_TAP=`class T extends AudioWorkletProcessor{ constructor(){ super(); this.b=new Float32Array(2048); this.n=0; }
   process(i){ const c=i[0]&&i[0][0]; if(c){ for(let k=0;k<c.length;k++){ this.b[this.n++]=c[k]; if(this.n===2048){ this.port.postMessage(this.b); this.b=new Float32Array(2048); this.n=0; } } } return true; } }
 registerProcessor('stt-tap',T);`;
-async function sttAttach(){ if(!AUD.ac||!AUD.src||STT.node) return;
+async function sttAttach(){ if(STT.eng==='web'){ if((STT.on||STT.sink)&&AUD.st){ srwStop(); srwStart(); } return; }   // browser engine: (re)start on the open input's track
+  if(!AUD.ac||!AUD.src||STT.node) return;
   try{ if(!AUD.wl){ const u=URL.createObjectURL(new Blob([STT_TAP],{type:'text/javascript'})); await AUD.ac.audioWorklet.addModule(u); AUD.wl=AUD.ac; }
     else if(AUD.wl!==AUD.ac){ const u=URL.createObjectURL(new Blob([STT_TAP],{type:'text/javascript'})); await AUD.ac.audioWorklet.addModule(u); AUD.wl=AUD.ac; }
     const n=new AudioWorkletNode(AUD.ac,'stt-tap'); AUD.src.connect(n); STT.node=n; STT.sr=AUD.ac.sampleRate; STT.blkN=Math.round(STT.sr*0.02); STT.blk=[]; STT.seg=null; STT.pre=[]; STT.floor=-60;
     n.port.onmessage=e=>sttFeed(e.data); }
   catch(e){ sttSt('Can\'t tap the audio here: '+e.message); } }
-function sttDetach(){ if(STT.node){ try{ AUD.src&&AUD.src.disconnect(STT.node); }catch(e){} STT.node.port.onmessage=null; STT.node=null; } STT.seg=null; }
+function sttDetach(){ srwStop(); if(STT.node){ try{ AUD.src&&AUD.src.disconnect(STT.node); }catch(e){} STT.node.port.onmessage=null; STT.node=null; } STT.seg=null; }
 function sttFeed(x){ // 20 ms blocks -> detector
   let acc=STT.acc||[], have=STT.accN||0; acc.push(x); have+=x.length;
   const N=STT.blkN; let all=null;
@@ -4798,11 +4799,12 @@ const STT_WORDS='Traffic, CTAF, QNH, squawk, ATIS, information, runway, circuit,
 function sttGot(d){ const j=STT.busy; STT.busy=false; STT.ms.push(d.ms/1000/Math.max(0.5,d.dur)); if(STT.ms.length>20) STT.ms.shift();
   const txt=d.text.replace(/\s+/g,' ').trim();
   if(j&&j.sink){ if(STT.sink===j.sink&&txt&&!STT_JUNK.test(txt)) j.sink(txt); sttNext(); return; }   // hands-free checklist: commands, not radio
-  if(txt&&!STT_JUNK.test(txt)){ const me=sttMe(txt), x={t:j&&j.t||Date.now(), text:txt, dur:d.dur, me, id:++STT.lid};
-    x.sug=sttSuggest(txt,me); STT.log.push(x); if(STT.log.length>300) STT.log.shift(); txLogAdd(x); if(me) sttAlert(); sttRender(); }
+  sttLine(txt,j&&j.t||Date.now(),d.dur);
   const r=STT.ms.reduce((a,x)=>a+x,0)/STT.ms.length;
   sttSt(`Last: ${d.dur.toFixed(1)} s of audio in ${(d.ms/1000).toFixed(1)} s (about ${r.toFixed(1)}× its length).${STT.q.length?' '+STT.q.length+' waiting.':''}`);
   sttNext(); }
+function sttLine(txt,t,dur){ if(!txt||STT_JUNK.test(txt)) return; const me=sttMe(txt), x={t, text:txt, dur, me, id:++STT.lid};   // one heard transmission (either engine)
+  x.sug=sttSuggest(txt,me); STT.log.push(x); if(STT.log.length>300) STT.log.shift(); txLogAdd(x); if(me) sttAlert(); sttRender(); }
 const STT_NATO=['alpha|alfa','bravo','charl(?:ie|ey|y)','delta','echo','foxtrot','golf','hotel','india','juliett?e?','kilo','lima','mike','november','oscar','papa','quebec','romeo','sierra','tango','uniform','victor','whiske?y','x-?ray','yankee','zulu'];
 function sttMark(t){ let h=esc(t);
   h=h.replace(/\b(1[1-3]\d)\s?(?:[.,]|decimal|point)\s?(\d{1,3})\b/gi,'<b>$1.$2</b>')
@@ -4830,7 +4832,11 @@ function sttAlert(){ STT.meT=Date.now(); if(ls.get('sttMeAlert',true)===false) r
 // transmission with your callsign "squawk 3401", "not above 1,500" / "climb to 3,000" / "maintain 2,500" / "flight level 95",
 // "cleared …" (21 Nov 2026, Michael chose "ATIS and clearance auto-fill")
 const STT_W4={alph:'A',alfa:'A',brav:'B',char:'C',delt:'D',echo:'E',foxt:'F',golf:'G',hote:'H',indi:'I',juli:'J',kilo:'K',lima:'L',mike:'M',nove:'N',osca:'O',papa:'P',queb:'Q',rome:'R',sier:'S',tang:'T',unif:'U',vict:'V',whis:'W','x-ra':'X',xray:'X','x ra':'X',yank:'Y',zulu:'Z'};
-function sttSuggest(t,me){ const S={}, n=s=>s.replace(/\s/g,'');
+// spoken numbers as digits for the suggestions ("squawk three four zero one", "one thousand five hundred"; ICAO niner/tree/fife)
+const STT_DW={zero:0,one:1,two:2,three:3,tree:3,four:4,five:5,fife:5,six:6,seven:7,eight:8,nine:9,niner:9};
+function sttDigits(t){ t=t.replace(/\b(zero|one|two|three|tree|four|five|fife|six|seven|eight|nine|niner)\b/gi,w=>String(STT_DW[w.toLowerCase()]));
+  return t.replace(/\b(\d{1,2})\s+thousand(?:\s+(\d)\s+hundred)?\b/gi,(m,a,b)=>String(+a*1000+(b?+b*100:0))).replace(/\b(\d)\s+hundred\b/gi,(m,a)=>String(+a*100)); }
+function sttSuggest(t,me){ t=sttDigits(t); const S={}, n=s=>s.replace(/\s/g,'');
   const mi=/\binformation\s+([a-z][a-z-]{3,})/i.exec(t); if(mi){ const l=STT_W4[mi[1].toLowerCase().slice(0,4)]; if(l) S.l=l; }
   const mq=/\bQNH\s*(\d\s*\d\s*\d\s*\d?)\b/i.exec(t); if(mq){ const q=+n(mq[1]); if(q>=900&&q<=1100) S.q=q; }
   if(S.l||S.q){ let ad=null; const p=st.pos;
@@ -4860,11 +4866,60 @@ function sttRow(){ const row=$('sStt'), rp=RP.pts.length&&!$('rpBox').hidden&&RP
   row.innerHTML='<small>RADIO</small>'+last.reverse().map((x,i)=>`<span><i>${hhmmZ(x.t)}</i> ${sttMark(x.text)}${i===0&&x.sug&&!x.sug.used?' '+sttUseBtn(x):''}</span>`).join(''); }
 setInterval(()=>{ if(STT.on) sttRow(); },10e3);
 async function sttSet(on){ STT.on=on; $('sttOn').checked=on;
-  if(on){ if(!STT.have[STT.model]&&!navigator.onLine){ STT.on=false; $('sttOn').checked=false; sttSt('Download the model first (needs signal once).'); return; }
-    sttLoad(); if(!AUD.st){ if($('audDev').disabled) await audList(); await audStart(); } else sttAttach();
-    sttSt(AUD.st? 'Listening for transmissions…' : 'No input open: pick one above.'); }
+  if(on){ if(STT.eng!=='web'&&!STT.have[STT.model]&&!navigator.onLine){ STT.on=false; $('sttOn').checked=false; sttSt('Download the model first (needs signal once).'); return; }
+    if(STT.eng!=='web') sttLoad(); if(!AUD.st){ if($('audDev').disabled) await audList(); await audStart(); } else sttAttach();
+    if(STT.eng!=='web'||!AUD.st) sttSt(AUD.st? 'Listening for transmissions…' : 'No input open: pick one above.'); }
   else { sttDetach(); STT.q=[]; sttSt('Transcription off.'); }
   sttRow(); }
+/* Browser speech recognition as a second transcription engine (24 Nov 2026, Michael: "Check SpeechRecognition for
+   translation, the current model is slow, so add a second option"). ls sttEng 'whisper' | 'web'. Chrome: start(track) listens
+   to the input picked in Options (else the default microphone; srwTrackOk() tests it once: a browser with track support
+   throws a TypeError for start(1), one without just starts); processLocally when SpeechRecognition.available says the
+   offline pack is there (else Google's online service: needs signal, audio leaves the device, said in the UI); phrases
+   (the same local names as Whisper's prompt) only on the device (Chrome rejects them online: phrases-not-supported).
+   continuous + interimResults; restarted on end while on. Final results go through sttLine like Whisper's. */
+const SRW={r:null, on:false, local:false, lang:'en-AU', track:null, t0:0, err:'', fatal:false, timer:0, noPhr:false};
+const srwSR=()=>window.SpeechRecognition||window.webkitSpeechRecognition;
+async function srwAvail(){ const SR=srwSR(); if(!SR) return {ok:false, why:'This browser has no speech recognition: use Whisper.'};
+  let local='unavailable', lang='en-AU';
+  if(SR.available){ for(const l of ['en-AU','en-US']){ try{ const r=await SR.available({langs:[l],processLocally:true}); if(r&&r!=='unavailable'){ local=r; lang=l; break; } }catch(e){} } }
+  return {ok:true, SR, local, lang}; }
+function srwTrackOk(){ if(SRW.track!=null) return SRW.track; const SR=srwSR(); if(!SR) return SRW.track=false;
+  try{ const r=new SR(); r.onerror=()=>{}; r.start(1); try{ r.abort(); }catch(e){} SRW.track=false; }catch(e){ SRW.track= e instanceof TypeError||e.name==='TypeError'; }
+  return SRW.track; }
+async function srwUI(){ const web=STT.eng==='web'; $('sttEng').value=STT.eng; for(const id of ['sttWhRow','sttMSt','sttSensRow']) $(id).style.display=web?'none':''; $('sttWebRow').hidden=!web;
+  if(!web){ $('sttEngSt').textContent='Whisper runs on the tablet: works without signal once the model is downloaded, but takes a few seconds per call (about '+(STT.ms.length? (STT.ms.reduce((a,x)=>a+x,0)/STT.ms.length).toFixed(1)+'×' : '0.3× on a desktop, slower on a tablet;')+' the call\'s length).'; return; }
+  const A=await srwAvail(); $('sttWebInst').hidden=!(A.ok&&(A.local==='downloadable'||A.local==='downloading'));
+  $('sttEngSt').textContent= !A.ok? A.why : A.local==='available'? `Fast, on this tablet (${A.lang} offline pack): works without signal and nothing leaves the device.` :
+    A.local==='downloadable'||A.local==='downloading'? 'Fast. Install the offline pack (once, with signal) to use it without signal; until then it uses Google\'s online speech service: the audio goes to Google and it needs signal.' :
+    'Fast, but this browser has no offline pack: it uses Google\'s online speech service (the audio goes to Google, needs signal). Whisper works offline.'; }
+async function srwInstall(){ const A=await srwAvail(); if(!A.ok||!A.SR.install) return; $('sttWebInst').disabled=true; $('sttEngSt').textContent='Installing the offline speech pack…';
+  let ok=false; try{ ok=await A.SR.install({langs:[A.lang],processLocally:true}); }catch(e){} $('sttWebInst').disabled=false; await srwUI(); if(!ok) $('sttEngSt').textContent+=' (The install didn\'t finish: try again with signal.)';
+  if(SRW.on){ srwStop(); srwStart(); } }
+function srwPhrases(){ return sttPrompt().split(/[,.]\s*/).map(x=>x.trim()).filter(x=>x&&x.length<40).slice(0,60); }
+async function srwStart(){ if(SRW.on) return true; const A=await srwAvail(); if(!A.ok){ sttSt(A.why); return false; }
+  SRW.SR=A.SR; SRW.local=A.local==='available'; SRW.lang=A.lang; SRW.on=true; SRW.fatal=false; srwTrackOk(); srwGo(); return true; }
+function srwGo(){ if(!SRW.on) return; const r=new SRW.SR(); r.lang=SRW.lang; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
+  if('processLocally' in r) r.processLocally=SRW.local;
+  if(SRW.local&&window.SpeechRecognitionPhrase&&!SRW.noPhr){ try{ r.phrases=srwPhrases().map(t=>new SpeechRecognitionPhrase(t,5)); }catch(e){} }
+  r.onresult=e=>{ for(let i=e.resultIndex;i<e.results.length;i++){ const R=e.results[i], t=R[0]&&R[0].transcript||''; if(!SRW.t0) SRW.t0=Date.now();
+      if(R.isFinal){ const t0=SRW.t0; SRW.t0=0; srwFinal(t,t0); } else if(t.trim()) sttSt('Hearing: '+t.trim()); } };
+  r.onerror=e=>{ SRW.err=e.error||'';
+    if(SRW.err==='phrases-not-supported'){ SRW.noPhr=true; return; }
+    if(SRW.err==='language-not-supported'&&SRW.local){ SRW.local=false; return; }
+    if(SRW.err==='not-allowed'||SRW.err==='service-not-allowed'||SRW.err==='audio-capture'){ SRW.fatal=true; sttSt(SRW.err==='audio-capture'? 'Speech recognition couldn\'t open the input.' : 'Speech recognition is blocked: allow the microphone for this site.'); return; }
+    if(SRW.err==='network') sttSt(navigator.onLine? 'The online speech service didn\'t answer: trying again.' : 'No signal and no offline speech pack: switch to Whisper to transcribe offline.');
+    else if(SRW.err!=='no-speech'&&SRW.err!=='aborted') sttSt('Speech recognition: '+SRW.err); };
+  r.onend=()=>{ if(SRW.r===r) SRW.r=null; if(SRW.on&&!SRW.fatal){ clearTimeout(SRW.timer); SRW.timer=setTimeout(srwGo, SRW.err==='network'? 5000 : 250); } SRW.err=''; };
+  const tr= AUD.st&&AUD.st.getAudioTracks()[0];
+  try{ if(tr&&SRW.track) r.start(tr); else r.start(); SRW.r=r; }catch(e){ sttSt('Speech recognition didn\'t start: '+e.message); SRW.on=false; return; }
+  sttSt(`Listening (browser speech recognition, ${SRW.local? 'on this tablet' : 'Google online service'}${tr&&SRW.track? '' : '; this browser listens to the default microphone, not the input picked above'})…`); }
+function srwStop(){ SRW.on=false; clearTimeout(SRW.timer); SRW.t0=0; const r=SRW.r; SRW.r=null; if(r){ r.onend=null; try{ r.abort(); }catch(e){} } }
+function srwFinal(t,t0){ const txt=String(t||'').replace(/\s+/g,' ').trim(); if(!txt) return;
+  if(STT.sink){ if(HF.quietT!==Infinity&&t0>=HF.quietT&&!STT_JUNK.test(txt)) STT.sink(txt); return; }   // hands-free: not the tablet's own voice
+  const dur=Math.max(0.5,(Date.now()-t0)/1000); sttLine(txt,t0,dur); sttSt(`Last: ${hhmmZ(Date.now())} · browser speech recognition${SRW.local?' (on this tablet)':' (online)'}.`); }
+$('sttEng').onchange=()=>{ STT.eng=$('sttEng').value==='web'?'web':'whisper'; ls.set('sttEng',STT.eng); if(STT.on||STT.sink){ sttDetach(); if(STT.eng!=='web') sttLoad(); sttAttach(); } srwUI(); };
+$('sttWebInst').onclick=srwInstall;
 async function sttFile(){ if(!AUD.blob) return; $('sttRecB').disabled=true;
   try{ const ac=new (window.AudioContext||window.webkitAudioContext)(), buf=await ac.decodeAudioData(await AUD.blob.arrayBuffer()); ac.close();
     const pcm=await sttTo16k(buf.getChannelData(0),buf.sampleRate);
@@ -5826,9 +5881,9 @@ const hfCur=c=>{ const it=clItems(c), s=clTicks(c); return it.findIndex((x,k)=>x
 const hfText=x=>(x.c.replace(/^\s*\d+[.)]\s*/,'')+(x.r? '. '+x.r : '')).replace(/\s*;\s*/g,', ');
 async function hfStart(c){ if(!('speechSynthesis' in window)){ hfSt('This browser has no text-to-speech.'); return; }
   if(HF.on) hfStop();
-  if(!(await sttHave(STT.model))){ HF.id=c.id; hfSt('Download the speech model first: Options → Radio audio and transcription → Download model (needs signal once).'); return; }
+  if(STT.eng!=='web'&&!(await sttHave(STT.model))){ HF.id=c.id; hfSt('Download the speech model first: Options → Radio audio and transcription → Download model (needs signal once).'); return; }
   HF.on=true; HF.id=c.id; HF.k=-1; STT.sink=hfHeard; clRender(); hfSt('Starting…');
-  const ok=await sttLoad(); if(!ok||!HF.on){ hfStop('The speech model didn\'t load.'); return; }
+  const ok= STT.eng==='web'? !!srwSR() : await sttLoad(); if(!ok||!HF.on){ hfStop(STT.eng==='web'? 'This browser has no speech recognition.' : 'The speech model didn\'t load.'); return; }
   if(!AUD.st){ if($('audDev').disabled) await audList(); await audStart(); } else sttAttach();
   if(!AUD.st){ hfStop('No microphone: allow it for this site, or pick an input in Options.'); return; }
   hfNext(); }
