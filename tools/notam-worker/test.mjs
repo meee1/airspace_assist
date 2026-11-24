@@ -8,7 +8,7 @@ globalThis.fetch=async u=>{ u=String(u); if(u.includes('adsb.lol')) return new R
 let [s,o,c,j]=await go('/traffic?lat=-38.25&lon=144.43&nm=25'); console.log('lol',s,o,c,j.src,j.n,JSON.stringify(j.ac[1]));
 [s,o,c,j]=await go('/traffic?lat=-38.25&lon=144.43&nm=25','http://evil.example'); console.log('cached',s,o,c);
 globalThis.fetch=async u=>{ u=String(u); if(u.includes('adsb.lol')) return new Response('please contact us',{status:403}); return new Response(JSON.stringify({aircraft:AC.ac})); };
-[s,o,c,j]=await go('/traffic?lat=-37.5&lon=144.9&nm=25'); console.log('fallback',s,j.src,j.n);
+[s,o,c,j]=await go('/traffic?lat=-38.2&lon=144.9&nm=25&debug=1'); console.log('fallback',s,j.src,j.n);
 globalThis.fetch=async()=>new Response('nope',{status:403});
 [s,o,c,j]=await go('/traffic?lat=-36.5&lon=144.9&nm=25'); console.log('both fail',s,j.error,j.errors);
 [s,o,c,j]=await go('/traffic?foo=1'); console.log('bad',s,j.error);
@@ -17,7 +17,7 @@ const pre=await W.fetch(new Request('https://w.dev/traffic',{method:'OPTIONS',he
 // with the adsb.lol key: re-api first, key in x-api-key; a bad key falls back to the public API
 const seen=[]; env.ADSBLOL_KEY='test-key';
 globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.headers['x-api-key']||'-'));
-  if(u.startsWith('https://re-api.adsb.lol/?circle=-35.50,144.90,25')&&o.headers['x-api-key']==='test-key') return new Response(JSON.stringify({now:1,aircraft:AC.ac}));
+  if(u.startsWith('https://re-api.adsb.lol/?circle=-35.2500,144.7500,100')&&o.headers['x-api-key']==='test-key') return new Response(JSON.stringify({now:1,aircraft:AC.ac.map(x=>({...x,lat:x.lat+2.7}))}));   // shared cell: its centre, 100 NM
   return new Response('x',{status:500}); };
 [s,o,c,j]=await go('/traffic?lat=-35.5&lon=144.9&nm=25'); console.log('keyed',s,j.src,j.n,seen.join(' | '));
 seen.length=0; globalThis.fetch=async(u,o)=>{ u=String(u); seen.push(u.split('?')[0]+' '+(o.headers['x-api-key']||'-')); return u.includes('re-api')||o.headers['x-api-key']? new Response('api key bound to a different address',{status:401}) : new Response(JSON.stringify(AC)); };

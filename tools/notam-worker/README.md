@@ -60,3 +60,12 @@ folder keeps its old name.)
 - `GET /gauth` returns `{client_id}`; `POST /gauth {code}` (after the app's Google pop-up) and `POST /gauth {refresh_token}` return Google tokens; `POST /gauth {revoke}` withdraws the app's access (Disconnect). The client secret is needed for both swaps, so it lives here as a secret; nothing is stored or logged. Only the app's origins may call it.
 - Secrets: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (a "Web application" OAuth client with `https://meee1.github.io` as an authorised JavaScript origin). Without them `/gauth` answers 501 and the app says Drive isn't set up.
 - Setup steps: README.md → Google Drive.
+
+## Traffic is shared between callers (25 Nov 2026)
+
+`/traffic` no longer asks the feed for each caller. Callers are grouped by 0.5° cell (about 30 × 24 NM); the feed is asked for
+100 NM round the cell's centre, at most once every 8 s per cell (everyone in the cell shares it), and the snapshot is kept for
+60 s as a fallback when the feeds fail or are rate limited (`X-Cache: STALE`). Each aircraft carries the time of its position;
+positions over 60 s old are dropped, aircraft seen by neighbouring cells' fetches are merged in (newer wins), and each caller
+gets the aircraft within its own `nm` (max 100) with `seen` counted to now. The response adds `cell`, `fetchNm`, `age`.
+Tests: `node test.mjs`, `node test_429.mjs`, `node test_share.mjs`. Redeploy the Worker for it to take effect.

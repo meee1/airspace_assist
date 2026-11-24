@@ -1,0 +1,591 @@
+{
+ "summary": "26 NOV 2026",
+ "issued": "202611251600",
+ "src": "SUPSummary_1226_26NOV2026.pdf",
+ "items": [
+  {
+   "k": "SUP",
+   "id": "H112/21",
+   "subj": "Editorial Changes to AIP Related to Sport and Recreational Aircraft",
+   "eff": "2021-12-02",
+   "exp": "2027-11-25",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H108/24",
+   "subj": "Coondewanna Aerodrome (YCWA), Western Australia, South Flank Drilling Program",
+   "eff": "2024-09-05",
+   "exp": "2027-12-20",
+   "icao": [
+    "YCWA"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H106/25",
+   "subj": "Brisbane Aerodrome (YBBN) GA Apron New Aircraft Parking Bay Design",
+   "eff": "2025-05-29",
+   "exp": "2026-12-01",
+   "icao": [
+    "YBBN"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H136/25",
+   "subj": "Melbourne/Essendon Aerodrome (YMEN) Obstacle Infringements",
+   "eff": "2025-08-01",
+   "exp": "2027-11-25",
+   "icao": [
+    "YMEN"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H147/25",
+   "subj": "Black Sky Industries (BSI) Rocket Launching Activities at Outback Spaceport (OSP) Thargomindah, Queensland",
+   "eff": "2025-09-08",
+   "exp": "2027-03-27",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H174/25",
+   "subj": "Warradarge, Western Australia Wind Farm under Construction",
+   "eff": "2025-10-09",
+   "exp": "2028-02-29",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H178/25",
+   "subj": "Golden Plains (Victoria) Wind Farm Stage 2 Under Construction",
+   "eff": "2025-10-15",
+   "exp": "2027-04-30",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H193/25",
+   "subj": "Wambo (Queensland) Wind Farm Under Construction",
+   "eff": "2025-11-26",
+   "exp": "2027-11-25",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H198/25",
+   "subj": "Coffs Harbour Aerodrome (YCFS) Obstacle Infringements",
+   "eff": "2025-11-26",
+   "exp": "2027-11-25",
+   "icao": [
+    "YCFS"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H4/26",
+   "subj": "Townsville/Townsville INTL Aerodrome (YBTL) RNP W RWY 19 (AR)",
+   "eff": "2026-01-22",
+   "exp": "2026-11-30",
+   "icao": [
+    "YBTL"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H26/26",
+   "subj": "Carmody's Hill (South Australia) Wind Farm Construction",
+   "eff": "2026-03-16",
+   "exp": "2028-10-06",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H31/26",
+   "subj": "Townsville/Townsville INTL Aerodrome (YBTL) DAP for Temporary Displaced Threshold RWY 19 - Stage 2",
+   "eff": "2026-02-20",
+   "exp": "2026-12-18",
+   "icao": [
+    "YBTL"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H43/26",
+   "subj": "Moonee Valley Racecourse VFR Reporting Point Visual Change",
+   "eff": "2026-04-07",
+   "exp": "2027-08-01",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H62/26",
+   "subj": "Melbourne/Moorabbin Aerodrome (YMMB) Obstacle Infringements",
+   "eff": "2026-05-05",
+   "exp": "2027-11-25",
+   "icao": [
+    "YMMB"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H80/26",
+   "subj": "Ballina/Byron Gateway Aerodrome (YBNA) Control Tower and Class D Airspace Implementation Procedures",
+   "eff": "2026-07-09",
+   "exp": "2027-07-09",
+   "icao": [
+    "YBNA"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H88/26",
+   "subj": "Townsville/Townsville INTL Aerodrome (YBTL) New Procedure for Temporary Displaced Threshold RWY 19 - Stage 2",
+   "eff": "2026-08-06",
+   "exp": "2026-12-18",
+   "icao": [
+    "YBTL"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H89/26",
+   "subj": "King Rocks, Western Australia, Wind Farm Construction",
+   "eff": "2026-06-22",
+   "exp": "2027-11-25",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H90/26",
+   "subj": "TRA 'Woolgangi', South Australia 01 July 2026- 31 March 2027",
+   "eff": "2026-07-01",
+   "exp": "2027-03-31",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H98/26",
+   "subj": "Danger Area - Sydney Basin Flight Training",
+   "eff": "2026-08-06",
+   "exp": "2027-06-10",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H111/26",
+   "subj": "Sydney/Nancy-Bird Walton Aerodrome (YSWS) Obstacle Infringements",
+   "eff": "2026-07-29",
+   "exp": "2027-07-28",
+   "icao": [
+    "YSWS"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H117/26",
+   "subj": "Hobart Aerodrome (YMHB) Taxiway K Reclassification",
+   "eff": "2026-10-01",
+   "exp": "2027-03-18",
+   "icao": [
+    "YMHB"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H118/26",
+   "subj": "Gilmour Space - Test and Fill Restricted Airspace",
+   "eff": "2026-09-04",
+   "exp": "2027-06-10",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H121/26",
+   "subj": "Brisbane Aerodrome (YBBN) Amended STAR and Approach Procedures",
+   "eff": "2026-11-26",
+   "exp": "2027-03-18",
+   "icao": [
+    "YBBN"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H122/26",
+   "subj": "Correction to ERSA Diagram for Perth/ Jandakot Aerodrome (YPJT)",
+   "eff": "2026-09-03",
+   "exp": "2027-03-18",
+   "icao": [
+    "YPJT"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H124/26",
+   "subj": "Rockhampton Aerodrome (YBRK) RWY 04/22 Decommissioning",
+   "eff": "2026-10-29",
+   "exp": "2027-06-10",
+   "icao": [
+    "YBRK"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H125/26",
+   "subj": "New ATS Routes in the Vicinity of R222KL",
+   "eff": "2026-11-26",
+   "exp": "2027-06-10",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H126/26",
+   "subj": "Perth Aerodrome (YPPH) Central Domestic Apron New Aircraft Parking Positions 513 and 514",
+   "eff": "2026-10-29",
+   "exp": "2027-03-18",
+   "icao": [
+    "YPPH"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H130/26",
+   "subj": "Boulder Creek (Queensland) Wind Farm Construction",
+   "eff": "2026-09-21",
+   "exp": "2027-05-31",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H131/26",
+   "subj": "Lotus Creek (Queensland) Wind Farm Construction",
+   "eff": "2026-09-22",
+   "exp": "2027-10-31",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H133/26",
+   "subj": "Uungula (New South Wales) Wind Farm Construction",
+   "eff": "2026-09-30",
+   "exp": "2027-11-25",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H137/26",
+   "subj": "Amendments to Designated Airspace Handbook (DAH)",
+   "eff": "2026-11-26",
+   "exp": "2027-06-10",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H138/26",
+   "subj": "Establishment of Restricted Areas Parliament House and The Lodge",
+   "eff": "2026-11-26",
+   "exp": "2027-06-10",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H139/26",
+   "subj": "Canberra Aerodrome (YSCB) Obstacle Infringements",
+   "eff": "2026-09-28",
+   "exp": "2027-09-28",
+   "icao": [
+    "YSCB"
+   ]
+  },
+  {
+   "k": "SUP",
+   "id": "H140/26",
+   "subj": "Amendments to ERSA GEN FPR",
+   "eff": "2026-10-01",
+   "exp": "2027-03-18",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H141/26",
+   "subj": "Black Sky Aerospace (BSA) Rocket Launching Activities Funny Farm, Queensland",
+   "eff": "2026-10-06",
+   "exp": "2027-11-25",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H143/26",
+   "subj": "TRA 'NIMBUS' and TRA 'CIRRUS', Queensland, 23-27 November 2026",
+   "eff": "2026-11-23",
+   "exp": "2026-11-27",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H145/26",
+   "subj": "Air Route LSALT Amendments",
+   "eff": "2026-10-19",
+   "exp": "2027-06-10",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H147/26",
+   "subj": "Military Exercise, 'HIGH SIERRA' and 'CRIMSON DAWN', Northern Territory, 23 November - 11 December 2026",
+   "eff": "2026-11-23",
+   "exp": "2026-12-11",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H149/26",
+   "subj": "Adelaide Supercars Flying Display",
+   "eff": "2026-11-26",
+   "exp": "2026-11-29",
+   "icao": []
+  },
+  {
+   "k": "SUP",
+   "id": "H150/26",
+   "subj": "Kununurra Aerodrome (YPKU) RNP RWY 12 Amendment",
+   "eff": "2026-11-26",
+   "exp": "2027-03-18",
+   "icao": [
+    "YPKU"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H14/14",
+   "subj": "Potential Safety Issue When Above Normal Glidepath on ILS Approaches",
+   "eff": "2014-05-29",
+   "exp": "2026-11-27",
+   "icao": []
+  },
+  {
+   "k": "AIC",
+   "id": "H15/14",
+   "subj": "Classification of Instrument Landing Systems",
+   "eff": "2014-06-30",
+   "exp": "2026-11-27",
+   "icao": []
+  },
+  {
+   "k": "AIC",
+   "id": "H26/14",
+   "subj": "Classification of Instrument Approach Operations",
+   "eff": "2014-11-13",
+   "exp": "2026-11-27",
+   "icao": []
+  },
+  {
+   "k": "AIC",
+   "id": "H67/20",
+   "subj": "Changes to the RNAV Waypoint Naming Convention",
+   "eff": "2020-11-06",
+   "exp": "2028-12-31",
+   "icao": []
+  },
+  {
+   "k": "AIC",
+   "id": "H10/23",
+   "subj": "Sydney/Kingsford Smith Airport (YSSY) - SE Sector Apron Development",
+   "eff": "2023-03-03",
+   "exp": "2026-12-31",
+   "icao": [
+    "YSSY"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H18/25",
+   "subj": "Circling Area Guidance",
+   "eff": "2025-03-28",
+   "exp": "2027-05-31",
+   "icao": []
+  },
+  {
+   "k": "AIC",
+   "id": "H40/25",
+   "subj": "Melbourne Airport (YMML) Predictable Sequencing Trial Amendment",
+   "eff": "2025-09-05",
+   "exp": "2027-06-10",
+   "icao": [
+    "YMML"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H52/25",
+   "subj": "Perth Aerodrome (YPPH) New Runway and Taxiway System Construction",
+   "eff": "2025-12-08",
+   "exp": "2028-07-01",
+   "icao": [
+    "YPPH"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H1/26",
+   "subj": "Perth Aerodrome (YPPH) 2026 Runway Maintenance Arrangements",
+   "eff": "2026-01-02",
+   "exp": "2027-01-11",
+   "icao": [
+    "YPPH"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H11/26",
+   "subj": "Perth Aerodrome (YPPH) Runway 24 Instrument Landing System (ILS) Unavailable",
+   "eff": "2026-02-20",
+   "exp": "2027-11-30",
+   "icao": [
+    "YPPH"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H13/26",
+   "subj": "Perth Aerodrome (YPPH) Airfield Pavement Renewal Project",
+   "eff": "2026-05-01",
+   "exp": "2027-03-31",
+   "icao": [
+    "YPPH"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H14/26",
+   "subj": "Melbourne Aerodrome (YMML) Taxiway Alpha Reconstruction",
+   "eff": "2026-03-23",
+   "exp": "2026-12-18",
+   "icao": [
+    "YMML"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H15/26",
+   "subj": "Essendon Aerodrome (YMEN) Visual Identification Hazard",
+   "eff": "2026-04-07",
+   "exp": "2027-04-26",
+   "icao": [
+    "YMEN"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H28/26",
+   "subj": "Melbourne Aerodrome (YMML) OCE3 Taxiway Renaming",
+   "eff": "2026-06-11",
+   "exp": "2027-02-27",
+   "icao": [
+    "YMML"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H30/26",
+   "subj": "Brisbane Aerodrome (YBBN) Trial Runway Use Program",
+   "eff": "2026-06-29",
+   "exp": "2026-11-29",
+   "icao": [
+    "YBBN"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H38/26",
+   "subj": "Melbourne Aerodrome (YMML) Contingency Taxi Procedure",
+   "eff": "2026-07-17",
+   "exp": "2026-12-01",
+   "icao": [
+    "YMML"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H41/26",
+   "subj": "Brisbane Aerodrome (YBBN) Runway Upgrades Program, RWY 01R/19L and RWY 01L/19R",
+   "eff": "2026-08-04",
+   "exp": "2026-12-01",
+   "icao": [
+    "YBBN"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H43/26",
+   "subj": "Changes in Instrument Flight Procedure Maintenance Responsibility: From IDS Australasia to Global Airspace Solutions",
+   "eff": "2026-09-03",
+   "exp": "2027-03-18",
+   "icao": []
+  },
+  {
+   "k": "AIC",
+   "id": "H44/26",
+   "subj": "Sydney/Kingsford Smith Aerodrome (YSSY) Fuel Infrastructure Installation for the South East Sector Apron",
+   "eff": "2026-09-21",
+   "exp": "2027-11-01",
+   "icao": [
+    "YSSY"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H49/26",
+   "subj": "Perth Aerodrome (YPPH) Runway and Taxiway Renaming Works",
+   "eff": "2026-10-02",
+   "exp": "2027-06-10",
+   "icao": [
+    "YPPH"
+   ]
+  },
+  {
+   "k": "AIC",
+   "id": "H50/26",
+   "subj": "Sunshine Coast Aerodrome (YBSU) Terminal Upgrade (Project Horizon)",
+   "eff": "2026-10-06",
+   "exp": "2027-03-31",
+   "icao": [
+    "YBSU"
+   ]
+  }
+ ],
+ "cancelled": {
+  "SUP": [
+   "H110/24",
+   "H114/24",
+   "H48/26",
+   "H61/26",
+   "H67/26",
+   "H69/26",
+   "H71/26",
+   "H83/26",
+   "H84/26",
+   "H86/26",
+   "H87/26",
+   "H91/26",
+   "H93/26",
+   "H101/26",
+   "H105/26",
+   "H109/26",
+   "H113/26",
+   "H114/26",
+   "H116/26",
+   "H136/26"
+  ],
+  "AIC": [
+   "H16/25",
+   "H34/25",
+   "H29/26",
+   "H42/26"
+  ]
+ },
+ "web": "www.airservicesaustralia.com/aip/aip.asp",
+ "note": "Some AIP SUP and AIC may expire or come into force between summaries: check the Airservices website and NOTAMs."
+}

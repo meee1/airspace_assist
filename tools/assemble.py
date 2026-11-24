@@ -122,6 +122,9 @@ app=app.replace('/*__GEOID__*/null', open(gp).read().strip() if os.path.exists(g
 app=app.replace('/*__BUILT__*/0', str(int(time.time()*1000)))   # app build time, shown as 'App updated' in the footer
 ap_=os.path.join(here,'aus_mask.json')
 app=app.replace('/*__AUS__*/null', open(ap_,encoding='utf-8').read().strip() if os.path.exists(ap_) else 'null')   # Australia land grid for the chart locator maps (tools/ausmask.py)
+# AIP SUP/AIC summary (tools/supsum.py -> tools/sups.json, 25 Nov 2026): titles, numbers and dates, placed by the app
+_sp=os.path.join(here,'sups.json')
+app=app.replace('/*__SUPS__*/null', json.dumps(json.load(open(_sp,encoding='utf-8')),ensure_ascii=False,separators=(',',':')) if os.path.exists(_sp) else 'null')
 app=app.replace('/*__CHARTS__*/[]', json.dumps(json.load(open(os.path.join(here,'charts.json'))),separators=(',',':')) if os.path.exists(os.path.join(here,'charts.json')) else '[]')
 app=app.replace('const DATA = /*__DATA__*/null;','const DATA = window.__DATA;   // loaded from data.json / data-next.json by the loader in index.html')
 av=h(app)

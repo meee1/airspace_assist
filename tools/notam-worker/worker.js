@@ -4,11 +4,13 @@
    were removed 29 Oct 2026: NOTAMs now come only from a NAIPS briefing the pilot loads into the app.)
 
    GET /traffic?lat=-38.25&lon=144.43&nm=25
-     ADS-B traffic within nm (max 40) from adsb.lol (ODbL; with the ADSBLOL_KEY secret its keyed re-api first),
+     ADS-B traffic within nm (max 100) of you, from one shared fetch per 0.5-degree cell (100 NM round the cell's centre, fresh
+     8 s, kept as a fallback 60 s; positions older than 60 s dropped; see traffic()), from adsb.lol (ODbL; with the ADSBLOL_KEY secret its keyed re-api first),
      falling back to adsb.fi, or, with ADSB_URL/ADSB_KEY set, another readsb-style feed. (airplanes.live's API now answers 403 "please contact us"
      unless they have approved the project.)
    -> {src, t, n, ac:[{hex, flt, reg, type, la, lo, ab, gnd, ag, gs, trk, vs, cat, seen}]}  ab = baro alt ft (null on the
-      ground, gnd:true), ag = geometric (GNSS, WGS84 ellipsoid) alt ft, seen = age of the position in s. Cached 3 s.
+      ground, gnd:true), ag = geometric (GNSS, WGS84 ellipsoid) alt ft, seen = age of the position in s (now); also cell, fetchNm, age (s since the
+      feed was asked) and X-Cache HIT / MISS / STALE.
    On failure -> 502 {error, errors:[per-feed status]}.
 
    Vars (wrangler.toml or the dashboard): ALLOW_ORIGIN = "https://meee1.github.io,http://localhost:8811",
@@ -56,12 +58,45 @@ export default {
   }
 };
 async function traffic(u, env, ctx, H) {
-  const lat = parseFloat(u.searchParams.get('lat')), lon = parseFloat(u.searchParams.get('lon')), nm = Math.min(40, Math.max(1, Math.round(parseFloat(u.searchParams.get('nm')) || 25)));
+  /* Shared by every caller (25 Nov 2026, Michael: "request 100nm and cache per aircraft with appropriate timeouts so multiple
+     clients can use the same data"). Callers are grouped by 0.5-degree cell (~30 x 24 NM); the feed is asked for FETCH_NM
+     (100 NM) round the cell's centre, which covers any caller in the cell out to ~80 NM. The cell's snapshot (each aircraft
+     with the time of its position, pt) is kept in the edge cache: fresh for FRESH_S (8 s: everyone in the cell inside 8 s
+     shares one feed call), then only a fallback, up to KEEP_S (60 s), when the feeds fail or are rate limited. Aircraft from
+     other cells' fetches seen by this isolate are merged in (the newer position wins), and an aircraft whose position is over
+     KEEP_S old is dropped. Each caller gets the aircraft within its own nm, with seen = the age of the position now. */
+  const lat = parseFloat(u.searchParams.get('lat')), lon = parseFloat(u.searchParams.get('lon')), nm = Math.min(MAX_NM, Math.max(1, Math.round(parseFloat(u.searchParams.get('nm')) || 25)));
   if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) return json({ error: 'give lat/lon' }, 400, H);
-  const la = lat.toFixed(2), lo = lon.toFixed(2);   // ~0.6 NM: nearby callers share an answer
+  const cla = (Math.floor(lat / CELL) + 0.5) * CELL, clo = (Math.floor(lon / CELL) + 0.5) * CELL, cell = cla.toFixed(2) + ',' + clo.toFixed(2);
   const dbg = u.searchParams.has('debug');   // ?debug=1: skip the cache, so every feed is asked now
-  const key = new Request(`https://adsb.cache/v1?${la},${lo},${nm}`), cache = caches.default, hit = dbg ? null : await cache.match(key);
-  if (hit) { const r = new Response(hit.body, hit); for (const [k, v] of Object.entries(H)) r.headers.set(k, v); r.headers.set('X-Cache', 'HIT'); return r; }
+  const key = new Request(`https://adsb.cache/v2/${cell}`), cache = caches.default, now = Date.now();
+  let snap = null, how = 'MISS';
+  if (!dbg) { const hit = await cache.match(key); if (hit) { try { snap = await hit.json(); } catch (e) { snap = null; } } }
+  if (snap && now - snap.t < FRESH_S * 1000) how = 'HIT';
+  else {
+    const got = await feedFetch(cla.toFixed(4), clo.toFixed(4), FETCH_NM, env, ctx);
+    if (got.ac) { snap = { t: now, src: got.src, cell, ac: got.ac, skipped: got.errs };
+      ctx.waitUntil(cache.put(key, new Response(JSON.stringify(snap), { headers: { 'Cache-Control': `public, max-age=${KEEP_S}`, 'Content-Type': 'application/json' } }))); }
+    else if (snap && now - snap.t < KEEP_S * 1000) how = 'STALE';   // the feeds failed: the last snapshot, while its positions are still usable
+    else if (got.wait) return json({ error: 'rate limited', retryAfter: got.wait, keyed: !!env.ADSBLOL_KEY, errors: got.errs }, 429, { ...H, 'Retry-After': String(got.wait), 'Access-Control-Expose-Headers': 'Retry-After' });
+    else return json({ error: 'ADS-B feed unavailable', keyed: !!env.ADSBLOL_KEY, errors: got.errs }, 502, H);
+  }
+  // per aircraft: this isolate's latest position of each (from any cell), newer wins; positions older than KEEP_S are dropped
+  const id = a => a.hex || a.la + ',' + a.lo;
+  for (const a of snap.ac) { const o = SEEN.get(id(a)); if (!o || o.pt < a.pt) SEEN.set(id(a), a); }
+  if (SEEN.size > 20000 || now - SEEN_T > 30000) { SEEN_T = now; for (const [k, a] of SEEN) if (now - a.pt > KEEP_S * 1000) SEEN.delete(k); }
+  const R = Math.PI / 180, dist = (a, b, c, d) => { const x = (d - b) * R * Math.cos((a + c) / 2 * R), y = (c - a) * R; return Math.hypot(x, y) * 3440.065; };
+  const byId = new Map(); for (const a of snap.ac) byId.set(id(a), a);
+  for (const [k, a] of SEEN) { const o = byId.get(k); if ((!o || o.pt < a.pt) && Math.abs(a.la - lat) < nm / 60 + 0.1) byId.set(k, a); }
+  const out = [];
+  for (const a of byId.values()) { const age = (now - a.pt) / 1000; if (age > KEEP_S || dist(lat, lon, a.la, a.lo) > nm) continue; const { pt, ...r } = a; r.seen = Math.max(0, Math.round(age * 10) / 10); out.push(r); }
+  // keyed: the ADSBLOL_KEY secret is set; skipped: why earlier feeds were passed over (e.g. re-api 401 invalid api key)
+  return json({ src: snap.src, keyed: !!env.ADSBLOL_KEY, skipped: snap.skipped || [], t: new Date(snap.t).toISOString(), age: Math.round((now - snap.t) / 100) / 10, cell, fetchNm: FETCH_NM, nm, n: out.length, ac: out },
+    200, { ...H, 'Cache-Control': 'public, max-age=3', 'X-Cache': how }); }
+const CELL = 0.5, FETCH_NM = 100, MAX_NM = 100, FRESH_S = 8, KEEP_S = 60, SEEN = new Map(); let SEEN_T = 0;
+// one feed call: the feeds in order (adsb.lol keyed re-api, its public v2 API, adsb.fi; or ADSB_URL), skipping ones over quota.
+// -> {ac: [{hex, flt, reg, type, la, lo, ab, gnd, ag, gs, trk, vs, cat, pt (ms: when the position was)}], src, errs} or {errs, wait}
+async function feedFetch(la, lo, nm, env, ctx) {
   // feeds in order, each [url template, extra headers]. With the ADSBLOL_KEY secret: adsb.lol's keyed re-api first
   // (x-api-key header), then its public v2 API WITHOUT the key (a key bound to another address makes it answer 401
   // "api key bound to a different address" even though the public API needs none), then adsb.fi.
@@ -75,8 +110,7 @@ async function traffic(u, env, ctx, H) {
   for (const [tpl, hd] of feeds) {
     url = tpl.replace('{lat}', la).replace('{lon}', lo).replace('{nm}', nm); const host = new URL(url).host;
     // a feed that answered 429 is left alone until its Retry-After has passed (adsb.lol: "Retry after the number of seconds in
-    // `Retry-After`"; unkeyed it allows 500 requests a day per IP, and this Worker is one IP for everyone), so it isn't asked
-    // again every 10 s while it's over quota
+    // `Retry-After`"; unkeyed it allows 500 requests a day per IP, and this Worker is one IP for everyone)
     const until = await blockedUntil(host);
     if (until) { const s = Math.ceil((until - Date.now()) / 1000); errs.push(`${host} 429: rate limited, next try in ${s} s`); wait.push(s); continue; }
     try {
@@ -89,19 +123,14 @@ async function traffic(u, env, ctx, H) {
     }
     catch (e) { errs.push(`${host}: ${e.name === 'AbortError' ? 'timeout' : e.message}`); }
   }
-  if (!j && wait.length === feeds.length) { const s = Math.min(...wait);   // every feed is rate limited: tell the app when to ask again
-    return json({ error: 'rate limited', retryAfter: s, keyed: !!env.ADSBLOL_KEY, errors: errs }, 429, { ...H, 'Retry-After': String(s), 'Access-Control-Expose-Headers': 'Retry-After' }); }
-  if (!j) return json({ error: 'ADS-B feed unavailable', keyed: !!env.ADSBLOL_KEY, errors: errs }, 502, H);
-  const num = v => typeof v === 'number' && isFinite(v) ? v : null;
-  const out = (j.ac || j.aircraft || []).filter(a => num(a.lat) != null && num(a.lon) != null).map(a => ({
+  if (!j) return { errs, wait: wait.length === feeds.length ? Math.min(...wait) : 0 };   // every feed rate limited: when to ask again
+  const num = v => typeof v === 'number' && isFinite(v) ? v : null, t0 = Date.now();
+  const ac = (j.ac || j.aircraft || []).filter(a => num(a.lat) != null && num(a.lon) != null).map(a => ({
     hex: a.hex || '', flt: (a.flight || '').replace(/@/g, '').trim(), reg: a.r || '', type: a.t || '',
     la: a.lat, lo: a.lon, ab: num(a.alt_baro), gnd: a.alt_baro === 'ground' || undefined, ag: num(a.alt_geom), gs: num(a.gs), trk: num(a.track) ?? num(a.true_heading),
-    vs: num(a.baro_rate) ?? num(a.geom_rate), cat: a.category || '', seen: num(a.seen_pos) ?? num(a.seen) ?? 0
+    vs: num(a.baro_rate) ?? num(a.geom_rate), cat: a.category || '', pt: t0 - 1000 * (num(a.seen_pos) ?? num(a.seen) ?? 0)
   }));
-  // keyed: the ADSBLOL_KEY secret is set; skipped: why earlier feeds were passed over (e.g. re-api 401 invalid api key)
-  const res = json({ src: new URL(url).host, keyed: !!env.ADSBLOL_KEY, skipped: errs, t: new Date().toISOString(), n: out.length, ac: out }, 200, { ...H, 'Cache-Control': 'public, max-age=3' });
-  ctx.waitUntil(cache.put(key, res.clone()));
-  return res;
+  return { ac, src: new URL(url).host, errs };
 }
 // feeds over their quota (429): kept in this isolate's memory and in the edge cache (other isolates), keyed by host
 const BLOCK = new Map();

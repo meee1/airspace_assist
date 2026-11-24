@@ -17,6 +17,7 @@
 <ul>
   <li>Positions from adsb.lol (adsb.fi as a fallback), fetched through a small proxy (a Cloudflare Worker) every 10 seconds while there's signal and the app is in front.</li>
   <li>The proxy address is <b>Traffic proxy</b> in NOTAMs (NAIPS) and traffic. Empty turns traffic off.</li>
+  <li>The proxy shares its data between everyone using it: it asks the feed for 100 NM round the middle of a 0.5° area (about 30 NM across) at most every 8 seconds, and each phone gets the aircraft within its own <b>Traffic distance</b> (up to 100 NM). If the feed doesn't answer, it keeps using the last positions for up to a minute; an aircraft whose position is more than a minute old is left out.</li>
   <li>If the feed says it's busy, the app waits as asked and the status line says when it will try again.</li>
 </ul>
 

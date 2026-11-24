@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795553444065;
+const APP_BUILT=1795563285825;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -1329,7 +1329,8 @@ function drawProf(){
   PROF.auto=top; if(PROF_TOP) top=PROF_TOP;      // altitude zoom: fixed top chosen with +/−
   $('profTop').textContent=(PROF_TOP?'':'auto ')+(top>=1000?(top/1000)+'k':top)+' ft'; $('profAuto').hidden=!PROF_TOP;
   const l=34, r=8, t=16, b=16, x=d=>l+(pr.total?d/pr.total:0)*(W-l-r), y=f=>t+(1-Math.min(f,top)/top)*(H-t-b);
-  const bgKey=[pr.key,pr.missing?1:0,W,H,dpr,top,FP.i,PROF_BG.th,PROF_TERR].join('|');
+  if(!PL.d) plLoad();
+  const bgKey=[pr.key,pr.missing?1:0,W,H,dpr,top,FP.i,PROF_BG.th,PROF_TERR,PL.d?1:0,NTN?NTN.t:0].join('|');
   if(PROF_BG.key!==bgKey||PROF_BG.pr!==pr){ PROF_BG.key=bgKey; PROF_BG.pr=pr; PROF_BG.n=(PROF_BG.n||0)+1;
   const bc=PROF_BG.cv||(PROF_BG.cv=document.createElement('canvas')); bc.width=cv.width; bc.height=cv.height;
   const g=bc.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
@@ -1358,6 +1359,8 @@ function drawProf(){
   for(let i=0;i<S.length;i++){ const q=S[i]; if(q.t==null||q.base==null||q.base<=0||q.base-q.t>=1000) continue;
     let j=i; while(j+1<S.length&&S[j+1].base===q.base&&S[j+1].t!=null&&q.base-S[j+1].t<1000) j++;   // a run at the same base: one bar
     const x0=xA(i); g.fillRect(x0,y(q.base)-1.5,Math.max(1,xB(j)-x0),3); i=j; }
+  // power lines crossed and NOTAM obstacles within 0.5 NM of the plan (25 Nov 2026)
+  try{ const hz=pathHaz(FP.pts.map((p,k)=>[p.la,p.lo,pr.cum[k]]),0.5); PROF_BG.hz=hz; hazDraw(g,hz,x,y,C,null); }catch(e){}
   // waypoints
   const P_=FP.pts; g.textAlign='center'; g.textBaseline='alphabetic';
   P_.forEach((p,k)=>{ if(p.cg&&k!==FP.i) return; const X=x(pr.cum[k]), on=k===FP.i; g.strokeStyle=on?C.wp:C.dim; g.globalAlpha=on?.9:.45; g.setLineDash([2,3]);
@@ -2227,8 +2230,8 @@ function inboundUI(){ const box=$('sInbound'); if(!st.pos){ box.hidden=true; INB
   const [d,b]=distBrg(la,lo,ad.la,ad.lo);
   if((INB.man? d>15 : d<4&&INB.kind==='inb'||d>10.5&&INB.kind==='trn')||Date.now()-INB.t>240e3){ INB.on=null; INB.man=false; box.hidden=true; return; }   // brought back by a tap (INB.man): till you're 15 NM away or 4 min   // inbound: till 4 NM; transit: while inside 10 NM; 4 min at most
   const c= INB.kind==='inb'? inboundCall(ad,d,b) : transitCall(ad,d,b); box.hidden=false;
-  box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b>${c.sq?`<small class="sq">SQUAWK ${c.sq.code}</small>`:''}<small class="x">✕</small><span>${c.html||esc(c.txt)}</span>`; }
-$('sInbound').addEventListener('click',()=>{ INB.on=null; INB.man=false; $('sInbound').hidden=true; });
+  box.innerHTML=`<small>${INB.kind==='inb'?'INBOUND CALL':'TRANSIT CALL'}</small><b>${c.f}</b>${c.sq?`<small class="sq">SQUAWK ${c.sq.code}</small>`:''}<small class="x">✕</small><span>${c.html||esc(c.txt)}</span>${INB.kind==='inb'?`<button type="button" class="arrb" data-arr="${ad.i}">Arrival card</button>`:''}`; }
+$('sInbound').addEventListener('click',e=>{ const b=e.target.closest('[data-arr]'); if(b){ e.stopPropagation(); const a=DATA.ap.find(x=>x.i===b.dataset.arr); if(a) arrOpen(a); return; } INB.on=null; INB.man=false; $('sInbound').hidden=true; });
 // bring the inbound (or transit) call back: a tap on the → CTAF tile (the Go to / plan aerodrome) or the CTAF tile (its aerodrome),
 // within 15 NM, while no call row is showing. Worked out afresh for where you are now. A towered field with its tower open that
 // you're only passing gets no CTAF call (as at 10 NM). Otherwise the tap does what it did before (the whole top bar over the map).
@@ -3997,6 +4000,211 @@ function pcLegGroups(R,W){ const out=[]; R.forEach((l,i)=>{ const w=W[i]||{}, [s
   for(const g of out){ g.coast=g.n>1; g.gs= g.ms? g.L/(g.ms/3600e3) : null; }
   return out; }
 const legLab=l=>`${l.from.c||l.from.n||''} → ${l.to.c||l.to.n||''}${l.coast?' (coast)':''}`;
+/* ---------- power lines and obstacles along a path (25 Nov 2026, Michael chose suggestion 12) ----------
+   pathHaz([[la, lo, D NM], ...], halfW) -> {W: power lines crossed [{D, la, lo, kv, k, seg, t (terrain ft)}], O: NOTAM obstacles
+   within halfW NM [{D, d, la, lo, ft (AMSL), what, lit, seg, t}]}. The lines' heights aren't in the Geoscience Australia data, so
+   a line is a mark at the terrain; an obstacle is drawn up to its height. Used by the side view, the plan's elevation profile
+   (hazDraw) and the Pre-flight brief (hazBrief: clearance at your planned altitude). */
+function pathHaz(path,halfW=0.5){ const W=[], O=[]; if(!path||path.length<2) return {W,O};
+  if(PL.d){ const seen=new Set();
+    for(let s=1;s<path.length;s++){ const [a0,o0,D0]=path[s-1], [a1,o1,D1]=path[s], cosl=Math.cos(a0*R), ex=(o1-o0)*cosl*60, ey=(a1-a0)*60;
+      for(let cx=Math.floor(Math.min(o0,o1)/PL_CELL);cx<=Math.floor(Math.max(o0,o1)/PL_CELL);cx++) for(let cy=Math.floor(Math.min(a0,a1)/PL_CELL);cy<=Math.floor(Math.max(a0,a1)/PL_CELL);cy++){
+        const A=PL.grid.get(cx+','+cy); if(!A) continue;
+        for(let j=0;j<A.length;j+=2){ const k=A[j], i=A[j+1], key=s+':'+k+':'+i; if(seen.has(key)) continue; seen.add(key); const xy=PL.d.L[k].xy;
+          const ax=(xy[i]-o0)*cosl*60, ay=(xy[i+1]-a0)*60, bx=(xy[i+2]-o0)*cosl*60, by=(xy[i+3]-a0)*60, den=ex*(by-ay)-ey*(bx-ax); if(Math.abs(den)<1e-12) continue;
+          const u=(ax*(by-ay)-ay*(bx-ax))/den, v=(ax*ey-ay*ex)/den; if(u<0||u>1||v<0||v>1) continue;
+          const la=a0+(a1-a0)*u, lo=o0+(o1-o0)*u; W.push({D:D0+(D1-D0)*u, la, lo, kv:PL.d.L[k].kv, k, seg:s, t:terrainFt(la,lo)}); } } }
+    W.sort((a,b)=>a.D-b.D); for(let i=W.length-1;i>0;i--) if(W[i].k===W[i-1].k&&Math.abs(W[i].D-W[i-1].D)<0.05) W.splice(i,1); }
+  const seenO=new Set();
+  for(const o of ntObstacles()){ const ok=o.la.toFixed(4)+','+o.lo.toFixed(4)+','+o.ft; if(seenO.has(ok)) continue; let best=null;
+    for(let s=1;s<path.length;s++){ const [a0,o0,D0]=path[s-1], [a1,o1,D1]=path[s], [d,al]=segDist(a0,o0,a1,o1,o.la,o.lo); if(d<=halfW&&(!best||d<best.d)) best={d, D:D0+Math.min(al,D1-D0), seg:s}; }
+    if(best){ seenO.add(ok); O.push({...best, la:o.la, lo:o.lo, ft:o.ft, what:o.what||'obstacle', lit:o.lit, n:o.n, t:terrainFt(o.la,o.lo)}); } }
+  O.sort((a,b)=>a.D-b.D); return {W,O}; }
+function hazDraw(g,hz,x,y,C,alt){ g.save(); g.font='600 9px '+C.mono; g.textAlign='center'; g.textBaseline='alphabetic';
+  for(const w of hz.W){ const X=x(w.D), Yt=y(w.t||0), low= alt!=null&&w.t!=null&&alt-w.t<PL_AGL; g.strokeStyle=low?C.warn:C.ink; g.globalAlpha=low?1:.8; g.lineWidth=1.3;
+    g.beginPath(); g.moveTo(X,Yt); g.lineTo(X,Yt-12); g.moveTo(X-4.5,Yt-12); g.lineTo(X+4.5,Yt-12); g.moveTo(X-3,Yt-8); g.lineTo(X+3,Yt-8); g.stroke(); g.globalAlpha=1;
+  }   /* no voltage text on the marks (25 Nov 2026, Michael: "dont include the size kv text") */
+  for(const o of hz.O){ if(o.ft==null) continue; const X=x(o.D), Yt=y(o.t!=null?o.t:0), Yo=y(o.ft), bad= alt!=null&&o.ft>=alt-300, cl=bad?C.warn:(C.R||C.warn);
+    g.strokeStyle=cl; g.lineWidth=1.6; g.beginPath(); g.moveTo(X,Yt); g.lineTo(X,Yo); g.stroke(); g.fillStyle=cl; g.beginPath(); g.moveTo(X,Yo-6); g.lineTo(X-4,Yo+1); g.lineTo(X+4,Yo+1); g.closePath(); g.fill();
+    g.fillText(o.ft+'',X,Yo-8); }
+  g.restore(); }
+function hazBrief(alt){ if(!FP||FP.pts.length<2) return {html:'',txt:''}; const P_=FP.pts, cum=[0]; for(let k=1;k<P_.length;k++) cum.push(cum[k-1]+distBrg(P_[k-1].la,P_[k-1].lo,P_[k].la,P_[k].lo)[0]);
+  if(!PL.d) plLoad(); const hz=pathHaz(P_.map((p,k)=>[p.la,p.lo,cum[k]]),0.5), legAlt=s=>{ for(let k=s;k<P_.length;k++){ if(P_[k].alt!=null) return P_[k].alt; if(!P_[k].cg) break; } return alt; }, f0=v=>Math.round(v).toLocaleString('en-AU'), fD=D=>D<10?D.toFixed(1):Math.round(D);
+  const rows=[...hz.W.map(w=>({D:w.D, w})), ...hz.O.map(o=>({D:o.D, o}))].sort((a,b)=>a.D-b.D);
+  let h=`<div class="pc-sec">Power lines and obstacles along the route (${hz.W.length} line crossing${hz.W.length===1?'':'s'}, ${hz.O.length} NOTAM obstacle${hz.O.length===1?'':'s'} within 0.5 NM)</div>`, txt='';
+  if(!PL.d) h+=`<div class="vnote">${PL.err==='none'?'No power line data in this build.':'Power line data not loaded yet: open the brief again in a moment.'}</div>`;
+  if(!rows.length) return {html:h+(PL.d?'<div class="vnote">None.</div>':''), txt:''};
+  h+='<table class="pc-t"><tbody>'+rows.slice(0,40).map(r=>{ const a=legAlt(r.w?r.w.seg:r.o.seg);
+    if(r.w){ const w=r.w, agl= w.t!=null? a-w.t : null; txt+=`${fD(w.D)} NM power line: ${agl!=null?f0(agl)+' ft above the ground at '+f0(a)+' ft':'terrain unknown'}\n`;
+      return `<tr class="${agl!=null&&agl<PL_AGL?'a':''}"><td class="m">${fD(w.D)}</td><td class="k">power line</td><td>${agl!=null?`at ${f0(a)} ft you're <b>${f0(agl)} ft</b> above the ground there`:'terrain not loaded'} <small>(the line's height isn't in the data)</small></td></tr>`; }
+    const o=r.o, c= o.ft!=null? a-o.ft : null; txt+=`${fD(o.D)} NM ${o.what} ${o.ft!=null?o.ft+' ft AMSL':''}: clearance ${c!=null?f0(c)+' ft':'?'}\n`;
+    return `<tr class="${c!=null&&c<0?'w':c!=null&&c<500?'a':''}"><td class="m">${fD(o.D)}</td><td class="k">▲ ${esc(o.what)}${o.lit?' (lit)':''}</td><td>${o.ft!=null?`${f0(o.ft)} ft AMSL · ${c>=0?'<b>'+f0(c)+' ft</b> below you':'<b>'+f0(-c)+' ft above you</b>'} at ${f0(a)} ft`:'height not given'} · ${o.d.toFixed(1)} NM off track</td></tr>`; }).join('')+'</tbody></table>'+
+    (rows.length>40?`<div class="vnote">${rows.length-40} more not listed.</div>`:'');
+  return {html:h, txt: txt? 'Power lines and obstacles\n'+txt : ''}; }
+
+/* ---------- AIP SUP / AIC (25 Nov 2026, Michael chose suggestion 9) ----------
+   SUPS = tools/sups.json (tools/supsum.py from the "Summary of SUP/AIC current" PDF), put in by assemble.py: the titles,
+   numbers and dates only, not the SUP text. supLoc places an item: by the ICAO codes in its title, else by restricted/danger
+   area idents or quoted names ('Woolgangi') in the DAH airspace, else by a place name (VFR waypoint, town or suburb; the state
+   named in the title must agree), else it's general (no place). Dates are local (Canberra): from the start of the effective day
+   to the end of the estimated expiry day. Shown: aerodrome card (supBox), Pre-flight brief (supBrief), map menu (supNear). */
+const SUPS={"summary":"26 NOV 2026","issued":"202611251600","src":"SUPSummary_1226_26NOV2026.pdf","items":[{"k":"SUP","id":"H112/21","subj":"Editorial Changes to AIP Related to Sport and Recreational Aircraft","eff":"2021-12-02","exp":"2027-11-25","icao":[]},{"k":"SUP","id":"H108/24","subj":"Coondewanna Aerodrome (YCWA), Western Australia, South Flank Drilling Program","eff":"2024-09-05","exp":"2027-12-20","icao":["YCWA"]},{"k":"SUP","id":"H106/25","subj":"Brisbane Aerodrome (YBBN) GA Apron New Aircraft Parking Bay Design","eff":"2025-05-29","exp":"2026-12-01","icao":["YBBN"]},{"k":"SUP","id":"H136/25","subj":"Melbourne/Essendon Aerodrome (YMEN) Obstacle Infringements","eff":"2025-08-01","exp":"2027-11-25","icao":["YMEN"]},{"k":"SUP","id":"H147/25","subj":"Black Sky Industries (BSI) Rocket Launching Activities at Outback Spaceport (OSP) Thargomindah, Queensland","eff":"2025-09-08","exp":"2027-03-27","icao":[]},{"k":"SUP","id":"H174/25","subj":"Warradarge, Western Australia Wind Farm under Construction","eff":"2025-10-09","exp":"2028-02-29","icao":[]},{"k":"SUP","id":"H178/25","subj":"Golden Plains (Victoria) Wind Farm Stage 2 Under Construction","eff":"2025-10-15","exp":"2027-04-30","icao":[]},{"k":"SUP","id":"H193/25","subj":"Wambo (Queensland) Wind Farm Under Construction","eff":"2025-11-26","exp":"2027-11-25","icao":[]},{"k":"SUP","id":"H198/25","subj":"Coffs Harbour Aerodrome (YCFS) Obstacle Infringements","eff":"2025-11-26","exp":"2027-11-25","icao":["YCFS"]},{"k":"SUP","id":"H4/26","subj":"Townsville/Townsville INTL Aerodrome (YBTL) RNP W RWY 19 (AR)","eff":"2026-01-22","exp":"2026-11-30","icao":["YBTL"]},{"k":"SUP","id":"H26/26","subj":"Carmody's Hill (South Australia) Wind Farm Construction","eff":"2026-03-16","exp":"2028-10-06","icao":[]},{"k":"SUP","id":"H31/26","subj":"Townsville/Townsville INTL Aerodrome (YBTL) DAP for Temporary Displaced Threshold RWY 19 - Stage 2","eff":"2026-02-20","exp":"2026-12-18","icao":["YBTL"]},{"k":"SUP","id":"H43/26","subj":"Moonee Valley Racecourse VFR Reporting Point Visual Change","eff":"2026-04-07","exp":"2027-08-01","icao":[]},{"k":"SUP","id":"H62/26","subj":"Melbourne/Moorabbin Aerodrome (YMMB) Obstacle Infringements","eff":"2026-05-05","exp":"2027-11-25","icao":["YMMB"]},{"k":"SUP","id":"H80/26","subj":"Ballina/Byron Gateway Aerodrome (YBNA) Control Tower and Class D Airspace Implementation Procedures","eff":"2026-07-09","exp":"2027-07-09","icao":["YBNA"]},{"k":"SUP","id":"H88/26","subj":"Townsville/Townsville INTL Aerodrome (YBTL) New Procedure for Temporary Displaced Threshold RWY 19 - Stage 2","eff":"2026-08-06","exp":"2026-12-18","icao":["YBTL"]},{"k":"SUP","id":"H89/26","subj":"King Rocks, Western Australia, Wind Farm Construction","eff":"2026-06-22","exp":"2027-11-25","icao":[]},{"k":"SUP","id":"H90/26","subj":"TRA 'Woolgangi', South Australia 01 July 2026- 31 March 2027","eff":"2026-07-01","exp":"2027-03-31","icao":[]},{"k":"SUP","id":"H98/26","subj":"Danger Area - Sydney Basin Flight Training","eff":"2026-08-06","exp":"2027-06-10","icao":[]},{"k":"SUP","id":"H111/26","subj":"Sydney/Nancy-Bird Walton Aerodrome (YSWS) Obstacle Infringements","eff":"2026-07-29","exp":"2027-07-28","icao":["YSWS"]},{"k":"SUP","id":"H117/26","subj":"Hobart Aerodrome (YMHB) Taxiway K Reclassification","eff":"2026-10-01","exp":"2027-03-18","icao":["YMHB"]},{"k":"SUP","id":"H118/26","subj":"Gilmour Space - Test and Fill Restricted Airspace","eff":"2026-09-04","exp":"2027-06-10","icao":[]},{"k":"SUP","id":"H121/26","subj":"Brisbane Aerodrome (YBBN) Amended STAR and Approach Procedures","eff":"2026-11-26","exp":"2027-03-18","icao":["YBBN"]},{"k":"SUP","id":"H122/26","subj":"Correction to ERSA Diagram for Perth/ Jandakot Aerodrome (YPJT)","eff":"2026-09-03","exp":"2027-03-18","icao":["YPJT"]},{"k":"SUP","id":"H124/26","subj":"Rockhampton Aerodrome (YBRK) RWY 04/22 Decommissioning","eff":"2026-10-29","exp":"2027-06-10","icao":["YBRK"]},{"k":"SUP","id":"H125/26","subj":"New ATS Routes in the Vicinity of R222KL","eff":"2026-11-26","exp":"2027-06-10","icao":[]},{"k":"SUP","id":"H126/26","subj":"Perth Aerodrome (YPPH) Central Domestic Apron New Aircraft Parking Positions 513 and 514","eff":"2026-10-29","exp":"2027-03-18","icao":["YPPH"]},{"k":"SUP","id":"H130/26","subj":"Boulder Creek (Queensland) Wind Farm Construction","eff":"2026-09-21","exp":"2027-05-31","icao":[]},{"k":"SUP","id":"H131/26","subj":"Lotus Creek (Queensland) Wind Farm Construction","eff":"2026-09-22","exp":"2027-10-31","icao":[]},{"k":"SUP","id":"H133/26","subj":"Uungula (New South Wales) Wind Farm Construction","eff":"2026-09-30","exp":"2027-11-25","icao":[]},{"k":"SUP","id":"H137/26","subj":"Amendments to Designated Airspace Handbook (DAH)","eff":"2026-11-26","exp":"2027-06-10","icao":[]},{"k":"SUP","id":"H138/26","subj":"Establishment of Restricted Areas Parliament House and The Lodge","eff":"2026-11-26","exp":"2027-06-10","icao":[]},{"k":"SUP","id":"H139/26","subj":"Canberra Aerodrome (YSCB) Obstacle Infringements","eff":"2026-09-28","exp":"2027-09-28","icao":["YSCB"]},{"k":"SUP","id":"H140/26","subj":"Amendments to ERSA GEN FPR","eff":"2026-10-01","exp":"2027-03-18","icao":[]},{"k":"SUP","id":"H141/26","subj":"Black Sky Aerospace (BSA) Rocket Launching Activities Funny Farm, Queensland","eff":"2026-10-06","exp":"2027-11-25","icao":[]},{"k":"SUP","id":"H143/26","subj":"TRA 'NIMBUS' and TRA 'CIRRUS', Queensland, 23-27 November 2026","eff":"2026-11-23","exp":"2026-11-27","icao":[]},{"k":"SUP","id":"H145/26","subj":"Air Route LSALT Amendments","eff":"2026-10-19","exp":"2027-06-10","icao":[]},{"k":"SUP","id":"H147/26","subj":"Military Exercise, 'HIGH SIERRA' and 'CRIMSON DAWN', Northern Territory, 23 November - 11 December 2026","eff":"2026-11-23","exp":"2026-12-11","icao":[]},{"k":"SUP","id":"H149/26","subj":"Adelaide Supercars Flying Display","eff":"2026-11-26","exp":"2026-11-29","icao":[]},{"k":"SUP","id":"H150/26","subj":"Kununurra Aerodrome (YPKU) RNP RWY 12 Amendment","eff":"2026-11-26","exp":"2027-03-18","icao":["YPKU"]},{"k":"AIC","id":"H14/14","subj":"Potential Safety Issue When Above Normal Glidepath on ILS Approaches","eff":"2014-05-29","exp":"2026-11-27","icao":[]},{"k":"AIC","id":"H15/14","subj":"Classification of Instrument Landing Systems","eff":"2014-06-30","exp":"2026-11-27","icao":[]},{"k":"AIC","id":"H26/14","subj":"Classification of Instrument Approach Operations","eff":"2014-11-13","exp":"2026-11-27","icao":[]},{"k":"AIC","id":"H67/20","subj":"Changes to the RNAV Waypoint Naming Convention","eff":"2020-11-06","exp":"2028-12-31","icao":[]},{"k":"AIC","id":"H10/23","subj":"Sydney/Kingsford Smith Airport (YSSY) - SE Sector Apron Development","eff":"2023-03-03","exp":"2026-12-31","icao":["YSSY"]},{"k":"AIC","id":"H18/25","subj":"Circling Area Guidance","eff":"2025-03-28","exp":"2027-05-31","icao":[]},{"k":"AIC","id":"H40/25","subj":"Melbourne Airport (YMML) Predictable Sequencing Trial Amendment","eff":"2025-09-05","exp":"2027-06-10","icao":["YMML"]},{"k":"AIC","id":"H52/25","subj":"Perth Aerodrome (YPPH) New Runway and Taxiway System Construction","eff":"2025-12-08","exp":"2028-07-01","icao":["YPPH"]},{"k":"AIC","id":"H1/26","subj":"Perth Aerodrome (YPPH) 2026 Runway Maintenance Arrangements","eff":"2026-01-02","exp":"2027-01-11","icao":["YPPH"]},{"k":"AIC","id":"H11/26","subj":"Perth Aerodrome (YPPH) Runway 24 Instrument Landing System (ILS) Unavailable","eff":"2026-02-20","exp":"2027-11-30","icao":["YPPH"]},{"k":"AIC","id":"H13/26","subj":"Perth Aerodrome (YPPH) Airfield Pavement Renewal Project","eff":"2026-05-01","exp":"2027-03-31","icao":["YPPH"]},{"k":"AIC","id":"H14/26","subj":"Melbourne Aerodrome (YMML) Taxiway Alpha Reconstruction","eff":"2026-03-23","exp":"2026-12-18","icao":["YMML"]},{"k":"AIC","id":"H15/26","subj":"Essendon Aerodrome (YMEN) Visual Identification Hazard","eff":"2026-04-07","exp":"2027-04-26","icao":["YMEN"]},{"k":"AIC","id":"H28/26","subj":"Melbourne Aerodrome (YMML) OCE3 Taxiway Renaming","eff":"2026-06-11","exp":"2027-02-27","icao":["YMML"]},{"k":"AIC","id":"H30/26","subj":"Brisbane Aerodrome (YBBN) Trial Runway Use Program","eff":"2026-06-29","exp":"2026-11-29","icao":["YBBN"]},{"k":"AIC","id":"H38/26","subj":"Melbourne Aerodrome (YMML) Contingency Taxi Procedure","eff":"2026-07-17","exp":"2026-12-01","icao":["YMML"]},{"k":"AIC","id":"H41/26","subj":"Brisbane Aerodrome (YBBN) Runway Upgrades Program, RWY 01R/19L and RWY 01L/19R","eff":"2026-08-04","exp":"2026-12-01","icao":["YBBN"]},{"k":"AIC","id":"H43/26","subj":"Changes in Instrument Flight Procedure Maintenance Responsibility: From IDS Australasia to Global Airspace Solutions","eff":"2026-09-03","exp":"2027-03-18","icao":[]},{"k":"AIC","id":"H44/26","subj":"Sydney/Kingsford Smith Aerodrome (YSSY) Fuel Infrastructure Installation for the South East Sector Apron","eff":"2026-09-21","exp":"2027-11-01","icao":["YSSY"]},{"k":"AIC","id":"H49/26","subj":"Perth Aerodrome (YPPH) Runway and Taxiway Renaming Works","eff":"2026-10-02","exp":"2027-06-10","icao":["YPPH"]},{"k":"AIC","id":"H50/26","subj":"Sunshine Coast Aerodrome (YBSU) Terminal Upgrade (Project Horizon)","eff":"2026-10-06","exp":"2027-03-31","icao":["YBSU"]}],"cancelled":{"SUP":["H110/24","H114/24","H48/26","H61/26","H67/26","H69/26","H71/26","H83/26","H84/26","H86/26","H87/26","H91/26","H93/26","H101/26","H105/26","H109/26","H113/26","H114/26","H116/26","H136/26"],"AIC":["H16/25","H34/25","H29/26","H42/26"]},"web":"www.airservicesaustralia.com/aip/aip.asp","note":"Some AIP SUP and AIC may expire or come into force between summaries: check the Airservices website and NOTAMs."};
+const SUPX={loc:new Map()};
+const SUP_ST={'western australia':[-36,-13,112,129.1],'queensland':[-29.3,-9,137.9,154],'new south wales':[-37.6,-28,140.9,154],'victoria':[-39.3,-33.9,140.9,150.1],'south australia':[-38.2,-25.9,128.9,141.1],'northern territory':[-26.1,-10.5,128.9,138.1],'tasmania':[-43.8,-39.4,143.7,148.6]};
+function supMs(d,end){ if(!d) return null; const [y,m,dd]=d.split('-').map(Number); return Date.UTC(y,m-1,dd+(end?1:0))-10*3600e3; }
+function supList(t=Date.now()){ if(!SUPS||!SUPS.items) return []; return SUPS.items.filter(x=>{ const b=supMs(x.exp,true); return b==null||t<b; }).map(x=>Object.assign(x,{on:supMs(x.eff)<=t})); }
+function supDate(d){ if(!d) return ''; const [y,m,dd]=d.split('-').map(Number); return `${dd} ${'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')[m-1]} ${y}`; }
+function supLoc(x){ const K=x.k+x.id; if(SUPX.loc.has(K)) return SUPX.loc.get(K); let r=null;
+  const ads=(x.icao||[]).map(i=>DATA.ap.find(a=>a.i===i)).filter(Boolean);
+  if(ads.length) r={how:'ad', pts:ads.map(a=>[a.la,a.lo]), ads:ads.map(a=>a.i)};
+  if(!r){ const ids=[...x.subj.matchAll(/\b([RDP]\d{3}[A-Z]{0,4})\b/g)].map(m=>m[1]), names=[...x.subj.matchAll(/'([^']{3,})'/g)].map(m=>m[1].toUpperCase());
+    const A=ASP.filter(a=>{ const id=a.n.split(' ')[0]; return ids.some(i=>id===i||(i.length>5&&id.length>4&&id.slice(0,4)===i.slice(0,4)&&i.slice(4).includes(id.slice(4))))||names.some(n=>a.n.toUpperCase().includes(n)); });
+    if(A.length) r={how:'area', pts:A.map(a=>[(a.bb[0]+a.bb[1])/2,(a.bb[2]+a.bb[3])/2]), bb:A.map(a=>a.bb), names:[...new Set(A.map(a=>a.n))]}; }
+  if(!r){ const low=x.subj.toLowerCase(), stk=Object.keys(SUP_ST).find(k=>low.includes(k)), sb=stk&&SUP_ST[stk], inSt=(la,lo)=>!sb||(la>=sb[0]&&la<=sb[1]&&lo>=sb[2]&&lo<=sb[3]);
+    const cands=[]; const m1=/([A-Z][A-Za-z' ]{2,40}),\s*(?:Western Australia|Queensland|New South Wales|Victoria|South Australia|Northern Territory|Tasmania)/.exec(x.subj); if(m1) cands.push(m1[1].trim());
+    const head=x.subj.split(/\s*[,(]\s*|\s+-\s+|\s+(?:Aerodrome|Airport|Wind Farm|Racecourse|VFR|Danger Area|Rocket|Flying|Military|Test|Establishment|Amend|Correction)\b/)[0].trim(); if(head) cands.push(head);
+    const STOP=/^(Black|New|Danger|Establishment|Amendments?|Correction|Editorial|Military|Air|Changes?|Classification|Potential|Circling|Gilmour|Sydney Basin|Melbourne|Sydney|Brisbane|Perth)$/i;
+    outer: for(const c of cands){ const w=c.split(/\s+/);
+      for(let n=w.length;n>=1;n--){ const q=w.slice(0,n).join(' '); if(n===1&&(q.length<5||STOP.test(q))) break; if(STOP.test(q)) continue; const Q=q.toUpperCase();
+        const v=VW.filter(p=>p.n&&(p.n.toUpperCase()===Q||p.n.toUpperCase().startsWith(Q+' '))&&inSt(p.la,p.lo));
+        const t=TOWNS.filter(p=>p.n&&p.n.toUpperCase()===Q&&inSt(p.la,p.lo));
+        const hit= v.length===1? v[0] : t.length===1? t[0] : (v.length||t.length)&&n>1? (v[0]||t[0]) : null;
+        if(hit){ r={how:'place', pts:[[hit.la,hit.lo]], place:titleCase(hit.n), approx:true}; break outer; } } } }
+  SUPX.loc.set(K,r); return r; }
+function supNear(la,lo,rNM){ return supList().filter(x=>{ const L=supLoc(x); if(!L) return false;
+  if(L.bb&&L.bb.some(b=>la>=b[0]-rNM/60&&la<=b[1]+rNM/60&&lo>=b[2]-rNM/60/Math.cos(la*R)&&lo<=b[3]+rNM/60/Math.cos(la*R))) return true;
+  return L.pts.some(p=>distBrg(la,lo,p[0],p[1])[0]<=rNM); }); }
+function supFor(a){ return supList().filter(x=>(x.icao||[]).includes(a.i)).concat(supNear(a.la,a.lo,5).filter(x=>!(x.icao||[]).includes(a.i)&&!(x.icao||[]).length)); }
+function supItem(x){ const L=supLoc(x); return `<div class="nt"><div class="h"><b>${x.k} ${esc(x.id)}</b> ${x.on? 'in force since '+supDate(x.eff) : '<span class="w">from '+supDate(x.eff)+'</span>'}${x.exp? ' · expires '+supDate(x.exp)+' (est.)' : ''}</div><div class="tx">${esc(x.subj)}${L&&L.how==='place'?` <small>(placed at ${esc(L.place)}: approximate)</small>`:''}</div></div>`; }
+function supMeta(){ return `<div class="meta">From the Airservices summary of SUP/AIC current ${esc(SUPS.summary||'')}: titles and dates only. Read the SUP or AIC itself on the Airservices website (${esc(SUPS.web||'')}). ${esc(SUPS.note||'')}</div>`; }
+function supBox(a){ const el=$('adSup'); if(!SUPS){ el.hidden=true; return; } const L=supFor(a);
+  if(!L.length){ el.hidden=true; el.innerHTML=''; return; }
+  const key=a.i+':'+L.map(x=>x.id).join(); if(el.dataset.k===key) return; el.dataset.k=key;
+  el.hidden=false; el.innerHTML=`<summary>AIP SUP / AIC ${esc(a.i)} (${L.length})</summary>`+L.map(supItem).join('')+supMeta(); }
+function supBrief(){ if(!SUPS||!FP||FP.pts.length<2) return {html:'',txt:''}; const S=routeSamples(FP.pts), seen=new Set(), out=[];
+  const ads=new Set(FP.pts.map(p=>{ const a=fpAd(p); return a&&a.i; }).filter(Boolean));
+  for(const x of supList()){ if((x.icao||[]).some(i=>ads.has(i))){ out.push(x); seen.add(x.k+x.id); continue; }
+    const L=supLoc(x); if(!L||(x.icao||[]).length) continue;
+    if(S.some(([la,lo])=>(L.bb&&L.bb.some(b=>la>=b[0]-0.17&&la<=b[1]+0.17&&lo>=b[2]-0.2&&lo<=b[3]+0.2))||L.pts.some(p=>distBrg(la,lo,p[0],p[1])[0]<=10))){ out.push(x); seen.add(x.k+x.id); } }
+  const gen=supList().filter(x=>!seen.has(x.k+x.id)&&!supLoc(x));
+  let h=`<div class="pc-sec">AIP Supplements and AICs (summary ${esc(SUPS.summary||'')})</div>`;
+  h+= out.length? `<div class="notams sup">${out.map(supItem).join('')}</div>` : '<div class="vnote">None for the plan\'s aerodromes or within 10 NM of the route.</div>';
+  if(gen.length) h+=`<details class="notams sup"><summary>General SUPs and AICs, no place (${gen.length})</summary>${gen.map(supItem).join('')}</details>`;
+  h+=`<div class="notams sup">${supMeta()}</div>`;
+  return {html:h, txt: out.length? 'AIP SUP/AIC\n'+out.map(x=>`${x.k} ${x.id} ${x.subj}`).join('\n')+'\n' : ''}; }
+
+/* ---------- AIRAC changes (25 Nov 2026, Michael chose suggestion 10) ----------
+   The app carries two AIP data sets (window.__SETS [effective ms, file, ERSA date], oldest first). airacDiff compares them:
+   aerodromes (added, removed; name, elevation, CTAF, ATIS, tower/ground/approach frequencies, runways, ERSA circuit sides and
+   height), airspace by class and name (added, removed, limits, frequency, boundary), VFR waypoints (added, removed, moved,
+   renamed) and navaids (frequency, moved, added, removed). Filter: near you (50 NM), your plans (current + saved, within
+   15 NM of a point), all. A notice (airacNotice) offers it once per pair of cycles. */
+const AIRAC={f:'near', d:null, key:'', busy:null};
+function airacSets(){ const S=(window.__SETS||[]).slice().sort((a,b)=>a[0]-b[0]); return S.length>=2? [S[0],S[S.length-1]] : null; }
+function airacLoad(){ const S=airacSets(); if(!S) return Promise.resolve(null); if(AIRAC.d) return Promise.resolve(AIRAC.d); if(AIRAC.busy) return AIRAC.busy;
+  AIRAC.busy=Promise.all(S.map(s=>fetch(s[1]).then(r=>r.json()))).then(([A,B])=>{ AIRAC.d=airacDiff(A,B); AIRAC.d.from=S[0]; AIRAC.d.to=S[1]; AIRAC.busy=null; return AIRAC.d; }).catch(e=>{ AIRAC.busy=null; throw e; });
+  return AIRAC.busy; }
+function airacDiff(A,B){ const out=[], fq=v=>v==null||v===''?'none':String(v), J=v=>JSON.stringify(v);
+  const ap=(D)=>new Map((D.ap||[]).filter(a=>a.i).map(a=>[a.i,a]));
+  const twr=a=>(a.x||[]).map(x=>`${x[0]} ${x[2]}${x[4]?' '+x[4]:''}`).sort().join(', ')||'none', rws=a=>(a.rw||[]).map(r=>r[0]+'/'+r[1]).sort().join(' ')||'none';
+  const cct=a=>Object.keys(a.cct||{}).sort().map(k=>k+(a.cct[k][0]==='R'?' RH':' LH')).join(' ')||'none';
+  const MA=ap(A), MB=ap(B);
+  for(const [i,b] of MB){ const a=MA.get(i), ersa=(a&&a.s==='E')||b.s==='E'; if(!ersa) continue;
+    if(!a){ out.push({g:'ad', i, n:b.n, la:b.la, lo:b.lo, t:'added', w:['new in ERSA'+(b.c?', CTAF '+b.c:'')]}); continue; }
+    const w=[], ch=(lab,x,y)=>{ if(x!==y) w.push(`${lab} ${x} → ${y}`); };
+    if(a.n!==b.n) w.push(`name ${a.n} → ${b.n}`); if(a.e!=null&&b.e!=null&&Math.abs(a.e-b.e)>=5) w.push(`elevation ${a.e} → ${b.e} ft`);
+    ch('CTAF',fq(a.c),fq(b.c)); ch('ATIS',fq((a.a||[]).join('/')),fq((b.a||[]).join('/'))); ch('ATC',twr(a),twr(b)); ch('runways',rws(a),rws(b)); ch('circuits',cct(a),cct(b));
+    ch('circuit height',fq(a.keys&&a.keys.cct),fq(b.keys&&b.keys.cct));
+    if(w.length) out.push({g:'ad', i, n:b.n, la:b.la, lo:b.lo, t:'changed', w}); }
+  for(const [i,a] of MA) if(!MB.has(i)&&a.s==='E') out.push({g:'ad', i, n:a.n, la:a.la, lo:a.lo, t:'removed', w:['no longer in ERSA']});
+  const asp=D=>{ const M=new Map(); for(const x of D.asp||[]){ const k=x[0]+'|'+x[1]; if(!M.has(k)) M.set(k,[]); M.get(k).push(x); } return M; };
+  const lim=(v,k)=>k==='SFC'||v===0? 'SFC' : k==='FL'||k==='STD'? 'FL'+String(Math.round(v/100)).padStart(3,'0') : (v!=null? v+' ft'+(k&&k!=='AMSL'?' '+k:'') : '?');
+  const bbOf=L=>{ let a=90,b=-90,c=180,d=-180; for(const x of L) for(const q of x[7]||[]){ a=Math.min(a,q[0]); b=Math.max(b,q[0]); c=Math.min(c,q[1]); d=Math.max(d,q[1]); } return [a,b,c,d]; };
+  const SA=asp(A), SB=asp(B);
+  for(const [k,Lb] of SB){ const La=SA.get(k), [cls,n]=k.split('|'), bb=bbOf(Lb);
+    if(!La){ out.push({g:'asp', n, cls, bb, t:'added', w:[`class ${cls} ${lim(Lb[0][2],Lb[0][3])} to ${lim(Lb[0][4],Lb[0][5])}${Lb[0][6]?' · '+Lb[0][6]:''}`]}); continue; }
+    const w=[], a=La[0], b=Lb[0];
+    if(a[2]!==b[2]||a[3]!==b[3]) w.push(`lower ${lim(a[2],a[3])} → ${lim(b[2],b[3])}`); if(a[4]!==b[4]||a[5]!==b[5]) w.push(`upper ${lim(a[4],a[5])} → ${lim(b[4],b[5])}`);
+    if(fq(a[6])!==fq(b[6])) w.push(`frequency ${fq(a[6])} → ${fq(b[6])}`);
+    const ba=bbOf(La); if(La.length!==Lb.length||ba.some((v,i)=>Math.abs(v-bb[i])>0.005)||J(La.map(x=>(x[7]||[]).length))!==J(Lb.map(x=>(x[7]||[]).length))) w.push('boundary changed');
+    if(w.length) out.push({g:'asp', n, cls, bb, t:'changed', w}); }
+  for(const [k,La] of SA) if(!SB.has(k)){ const [cls,n]=k.split('|'); out.push({g:'asp', n, cls, bb:bbOf(La), t:'removed', w:['no longer in the DAH']}); }
+  const vw=D=>new Map((D.vw||[]).map(v=>[v[0],v])), VA=vw(A), VB=vw(B);
+  for(const [c,b] of VB){ const a=VA.get(c); if(!a){ out.push({g:'vw', i:c, n:b[1], la:b[2], lo:b[3], t:'added', w:['new VFR waypoint']}); continue; }
+    const w=[]; if(a[1]!==b[1]) w.push(`name ${a[1]} → ${b[1]}`); const d=distBrg(a[2],a[3],b[2],b[3])[0]; if(d>0.3) w.push(`moved ${d.toFixed(1)} NM`);
+    if(w.length) out.push({g:'vw', i:c, n:b[1], la:b[2], lo:b[3], t:'changed', w}); }
+  for(const [c,a] of VA) if(!VB.has(c)) out.push({g:'vw', i:c, n:a[1], la:a[2], lo:a[3], t:'removed', w:['removed']});
+  const na=D=>new Map((D.na||[]).map(v=>[v[0]+' '+v[1],v])), NA=na(A), NB=na(B);
+  for(const [k,b] of NB){ const a=NA.get(k); if(!a){ out.push({g:'na', i:k, n:b[2], la:b[3], lo:b[4], t:'added', w:['new'+(b[5]?' '+b[5]:'')]}); continue; }
+    const w=[]; if(fq(a[5])!==fq(b[5])) w.push(`frequency ${fq(a[5])} → ${fq(b[5])}`); const d=distBrg(a[3],a[4],b[3],b[4])[0]; if(d>0.3) w.push(`moved ${d.toFixed(1)} NM`);
+    if(w.length) out.push({g:'na', i:k, n:b[2], la:b[3], lo:b[4], t:'changed', w}); }
+  for(const [k,a] of NA) if(!NB.has(k)) out.push({g:'na', i:k, n:a[2], la:a[3], lo:a[4], t:'removed', w:['removed']});
+  return {items:out, metaA:A.meta||{}, metaB:B.meta||{}}; }
+function airacNear(x,pts,r){ return pts.some(([la,lo])=>{ if(x.bb){ const b=x.bb, cl=Math.max(b[0],Math.min(b[1],la)), co=Math.max(b[2],Math.min(b[3],lo)); return distBrg(la,lo,cl,co)[0]<=r; } return distBrg(la,lo,x.la,x.lo)[0]<=r; }); }
+function airacFilter(d,f){ if(f==='all') return d.items;
+  if(f==='near'){ if(!st.pos) return []; return d.items.filter(x=>airacNear(x,[st.pos],50)); }
+  const pts=[]; if(FP) for(const p of FP.pts) if(!p.cg) pts.push([p.la,p.lo]); try{ for(const P of (typeof PLANS!=='undefined'? PLANS : [])) for(const p of P.pts||[]) if(!p.cg) pts.push([p.la,p.lo]); }catch(e){}
+  return pts.length? d.items.filter(x=>airacNear(x,pts,15)) : []; }
+function airacRender(){ const d=AIRAC.d, B=$('airacBody'); if(!d){ B.innerHTML='<div class="vnote">Comparing the two data sets…</div>'; return; }
+  const now=Date.now(), eff=d.to[0], when= now<eff? `takes effect ${new Date(eff).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}` : `in effect since ${new Date(eff).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}`;
+  $('airacHead').innerHTML=`From ERSA ${esc(d.metaA.ersa||d.from[2]||'')} / DAH ${esc(d.metaA.dah||'')} to <b>ERSA ${esc(d.metaB.ersa||d.to[2]||'')} / DAH ${esc(d.metaB.dah||'')}</b> (${when}).`;
+  const L=airacFilter(d,AIRAC.f), G={ad:'Aerodromes',asp:'Airspace',vw:'VFR waypoints',na:'Navaids'}, T={added:'new',removed:'removed',changed:''};
+  if(!L.length){ B.innerHTML=`<div class="vnote">${AIRAC.f==='near'&&!st.pos?'No position yet.':AIRAC.f==='plans'?'No changes near your flight plan or saved plans (within 15 NM of a point).':AIRAC.f==='near'?'No changes within 50 NM of you.':'No changes.'}</div>`; return; }
+  B.innerHTML=Object.keys(G).map(g=>{ const I=L.filter(x=>x.g===g); if(!I.length) return '';
+    return `<h4>${G[g]} (${I.length})</h4><ul>`+I.slice(0,150).map(x=>`<li><b>${esc(x.i||x.cls||'')}</b> ${esc(titleCase(x.n||''))}${T[x.t]?` <span class="${x.t==='removed'?'w':'a'}">${T[x.t]}</span>`:''}: ${esc(x.w.join('; '))}</li>`).join('')+(I.length>150?`<li>… ${I.length-150} more</li>`:'')+'</ul>'; }).join('')+
+    '<div class="vnote">Compares the AIP data the app carries (ERSA and DAH as parsed). It doesn\'t show changes to procedure text: read the ERSA and DAH amendment notes and the AIP Supplements (e.g. amendments to the DAH).</div>'; }
+function airacOpen(){ const d=$('airacDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open','');
+  if(!airacSets()){ $('airacHead').textContent='The app carries only one AIRAC data set at the moment, so there is nothing to compare.'; $('airacBody').innerHTML=''; return; }
+  airacRender(); airacLoad().then(airacRender).catch(()=>{ $('airacBody').innerHTML='<div class="vnote">Couldn\'t load the data sets (no signal and not stored yet?).</div>'; }); }
+function airacNotice(){ const S=airacSets(); if(!S||!st.pos||(navigator.webdriver&&!ls.get('airacTest',false))) return;
+  AIRAC.key=S[0][1]+'>'+S[1][1]; if(ls.get('airacSeen','')===AIRAC.key) return;
+  airacLoad().then(d=>{ if(!d) return; const n=airacFilter(d,'near').length, p=airacFilter(d,'plans').length; if(!n&&!p) return;
+    $('airacGo').textContent=`AIRAC ${d.metaB.ersa||S[1][2]||''}: ${n} change${n===1?'':'s'} near you${p?`, ${p} on your plans`:''} · see what changes`; $('airacBar').hidden=false; }).catch(()=>{}); }
+
+/* ---------- arrival card (25 Nov 2026, Michael chose suggestion 11) ----------
+   One screen for the aerodrome you're arriving at: ETA (along the plan, else direct at your GS), the wind (ATIS heard, briefing
+   ATIS, METAR under 90 min near now, else the TAF at ETA), each runway end's head/crosswind and circuit side (ERSA right-hand
+   circuits, else left-hand: the standard), frequencies in calling order with the call sign (tower at ETA, else CTAF), squawk,
+   elevation and ERSA circuit height, NOTAMs, SUPs and hover performance at ETA. Opened from the inbound call row or the
+   aerodrome card's Arrival button. */
+function arrWind(a,T){ const now=Date.now(); let W=null;
+  try{ const x=ATIS[a.i]; if(x&&x.f&&x.f.wind&&now-x.t<90*60e3){ const m=/(\d{3})°\/(\d{1,2})/.exec(x.f.wind); if(m) W={dir:+m[1],kt:+m[2],mag:true,src:`ATIS ${x.l||''} heard ${hhmmZ(x.heard||x.t)}`}; } }catch(e){}
+  if(!W&&NTN&&NTN.atis&&NTN.atis[a.i]){ const A=NTN.atis[a.i], f=(A.fields||[]).find(f=>/^(WND|WIND)/i.test(f.k)), m=f&&/(\d{3})\s*\/\s*(\d{1,2})/.exec(f.v); if(m) W={dir:+m[1],kt:+m[2],mag:true,src:`ATIS ${A.info||''} (briefing)`}; }
+  const M=NTN&&NTN.met&&NTN.met[a.i];
+  if(!W&&M&&M.metar&&now-M.metar.t<90*60e3&&Math.abs(T-now)<90*60e3){ const d=metDecode(M.metar.raw); if(d.spd!=null) W={dir:d.dir,vrb:d.vrb,kt:d.spd,gust:d.gust,mag:false,src:M.metar.kind+' '+hhmmZ(M.metar.t)}; }
+  if(!W&&M&&M.taf){ try{ const D=tafDecode(M.taf.raw,M.taf.t), c=tafAt(D,T).s; if(c&&c.spd!=null) W={dir:c.dir,vrb:c.vrb,kt:c.spd,gust:c.gust,mag:false,src:'TAF at '+hhmmZ(T)}; }catch(e){} }
+  return W; }
+function arrHtml(a){ const now=Date.now(), cn=callName(a.n,a.i), vm=variation(a.la,a.lo), f0=v=>Math.round(v).toLocaleString('en-AU');
+  let eta=null, how=''; try{ const pe=planEtaTo(a); if(pe){ eta=pe.t; how='along the plan'; } }catch(e){}
+  if(!eta&&st.pos&&st.gs>=20){ const d=distBrg(st.pos[0],st.pos[1],a.la,a.lo)[0]; eta=now+d/st.gs*3600e3; how=`direct, ${d<10?d.toFixed(1):Math.round(d)} NM at ${Math.round(st.gs)} kt`; }
+  const T=eta||now, ts=twrStatus(a,new Date(T)), twr=(a.x||[]).filter(x=>x[0]==='TWR'), on=twr.length>0&&(!ts||ts.on!==false), W=arrWind(a,T);
+  let h=`<div class="arr-top"><span><b>${esc(a.i)}</b> ${esc(titleCase(a.n))}</span>${a.e!=null?`<span>elevation <b>${f0(a.e)} ft</b></span>`:''}${eta?`<span>ETA <b>${hhmmZ(eta)}</b> <small>(${esc(how)})</small></span>`:'<span>ETA: not moving and not on your plan</span>'}</div>`;
+  // frequencies in calling order
+  const F=[]; if(a.a&&a.a.length) F.push(['ATIS',a.a[0],'listen first'+(atisOf(a.i)?` (you have ${atisWord(a.i)})`:'')]);
+  if(on){ for(const x of twr) F.push(['TWR'+(x[4]?' '+x[4]:''),x[2],`${cn} Tower`]); }
+  else { const ci=ctafInfo(a); if(ci&&ci.f) F.push(['CTAF',ci.f,`${cn} traffic`+(twr.length?' (tower closed at your ETA)':'')]); }
+  for(const x of (a.x||[]).filter(x=>/^(GND|SMC)$/.test(x[0]))) F.push(['GND',x[2],`${cn} Ground`]);
+  h+=`<div class="arr-sec">Frequencies</div><table><tbody>${F.map(f=>`<tr><td class="k">${esc(f[0])}</td><td class="fq">${esc(f[1])}</td><td>${esc(f[2])}</td></tr>`).join('')||'<tr><td>none in the data</td></tr>'}</tbody></table>`;
+  if(on){ const q=sqkOf(a); if(q) h+=`<div class="arr-top" style="margin-top:6px"><span>Squawk <b>${esc(q.code)}</b> <small>(${esc(q.src)})</small></span></div>`; }
+  // runways for the wind
+  const ends=(a.rw||[]).flatMap(r=>[r[0],r[1]]).filter((x,i,A)=>/^\d{2}/.test(x)&&A.indexOf(x)===i);
+  const R_=ends.map(x=>{ const hd=+x.slice(0,2)*10, cc=a.cct&&a.cct[x]; let hw=null, xw=null; if(W&&W.dir!=null&&W.kt){ const wm=(W.mag?W.dir:W.dir-vm), r_=(wm-hd)*R; hw=W.kt*Math.cos(r_); xw=W.kt*Math.sin(r_); }
+    return {x, hw, xw, rh: cc? cc[0]==='R' : false, why: cc? cc[1] : ''}; });
+  const best= W&&W.kt>=3&&!W.vrb&&R_.some(r=>r.hw!=null)? R_.reduce((p,q)=>q.hw>p.hw?q:p) : null; if(best) R_.sort((p,q)=>q.hw-p.hw);   // most headwind first
+  h+=`<div class="arr-sec">Runways${W?` · wind ${W.vrb?'VRB':fmt3(W.dir)+'°'+(W.mag?'M':'T')} ${W.kt}${W.gust?'G'+W.gust:''} kt (${esc(W.src)})`:' · no wind: no ATIS, METAR or TAF for it'}</div>`;
+  h+= R_.length? `<table><tbody>${R_.map(r=>`<tr class="${r===best?'best':''}"><td class="k">${esc(r.x)}${r===best?' ✓':''}</td><td>${r.hw==null?'':r.hw>=0?`head ${Math.round(r.hw)}`:`<span class="w">tail ${Math.round(-r.hw)}</span>`}${r.xw==null?'':`, cross ${Math.abs(Math.round(r.xw))}${Math.round(r.xw)?(r.xw>0?' R':' L'):''}`}</td><td>${r.rh?'<b>right-hand</b> circuit':'left-hand circuit'}<br><small>${esc(r.why||'no ERSA right-hand circuit for this end: standard left-hand')}</small></td></tr>`).join('')}</tbody></table>`+(W&&(W.vrb||W.kt<3)?'<div class="vnote">Light or variable wind: the ATIS or the traffic in the circuit decide the runway.</div>':best?'<div class="vnote">✓ most headwind. The ATIS (or the traffic in the circuit) decides the runway in use.</div>':'') : '<div class="vnote">No runways in the data.</div>';
+  const K=a.keys||{}; const kk=[]; if(K.cct) kk.push(`circuit ${esc(K.cct)}`); if(K.heli) kk.push(`helicopters ${esc(K.heli)}`); if(K.entry) kk.push(`CTR entry ${esc(K.entry)}`); if(K.rpts) kk.push(`reporting points ${esc(K.rpts)}`);
+  h+=`<div class="arr-sec">ERSA</div><div class="vnote" style="margin-top:0">${kk.length?kk.join(' · '):'No circuit height or helicopter notes picked out of the ERSA entry: check it (ERSA button).'}</div>`;
+  // NOTAMs and SUPs
+  const N=ntFor(a.i); h+=`<div class="arr-sec">NOTAMs (${N.length})</div>`+(N.length? '<ul style="margin:0;padding-left:18px">'+N.slice(0,6).map(n=>`<li>${esc(String(n.text||'').split('\n')[0].slice(0,140))}</li>`).join('')+'</ul>' : `<div class="vnote" style="margin-top:0">${ntHave()?'None current for '+esc(a.i)+'.':'No NAIPS briefing loaded.'}</div>`);
+  try{ const L=supFor(a); if(L.length) h+=`<div class="arr-sec">AIP SUP / AIC (${L.length})</div><div class="notams sup">${L.map(supItem).join('')}</div>`; }catch(e){}
+  // hover performance at the ETA
+  try{ const S=wbSummary(); if(S&&$('cCat').value==='H'||S&&(S.P.hige||S.P.hoge)){ const X=hpWx(a.la,a.lo,T); if(X.T!=null&&a.e!=null){ const pa=a.e+(1013.25-X.Q)*30, da=Math.round((pa+118.8*(X.T-(15-1.98*pa/1000)))/10)*10;
+      const dep=pcDepMs((ls.get('pcDep',null)||{}).v||''), burn=+ls.get('pcBurn',0)||0, U=WB_U[S.P.u], fw=S.P.u==='lb'? burn/3.785411784*(S.P.dens||U.dens) : burn*(S.P.dens||U.dens), w=S.r.to.w-(dep&&T>dep? fw*(T-dep)/3600e3 : 0);
+      const ige=hpMax(hpTable(S.P.hige),da), oge=hpMax(hpTable(S.P.hoge),da), m=(v,l)=>v==null? `<span class="w">${l}: outside your table</span>` : `<span class="${v<w?'w':(v-w)/v<0.05?'a':''}">${l} max ${f0(v)}</span>`;
+      h+=`<div class="arr-sec">Hover at ETA</div><div class="vnote" style="margin-top:0">DA <b>${f0(da)} ft</b> (${X.T}°C ${esc(X.Ts)}, QNH ${X.Q} ${esc(X.Qs)}) · weight about ${f0(w)} ${esc(U.w)}${S.P.hige||S.P.hoge?' · '+[S.P.hige?m(ige,'IGE'):'',S.P.hoge?m(oge,'OGE'):''].filter(Boolean).join(' · '):''}</div>`; } } }catch(e){}
+  return h; }
+function arrOpen(a){ if(!a) return; $('arrTitle').textContent=`Arrival · ${a.i}`; $('arrBody').innerHTML=arrHtml(a); const d=$('arrDlg'); if(!d.open){ if(d.showModal) d.showModal(); else d.setAttribute('open',''); } }
 /* ---------- hover performance (25 Nov 2026, Michael chose suggestion 4): for the departure and every point you land at, the
    density altitude at your ETA (temperature: TAF RMK T at ETA, else a METAR under 90 min old when the ETA is within 90 min,
    else Plan check's OAT; QNH: TAF RMK Q, else METAR, else the briefing's lowest area QNH, else 1013 assumed; the station is
@@ -4067,6 +4275,8 @@ function pcRun(){ if(!FP||FP.pts.length<2){ $('pcOut').innerHTML='<div class="vn
   { const S=wbSummary(); if(S){ const {P,r}=S, f=p=>`${wbFmtW(P,p.w)} CG ${wbFmtA(P,p.a)}`;   // weight and balance from your profile and load
     h+=`<div class="pc-sec">Weight and balance (${esc(P.name)})</div><table class="pc-t"><tbody><tr class="${r.ok?'':'w'}"><td class="k">${r.ok?'OK':'OUT'}</td><td>Take-off ${f(r.to)}${r.ld?' · landing '+f(r.ld):''} · zero fuel ${f(r.zf)}${r.ok?'':' · <span class="w">'+r.why.map(esc).join(' · ')+'</span>'}${r.pf?` · fuel ${Math.round(r.F)} ${WB_U[P.u].f} on board, ${Math.ceil(r.pf.need)} needed with ${r.pf.res} min reserve${r.F<r.pf.need?' <span class="w">(short)</span>':''}`:''}</td></tr></tbody></table>`; } }
   let HPT=''; try{ const X=hpHtml(dep,gs,PL.wind?PL.tAt:null); h+=X.html; HPT=X.txt; }catch(e){}
+  try{ const X=hazBrief(alt); h+=X.html; if(X.txt) HPT+=X.txt; }catch(e){}
+  try{ const X=supBrief(); h+=X.html; if(X.txt) HPT+=X.txt; }catch(e){}
   h+='<div class="pc-sec">Ready to fly without signal?</div><div id="pcOff" class="vnote">Checking what\'s stored on this device…</div>';
   PC.offTxt=''; $('pcOut').innerHTML=h; routeReady(FP.pts,dep,dep+Ttot).then(R_=>{ const el=$('pcOff'); if(el) el.outerHTML=R_.html; PC.offTxt=R_.txt; });
   $('pcStat').textContent= r.legs.some(l=>l.unk)? 'Some terrain along the route isn\'t loaded yet: checking again…' : 'Planned altitude, GS and departure are kept on this device. Tower hours and area status are at your ETA; check the ATIS, NOTAMs and ERSA before flight.';
@@ -5229,7 +5439,7 @@ function sideSamples(la,lo){ let path=nxPath(la,lo).filter(q=>q[2]<=SIDE.NM+0.01
   if(!path.length){ const h=heading(); if(!h) return null; for(let D=0.5;D<=SIDE.NM+0.01;D+=0.5){ const [a,o]=gcDest(la,lo,h.deg,D); path.push([a,o,D]); } how=h.src.toLowerCase()+' '+fmt3(h.deg-variation(la,lo))+'°M'; }
   else if(!how) how='track '+fmt3((st.trk||0)-variation(la,lo))+'°M';
   const S=[]; for(const [a,o,D] of [[la,lo,0],...path]){ const t=terrainFt(a,o), AS=airStack(a,o,t||0);
-    S.push({D, t, b:AS.bands.filter(x=>x.k!=='G').map(x=>({k:x.k==='CTR'?(x.ctrCls||'D'):x.k, L:x.L, H:x.H, n:x.n})),
+    S.push({D, la:a, lo:o, t, b:AS.bands.filter(x=>x.k!=='G').map(x=>({k:x.k==='CTR'?(x.ctrCls||'D'):x.k, L:x.L, H:x.H, n:x.n})),
       p:AS.prd.filter(x=>!(x.st&&x.st.s==='off')).map(x=>({k:x.k==='P'?'R':x.k, L:x.L, H:x.H, n:x.n}))}); }
   return {S, how, tot:S[S.length-1].D}; }
 function sideUI(){ const box=$('sideBox'); $('mapSide').setAttribute('aria-pressed',SIDE.on);
@@ -5238,7 +5448,8 @@ function sideUI(){ const box=$('sideBox'); $('mapSide').setAttribute('aria-press
   if(!SIDE.ro&&window.ResizeObserver){ SIDE.ro=new ResizeObserver(e=>{ const r=e[0].contentRect; if(r.width!==SIDE.W||r.height!==SIDE.H){ SIDE.W=r.width; SIDE.H=r.height; SIDE.key=''; sideUI(); } }); SIDE.ro.observe(cv); }
   const W=SIDE.W||cv.clientWidth, H=SIDE.H||cv.clientHeight; if(!W||!H) return;
   const [la,lo]=st.pos, h=heading(), dpr=window.devicePixelRatio||1, alt=st.alt;
-  const key=[la.toFixed(3),lo.toFixed(3),alt==null?'-':Math.round(alt/100),FP?FP.i+':'+FP.pts.length+':'+(FP.rev||0)+':'+(FP.dct?1:0):'-',h?Math.round(h.deg/3):'-',st.gs>5?1:0,TER.tiles.size,NTN?NTN.t:0,W,H,dpr,themeKey()].join('|');
+  const key=[la.toFixed(3),lo.toFixed(3),alt==null?'-':Math.round(alt/100),FP?FP.i+':'+FP.pts.length+':'+(FP.rev||0)+':'+(FP.dct?1:0):'-',h?Math.round(h.deg/3):'-',st.gs>5?1:0,TER.tiles.size,NTN?NTN.t:0,PL.d?1:0,W,H,dpr,themeKey()].join('|');
+  if(!PL.d) plLoad();
   if(key===SIDE.key) return;
   const now=Date.now(); if(now-SIDE.t<1000){ if(!SIDE.tm) SIDE.tm=setTimeout(()=>{ SIDE.tm=null; sideUI(); },1000-(now-SIDE.t)); return; }
   SIDE.key=key; SIDE.t=now; SIDE.n++;
@@ -5279,6 +5490,10 @@ function sideUI(){ const box=$('sideBox'); $('mapSide').setAttribute('aria-press
   if(alt!=null){ const inside=q=>{ const z=q.b.find(a=>/^(A|C|D)$/.test(a.k)&&alt>=a.L-50&&alt<a.H)||q.p.find(a=>a.k==='R'&&alt>=a.L-50&&alt<a.H); return z? z.k+'|'+z.n : null; };
     const here=inside(S[0]); for(const q of S){ const k=inside(q); if(k&&k!==here){ into={q,k:k.split('|')[0],n:k.split('|')[1]}; break; } } }
   if(into){ const X=x(into.q.D); g.strokeStyle=C[into.k]||C.warn; g.lineWidth=1.5; g.setLineDash([3,2]); g.beginPath(); g.moveTo(X,t); g.lineTo(X,H-b); g.stroke(); g.setLineDash([]); }
+  // power lines you cross and NOTAM obstacles within 0.5 NM (25 Nov 2026, Michael chose suggestion 12): a mast mark at the terrain
+  // for a line (its height isn't in the data), an obstacle drawn up to its height; amber/red when you're low over them
+  let hz=null; try{ hz=pathHaz(S.map(q=>[q.la,q.lo,q.D]),0.5); SIDE.hz=hz; }catch(e){}
+  if(hz) hazDraw(g,hz,x,y,C,alt);
   // your altitude
   if(alt!=null){ const Y=y(alt); g.strokeStyle=C.acc; g.lineWidth=1.5; g.setLineDash([5,3]); g.beginPath(); g.moveTo(l,Y); g.lineTo(W-r,Y); g.stroke(); g.setLineDash([]);
     g.fillStyle=C.acc; g.beginPath(); g.moveTo(l+9,Y); g.lineTo(l,Y-4.5); g.lineTo(l,Y+4.5); g.closePath(); g.fill(); }
@@ -5286,6 +5501,8 @@ function sideUI(){ const box=$('sideBox'); $('mapSide').setAttribute('aria-press
   if(alt==null) bits.push('altitude unknown');
   if(into) bits.push(`${into.k==='R'?into.n.split(' ')[0]:'class '+into.k} in ${dd(into.q.D)} NM`);
   if(terHit) bits.push(`terrain ${Math.round(terHit.t/100)*100} ft in ${dd(terHit.D)} NM`);
+  if(hz&&hz.W.length){ const w=hz.W[0]; bits.push(`power line in ${dd(w.D)} NM${alt!=null&&w.t!=null?' ('+Math.round(alt-w.t).toLocaleString('en-AU')+' ft above the ground there)':''}`); }
+  if(hz&&hz.O.length){ const o=hz.O.find(q=>q.ft!=null); if(o) bits.push(`${o.what} ${o.ft.toLocaleString('en-AU')} ft in ${dd(o.D)} NM`); }
   $('sideTxt').textContent=bits.join(' · ');
   box.classList.toggle('warn',!!(into||terHit)); }
 $('mapSide').onclick=()=>{ SIDE.on=!SIDE.on; ls.set('mapSide',SIDE.on); SIDE.key=''; sideUI(); };
@@ -5393,6 +5610,7 @@ function render0(){
   { const L=ntFor(a.i).sort((x,y)=>ntTime(x.from)-ntTime(y.from)), key=L.some(n=>/\b(CLSD|CLOSED|U\/S|NOT AVBL)\b/.test(n.text||''));
     wxBox(a);
     ntBox($('adNotam'),L,`NOTAMs ${esc(a.i)} (${L.length})${key?' · <span class="w">closures / U/S</span>':''}`,key,a.i);
+    try{ supBox(a); }catch(e){}
     if(!L.length&&NTN&&NTN.none.includes(a.i)){ const e=$('adNotam'); e.hidden=false; e.open=false; e.innerHTML=`<summary>NOTAMs ${esc(a.i)}: none current</summary><div class="meta">${ntSrcTxt()} lists no current NOTAM for ${esc(a.i)}.</div>`; } }
   pfMark('CTAF tiles + NOTAMs');
   renderRunways(a,pick,h); pfMark('runways');
@@ -6296,6 +6514,7 @@ function mapMenu(px,py){ if(document.body.classList.contains('fsm')&&FS.s!=='pee
   { const ob=ntObstacles().map(o=>({o,d:distBrg(la,lo,o.la,o.lo)[0]})).filter(q=>q.d<=1).sort((a,b)=>a.d-b.d), seen=new Set();
     const L=ob.filter(q=>!seen.has(q.o.n.id)&&seen.add(q.o.n.id)).slice(0,4);
     if(L.length) $('mmFq').insertAdjacentHTML('beforeend','<div class="mm-ob">'+L.map(({o,d})=>`<span><b style="color:var(--as-r)">▲ ${o.ft!=null?o.ft+' ft':'?'}</b> <small>${esc(o.what)}${o.hAgl!=null?' '+o.hAgl+' AGL':''}${o.lit?' lit':''} · ${d.toFixed(1)} NM · NOTAM ${esc(o.n.id)} ${esc(o.n.loc||'')}</small></span>`).join('')+'</div>'); }
+  try{ const L=supNear(la,lo,5); if(L.length) $('mmFq').insertAdjacentHTML('beforeend','<div class="mm-ob mm-sup">'+L.slice(0,4).map(x=>`<span><b style="color:var(--accent)">${x.k} ${x.id}</b> <small>${esc(x.subj)}</small></span>`).join('')+'</div>'); }catch(e){}
   $('mmSua').innerHTML=suaHere(la,lo);
   { const Z=sigAt(la,lo); if(Z.length){ const d=document.createElement('div'); d.className='mm-sig';
       d.innerHTML=Z.map(z=>`<details class="notams"><summary><b style="color:var(--as-q)">${esc(z.name)}</b> ${esc(sigLine(z))}</summary><div class="tx mono" style="white-space:pre-wrap">${esc(z.raw)}</div></details>`).join(''); $('mmSua').appendChild(d); } }
@@ -7562,7 +7781,11 @@ function e6Show(){ const p=E6P.p; if(!p) return; const C=E6.pc, m=a=>((a%360)+36
   else if(!p.c[1]){ C.rot=m(e6L(E6ARR[p.c[0]])-e6L(E6FL)); C.cur=m(e6L(p.x)+C.rot); C.draw(); }
   else { C.rot=m(e6L(E6ARR[p.c[0]])-e6L(p.x)); C.cur=e6L(E6ARR[p.c[1]]); C.draw(); }
   $('e6bPRes').innerHTML='Set up as it should be: read the answer off the computer, then Check.'; }
-$('bE6b').onclick=e6Open; $('bHelp').onclick=()=>{ const w=window.open('docs/index.html','_blank'); if(!w) location.href='docs/index.html'; };   // help pages (app/docs, precached by the service worker) $('e6bClose').onclick=()=>$('e6bDlg').close();
+$('bE6b').onclick=e6Open; $('bAirac').onclick=()=>airacOpen(); $('adArr').onclick=()=>{ if(st.adShown) arrOpen(st.adShown); };
+$('arrClose').onclick=()=>$('arrDlg').close(); $('airacClose').onclick=()=>$('airacDlg').close();
+$('airacF').addEventListener('click',e=>{ const b=e.target.closest('[data-f]'); if(!b) return; AIRAC.f=b.dataset.f; for(const x of $('airacF').children) x.classList.toggle('on',x===b); airacRender(); });
+$('airacGo').onclick=()=>{ $('airacBar').hidden=true; ls.set('airacSeen',AIRAC.key); airacOpen(); }; $('airacX').onclick=()=>{ $('airacBar').hidden=true; ls.set('airacSeen',AIRAC.key); };
+setTimeout(airacNotice,6000); $('bHelp').onclick=()=>{ const w=window.open('docs/index.html','_blank'); if(!w) location.href='docs/index.html'; };   // help pages (app/docs, precached by the service worker) $('e6bClose').onclick=()=>$('e6bDlg').close();
 $('e6bSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(b) e6Tab(b.dataset.t); });
 $('e6bComp').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b) return; const k=b.dataset.c, C=E6.comp;
   if(k==='gs') C.setIndex(st.gs>20? st.gs : +ls.get('pcGs',90)||90); else if(k==='fuel') C.setIndex(+ls.get('pcBurn',0)||60); else { C.rot=0; C.cur=e6L(30); C.draw(); } });
