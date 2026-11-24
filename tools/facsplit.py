@@ -27,9 +27,13 @@ def starts(lines):
 def split(pdf, outdir):
     txt = subprocess.run(['pdftotext', '-layout', pdf, '-'], capture_output=True, text=True, errors='replace').stdout.split('\f')
     ent = []   # (page0, line, icao, top)
+    fac = [any(FACP.search(l) for l in t.splitlines()[:3]) for t in txt]
+    f0 = fac.index(True) if True in fac else 0; f1 = len(fac) - 1 - fac[::-1].index(True) if True in fac else -1
     for p, t in enumerate(txt):
         L = t.splitlines()
-        if not any(FACP.search(l) for l in L[:3]): continue
+        # a FAC page; or, inside the FAC section, an "AIP Australia" page with an entry header whose "FAC X - n" didn't come out
+        # of the PDF as text (26 NOV 2026: TYAGARAH YTYH on page 811 was missed)
+        if not fac[p] and not (f0 <= p <= f1 and any('AIP Australia' in l for l in L[:3]) and starts(L)): continue
         body = [i for i, l in enumerate(L) if l.strip()][1:]   # skip the page header line
         for i, ic in starts(L):
             top = not any(k < i and not re.search(r'^\s*$', L[k]) for k in body if k < i) or i <= (body[0] + 1 if body else 0)
@@ -44,6 +48,11 @@ def split(pdf, outdir):
             while last + 1 < len(txt) and any(FACP.search(l) for l in txt[last + 1].splitlines()[:3]): last += 1
         if ic in idx: idx[ic][1] = max(idx[ic][1], last + 1); continue   # same ICAO twice (e.g. a heliport listed under its aerodrome)
         idx[ic] = [p + 1, last + 1]
+    old = os.path.join(outdir, 'index.json')   # guard (25 Nov 2026): Windows' pdftotext laid this ERSA out differently, found 678 of 752 entries
+    if os.path.exists(old):                     # and the clean-up below deleted the other sheets; never shrink an existing set by more than 5%
+        n_old = len(json.load(open(old)))
+        if len(idx) < n_old * 0.95:
+            sys.exit(f'facsplit: found {len(idx)} entries, but {old} has {n_old}: not writing or deleting anything (a different pdftotext? use the Linux one, or data/aip/txt)')
     os.makedirs(outdir, exist_ok=True)
     t0 = os.path.getmtime(pdf)
     todo = {ic: r for ic, r in idx.items() if not (os.path.exists(f := os.path.join(outdir, ic + '.pdf')) and os.path.getmtime(f) >= t0 and os.path.getsize(f) > 0)}   # resumable
