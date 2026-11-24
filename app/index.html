@@ -1016,11 +1016,11 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <div id="e6bWind" class="e6b-pane" hidden>
       <svg id="e6bWindSvg" class="e6b-svg" viewBox="-195 -235 390 430" role="img" aria-label="Wind side: rotating plate over a sliding grid"></svg>
       <div class="e6b-rd" id="e6bWindRd"></div>
-      <div class="e6b-btns"><button type="button" class="btn" data-w="mark">✎ Mark</button><button type="button" class="btn" data-w="erase">Erase</button><button type="button" class="btn" data-w="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowW" checked> Readout</label></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-w="mark">✎ Mark</button><button type="button" class="btn" data-w="erase">Erase</button><button type="button" class="btn" data-w="xw" title="Square grid round the grommet for crosswind and headwind components">Crosswind</button><button type="button" class="btn" data-w="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowW" checked> Readout</label></div>
       <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
     </div>
     <div id="e6bProb" class="e6b-pane" hidden>
-      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="xw">Crosswind component</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
       <div class="e6b-card" id="e6bPCard"></div>
       <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
       <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
@@ -1157,7 +1157,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=5a7f6ecdb0';
+    const s=document.createElement('script'); s.src='app.js?v=6563200f4b';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

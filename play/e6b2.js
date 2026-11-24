@@ -35,6 +35,25 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
       const i=$('e6bPAns').querySelector('input[data-k="pa"]'); i.value=String(P.v+40); e6Check(); out.ok=/Right/.test($('e6bPRes').innerText);
       e6New(); $('e6bPAns').querySelector('input[data-k="pa"]').value=String(E6P.p.e); e6Check(); out.bad=Math.abs(E6P.p.q-1013)<=1||/Not quite/.test($('e6bPRes').innerText); return out; },src);
     ok(r.v===r.e+(1013-r.q)*30&&!r.svg&&r.work.split('|').length===3&&r.ok&&r.bad&&(src==='rand'? !!r.ad : r.plan),`pressure altitude (${src}): ${r.card.slice(0,80)} = ${r.v} ft; working "${r.work.slice(0,90)}"; ±40 right, elevation alone wrong; no computer shown`); }
+  // crosswind component: Show me puts the runway under the index; the dot's offsets are the components; answers check
+  for(let i=0;i<3;i++){ r=await p.evaluate(()=>{ $('e6bPSrc').value='rand'; $('e6bPType').value='xw'; e6New(); const P=E6P.p, vis=id=>$(id).getBoundingClientRect().height>0; e6Show(); const c=E6.pw.xwOf(E6.pw.dots[0]), steps=[...$('e6bPSteps').children].map(d=>d.className);
+      const set=(k,v)=>{ $('e6bPAns').querySelector(`input[data-k="${k}"]`).value=v; }; set('xw',(P.xw>=0?'R':'L')+Math.round(Math.abs(P.xw))); set('hw',(P.hw<0?'T':'')+Math.round(Math.abs(P.hw))); e6Check();
+      return {rw:P.rw, wd:P.wd, wk:P.wk, xw:P.xw, hw:P.hw, cx:c.x, ch:c.h, steps, grid:E6.pw.xg.style.display!=='none', svg:vis('e6bPWSvg')&&!vis('e6bPCSvg'), res:$('e6bPRes').innerText, card:$('e6bPCard').innerText.split(String.fromCharCode(10)).slice(1).join(' ')}; });
+    ok(Math.abs(r.cx-r.xw)<0.01&&Math.abs(r.ch-r.hw)<0.01&&r.steps.slice(0,3).every(c=>c==='ok')&&r.grid&&r.svg&&/Right/.test(r.res)&&Math.abs(Math.hypot(r.xw,r.hw)-r.wk)<1e-9,`crosswind: ${r.card.slice(0,90)} → ${r.res.replace(/^.*answer: /,'')}`); }
+  // the mark step takes a tap without ✎ Mark, and says why a dot isn't accepted
+  await p.evaluate(()=>{ $('e6bPType').value='wind'; for(let i=0;i<50;i++){ e6New(); if(E6P.p.wk===15) break; } E6.pw.rotP=(E6P.p.wd+30)%360; E6.pw.draw(); });
+  let Mx=await p.evaluate(()=>{ const m=$('e6bPWSvg').getScreenCTM(); return {a:m.a,e:m.e,f:m.f}; });
+  await p.mouse.click(Mx.e, Mx.f-15*140/60*Mx.a);
+  r=await p.evaluate(()=>({dots:E6.pw.dots.length, t:$('e6bPSteps').children[1].innerText, c:$('e6bPSteps').children[1].className}));
+  ok(r.dots===0,'mark step not current while the plate is off the wind: a tap slides the grid instead ('+r.dots+' dots)');
+  await p.evaluate(()=>{ E6.pw.rotP=E6P.p.wd; E6.pw.draw(); }); await p.mouse.click(Mx.e, Mx.f-15*140/60*Mx.a);
+  r=await p.evaluate(()=>({dots:E6.pw.dots.length, c:$('e6bPSteps').children[1].className, mark:E6.pw.mark}));
+  ok(r.dots===1&&r.c==='ok'&&!r.mark,'plate on the wind: a plain tap 15 kt up marks the dot and the step ticks (no ✎ Mark)');
+  await p.evaluate(()=>{ E6.pw.dots=[]; E6.pw.draw(); }); await p.mouse.click(Mx.e, Mx.f-11*140/60*Mx.a);
+  r=await p.evaluate(()=>({t:$('e6bPSteps').children[1].innerText, c:$('e6bPSteps').children[1].className}));
+  ok(r.c!=='ok'&&/your dot: \d{3}°\/11 kt/.test(r.t),'a dot at 11 kt says why: '+r.t.split(String.fromCharCode(10)).join(' ').slice(0,90));
+  await p.evaluate(()=>{ E6P.hint=true; e6Steps(); }); r=await p.evaluate(()=>$('e6bPSteps').innerText);
+  ok(/grommet is on the 100 arc, so 15 kt up is the 115 arc/.test(r),'hint names the arc: the 100 arc, so 15 kt up is the 115 arc');
   // window against ISA: PA 10,000 ft, 0 °C, CAS 100 -> TAS 117.4 kt (sigma 0.7255), DA 10,565 ft (rule of thumb 10,000 + 120 x 4.8 = 10,576)
   r=await p.evaluate(()=>{ const A=e6Air(10000,0), C=E6.pc; C.rot=((A.rot%360)+360)%360; C.cur=(e6L(100)+C.rot)%360; C.draw(); return {tas:e6V(C.cur), da:e6DAof(C.rot), rd:$('e6bCompRd').innerText}; });
   ok(Math.abs(r.tas*10-117.4)<0.3&&Math.abs(r.da-10565)<30,`PA 10,000 / 0 °C / CAS 100: TAS ${(r.tas*10).toFixed(1)} kt, DA ${r.da.toFixed(0)} ft`);

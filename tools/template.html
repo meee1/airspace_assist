@@ -1016,11 +1016,11 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
     <div id="e6bWind" class="e6b-pane" hidden>
       <svg id="e6bWindSvg" class="e6b-svg" viewBox="-195 -235 390 430" role="img" aria-label="Wind side: rotating plate over a sliding grid"></svg>
       <div class="e6b-rd" id="e6bWindRd"></div>
-      <div class="e6b-btns"><button type="button" class="btn" data-w="mark">✎ Mark</button><button type="button" class="btn" data-w="erase">Erase</button><button type="button" class="btn" data-w="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowW" checked> Readout</label></div>
+      <div class="e6b-btns"><button type="button" class="btn" data-w="mark">✎ Mark</button><button type="button" class="btn" data-w="erase">Erase</button><button type="button" class="btn" data-w="xw" title="Square grid round the grommet for crosswind and headwind components">Crosswind</button><button type="button" class="btn" data-w="reset">Reset</button><label class="e6b-chk"><input type="checkbox" id="e6bShowW" checked> Readout</label></div>
       <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
     </div>
     <div id="e6bProb" class="e6b-pane" hidden>
-      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="xw">Crosswind component</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
       <div class="e6b-card" id="e6bPCard"></div>
       <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
       <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
@@ -8282,6 +8282,14 @@ class E6Wind{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=on
     for(let a=-44; a<=44; a+=2){ const maj=a%10===0, t=(a-90)*Math.PI/180; e6el(g,'line',{x1:0,y1:0,x2:260*sc*Math.cos(t),y2:260*sc*Math.sin(t),stroke:maj?'#2c6e49':'#b7c9bb','stroke-width':maj?1:0.5});
       if(maj&&a) for(const v of [60,100,140,180]){ const x=v*sc*Math.cos(t)+(a>0?3:-3), y=v*sc*Math.sin(t); e6el(g,'text',{x,y,fill:'#1d4d33','font-size':8,'font-family':'IBM Plex Mono','text-anchor':a>0?'start':'end'},Math.abs(a)+'°'); } }
     e6el(clip,'circle',{cx:0,cy:0,r:R+30,fill:'rgba(230,240,255,.16)',stroke:'#88a','stroke-width':2});
+    /* crosswind grid (24 Nov 2026, Michael: "Add a crosswind component problem too"): squares round the grommet, 2 kt, bold every 10,
+       fixed to the base; with the runway under the index the dot's offset across is the crosswind, up the headwind (down = tailwind) */
+    this.xg=e6el(clip,'g',{'pointer-events':'none'}); const xg=this.xg; e6el(xg,'rect',{x:-40*sc,y:-40*sc,width:80*sc,height:80*sc,fill:'#f4f6ea'});
+    for(let k=-40;k<=40;k+=2){ const maj=k%10===0, c=maj?'#2c6e49':'#b7c9bb', w=k===0?1.8:maj?1:0.5; e6el(xg,'line',{x1:k*sc,y1:-40*sc,x2:k*sc,y2:40*sc,stroke:c,'stroke-width':w}); e6el(xg,'line',{x1:-40*sc,y1:k*sc,x2:40*sc,y2:k*sc,stroke:c,'stroke-width':w});
+      if(maj&&k){ e6el(xg,'text',{x:k*sc,y:-40*sc-3,fill:'#1d4d33','font-size':8,'font-family':'IBM Plex Mono','text-anchor':'middle'},String(Math.abs(k))); e6el(xg,'text',{x:-40*sc-3,y:k*sc+3,fill:'#1d4d33','font-size':8,'font-family':'IBM Plex Mono','text-anchor':'end'},String(Math.abs(k))); } }
+    e6el(xg,'text',{x:0,y:-40*sc-12,fill:'#1d4d33','font-size':8,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'HEADWIND ▲ · CROSSWIND ◀ ▶');
+    e6el(xg,'text',{x:0,y:40*sc+11,fill:'#1d4d33','font-size':8,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'TAILWIND ▼');
+    this.xw=false;
     this.plate=e6el(clip,'g'); const pl=this.plate;
     e6el(pl,'circle',{cx:0,cy:0,r:R+30,fill:'none',stroke:'#334','stroke-width':26,'stroke-opacity':.88});
     for(let dg=0; dg<360; dg+=5){ const t=(dg-90)*Math.PI/180, maj=dg%10===0; e6el(pl,'line',{x1:(R+18)*Math.cos(t),y1:(R+18)*Math.sin(t),x2:(R+(maj?28:23))*Math.cos(t),y2:(R+(maj?28:23))*Math.sin(t),stroke:'#fff','stroke-width':maj?1.4:0.8});
@@ -8291,7 +8299,7 @@ class E6Wind{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=on
     e6el(s,'rect',{x:-40,y:-R-67,width:80,height:18,rx:9,fill:'#0d1417',opacity:.9}); e6el(s,'path',{d:`M -9 ${-R-48} L 9 ${-R-48} L 0 ${-R-34} Z`,fill:'#ffad4d'}); e6el(s,'text',{x:0,y:-R-54,fill:'#ffad4d','font-size':11,'font-family':'Barlow Condensed','font-weight':700,'text-anchor':'middle','letter-spacing':1},'TRUE INDEX'); }
   bind(){ const s=this.svg; let d=null;
     s.addEventListener('pointerdown',e=>{ const p=e6pt(s,e), r=Math.hypot(p.x,p.y); e.preventDefault(); s.setPointerCapture(e.pointerId);
-      if(this.mark&&r<this.R){ this.dots=[this.dotAt(p)]; this.drag=true; d={k:'dot'}; this.draw(); return; }
+      if((this.mark||(this.auto&&this.auto()))&&r<this.R){ this.dots=[this.dotAt(p)]; this.drag=true; d={k:'dot'}; this.draw(); return; }
       d= r>this.R&&r<this.R+46? {k:'ring', a0:e6ang(p.x,p.y), r0:this.rotP} : {k:'grid', y0:p.y, G0:this.G}; });
     s.addEventListener('pointermove',e=>{ if(!d) return; const p=e6pt(s,e);
       if(d.k==='dot'){ this.dots=[this.dotAt(p)]; this.draw(); return; }
@@ -8304,12 +8312,14 @@ class E6Wind{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=on
   dotScr(q){ const t=-this.rotP*Math.PI/180; return [ (q.x*Math.cos(t)-q.y*Math.sin(t))*this.sc, (q.x*Math.sin(t)+q.y*Math.cos(t))*this.sc ]; }
   dotWind(q){ return {dir:e6ang(q.x,q.y), kt:Math.hypot(q.x,q.y)}; }   // the dot as marked: its direction from the grommet in the plate's frame and length
   dotGrid(q){ const [x,y]=this.dotScr(q), cy=this.G*this.sc; return {arc:Math.hypot(x,y-cy)/this.sc, drift:Math.atan2(x,-(y-cy))*180/Math.PI}; }
-  draw(){ const sc=this.sc; this.grid.setAttribute('transform',`translate(0 ${this.G*sc})`); this.plate.setAttribute('transform',`rotate(${-this.rotP})`);
+  xwOf(q){ const [x,y]=this.dotScr(q); return {x:x/this.sc, h:-y/this.sc}; }   // crosswind (+ from the right) and headwind (+) of a dot as the plate is now
+  draw(){ const sc=this.sc; this.grid.setAttribute('transform',`translate(0 ${this.G*sc})`); this.grid.style.display=this.xw?'none':''; this.xg.style.display=this.xw?'':'none'; this.plate.setAttribute('transform',`rotate(${-this.rotP})`);
     this.dg.innerHTML=''; if(this.dg.lab){ this.dg.lab.remove(); this.dg.lab=null; } for(const q of this.dots){ e6el(this.dg,'line',{x1:0,y1:0,x2:q.x*sc,y2:q.y*sc,stroke:'#1340d0','stroke-width':1,'stroke-dasharray':'3 2'}); e6el(this.dg,'circle',{cx:q.x*sc,cy:q.y*sc,r:5,fill:'#1340d0',stroke:'#fff','stroke-width':1.5}); }
     if(this.drag&&this.dots.length){ const q=this.dots[0], [x,y]=this.dotScr(q), t=e6el(this.svg,'text',{x:x+10,y:y-8,fill:'#1340d0',stroke:'#fff','stroke-width':3,'paint-order':'stroke','font-size':14,'font-family':'IBM Plex Mono','font-weight':700},`${Math.round(Math.hypot(q.x,q.y))} kt`); this.dg.lab=t; }
     if(this.rd){ const q=this.dots[this.dots.length-1], w=q&&this.dotWind(q), gr=q&&this.dotGrid(q);
       this.rd.innerHTML= this.show? `<div class="r"><span>Under the true index</span><b>${fmt3(Math.round(this.rotP)%360)}°</b></div><div class="r"><span>Under the grommet (GS)</span><b>${Math.round(this.G)} kt</b></div>`+
-        (q? `<div class="r"><span>Wind dot ${fmt3(Math.round(w.dir)%360)}°/${w.kt.toFixed(0)} kt is on</span><b>${gr.arc.toFixed(0)} kt · ${Math.abs(gr.drift).toFixed(0)}° ${gr.drift>=0?'R':'L'}</b></div>` : '<div class="r"><span>No wind dot yet: ✎ Mark, then tap</span></div>') : ''; }
+        (q&&this.xw? (c=>`<div class="r"><span>Wind dot ${fmt3(Math.round(w.dir)%360)}°/${w.kt.toFixed(0)} kt: crosswind · ${c.h>=0?'headwind':'tailwind'}</span><b>${Math.abs(c.x).toFixed(0)} ${c.x>=0?'R':'L'} · ${Math.abs(c.h).toFixed(0)}</b></div>`)(this.xwOf(q)) :
+         q? `<div class="r"><span>Wind dot ${fmt3(Math.round(w.dir)%360)}°/${w.kt.toFixed(0)} kt is on</span><b>${gr.arc.toFixed(0)} kt · ${Math.abs(gr.drift).toFixed(0)}° ${gr.drift>=0?'R':'L'}</b></div>` : '<div class="r"><span>No wind dot yet: ✎ Mark, then tap</span></div>') : ''; }
     if(this.on) this.on(); }
   // the instrument set for a wind problem: wind dot at (wd, wk), tc under the index, grid slid so the dot is on the TAS arc
   solve(tc,tas,wd,wk){ const t=wd*Math.PI/180; this.dots=[{x:wk*Math.sin(t), y:-wk*Math.cos(t)}]; this.rotP=tc;
@@ -8317,7 +8327,7 @@ class E6Wind{ constructor(svg,rd,onChange){ this.svg=svg; this.rd=rd; this.on=on
 const E6={tab:'comp', comp:null, wind:null, pw:null, pc:null};
 const E6P={p:null, sc:ls.get('e6bScore',{n:0,ok:0}), legI:0, hint:false, done:false};
 function e6Tab(t){ E6.tab=t; for(const b of $('e6bSeg').children) b.classList.toggle('on',b.dataset.t===t); $('e6bComp').hidden=t!=='comp'; $('e6bWind').hidden=t!=='wind'; $('e6bProb').hidden=t!=='prob'; if(t==='prob'&&!E6P.p) e6New(); }
-function e6Open(){ setTimeout(()=>$('e6bDlg').focus({preventScroll:true}),0);   /* the dialog, not the ✕ (its focus ring) or a tab */ if(!E6.comp){ E6.comp=new E6Comp($('e6bCompSvg'),$('e6bCompRd')); E6.wind=new E6Wind($('e6bWindSvg'),$('e6bWindRd')); E6.pw=new E6Wind($('e6bPWSvg'),null,e6Steps); E6.pc=new E6Comp($('e6bPCSvg'),null,e6Steps); }
+function e6Open(){ setTimeout(()=>$('e6bDlg').focus({preventScroll:true}),0);   /* the dialog, not the ✕ (its focus ring) or a tab */ if(!E6.comp){ E6.comp=new E6Comp($('e6bCompSvg'),$('e6bCompRd')); E6.wind=new E6Wind($('e6bWindSvg'),$('e6bWindRd')); E6.pw=new E6Wind($('e6bPWSvg'),null,e6Steps); E6.pw.auto=()=>{ const L=e6StepList(); return !!E6P.p&&(E6P.p.type==='wind'||E6P.p.type==='xw')&&L[0][1]&&!L[1][1]&&!E6P.done; }; E6.pc=new E6Comp($('e6bPCSvg'),null,e6Steps); }
   const d=$('e6bDlg'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); e6Tab(E6.tab); }
 const e6rand=(a,b,st=1)=>a+Math.floor(Math.random()*((b-a)/st+1))*st;
 function e6Legs(){ if(!FP||FP.pts.length<2) return []; const P_=FP.pts, out=[];   // the plan's legs between real points (a coast leg's turn points skipped)
@@ -8344,6 +8354,14 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
     else if(type==='endur'){ pv=plan&&hasB&&fob>0; R= pv? burn : e6rand(30,150,5); O= pv? fob : e6rand(60,400,10); I=O/R*60; }
     else { I=e6rand(20,180,5); O=Math.round(e6rand(30,150,5)*I/60); R=O/I*60; }
     const v= Q.f==='R'? R : Q.f==='O'? O : I; p={type, Q, leg, R, O, I, v, plan:pv}; p[Q.k]=v; if(type==='tsd'){ p.gs=R; p.d=O; } if(type==='fuel'){ p.burn=R; p.min=I; } }
+  else if(type==='xw'){ /* a runway end of a plan aerodrome, else of an ERSA aerodrome near you; wind as from an ATIS (degrees magnetic) */
+    const rws=a=>a&&a.rw? a.rw.flatMap(r=>[r[0],r[1]]).filter(x=>/^\d{2}/.test(x)&&+x.slice(0,2)>=1&&+x.slice(0,2)<=36) : [];
+    const pl= plan&&FP? FP.pts.map(fpAd).filter(a=>rws(a).length) : [], me=st.pos||[-37.98,145.1];
+    let ad= pl.length? pl[E6P.legI++%pl.length] : null;
+    if(!ad){ const near=DATA.ap.filter(a=>a.cS==='E'&&rws(a).length&&distBrg(me[0],me[1],a.la,a.lo)[0]<150); ad=near.length? near[Math.floor(Math.random()*near.length)] : null; }
+    const R=rws(ad), rw= R.length? R[Math.floor(Math.random()*R.length)] : String(e6rand(1,36)).padStart(2,'0'), rh=(+rw.slice(0,2))*10%360||360;
+    const wd=e6rand(10,360,10), wk=e6rand(6,30), a=(wd-rh)*Math.PI/180;
+    p={type, ad, rw, rh, wd, wk, xw:wk*Math.sin(a), hw:wk*Math.cos(a), plan:!!pl.length}; }
   else if(type==='pa'){ /* (24 Nov 2026, Michael: "Add the pressure altitude from QNH problem too"): elevation + (1013 - QNH) x 30 ft, as the weather card's density altitude */
     const pl= plan&&FP? FP.pts.map(fpAd).filter(a=>a&&a.e!=null) : [], me=st.pos||[-37.98,145.1];
     let ad= pl.length? pl[E6P.legI++%pl.length] : null;
@@ -8355,10 +8373,10 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
   else { const c=E6CONV[Math.floor(Math.random()*E6CONV.length)], x=e6rand(c[4],c[5],c[5]>=400?10:c[5]>=100?5:1), f= c[1]? E6ARR[c[1]]/E6ARR[c[0]] : E6ARR[c[0]]/E6FL;
     p={type, c, x, v:x*f}; }
   E6P.p=p; E6P.hint=false; E6P.all=false; E6P.done=false;
-  E6.pw.dots=[]; E6.pw.rotP=0; E6.pw.G=100; E6.pw.mark=false; E6.pw.draw(); E6.pc.rot=0; E6.pc.cur=0; E6.pc.draw();
-  $('e6bPWSvg').toggleAttribute('hidden',type!=='wind'); $('e6bPTools').hidden=type!=='wind'; $('e6bPCSvg').toggleAttribute('hidden',type==='wind'||type==='pa');   /* SVG elements have no .hidden property: the attribute */
+  E6.pw.dots=[]; E6.pw.rotP=0; E6.pw.G=100; E6.pw.mark=false; E6.pw.xw=type==='xw'; E6.pw.draw(); E6.pc.rot=0; E6.pc.cur=0; E6.pc.draw();
+  const ws=type==='wind'||type==='xw'; $('e6bPWSvg').toggleAttribute('hidden',!ws); $('e6bPTools').hidden=!ws; $('e6bPCSvg').toggleAttribute('hidden',ws||type==='pa');   /* SVG elements have no .hidden property: the attribute */
   const lg= p.leg? `Leg <span class="leg">${esc(p.leg.from)} → ${esc(p.leg.to)}</span> · ` : '';
-  const src= p.plan&&type==='pa'? '<small>(an aerodrome on your plan)</small>' : p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : type==='range'||type==='endur'? '<small>(Plan check\'s speed, burn and fuel)</small>' : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>')
+  const src= p.plan&&(type==='pa'||type==='xw')? '<small>(an aerodrome on your plan)</small>' : type==='xw'&&plan? '<small>(no plan aerodrome with runways: one near you)</small>' : p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : type==='range'||type==='endur'? '<small>(Plan check\'s speed, burn and fuel)</small>' : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>')
     : type==='pa'? (plan? '<small>(no plan aerodrome with an elevation: one near you)</small>' : '') : plan? (type==='tas'||type==='conv'||type==='cons'? '<small>(this type doesn\'t use the plan: random)</small>' : type==='range'||type==='endur'? '<small>(no speed, burn and fuel in Plan check: random)</small>' : '<small>(no flight plan loaded: a random problem)</small>') : '';
   const hm=m=>m>=60? ` (${e6hm(m)})` : '';
   $('e6bPCard').innerHTML=`<b>Problem ${E6P.sc.n+1}</b> <small>· ${E6P.sc.ok} right of ${E6P.sc.n}</small><br>`+lg+
@@ -8369,18 +8387,27 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
      type==='fuel'? `Fuel burn <b>${p.R} L/h</b>, flight time <b>${p.I} min</b>. How much fuel?` :
      type==='endur'? `Fuel burn <b>${p.R} L/h</b>, usable fuel <b>${p.O} L</b>. What's the endurance?` :
      type==='cons'? `You used <b>${p.O} L</b> in <b>${p.I} min</b>${hm(p.I)}. What's the fuel burn?` :
+     type==='xw'? `${p.ad? `<b>${esc(p.ad.i||'')}</b> ${esc(titleCase(p.ad.n||''))}, r` : 'R'}unway <b>${esc(p.rw)}</b>, wind <b>${fmt3(p.wd)}° / ${p.wk} kt</b> (magnetic, as on the ATIS). Find the crosswind and the headwind or tailwind.` :
      type==='pa'? `${p.ad? `<b>${esc(p.ad.i||'')}</b> ${esc(titleCase(p.ad.n||''))}, e` : 'E'}levation <b>${p.e} ft</b>, QNH <b>${p.q} hPa</b>. What's the pressure altitude?` :
      type==='tas'? `Pressure altitude <b>${p.pa} ft</b>, OAT <b>${p.t} °C</b>, CAS <b>${p.cas} kt</b>. Find the TAS and the density altitude. <small>(Pressure altitude: 1013 on the subscale and read the altimeter, or elevation + (1013 − QNH) × 30 ft.)</small>` :
      !p.c[1]? `<b>${p.x} ${p.c[2]}</b>: how many kg? <small>(marked at ${p.c[0]==='AVGAS KG'?'0.72':'0.80'} kg/L; use the fuel docket's density when you have it)</small>` :
      `Convert <b>${p.x} ${p.c[2]}</b> to ${p.c[3]}.`)+' '+src;
   const box=(k,l)=>`<label data-k="${k}">${l}<input inputmode="decimal" autocomplete="off" spellcheck="false" data-k="${k}"></label>`;
-  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : E6RATE[type]? box(p.Q.k,p.Q.l) : type==='pa'? box('pa','Pressure alt ft') : type==='tas'? box('tas','TAS kt')+box('da','Density alt ft') : box('v',p.c[3]);
+  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : E6RATE[type]? box(p.Q.k,p.Q.l) : type==='xw'? box('xw','Crosswind kt (L/R)')+box('hw','Head + / tail − kt') : type==='pa'? box('pa','Pressure alt ft') : type==='tas'? box('tas','TAS kt')+box('da','Density alt ft') : box('v',p.c[3]);
   $('e6bPRes').textContent=''; e6Steps(); }
 function e6StepList(){ const p=E6P.p; if(!p) return [];
-  if(p.type==='wind'){ const W=E6.pw, q=W.dots[W.dots.length-1], w=q&&W.dotWind(q), gr=q&&W.dotGrid(q);
-    const s1=Math.abs(e6ad(W.rotP,p.wd))<=2.5||!!q, s2=!!q&&Math.abs(w.kt-p.wk)<=1.5&&(Math.abs(e6ad(w.dir,p.wd))<=4||Math.abs(w.kt*Math.sin(e6ad(w.dir,p.wd)*Math.PI/180))<=1.2), s3=s2&&Math.abs(e6ad(W.rotP,p.tc))<=2.5, s4=s3&&Math.abs(gr.arc-p.tas)<=1.5;
-    return [[`Turn the plate: ${fmt3(p.wd)} under the true index`,s1,'Drag the dark ring until the wind direction sits under the orange TRUE INDEX.'],
-      [`✎ Mark the wind dot ${p.wk} kt straight up from the grommet`,s2,`Tap ✎ Mark, then press on the centre line above the white grommet and slide to ${p.wk} kt (the label shows it; each grid arc is 2 kt). It snaps to the centre line and whole knots.`],
+  if(p.type==='wind'||p.type==='xw'){ const W=E6.pw, q=W.dots[W.dots.length-1], w=q&&W.dotWind(q), gr=q&&!W.xw&&W.dotGrid(q);
+    const s1=Math.abs(e6ad(W.rotP,p.wd))<=2.5||!!q, s2=!!q&&Math.abs(w.kt-p.wk)<=1.5&&(Math.abs(e6ad(w.dir,p.wd))<=4||Math.abs(w.kt*Math.sin(e6ad(w.dir,p.wd)*Math.PI/180))<=1.2);
+    /* why a dot isn't accepted (24 Nov 2026, Michael: "the mark doesnt auto accept once ive clicked on the wind scale") */
+    const why= q&&!s2? ` · your dot: ${fmt3(Math.round(w.dir)%360)}°/${Math.round(w.kt)} kt${Math.abs(e6ad(w.dir,p.wd))>4? ' (turn the plate to '+fmt3(p.wd)+' first, then mark again)' : ''}` : '';
+    const arc= W.xw? `${p.wk} kt up the centre line of the square grid (bold lines every 10 kt)` : `the grommet is on the ${Math.round(W.G)} arc, so ${p.wk} kt up is the ${Math.round(W.G)+p.wk} arc`;
+    const mk=[`Mark the wind dot ${p.wk} kt straight up from the grommet${why}`,s2,`Once the plate is on the wind, tap or press on the centre line above the white grommet and slide (no need for ✎ Mark at this step): ${arc}. The label shows the knots; it snaps to the centre line and whole knots.`];
+    const st1=[`Turn the plate: ${fmt3(p.wd)} under the ${p.type==='xw'?'index':'true index'}`,s1,'Drag the dark ring until the wind direction sits under the orange index.'];
+    if(p.type==='xw'){ const s3=s2&&Math.abs(e6ad(W.rotP,p.rh))<=2.5;
+      return [st1, mk, [`Turn the plate: runway ${p.rw} (${fmt3(p.rh)}) under the index`,s3,'The dot turns with the plate.'],
+        ['Read the crosswind across and the headwind up (tailwind down) on the square grid',E6P.done,'Count the squares from the centre lines: each is 2 kt. Dot right of the centre line = wind from the right.']]; }
+    const s3=s2&&Math.abs(e6ad(W.rotP,p.tc))<=2.5, s4=s3&&Math.abs(gr.arc-p.tas)<=1.5;
+    return [st1, mk,
       [`Turn the plate: ${fmt3(p.tc)} (the true course) under the true index`,s3,'The dot turns with the plate.'],
       [`Slide the grid until the dot is on the ${p.tas} kt arc`,s4,'Drag inside the ring to slide the grid up or down.'],
       ['Read the GS under the grommet and the drift under the dot',E6P.done,'Heading = true course + drift to the side the dot is on (right = add).']]; }
@@ -8416,6 +8443,9 @@ function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAn
     ok=mark('hdg',Math.abs(e6ad(h,p.hdg))<=2)&ok; ok=mark('gs',Math.abs(g-p.gs)<=2)&ok; ok=mark('wca',/[LR-]/.test(wt)? Math.abs(w-p.wca)<=2 : Math.abs(Math.abs(w)-Math.abs(p.wca))<=2)&ok;
     ans=`heading ${fmt3(p.hdg)}°T, GS ${Math.round(p.gs)} kt, WCA ${p.wca>=0?'R':'L'}${Math.abs(p.wca).toFixed(0)}`; }
   else if(p.Q){ ok=mark(p.Q.k,near2(num(v(p.Q.k)),p.v)); const u={min:'min',gs:'kt',nm:'NM',fuel:'L',burn:'L/h'}[p.Q.k]; ans=`${p.v.toFixed(1)} ${u}${p.Q.k==='min'&&p.v>=60?' ('+e6hm(p.v)+')':''}`; }
+  else if(p.type==='xw'){ const xt=v('xw'), ht=v('hw'); let x=num(xt), h=num(ht); if(/T/.test(ht)) h=-Math.abs(h);
+    ok=mark('xw',Math.abs(Math.abs(x)-Math.abs(p.xw))<=2&&(!/[LR]/.test(xt)||(/R/.test(xt))===(p.xw>=0)||Math.abs(p.xw)<1))&ok; ok=mark('hw',Math.abs(h-p.hw)<=2)&ok;
+    ans=`crosswind ${Math.abs(p.xw).toFixed(0)} kt from the ${p.xw>=0?'right':'left'}, ${p.hw>=0?'headwind':'tailwind'} ${Math.abs(p.hw).toFixed(0)} kt`; }
   else if(p.type==='pa'){ ok=mark('pa',Math.abs(num(v('pa'))-p.v)<=50); ans=`${p.v} ft (${p.e} ${p.q<=1013?'+':'−'} ${Math.abs((1013-p.q)*30)})`; }
   else if(p.type==='tas'){ ok=mark('tas',Math.abs(num(v('tas'))-p.tas)<=Math.max(2,p.tas*0.02))&ok; ok=mark('da',Math.abs(num(v('da'))-p.da)<=400)&ok; ans=`TAS ${Math.round(p.tas)} kt, density altitude ${Math.round(p.da/100)*100} ft`; }
   else { ok=mark('v',Math.abs(num(v('v'))-p.v)<=Math.max(0.5,p.v*0.02)); ans=`${p.v.toFixed(1)} ${p.c[3]}`; }
@@ -8424,6 +8454,7 @@ function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAn
   $('e6bPCard').querySelector('small').textContent=`· ${E6P.sc.ok} right of ${E6P.sc.n}`; }
 function e6Show(){ const p=E6P.p; if(!p) return; const C=E6.pc, m=a=>((a%360)+360)%360;
   if(p.type==='wind'){ E6.pw.solve(p.tc,p.tas,p.wd,p.wk); }
+  else if(p.type==='xw'){ const W=E6.pw, t=p.wd*Math.PI/180; W.dots=[{x:p.wk*Math.sin(t), y:-p.wk*Math.cos(t)}]; W.rotP=p.rh%360; W.draw(); }
   else if(p.Q){ if(p.Q.f==='R'){ C.rot=m(e6L(p.O)-e6L(p.I)); C.cur=e6L(p.O); } else { C.rot=m(e6L(p.R)-e6L(60)); C.cur= p.Q.f==='I'? e6L(p.O) : m(e6L(p.I)+C.rot); } C.draw(); }
   else if(p.type==='pa'){ E6P.hint=true; E6P.all=true; e6Steps(); $('e6bPRes').innerHTML='The working is under each step: type the answer, then Check.'; return; }
   else if(p.type==='tas'){ C.rot=m(p.rot); C.cur=m(e6L(p.cas)+C.rot); C.draw(); }
@@ -8436,7 +8467,7 @@ $('e6bComp').addEventListener('click',e=>{ const b=e.target.closest('[data-c]');
   if(k==='gs') C.setIndex(st.gs>20? st.gs : +ls.get('pcGs',90)||90); else if(k==='fuel') C.setIndex(+ls.get('pcBurn',0)||60); else { C.rot=0; C.cur=e6L(30); C.draw(); } });
 $('e6bShowC').onchange=()=>{ E6.comp.show=$('e6bShowC').checked; E6.comp.draw(); };
 $('e6bWind').addEventListener('click',e=>{ const b=e.target.closest('[data-w]'); if(!b) return; const k=b.dataset.w, W=E6.wind;
-  if(k==='mark'){ W.mark=!W.mark; b.classList.toggle('on',W.mark); } else if(k==='erase'){ W.dots=[]; W.draw(); } else { W.dots=[]; W.rotP=0; W.G=100; W.draw(); } });
+  if(k==='mark'){ W.mark=!W.mark; b.classList.toggle('on',W.mark); } else if(k==='xw'){ W.xw=!W.xw; b.classList.toggle('on',W.xw); W.draw(); } else if(k==='erase'){ W.dots=[]; W.draw(); } else { W.dots=[]; W.rotP=0; W.G=100; W.draw(); } });
 $('e6bWindSvg').addEventListener('pointerup',()=>{ const b=$('e6bWind').querySelector('[data-w="mark"]'); b.classList.toggle('on',E6.wind.mark); });
 $('e6bShowW').onchange=()=>{ E6.wind.show=$('e6bShowW').checked; E6.wind.draw(); };
 $('e6bPTools').addEventListener('click',e=>{ const b=e.target.closest('[data-pw]'); if(!b) return; if(b.dataset.pw==='mark'){ E6.pw.mark=!E6.pw.mark; b.classList.toggle('on',E6.pw.mark); } else { E6.pw.dots=[]; E6.pw.draw(); } });
