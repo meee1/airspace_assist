@@ -54,6 +54,18 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   ok(r.c!=='ok'&&/your dot: \d{3}°\/11 kt/.test(r.t),'a dot at 11 kt says why: '+r.t.split(String.fromCharCode(10)).join(' ').slice(0,90));
   await p.evaluate(()=>{ E6P.hint=true; e6Steps(); }); r=await p.evaluate(()=>$('e6bPSteps').innerText);
   ok(/grommet is on the 100 arc, so 15 kt up is the 115 arc/.test(r),'hint names the arc: the 100 arc, so 15 kt up is the 115 arc');
+  // weight and balance: made-up aircraft without a profile, then the weighed Bell 206B; a multiplication on the computer ticks its row;
+  // Show me sets the CG division (outer over the inner 10 = the CG); the answer checks against the sums and the envelope
+  for(const prof of ['none','b206bw']){
+    r=await p.evaluate(prof=>{ if(prof!=='none'){ WB.profiles=[]; const P=wbFromTpl(prof); WB.profiles.push(P); WB.cur=P.id; }
+      $('e6bPSrc').value='rand'; $('e6bPType').value='wb'; e6New(); const P=E6P.p, C=E6.pc, rw=P.rows[0];
+      C.rot=((e6L(rw.w)-e6L(10))%360+360)%360; C.cur=(e6L(rw.a)+C.rot)%360; C.draw(); const mul=e6V(C.cur), row0=$('e6bPSteps').children[0].className;
+      e6Show(); const steps=[...$('e6bPSteps').children].map(d=>d.className), cgRead=e6V(C.cur);
+      const set=(k,v)=>{ $('e6bPAns').querySelector(`input[data-k="${k}"]`).value=v; }; set('w',P.W.toFixed(1)); set('cg',P.cg.toFixed(1)); set('in',P.inl?'Y':'N'); e6Check();
+      const S=P.real? wbSum(P.P,[]) : null;
+      return {real:P.real, name:P.P.name, n:P.rows.length, W:P.W, cg:P.cg, inl:P.inl, mulErr:Math.abs(Math.log10(e6N(mul))-Math.log10(e6N(rw.m))), row0, steps, cgErr:Math.abs(Math.log10(e6N(cgRead))-Math.log10(e6N(P.cg))), res:$('e6bPRes').innerText, card:$('e6bPCard').innerText.split(String.fromCharCode(10)).slice(1,3).join(' ')}; },prof);
+    ok(r.real===(prof!=='none')&&r.mulErr<0.001&&r.row0==='ok'&&r.steps.slice(0,-1).every(c=>c==='ok')&&r.cgErr<0.001&&/Right/.test(r.res),`W&B (${r.name}, ${r.n} rows): empty weight × arm on the computer ticks its row; Show me reads the CG; ${r.res.replace(/^.*answer: /,'').slice(0,80)}`); }
+  await p.locator('#e6bDlg').screenshot({path:__dirname+'/e6b2_wb.png'});
   // window against ISA: PA 10,000 ft, 0 °C, CAS 100 -> TAS 117.4 kt (sigma 0.7255), DA 10,565 ft (rule of thumb 10,000 + 120 x 4.8 = 10,576)
   r=await p.evaluate(()=>{ const A=e6Air(10000,0), C=E6.pc; C.rot=((A.rot%360)+360)%360; C.cur=(e6L(100)+C.rot)%360; C.draw(); return {tas:e6V(C.cur), da:e6DAof(C.rot), rd:$('e6bCompRd').innerText}; });
   ok(Math.abs(r.tas*10-117.4)<0.3&&Math.abs(r.da-10565)<30,`PA 10,000 / 0 °C / CAS 100: TAS ${(r.tas*10).toFixed(1)} kt, DA ${r.da.toFixed(0)} ft`);

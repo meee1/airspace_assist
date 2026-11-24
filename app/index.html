@@ -183,6 +183,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .e6b-steps{font-size:13px;margin:4px 0} .e6b-steps div{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--dim)} .e6b-steps i{font-style:normal;width:18px;flex:none} .e6b-steps .ok{color:var(--ink)} .e6b-steps .ok i{color:var(--ok)} .e6b-steps .now{color:var(--ink);font-weight:600} .e6b-steps .now i{color:var(--accent)} .e6b-steps .hint{display:block;font-weight:400;color:var(--accent);font-size:12px;margin-top:2px}
 .e6b-ans{display:flex;gap:6px;margin:6px 0} .e6b-ans label{flex:1 1 0;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:5px 8px;font-size:11px;color:var(--dim)} .e6b-ans input{display:block;width:100%;background:none;border:0;color:var(--ink);font:700 20px var(--f-mono);padding:2px 0;outline:none}
 .e6b-ans label.good{border-color:var(--ok)} .e6b-ans label.bad{border-color:var(--warn)}
+.e6b-wb{border-collapse:collapse;margin:6px 0;font:13px var(--f-mono);width:100%} .e6b-wb th{font:600 11px var(--f-label);color:var(--dim);text-align:right;padding:2px 6px} .e6b-wb th:first-child,.e6b-wb td:first-child{text-align:left;font-family:var(--f-body)} .e6b-wb td{text-align:right;padding:2px 6px;border-top:1px solid var(--rule)}
 .e6b-res{font-size:13px;color:var(--dim);line-height:1.4;min-height:1em} .e6b-res b{color:var(--ink)} .e6b-res .good{color:var(--ok)} .e6b-res .bad{color:var(--warn)}
 #briefBox{position:fixed;inset:0;z-index:70;background:var(--panel);color:var(--ink);display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top,0px)) 16px max(12px,env(safe-area-inset-bottom,0px))} #briefBox[hidden]{display:none}
 .bf-h{display:flex;align-items:center;gap:10px;font-size:18px} .bf-h b{flex:1} .bf-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:20px 4px;cursor:pointer}
@@ -1020,7 +1021,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
     </div>
     <div id="e6bProb" class="e6b-pane" hidden>
-      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="xw">Crosswind component</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="wb">Weight and balance</option><option value="xw">Crosswind component</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
       <div class="e6b-card" id="e6bPCard"></div>
       <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
       <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
@@ -1157,7 +1158,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=6563200f4b';
+    const s=document.createElement('script'); s.src='app.js?v=d260fa6fcc';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);

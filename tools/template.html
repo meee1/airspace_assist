@@ -183,6 +183,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .e6b-steps{font-size:13px;margin:4px 0} .e6b-steps div{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--dim)} .e6b-steps i{font-style:normal;width:18px;flex:none} .e6b-steps .ok{color:var(--ink)} .e6b-steps .ok i{color:var(--ok)} .e6b-steps .now{color:var(--ink);font-weight:600} .e6b-steps .now i{color:var(--accent)} .e6b-steps .hint{display:block;font-weight:400;color:var(--accent);font-size:12px;margin-top:2px}
 .e6b-ans{display:flex;gap:6px;margin:6px 0} .e6b-ans label{flex:1 1 0;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:5px 8px;font-size:11px;color:var(--dim)} .e6b-ans input{display:block;width:100%;background:none;border:0;color:var(--ink);font:700 20px var(--f-mono);padding:2px 0;outline:none}
 .e6b-ans label.good{border-color:var(--ok)} .e6b-ans label.bad{border-color:var(--warn)}
+.e6b-wb{border-collapse:collapse;margin:6px 0;font:13px var(--f-mono);width:100%} .e6b-wb th{font:600 11px var(--f-label);color:var(--dim);text-align:right;padding:2px 6px} .e6b-wb th:first-child,.e6b-wb td:first-child{text-align:left;font-family:var(--f-body)} .e6b-wb td{text-align:right;padding:2px 6px;border-top:1px solid var(--rule)}
 .e6b-res{font-size:13px;color:var(--dim);line-height:1.4;min-height:1em} .e6b-res b{color:var(--ink)} .e6b-res .good{color:var(--ok)} .e6b-res .bad{color:var(--warn)}
 #briefBox{position:fixed;inset:0;z-index:70;background:var(--panel);color:var(--ink);display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top,0px)) 16px max(12px,env(safe-area-inset-bottom,0px))} #briefBox[hidden]{display:none}
 .bf-h{display:flex;align-items:center;gap:10px;font-size:18px} .bf-h b{flex:1} .bf-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:20px 4px;cursor:pointer}
@@ -1020,7 +1021,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div class="vnote">Drag the dark ring to turn the plate, and drag inside it to slide the grid. ✎ Mark, then tap to put a wind dot. Wind dot up: set the wind direction under the true index, mark the dot straight up from the centre circle (the grommet) at the wind speed, turn the true course under the index, then slide the grid until the dot is on the TAS arc: the groundspeed is under the grommet and the drift (wind correction) under the dot.</div>
     </div>
     <div id="e6bProb" class="e6b-pane" hidden>
-      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="xw">Crosswind component</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
+      <div class="e6b-pq"><label>Problems <select id="e6bPSrc"><option value="plan">From your flight plan</option><option value="rand">Random</option></select></label><label>Type <select id="e6bPType"><option value="wind">Wind: heading and GS</option><option value="tsd">Time from distance</option><option value="gs">Groundspeed from time</option><option value="range">Range</option><option value="fuel">Fuel for a time</option><option value="endur">Endurance</option><option value="cons">Fuel burn from fuel used</option><option value="wb">Weight and balance</option><option value="xw">Crosswind component</option><option value="pa">Pressure altitude from QNH</option><option value="tas">TAS and density altitude</option><option value="conv">Conversions</option></select></label></div>
       <div class="e6b-card" id="e6bPCard"></div>
       <svg id="e6bPWSvg" class="e6b-svg e6b-psvg" viewBox="-195 -235 390 430"></svg>
       <svg id="e6bPCSvg" class="e6b-svg e6b-psvg" viewBox="-195 -195 390 390" hidden></svg>
@@ -8354,6 +8355,23 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
     else if(type==='endur'){ pv=plan&&hasB&&fob>0; R= pv? burn : e6rand(30,150,5); O= pv? fob : e6rand(60,400,10); I=O/R*60; }
     else { I=e6rand(20,180,5); O=Math.round(e6rand(30,150,5)*I/60); R=O/I*60; }
     const v= Q.f==='R'? R : Q.f==='O'? O : I; p={type, Q, leg, R, O, I, v, plan:pv}; p[Q.k]=v; if(type==='tsd'){ p.gs=R; p.d=O; } if(type==='fuel'){ p.burn=R; p.min=I; } }
+  else if(type==='wb'){ /* (24 Nov 2026, Michael: "Add a weight and balance problem too"): your selected W&B profile (when it has
+       empty weight/arm, MTOW, an envelope and station arms) with random loads, else a made-up example aircraft (said on the card).
+       Each moment is weight x arm on the slide rule (inner 10 under one, cursor to the other); CG = total moment / total weight
+       (total weight on the inner scale under the total moment, CG over the inner 10). */
+    const cur=typeof wbCur==='function'? wbCur() : null, real=!!cur&&wbReady(cur).length===0;
+    const P= real? cur : {name:'Example aircraft (made up)', u:'lb', maxW:2450, ew:1650, ea:39.0, dens:6.0, st:[{n:'Front seats',k:'seat',a:37,max:400},{n:'Rear seats',k:'seat',a:73,max:400},{n:'Fuel',k:'fuel',a:48,max:48},{n:'Baggage',k:'bag',a:95,max:120}], env:'35,1500\n35,1950\n38.5,2450\n47.3,2450\n47.3,1500'};
+    const U=WB_U[P.u]||WB_U.kg, kgf=P.u==='lb'? 2.20462 : 1, rows=[{n:'Empty (basic)', w:+P.ew, a:+P.ea}];
+    let seat=0; P.st.forEach((st0,k)=>{ if(st0.a==null||!isFinite(st0.a)) return; const mx=st0.max>0? +st0.max : Infinity;
+      if(st0.k==='fixed'){ if(+st0.max) rows.push({n:st0.n||'Fixed', w:+st0.max, a:+st0.a}); return; }
+      let v=0, note='';
+      if(st0.k==='seat'){ v= seat++===0||Math.random()<0.6? Math.round(e6rand(60,100)*kgf*(/rear|aft|back/i.test(st0.n||'')&&Math.random()<0.4?2:1)) : 0; v=Math.min(v,mx); }
+      else if(st0.k==='bag'){ v= Math.random()<0.6? Math.min(mx,Math.round(e6rand(5,30)*kgf)) : 0; }
+      else if(st0.k==='fuel'){ const cap= mx<Infinity? mx : (P.u==='lb'? 60 : 220), f=Math.max(1,Math.round(cap*e6rand(30,100,5)/100)); v=+(f*(P.dens||U.dens)).toFixed(1); note=` (${f} ${U.f} × ${P.dens||U.dens})`; }
+      if(v>0) rows.push({n:(st0.n||'Station')+note, w:v, a:+st0.a}); });
+    rows.forEach(r=>{ r.m=r.w*r.a; }); const W=rows.reduce((t,r)=>t+r.w,0), M=rows.reduce((t,r)=>t+r.m,0), cg=M/W;
+    const inl= W<=P.maxW+1e-9&&wbIn(wbPoly(P.env),cg,W);
+    p={type, P, real, U, rows, W, M, cg, inl, plan:false}; E6P.seen=new Set(); }
   else if(type==='xw'){ /* a runway end of a plan aerodrome, else of an ERSA aerodrome near you; wind as from an ATIS (degrees magnetic) */
     const rws=a=>a&&a.rw? a.rw.flatMap(r=>[r[0],r[1]]).filter(x=>/^\d{2}/.test(x)&&+x.slice(0,2)>=1&&+x.slice(0,2)<=36) : [];
     const pl= plan&&FP? FP.pts.map(fpAd).filter(a=>rws(a).length) : [], me=st.pos||[-37.98,145.1];
@@ -8377,7 +8395,7 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
   const ws=type==='wind'||type==='xw'; $('e6bPWSvg').toggleAttribute('hidden',!ws); $('e6bPTools').hidden=!ws; $('e6bPCSvg').toggleAttribute('hidden',ws||type==='pa');   /* SVG elements have no .hidden property: the attribute */
   const lg= p.leg? `Leg <span class="leg">${esc(p.leg.from)} → ${esc(p.leg.to)}</span> · ` : '';
   const src= p.plan&&(type==='pa'||type==='xw')? '<small>(an aerodrome on your plan)</small>' : type==='xw'&&plan? '<small>(no plan aerodrome with runways: one near you)</small>' : p.plan? (type==='wind'? (p.pw? '<small>(Plan check\'s TAS and wind)</small>' : '<small>(your plan\'s leg and TAS; no wind entered in Plan check, so a made-up wind)</small>') : type==='range'||type==='endur'? '<small>(Plan check\'s speed, burn and fuel)</small>' : '<small>(your plan\'s leg, Plan check\'s speed / burn)</small>')
-    : type==='pa'? (plan? '<small>(no plan aerodrome with an elevation: one near you)</small>' : '') : plan? (type==='tas'||type==='conv'||type==='cons'? '<small>(this type doesn\'t use the plan: random)</small>' : type==='range'||type==='endur'? '<small>(no speed, burn and fuel in Plan check: random)</small>' : '<small>(no flight plan loaded: a random problem)</small>') : '';
+    : type==='wb'? (p.real? `<small>(your W&amp;B profile ${esc(p.P.name||'')}, random loads)</small>` : '<small>(a made-up example aircraft: set up a W&amp;B profile in Flight plan → W&amp;B to use yours)</small>') : type==='pa'? (plan? '<small>(no plan aerodrome with an elevation: one near you)</small>' : '') : plan? (type==='tas'||type==='conv'||type==='cons'? '<small>(this type doesn\'t use the plan: random)</small>' : type==='range'||type==='endur'? '<small>(no speed, burn and fuel in Plan check: random)</small>' : '<small>(no flight plan loaded: a random problem)</small>') : '';
   const hm=m=>m>=60? ` (${e6hm(m)})` : '';
   $('e6bPCard').innerHTML=`<b>Problem ${E6P.sc.n+1}</b> <small>· ${E6P.sc.ok} right of ${E6P.sc.n}</small><br>`+lg+
     (type==='wind'? `TC <b>${fmt3(p.tc)}°T</b> · TAS <b>${p.tas} kt</b> · wind <b>${fmt3(p.wd)}°T / ${p.wk} kt</b>. Find the heading, groundspeed and wind correction.` :
@@ -8387,13 +8405,14 @@ function e6New(){ const type=$('e6bPType').value, plan=$('e6bPSrc').value==='pla
      type==='fuel'? `Fuel burn <b>${p.R} L/h</b>, flight time <b>${p.I} min</b>. How much fuel?` :
      type==='endur'? `Fuel burn <b>${p.R} L/h</b>, usable fuel <b>${p.O} L</b>. What's the endurance?` :
      type==='cons'? `You used <b>${p.O} L</b> in <b>${p.I} min</b>${hm(p.I)}. What's the fuel burn?` :
+     type==='wb'? `Load sheet, ${esc(p.U.w)} and ${esc(p.U.a)}. Find the total weight, the CG and whether it's within limits (max ${p.P.maxW} ${esc(p.U.w)}).<table class="e6b-wb"><tr><th>Item</th><th>Weight</th><th>Arm</th></tr>${p.rows.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.w}</td><td>${r.a}</td></tr>`).join('')}</table>`+(p.real? '' : `<small>CG limits: ${esc(p.P.env.split('\n').join(' · '))} (arm,weight corners)</small>`) :
      type==='xw'? `${p.ad? `<b>${esc(p.ad.i||'')}</b> ${esc(titleCase(p.ad.n||''))}, r` : 'R'}unway <b>${esc(p.rw)}</b>, wind <b>${fmt3(p.wd)}° / ${p.wk} kt</b> (magnetic, as on the ATIS). Find the crosswind and the headwind or tailwind.` :
      type==='pa'? `${p.ad? `<b>${esc(p.ad.i||'')}</b> ${esc(titleCase(p.ad.n||''))}, e` : 'E'}levation <b>${p.e} ft</b>, QNH <b>${p.q} hPa</b>. What's the pressure altitude?` :
      type==='tas'? `Pressure altitude <b>${p.pa} ft</b>, OAT <b>${p.t} °C</b>, CAS <b>${p.cas} kt</b>. Find the TAS and the density altitude. <small>(Pressure altitude: 1013 on the subscale and read the altimeter, or elevation + (1013 − QNH) × 30 ft.)</small>` :
      !p.c[1]? `<b>${p.x} ${p.c[2]}</b>: how many kg? <small>(marked at ${p.c[0]==='AVGAS KG'?'0.72':'0.80'} kg/L; use the fuel docket's density when you have it)</small>` :
      `Convert <b>${p.x} ${p.c[2]}</b> to ${p.c[3]}.`)+' '+src;
   const box=(k,l)=>`<label data-k="${k}">${l}<input inputmode="decimal" autocomplete="off" spellcheck="false" data-k="${k}"></label>`;
-  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : E6RATE[type]? box(p.Q.k,p.Q.l) : type==='xw'? box('xw','Crosswind kt (L/R)')+box('hw','Head + / tail − kt') : type==='pa'? box('pa','Pressure alt ft') : type==='tas'? box('tas','TAS kt')+box('da','Density alt ft') : box('v',p.c[3]);
+  $('e6bPAns').innerHTML= type==='wind'? box('hdg','Heading °T')+box('gs','GS kt')+box('wca','WCA (R/L)') : E6RATE[type]? box(p.Q.k,p.Q.l) : type==='wb'? box('w','Total '+p.U.w)+box('cg','CG '+p.U.a)+box('in','In limits Y/N') : type==='xw'? box('xw','Crosswind kt (L/R)')+box('hw','Head + / tail − kt') : type==='pa'? box('pa','Pressure alt ft') : type==='tas'? box('tas','TAS kt')+box('da','Density alt ft') : box('v',p.c[3]);
   $('e6bPRes').textContent=''; e6Steps(); }
 function e6StepList(){ const p=E6P.p; if(!p) return [];
   if(p.type==='wind'||p.type==='xw'){ const W=E6.pw, q=W.dots[W.dots.length-1], w=q&&W.dotWind(q), gr=q&&!W.xw&&W.dotGrid(q);
@@ -8418,6 +8437,13 @@ function e6StepList(){ const p=E6P.p; if(!p) return [];
     if(Q.f==='O'){ const s1=idxS[1], s2=s1&&near(e6V(inner),I); return [idxS, [`Move the cursor to ${I} min on the inner scale${hm}`,s2,'Drag on the outer grey scale; read the inner value under the cursor.'], [`Read the ${Q.uO==='NM'?'distance':'litres'} above it on the outer scale`,D,'Place the decimal point with a quick mental estimate.']]; }
     const s1=near(e6V(C.cur),O), s2=s1&&near(e6V(inner),I);
     return [[`Move the cursor to ${O} ${Q.uO} on the outer scale`,s1,'Drag on the outer grey scale to move the red cursor.'], [`Turn the disc until ${I} min (inner scale${hm}) is under the cursor`,s2,'Drag the blue disc.'], [`Read the ${Q.uR==='kt'?'groundspeed':'burn'} on the outer scale over the 60 index`,D,'The orange triangle; place the decimal point with a mental estimate.']]; }
+  if(p.type==='wb'){ const outer10=e6V(C.rot), cin=e6V(inner), fmtM=m=>Math.round(m).toLocaleString('en-AU');
+    p.rows.forEach((r,i)=>{ if(near(outer10,r.w)&&near(cin,r.a)||near(outer10,r.a)&&near(cin,r.w)) E6P.seen.add(i); });
+    const sDiv=near(e6V(e6L(p.W)+C.rot),p.M);
+    return [...p.rows.map((r,i)=>[`${r.n}: ${r.w} × ${r.a} = moment`,E6P.seen.has(i)||D,`Turn the disc so the inner 10 is under ${r.w} on the outer scale, move the cursor to ${r.a} on the inner scale and read the moment above it (place the decimal point by estimate: about ${fmtM(r.m)}).`]),
+      ['Add up the weights and the moments',sDiv||D,`Total weight ${Math.round(p.W*10)/10}; total moment about ${fmtM(p.M)}.`],
+      ['CG: total weight (inner scale) under the total moment (outer scale)',sDiv||D,'Turn the disc until the total weight on the inner scale sits under the total moment on the outer scale.'],
+      ['Read the CG on the outer scale over the inner 10; check it against the envelope',D,'Move the cursor to the inner 10. Within limits: weight not over the maximum, and the CG between the forward and aft limits at that weight.']]; }
   if(p.type==='pa'){ const d=1013-p.q; return [['1013 − QNH = the difference in hPa',D,`1013 − ${p.q} = ${d}. QNH below 1013: pressure altitude is higher than the elevation; above 1013: lower.`],
       ['× 30 ft per hPa',D,`${d} × 30 = ${d*30} ft.`], ['Add it to the elevation',D,`${p.e} ${d<0?'−':'+'} ${Math.abs(d*30)} = ${p.v} ft. (On the ground: set 1013 on the subscale and read the altimeter.)`]]; }
   if(p.type==='tas'){ const s1=Math.abs(e6ad(C.rot,p.rot))<=1, s2=s1&&near(e6V(inner),p.cas);
@@ -8443,6 +8469,8 @@ function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAn
     ok=mark('hdg',Math.abs(e6ad(h,p.hdg))<=2)&ok; ok=mark('gs',Math.abs(g-p.gs)<=2)&ok; ok=mark('wca',/[LR-]/.test(wt)? Math.abs(w-p.wca)<=2 : Math.abs(Math.abs(w)-Math.abs(p.wca))<=2)&ok;
     ans=`heading ${fmt3(p.hdg)}°T, GS ${Math.round(p.gs)} kt, WCA ${p.wca>=0?'R':'L'}${Math.abs(p.wca).toFixed(0)}`; }
   else if(p.Q){ ok=mark(p.Q.k,near2(num(v(p.Q.k)),p.v)); const u={min:'min',gs:'kt',nm:'NM',fuel:'L',burn:'L/h'}[p.Q.k]; ans=`${p.v.toFixed(1)} ${u}${p.Q.k==='min'&&p.v>=60?' ('+e6hm(p.v)+')':''}`; }
+  else if(p.type==='wb'){ ok=mark('w',Math.abs(num(v('w'))-p.W)<=Math.max(1,p.W*0.005))&ok; ok=mark('cg',Math.abs(num(v('cg'))-p.cg)<=p.cg*0.003)&ok; const yn=v('in'); ok=mark('in',/^[YN]/.test(yn)&&(yn[0]==='Y')===p.inl)&ok;
+    ans=`${(Math.round(p.W*10)/10).toLocaleString('en-AU')} ${p.U.w} at ${p.cg.toFixed(p.U.a==='mm'?0:1)} ${p.U.a}, ${p.inl?'within limits':'OUT of limits'} (the app's W&amp;B sums; slide rule ±0.3%)`; }
   else if(p.type==='xw'){ const xt=v('xw'), ht=v('hw'); let x=num(xt), h=num(ht); if(/T/.test(ht)) h=-Math.abs(h);
     ok=mark('xw',Math.abs(Math.abs(x)-Math.abs(p.xw))<=2&&(!/[LR]/.test(xt)||(/R/.test(xt))===(p.xw>=0)||Math.abs(p.xw)<1))&ok; ok=mark('hw',Math.abs(h-p.hw)<=2)&ok;
     ans=`crosswind ${Math.abs(p.xw).toFixed(0)} kt from the ${p.xw>=0?'right':'left'}, ${p.hw>=0?'headwind':'tailwind'} ${Math.abs(p.hw).toFixed(0)} kt`; }
@@ -8454,6 +8482,8 @@ function e6Check(){ const p=E6P.p; if(!p) return; const v=k=>{ const i=$('e6bPAn
   $('e6bPCard').querySelector('small').textContent=`· ${E6P.sc.ok} right of ${E6P.sc.n}`; }
 function e6Show(){ const p=E6P.p; if(!p) return; const C=E6.pc, m=a=>((a%360)+360)%360;
   if(p.type==='wind'){ E6.pw.solve(p.tc,p.tas,p.wd,p.wk); }
+  else if(p.type==='wb'){ p.rows.forEach((r,i)=>E6P.seen.add(i)); C.rot=m(e6L(p.M)-e6L(p.W)); C.cur=C.rot; C.draw();
+    $('e6bPRes').innerHTML='Set for the CG: read it over the inner 10, then Check. Moments: '+p.rows.map(r=>`${esc(r.n)} ${Math.round(r.m).toLocaleString('en-AU')}`).join(' · ')+`; total ${Math.round(p.M).toLocaleString('en-AU')}.`; return; }
   else if(p.type==='xw'){ const W=E6.pw, t=p.wd*Math.PI/180; W.dots=[{x:p.wk*Math.sin(t), y:-p.wk*Math.cos(t)}]; W.rotP=p.rh%360; W.draw(); }
   else if(p.Q){ if(p.Q.f==='R'){ C.rot=m(e6L(p.O)-e6L(p.I)); C.cur=e6L(p.O); } else { C.rot=m(e6L(p.R)-e6L(60)); C.cur= p.Q.f==='I'? e6L(p.O) : m(e6L(p.I)+C.rot); } C.draw(); }
   else if(p.type==='pa'){ E6P.hint=true; E6P.all=true; e6Steps(); $('e6bPRes').innerHTML='The working is under each step: type the answer, then Check.'; return; }
