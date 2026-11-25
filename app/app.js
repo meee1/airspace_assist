@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795608524757;
+const APP_BUILT=1795636048177;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -5150,9 +5150,18 @@ function srwLog(k){ SRW.ev.push(hhmmZ(Date.now()).replace('Z','')+':'+new Date()
 function srwDiag(){ const el=$('sttWebDiag'); if(!el) return; const SR=srwSR();
   el.textContent=`Browser recognition: ${SR?'yes':'no'}${SR&&SR.available?'':' (no on-device check)'} · offline pack ${SRW.av||'?'} · takes the chosen input: ${SRW.track==null?'not tested yet':SRW.track?'yes':'no (uses the microphone itself; the input test is closed while it listens)'} · ${SRW.on?'listening'+(SRW.local?' on the device':' online'):'stopped'}`+(SRW.ev.length?' · events: '+SRW.ev.join(', '):''); }
 async function srwAvail(){ const SR=srwSR(); if(!SR) return {ok:false, why:'This browser has no speech recognition: use Whisper.'};
-  let local='unavailable', lang='en-AU';
-  if(SR.available){ for(const l of ['en-AU','en-US']){ try{ const r=await SR.available({langs:[l],processLocally:true}); if(r&&r!=='unavailable'){ local=r; lang=l; break; } }catch(e){} } }
-  SRW.av=local+' ('+lang+')'; srwDiag(); return {ok:true, SR, local, lang}; }
+  /* on-device recognition (26 Nov 2026, Michael: "Modern implementations of the SpeechRecognition API support on-device processing
+     via processLocally"): ask every English the app can use, by either API Chrome has shipped (available({langs, processLocally})
+     now; availableOnDevice(lang) before), keep each raw answer for the diagnostics, prefer one on the device, then one that can be
+     downloaded */
+  const res={};
+  for(const l of SRW_LANGS){ let r;
+    try{ r= SR.available? await SR.available({langs:[l],processLocally:true}) : SR.availableOnDevice? await SR.availableOnDevice(l) : 'no on-device API'; }catch(e){ r='error: '+(e.message||e.name||e); }
+    res[l]=String(r); }
+  const pick=w=>SRW_LANGS.find(l=>res[l]===w), L=pick('available')||pick('downloading')||pick('downloadable');
+  const local= L? res[L] : 'unavailable', lang= L||'en-AU';
+  SRW.av=SRW_LANGS.map(l=>l+' '+res[l]).join(', '); srwDiag(); return {ok:true, SR, local, lang, res}; }
+const SRW_LANGS=['en-AU','en-US','en-GB'];
 function srwTrackOk(){ if(SRW.track!=null) return SRW.track; const SR=srwSR(); if(!SR) return SRW.track=false;
   try{ const r=new SR(); r.onerror=()=>{}; r.start(1); try{ r.abort(); }catch(e){} SRW.track=false; }catch(e){ SRW.track= e instanceof TypeError||e.name==='TypeError'; }
   return SRW.track; }
@@ -5163,22 +5172,22 @@ async function srwUI(){ const web=STT.eng==='web'; $('sttEng').value=STT.eng; fo
     A.local==='downloadable'||A.local==='downloading'? 'Fast. Install the offline pack (once, with signal) to use it without signal; until then it uses Google\'s online speech service: the audio goes to Google and it needs signal.' :
     'Fast, but this browser has no offline pack: it uses Google\'s online speech service (the audio goes to Google, needs signal). Whisper works offline.'; }
 async function srwInstall(){ const A=await srwAvail(); if(!A.ok||!A.SR.install) return; $('sttWebInst').disabled=true; $('sttEngSt').textContent='Installing the offline speech pack…';
-  let ok=false; try{ ok=await A.SR.install({langs:[A.lang],processLocally:true}); }catch(e){} $('sttWebInst').disabled=false; await srwUI(); if(!ok) $('sttEngSt').textContent+=' (The install didn\'t finish: try again with signal.)';
+  let ok=false; try{ ok= A.SR.install? await A.SR.install({langs:[A.lang],processLocally:true}) : A.SR.installOnDevice? await A.SR.installOnDevice(A.lang) : false; }catch(e){ srwLog('install failed: '+(e.message||e.name)); } $('sttWebInst').disabled=false; await srwUI(); if(!ok) $('sttEngSt').textContent+=' (The install didn\'t finish: try again with signal.)';
   if(SRW.on){ srwStop(); srwStart(); } }
 function srwPhrases(){ return sttPrompt().split(/[,.]\s*/).map(x=>x.trim()).filter(x=>x&&x.length<40).slice(0,60); }
 async function srwStart(){ if(SRW.on) return true; const A=await srwAvail(); if(!A.ok){ sttSt(A.why); return false; }
-  SRW.SR=A.SR; SRW.local=A.local==='available'; SRW.lang=A.lang; SRW.on=true; SRW.fatal=false; srwTrackOk();
+  SRW.force=$('sttForceLocal').checked; SRW.SR=A.SR; SRW.local=A.local==='available'||SRW.force; SRW.lang=A.lang; SRW.on=true; SRW.fatal=false; srwTrackOk();
   if(!SRW.track&&AUD.st){ audStop(); srwLog('closed the input test (the browser needs the microphone)'); }   // a phone can't usually capture the microphone twice
   srwGo(); return true; }
 function srwGo(){ if(!SRW.on) return; const r=new SRW.SR(); r.lang=SRW.lang; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
-  if('processLocally' in r) r.processLocally=SRW.local;
+  if('processLocally' in r) r.processLocally=SRW.local; else if('mode' in r&&SRW.local) r.mode='ondevice-preferred';   // the earlier API
   if(SRW.local&&window.SpeechRecognitionPhrase&&!SRW.noPhr){ try{ r.phrases=srwPhrases().map(t=>new SpeechRecognitionPhrase(t,5)); }catch(e){} }
   if(r.addEventListener) for(const k of ['start','audiostart','soundstart','speechstart','speechend','audioend','nomatch']) r.addEventListener(k,()=>srwLog(k));
   r.onresult=e=>{ { const R=e.results[e.results.length-1]; srwLog(R&&R.isFinal? 'result' : 'hearing'); } for(let i=e.resultIndex;i<e.results.length;i++){ const R=e.results[i], t=R[0]&&R[0].transcript||''; if(!SRW.t0) SRW.t0=Date.now();
       if(R.isFinal){ const t0=SRW.t0; SRW.t0=0; srwFinal(t,t0); } else if(t.trim()) sttSt('Hearing: '+t.trim()); } };
   r.onerror=e=>{ SRW.err=e.error||''; srwLog('error: '+SRW.err+(e.message?' ('+e.message+')':''));
     if(SRW.err==='phrases-not-supported'){ SRW.noPhr=true; return; }
-    if(SRW.err==='language-not-supported'&&SRW.local){ SRW.local=false; return; }
+    if(SRW.err==='language-not-supported'&&SRW.local){ SRW.local=false; if(SRW.force) sttSt('The browser won\'t recognise '+SRW.lang+' on the device: using its online service.'); return; }
     if(SRW.err==='not-allowed'||SRW.err==='service-not-allowed'||SRW.err==='audio-capture'){ SRW.fatal=true; sttSt(SRW.err==='audio-capture'? 'Speech recognition couldn\'t open the input.' : 'Speech recognition is blocked: allow the microphone for this site.'); return; }
     if(SRW.err==='network') sttSt(navigator.onLine? 'The online speech service didn\'t answer: trying again.' : 'No signal and no offline speech pack: switch to Whisper to transcribe offline.');
     else if(SRW.err!=='no-speech'&&SRW.err!=='aborted') sttSt('Speech recognition: '+SRW.err); };
@@ -5193,6 +5202,7 @@ function srwFinal(t,t0){ const txt=String(t||'').replace(/\s+/g,' ').trim(); if(
 $('sttRb').checked=ls.get('sttRb',true)!==false; $('sttRb').onchange=()=>ls.set('sttRb',$('sttRb').checked);
 $('sttEng').onchange=()=>{ STT.eng=$('sttEng').value==='web'?'web':'whisper'; ls.set('sttEng',STT.eng); if(STT.on||STT.sink){ sttDetach(); if(STT.eng!=='web') sttLoad(); sttAttach(); } srwUI(); };
 $('sttWebInst').onclick=srwInstall;
+$('sttForceLocal').checked=!!ls.get('sttForceLocal',false); $('sttForceLocal').onchange=()=>{ ls.set('sttForceLocal',$('sttForceLocal').checked); if(SRW.on){ srwStop(); srwStart(); } };
 /* ---------- ATIS capture (25 Nov 2026, Michael chose suggestion 2): "Listen to ATIS" in the ATIS and clearance dialog routes the
    transcription engine (Whisper or the browser's) to atisHeard instead of the radio log (STT.sink, like the hands-free
    checklist) for up to 2 min or until the information letter has been heard twice (the broadcast repeats). atisParse turns

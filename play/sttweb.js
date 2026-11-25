@@ -10,7 +10,7 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
     class FakeSR extends EventTarget{ constructor(){ super(); this.lang=''; this.continuous=false; this.interimResults=false; this.processLocally=false; this.phrases=[]; __SR.inst.push(this); }
       start(t){ if(arguments.length&&!(t instanceof MediaStreamTrack)) throw new TypeError("Failed to execute 'start': parameter 1 is not of type 'MediaStreamTrack'."); this.track=t||null; this.started=true; this.dispatchEvent(new Event('start')); }
       abort(){ this.aborted=true; } stop(){ this.stopped=true; }
-      static async available(o){ return __SR.local; } static async install(o){ __SR.local='available'; return true; } }
+      static async available(o){ return (__SR.map&&__SR.map[o.langs[0]])||__SR.local; } static async install(o){ __SR.installed=o.langs[0]; if(__SR.map) __SR.map[o.langs[0]]='available'; __SR.local='available'; return true; } }
     window.SpeechRecognition=FakeSR; window.webkitSpeechRecognition=FakeSR; window.SpeechRecognitionPhrase=class{ constructor(p,b){ this.phrase=p; this.boost=b; } };
     window.__emit=(text,fin)=>{ const r=__SR.inst.filter(x=>x.started&&!x.aborted).pop(); const R=[{transcript:text, confidence:0.9}]; R.isFinal=fin; r.onresult({resultIndex:0, results:[R]}); return true; }; });
   const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(e.message));
@@ -56,6 +56,14 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   await p.evaluate(()=>sttSet(false));
   ok(r.tr===false&&/default microphone/.test(r.st),'no track support: uses the default microphone and says so · '+r.st);
   ok(!r.aud&&/takes the chosen input: no/.test(r.diag)&&/closed the input test/.test(r.diag)&&/Tyabb traffic/.test(rr.row||''),'no track support: the app\'s own input is closed so the browser can have the microphone; a call still reaches the RADIO row · '+r.diag.slice(0,160));
-  const dg=await p.evaluate(()=>$('sttWebDiag').textContent); ok(/Browser recognition: yes · offline pack available \(en-AU\)/.test(dg)&&/events: .*start/.test(dg),'diagnostics line: '+dg.slice(0,200));
+  const dg=await p.evaluate(()=>$('sttWebDiag').textContent); ok(/Browser recognition: yes · offline pack en-AU available, en-US available, en-GB available/.test(dg)&&/events: .*start/.test(dg),'diagnostics line: '+dg.slice(0,200));
+  // on-device (26 Nov 2026): every English asked and shown; a downloadable en-US is picked and installed; "Try on the device anyway"
+  r=await p.evaluate(async()=>{ __SR.map={'en-AU':'unavailable','en-US':'downloadable','en-GB':'unavailable'}; const A=await srwAvail(); await srwUI(); return {lang:A.lang, local:A.local, diag:$('sttWebDiag').textContent, inst:!$('sttWebInst').hidden}; });
+  ok(r.lang==='en-US'&&r.local==='downloadable'&&r.inst&&/en-AU unavailable, en-US downloadable, en-GB unavailable/.test(r.diag),'each English asked: '+r.diag.slice(0,110));
+  r=await p.evaluate(async()=>{ await srwInstall(); return {inst:__SR.installed, diag:$('sttWebDiag').textContent}; }); ok(r.inst==='en-US'&&/en-US available/.test(r.diag),'Install offline pack installs en-US: '+r.diag.slice(0,90));
+  r=await p.evaluate(async()=>{ __SR.map={'en-AU':'unavailable','en-US':'unavailable','en-GB':'unavailable'}; __SR.local='unavailable'; $('sttForceLocal').checked=true; $('sttForceLocal').onchange(); await sttSet(true); await new Promise(r=>setTimeout(r,300));
+    const x=__SR.inst.filter(i=>i.started&&!i.aborted).pop(), forced=x&&x.processLocally; x.onerror({error:'language-not-supported'}); x.onend(); await new Promise(r=>setTimeout(r,500));
+    const y=__SR.inst.filter(i=>i.started&&!i.aborted).pop(); const out={forced, after:y&&y.processLocally, st:$('sttSt').textContent, saved:ls.get('sttForceLocal')}; await sttSet(false); $('sttForceLocal').checked=false; $('sttForceLocal').onchange(); return out; });
+  ok(r.forced===true&&r.after===false&&r.saved===true&&/(won't recognise|Listening)/.test(r.st),`Try on the device anyway: processLocally set though Chrome says unavailable; refused -> online (${r.st.slice(0,80)})`);
   await p.locator('#optsDlg').screenshot({path:__dirname+'/sttweb.png'}).catch(()=>{});
   console.log(fail.length? fail.length+' FAILED':'all passed'); console.log(errs); await b.close(); process.exit(fail.length?1:0); })();

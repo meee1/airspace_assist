@@ -960,7 +960,7 @@ body.fsm.fsm-tab #fsSheet{left:var(--tabW,300px)}
       <div class="vnote" style="margin-top:0">Turns what the input hears into text. <b>Whisper</b> runs on the tablet (download the model once with signal; after that it works offline) but takes a few seconds per call; <b>browser speech recognition</b> is fast, and works offline only where the browser has an offline speech pack. It's an aid only: it mishears callsigns and numbers, so your ears and your read-back come first.</div>
       <label style="cursor:default"><span><b>Engine</b></span><select id="sttEng" style="margin-left:auto;font:600 14px var(--f-body);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);max-width:62%"><option value="whisper">Whisper (on the tablet, slower)</option><option value="web">Browser speech recognition (fast)</option></select></label>
       <div class="vnote" id="sttEngSt"></div>
-      <div id="sttWebRow" hidden style="margin:4px 0"><button type="button" class="btn" id="sttWebInst" hidden>Install offline pack</button><div class="vnote mono" id="sttWebDiag" style="font-size:11px;line-height:1.45;word-break:break-word"></div></div>
+      <div id="sttWebRow" hidden style="margin:4px 0"><button type="button" class="btn" id="sttWebInst" hidden>Install offline pack</button><label style="margin:4px 0"><input type="checkbox" id="sttForceLocal"><span><b>Try on the device anyway</b><br><small>Asks the browser to recognise on the tablet even when it says no offline pack is available. If it refuses, it falls back to the online service and the line below says so.</small></span></label><div class="vnote mono" id="sttWebDiag" style="font-size:11px;line-height:1.45;word-break:break-word"></div></div>
       <div id="sttWhRow" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0"><select id="sttModel" style="flex:1 1 200px;min-width:0;font:600 14px var(--f-body);padding:6px 8px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink)"></select><button type="button" class="btn" id="sttDl">Download model</button><button type="button" class="btn" id="sttDel" hidden>Delete model</button></div>
       <div class="vnote" id="sttMSt"></div><div class="vnote" id="sttMem"></div>
       <label><input type="checkbox" id="sttOn"><span><b>Transcribe the input</b><br><small>Listens to the input picked above and writes each transmission below (and on the RADIO row). Keeps listening when Options is closed, until you untick it.</small></span></label>
@@ -6304,9 +6304,18 @@ function srwLog(k){ SRW.ev.push(hhmmZ(Date.now()).replace('Z','')+':'+new Date()
 function srwDiag(){ const el=$('sttWebDiag'); if(!el) return; const SR=srwSR();
   el.textContent=`Browser recognition: ${SR?'yes':'no'}${SR&&SR.available?'':' (no on-device check)'} · offline pack ${SRW.av||'?'} · takes the chosen input: ${SRW.track==null?'not tested yet':SRW.track?'yes':'no (uses the microphone itself; the input test is closed while it listens)'} · ${SRW.on?'listening'+(SRW.local?' on the device':' online'):'stopped'}`+(SRW.ev.length?' · events: '+SRW.ev.join(', '):''); }
 async function srwAvail(){ const SR=srwSR(); if(!SR) return {ok:false, why:'This browser has no speech recognition: use Whisper.'};
-  let local='unavailable', lang='en-AU';
-  if(SR.available){ for(const l of ['en-AU','en-US']){ try{ const r=await SR.available({langs:[l],processLocally:true}); if(r&&r!=='unavailable'){ local=r; lang=l; break; } }catch(e){} } }
-  SRW.av=local+' ('+lang+')'; srwDiag(); return {ok:true, SR, local, lang}; }
+  /* on-device recognition (26 Nov 2026, Michael: "Modern implementations of the SpeechRecognition API support on-device processing
+     via processLocally"): ask every English the app can use, by either API Chrome has shipped (available({langs, processLocally})
+     now; availableOnDevice(lang) before), keep each raw answer for the diagnostics, prefer one on the device, then one that can be
+     downloaded */
+  const res={};
+  for(const l of SRW_LANGS){ let r;
+    try{ r= SR.available? await SR.available({langs:[l],processLocally:true}) : SR.availableOnDevice? await SR.availableOnDevice(l) : 'no on-device API'; }catch(e){ r='error: '+(e.message||e.name||e); }
+    res[l]=String(r); }
+  const pick=w=>SRW_LANGS.find(l=>res[l]===w), L=pick('available')||pick('downloading')||pick('downloadable');
+  const local= L? res[L] : 'unavailable', lang= L||'en-AU';
+  SRW.av=SRW_LANGS.map(l=>l+' '+res[l]).join(', '); srwDiag(); return {ok:true, SR, local, lang, res}; }
+const SRW_LANGS=['en-AU','en-US','en-GB'];
 function srwTrackOk(){ if(SRW.track!=null) return SRW.track; const SR=srwSR(); if(!SR) return SRW.track=false;
   try{ const r=new SR(); r.onerror=()=>{}; r.start(1); try{ r.abort(); }catch(e){} SRW.track=false; }catch(e){ SRW.track= e instanceof TypeError||e.name==='TypeError'; }
   return SRW.track; }
@@ -6317,22 +6326,22 @@ async function srwUI(){ const web=STT.eng==='web'; $('sttEng').value=STT.eng; fo
     A.local==='downloadable'||A.local==='downloading'? 'Fast. Install the offline pack (once, with signal) to use it without signal; until then it uses Google\'s online speech service: the audio goes to Google and it needs signal.' :
     'Fast, but this browser has no offline pack: it uses Google\'s online speech service (the audio goes to Google, needs signal). Whisper works offline.'; }
 async function srwInstall(){ const A=await srwAvail(); if(!A.ok||!A.SR.install) return; $('sttWebInst').disabled=true; $('sttEngSt').textContent='Installing the offline speech pack…';
-  let ok=false; try{ ok=await A.SR.install({langs:[A.lang],processLocally:true}); }catch(e){} $('sttWebInst').disabled=false; await srwUI(); if(!ok) $('sttEngSt').textContent+=' (The install didn\'t finish: try again with signal.)';
+  let ok=false; try{ ok= A.SR.install? await A.SR.install({langs:[A.lang],processLocally:true}) : A.SR.installOnDevice? await A.SR.installOnDevice(A.lang) : false; }catch(e){ srwLog('install failed: '+(e.message||e.name)); } $('sttWebInst').disabled=false; await srwUI(); if(!ok) $('sttEngSt').textContent+=' (The install didn\'t finish: try again with signal.)';
   if(SRW.on){ srwStop(); srwStart(); } }
 function srwPhrases(){ return sttPrompt().split(/[,.]\s*/).map(x=>x.trim()).filter(x=>x&&x.length<40).slice(0,60); }
 async function srwStart(){ if(SRW.on) return true; const A=await srwAvail(); if(!A.ok){ sttSt(A.why); return false; }
-  SRW.SR=A.SR; SRW.local=A.local==='available'; SRW.lang=A.lang; SRW.on=true; SRW.fatal=false; srwTrackOk();
+  SRW.force=$('sttForceLocal').checked; SRW.SR=A.SR; SRW.local=A.local==='available'||SRW.force; SRW.lang=A.lang; SRW.on=true; SRW.fatal=false; srwTrackOk();
   if(!SRW.track&&AUD.st){ audStop(); srwLog('closed the input test (the browser needs the microphone)'); }   // a phone can't usually capture the microphone twice
   srwGo(); return true; }
 function srwGo(){ if(!SRW.on) return; const r=new SRW.SR(); r.lang=SRW.lang; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
-  if('processLocally' in r) r.processLocally=SRW.local;
+  if('processLocally' in r) r.processLocally=SRW.local; else if('mode' in r&&SRW.local) r.mode='ondevice-preferred';   // the earlier API
   if(SRW.local&&window.SpeechRecognitionPhrase&&!SRW.noPhr){ try{ r.phrases=srwPhrases().map(t=>new SpeechRecognitionPhrase(t,5)); }catch(e){} }
   if(r.addEventListener) for(const k of ['start','audiostart','soundstart','speechstart','speechend','audioend','nomatch']) r.addEventListener(k,()=>srwLog(k));
   r.onresult=e=>{ { const R=e.results[e.results.length-1]; srwLog(R&&R.isFinal? 'result' : 'hearing'); } for(let i=e.resultIndex;i<e.results.length;i++){ const R=e.results[i], t=R[0]&&R[0].transcript||''; if(!SRW.t0) SRW.t0=Date.now();
       if(R.isFinal){ const t0=SRW.t0; SRW.t0=0; srwFinal(t,t0); } else if(t.trim()) sttSt('Hearing: '+t.trim()); } };
   r.onerror=e=>{ SRW.err=e.error||''; srwLog('error: '+SRW.err+(e.message?' ('+e.message+')':''));
     if(SRW.err==='phrases-not-supported'){ SRW.noPhr=true; return; }
-    if(SRW.err==='language-not-supported'&&SRW.local){ SRW.local=false; return; }
+    if(SRW.err==='language-not-supported'&&SRW.local){ SRW.local=false; if(SRW.force) sttSt('The browser won\'t recognise '+SRW.lang+' on the device: using its online service.'); return; }
     if(SRW.err==='not-allowed'||SRW.err==='service-not-allowed'||SRW.err==='audio-capture'){ SRW.fatal=true; sttSt(SRW.err==='audio-capture'? 'Speech recognition couldn\'t open the input.' : 'Speech recognition is blocked: allow the microphone for this site.'); return; }
     if(SRW.err==='network') sttSt(navigator.onLine? 'The online speech service didn\'t answer: trying again.' : 'No signal and no offline speech pack: switch to Whisper to transcribe offline.');
     else if(SRW.err!=='no-speech'&&SRW.err!=='aborted') sttSt('Speech recognition: '+SRW.err); };
@@ -6347,6 +6356,7 @@ function srwFinal(t,t0){ const txt=String(t||'').replace(/\s+/g,' ').trim(); if(
 $('sttRb').checked=ls.get('sttRb',true)!==false; $('sttRb').onchange=()=>ls.set('sttRb',$('sttRb').checked);
 $('sttEng').onchange=()=>{ STT.eng=$('sttEng').value==='web'?'web':'whisper'; ls.set('sttEng',STT.eng); if(STT.on||STT.sink){ sttDetach(); if(STT.eng!=='web') sttLoad(); sttAttach(); } srwUI(); };
 $('sttWebInst').onclick=srwInstall;
+$('sttForceLocal').checked=!!ls.get('sttForceLocal',false); $('sttForceLocal').onchange=()=>{ ls.set('sttForceLocal',$('sttForceLocal').checked); if(SRW.on){ srwStop(); srwStart(); } };
 /* ---------- ATIS capture (25 Nov 2026, Michael chose suggestion 2): "Listen to ATIS" in the ATIS and clearance dialog routes the
    transcription engine (Whisper or the browser's) to atisHeard instead of the radio log (STT.sink, like the hands-free
    checklist) for up to 2 min or until the information letter has been heard twice (the broadcast repeats). atisParse turns
