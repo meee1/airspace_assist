@@ -7,8 +7,8 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   const ok=(c,m)=>{ console.log((c?'ok   ':'FAIL ')+m); if(!c) fail.push(m); };
   const ctx=await b.newContext({...PX9,permissions:['microphone'],storageState:{cookies:[],origins:[{origin:'http://localhost:8811',localStorage:[{name:'rc_fsMap',value:'false'}]}]}});
   await ctx.addInitScript(()=>{ window.__SR={inst:[], local:'available'};
-    class FakeSR{ constructor(){ this.lang=''; this.continuous=false; this.interimResults=false; this.processLocally=false; this.phrases=[]; __SR.inst.push(this); }
-      start(t){ if(arguments.length&&!(t instanceof MediaStreamTrack)) throw new TypeError("Failed to execute 'start': parameter 1 is not of type 'MediaStreamTrack'."); this.track=t||null; this.started=true; }
+    class FakeSR extends EventTarget{ constructor(){ super(); this.lang=''; this.continuous=false; this.interimResults=false; this.processLocally=false; this.phrases=[]; __SR.inst.push(this); }
+      start(t){ if(arguments.length&&!(t instanceof MediaStreamTrack)) throw new TypeError("Failed to execute 'start': parameter 1 is not of type 'MediaStreamTrack'."); this.track=t||null; this.started=true; this.dispatchEvent(new Event('start')); }
       abort(){ this.aborted=true; } stop(){ this.stopped=true; }
       static async available(o){ return __SR.local; } static async install(o){ __SR.local='available'; return true; } }
     window.SpeechRecognition=FakeSR; window.webkitSpeechRecognition=FakeSR; window.SpeechRecognitionPhrase=class{ constructor(p,b){ this.phrase=p; this.boost=b; } };
@@ -51,7 +51,11 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   r=await p.evaluate(()=>({on:SRW.on})); ok(!r.on,'transcription off: browser recognition stopped');
   // a browser whose start() takes no track: default microphone, said in the status
   await p.evaluate(async()=>{ SRW.track=null; window.SpeechRecognition.prototype.start=function(){ this.track=null; this.started=true; }; await sttSet(true); });
-  await p.waitForTimeout(400); r=await p.evaluate(()=>({tr:SRW.track, st:$('sttSt').textContent})); await p.evaluate(()=>sttSet(false));
+  await p.waitForTimeout(400); r=await p.evaluate(()=>({tr:SRW.track, st:$('sttSt').textContent, aud:!!AUD.st, diag:$('sttWebDiag').textContent}));
+  const rr=await p.evaluate(()=>{ __emit('Alpha Bravo Charlie, Tyabb traffic, test call',true); sttRow(); return {row:!$('sStt').hidden&&$('sStt').innerText}; });
+  await p.evaluate(()=>sttSet(false));
   ok(r.tr===false&&/default microphone/.test(r.st),'no track support: uses the default microphone and says so · '+r.st);
+  ok(!r.aud&&/takes the chosen input: no/.test(r.diag)&&/closed the input test/.test(r.diag)&&/Tyabb traffic/.test(rr.row||''),'no track support: the app\'s own input is closed so the browser can have the microphone; a call still reaches the RADIO row · '+r.diag.slice(0,160));
+  const dg=await p.evaluate(()=>$('sttWebDiag').textContent); ok(/Browser recognition: yes · offline pack available \(en-AU\)/.test(dg)&&/events: .*start/.test(dg),'diagnostics line: '+dg.slice(0,200));
   await p.locator('#optsDlg').screenshot({path:__dirname+'/sttweb.png'}).catch(()=>{});
   console.log(fail.length? fail.length+' FAILED':'all passed'); console.log(errs); await b.close(); process.exit(fail.length?1:0); })();

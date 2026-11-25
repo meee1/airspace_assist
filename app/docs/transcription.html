@@ -50,6 +50,7 @@
 <tr><td>Privacy</td><td>Nothing leaves the device.</td><td>Without an offline pack it uses <b>Google's online speech service</b>: the audio goes to Google and it needs signal. The Engine note says so.</td></tr>
 </table></div>
 <p>The browser engine listens to the input picked in the audio test (Chrome; an older browser uses the default microphone and says so). Both engines are told local names so they come out right: aerodromes within 30 NM (with Tower/Ground/Approach where ERSA has them), VFR points within 20 NM, the current area unit, and your type and callsign. Without that, "Moorabbin Tower … Carrum" came out "Murabintaur … Karam". The log, alerts, Use suggestions, ATIS capture, read-back check, flight-log transcripts and hands-free checklists work with either engine.</p>
+<p class="note"><b>If browser recognition doesn't work:</b> the grey line under Engine shows what the browser offers (recognition, offline pack, whether it can take the chosen input) and the last recognition events as they happen: <i>start</i>, <i>audiostart</i>, <i>speechstart</i>, <i>hearing</i> / <i>result</i>, <i>error: …</i>, <i>end</i>. If it can't take the chosen input, the app closes its own input test while recognition listens, because a phone can't usually give the microphone to two things at once; recognition then hears the phone's default microphone (a Bluetooth headset's, when one is connected for calls).</p>
 
 <h2 id="transcribe">3. Transcribe</h2>
 <ul>
