@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795636048177;
+const APP_BUILT=1795636406066;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -5187,7 +5187,9 @@ function srwGo(){ if(!SRW.on) return; const r=new SRW.SR(); r.lang=SRW.lang; r.c
       if(R.isFinal){ const t0=SRW.t0; SRW.t0=0; srwFinal(t,t0); } else if(t.trim()) sttSt('Hearing: '+t.trim()); } };
   r.onerror=e=>{ SRW.err=e.error||''; srwLog('error: '+SRW.err+(e.message?' ('+e.message+')':''));
     if(SRW.err==='phrases-not-supported'){ SRW.noPhr=true; return; }
-    if(SRW.err==='language-not-supported'&&SRW.local){ SRW.local=false; if(SRW.force) sttSt('The browser won\'t recognise '+SRW.lang+' on the device: using its online service.'); return; }
+    if(SRW.err==='language-not-supported'&&SRW.local){ SRW.local=false; if(SRW.force) sttSt('The browser won\'t recognise '+SRW.lang+' on the device: using its online service.');
+      /* restart online now: Chrome on a Pixel refuses at the start and sends no end event, which the restart waited for (26 Nov 2026) */
+      r.onend=null; if(SRW.r===r) SRW.r=null; try{ r.abort(); }catch(e){} srwLog('on-device refused: online'); clearTimeout(SRW.timer); SRW.err=''; SRW.timer=setTimeout(srwGo,300); return; }
     if(SRW.err==='not-allowed'||SRW.err==='service-not-allowed'||SRW.err==='audio-capture'){ SRW.fatal=true; sttSt(SRW.err==='audio-capture'? 'Speech recognition couldn\'t open the input.' : 'Speech recognition is blocked: allow the microphone for this site.'); return; }
     if(SRW.err==='network') sttSt(navigator.onLine? 'The online speech service didn\'t answer: trying again.' : 'No signal and no offline speech pack: switch to Whisper to transcribe offline.');
     else if(SRW.err!=='no-speech'&&SRW.err!=='aborted') sttSt('Speech recognition: '+SRW.err); };
@@ -7804,7 +7806,8 @@ $('bE6b').onclick=e6Open; $('bAirac').onclick=()=>airacOpen(); $('adArr').onclic
 $('arrClose').onclick=()=>$('arrDlg').close(); $('airacClose').onclick=()=>$('airacDlg').close();
 $('airacF').addEventListener('click',e=>{ const b=e.target.closest('[data-f]'); if(!b) return; AIRAC.f=b.dataset.f; for(const x of $('airacF').children) x.classList.toggle('on',x===b); airacRender(); });
 $('airacGo').onclick=()=>{ $('airacBar').hidden=true; ls.set('airacSeen',AIRAC.key); airacOpen(); }; $('airacX').onclick=()=>{ $('airacBar').hidden=true; ls.set('airacSeen',AIRAC.key); };
-setTimeout(airacNotice,6000); $('bHelp').onclick=()=>{ const w=window.open('docs/index.html','_blank'); if(!w) location.href='docs/index.html'; };   // help pages (app/docs, precached by the service worker) $('e6bClose').onclick=()=>$('e6bDlg').close();
+setTimeout(airacNotice,6000); $('bHelp').onclick=()=>{ const w=window.open('docs/index.html','_blank'); if(!w) location.href='docs/index.html'; };   /* help pages (app/docs, precached by the service worker) */
+$('e6bClose').onclick=()=>$('e6bDlg').close();
 $('e6bSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(b) e6Tab(b.dataset.t); });
 $('e6bComp').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b) return; const k=b.dataset.c, C=E6.comp;
   if(k==='gs') C.setIndex(st.gs>20? st.gs : +ls.get('pcGs',90)||90); else if(k==='fuel') C.setIndex(+ls.get('pcBurn',0)||60); else { C.rot=0; C.cur=e6L(30); C.draw(); } });

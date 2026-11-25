@@ -48,4 +48,7 @@ const {chromium}=require('playwright'); const {PX9}=require('./px9.js');
   ok(r.P.plan&&r.P.pw&&r.P.wd===270&&r.P.wk===15&&r.P.tas===90&&/Leg YBRS → NAV2/.test(r.card),`from the plan: ${r.card.replace(/\n/g,' ').slice(0,110)}`);
   await p.evaluate(()=>{ document.documentElement.dataset.theme='light'; }); await p.waitForTimeout(100);
   const bg=await p.evaluate(()=>getComputedStyle($('e6bDlg')).backgroundColor); ok(bg==='rgb(13, 20, 23)','dark even with the light theme ('+bg+')');
+  // ✕ closes it (26 Nov 2026, Michael: "The flight computer cross to exit isn't working": its handler had been commented out)
+  await p.evaluate(()=>{ document.documentElement.dataset.theme=''; if(!$('e6bDlg').open) $('bE6b').click(); }); await p.waitForTimeout(200);
+  await p.locator('#e6bClose').click(); await p.waitForTimeout(200); ok(await p.evaluate(()=>!$('e6bDlg').open),'✕ closes the flight computer');
   console.log(fail.length? fail.length+' FAILED':'all passed'); console.log(errs); await b.close(); process.exit(fail.length?1:0); })();

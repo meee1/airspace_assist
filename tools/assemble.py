@@ -113,6 +113,12 @@ _td=os.path.join(here,'..','app','terrain')
 if os.path.isdir(_td): sizes['terrain']=sum(os.path.getsize(os.path.join(_td,f)) for f in os.listdir(_td) if f.endswith('.bin.z'))
 data=''.join(s_[1] for s_ in sets)+h(urbt)          # for the build version hash
 tpl=open(os.path.join(here,'template.html')).read()
+# stop on code swallowed by a // comment (cmtcheck.py; 26 Nov 2026: the flight computer's close button was lost that way)
+sys.path.insert(0,here); import cmtcheck
+_cm=cmtcheck.check(os.path.join(here,'template.html'))
+if _cm:
+    for _n,_t in _cm: print('ERROR template.html line',_n,': code after a // comment:',_t)
+    sys.exit('assemble: fix the // comments above (use /* */ before code on the same line)')
 i=tpl.index('<script>\n'); j=tpl.rindex('</script>')
 app=tpl[i+len('<script>\n'):j]
 assert 'const DATA = /*__DATA__*/null;' in app
