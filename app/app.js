@@ -102,7 +102,7 @@ function aspAt(la,lo){ return aspNear(la,lo).filter(x=>inAsp(x,la,lo)); }
 function limFt(v,kind,gnd,bcta){ if(kind==='AGL') return v+gnd; if(kind==='BCTA') return bcta; if(kind==='NOTAM') return v==null?(bcta==null?99999:0):v; return v==null?0:v; }   // a NOTAM lower limit on R/D areas is treated as SFC (see airStack)
 function limTxt(ft){ if(ft<=0) return 'SFC'; if(ft>=60000) return 'UNL'; return ft>=11000? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : 'A'+String(Math.round(ft/100)).padStart(3,'0'); }
 const ucfirst=s=>titleCase(s||'');
-const APP_BUILT=1795636406066;
+const APP_BUILT=1795665740360;
 /* Geoid: Android (and the W3C spec) give GPS altitude above the WGS84 ellipsoid; SRTM terrain and AIP limits are above
    the EGM96 geoid (~MSL). N = geoid minus ellipsoid, from a 0.25 deg EGM96 grid for 8-46S 104-170E (tools/geoid.py):
    +2 m at YBRS, +62 m at Cairns, -32 m at Perth. iOS reports sea-level altitude already, so it isn't corrected there. */
@@ -3548,7 +3548,9 @@ function drawMap0(la,lo,h,pick,AS,altFt){
       if(r){ wxN++; if(et) wxEt++; g.lineWidth=3.5; g.strokeStyle=WX_COL[r.c]; g.beginPath(); g.arc(x,y,rd+4.5,0,2*Math.PI); g.stroke();
         if(r.tmp){ g.lineWidth=2; g.setLineDash([3,2.5]); g.strokeStyle=WX_COL[r.tmp]; g.beginPath(); g.arc(x,y,rd+8.5,0,2*Math.PI); g.stroke(); g.setLineDash([]); } } }
     g.beginPath(); g.arc(x,y,rd,0,2*Math.PI); g.fillStyle=sel?C.acc:C.ink; g.lineWidth=1.5; g.strokeStyle=C.bg; g.stroke(); g.fill();
-    if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+rd+4,y+3); }
+    if(sel||MAP.range<=20){ g.fillStyle=sel?C.acc:C.dim; g.textAlign='left'; g.fillText(ad.i,x+rd+4,y+3);
+      if(sel){ const nm=callName(ad.n,ad.i); if(nm&&nm.toUpperCase()!==ad.i){ const f0=g.font; g.font=f0.replace(/\d+(\.\d+)?px/,'11px'); const tw=g.measureText(nm).width;   /* the selected aerodrome's name too (26 Nov 2026, Michael: "when clicking YOLA, the airport name doesnt show") */
+        g.globalAlpha=.85; g.fillStyle=C.bg; g.fillRect(x+rd+2,y+6,tw+4,13); g.globalAlpha=1; g.fillStyle=C.acc; g.fillText(nm,x+rd+4,y+16); g.font=f0; } } }
   }
   { const L=$('wxLeg'); if(L){ L.hidden=!wxN; $('wxLegT').textContent= wxEt? '· plan aerodromes at ETA' : ''; } MAP.wxN=wxN; }
   if(MAP.ctaf && MAP.range<=40){ // frequency under each aerodrome, in its group colour
@@ -4405,54 +4407,59 @@ function wbPlanFuel(P){   // the loaded plan: time at Plan check's GS, fuel at i
   const t0=pcDepMs(), h=planLegs(gs,t0).T/3600e3, burn=P.u==='lb'? burnL/3.785 : burnL, rs=reserveFuel(FP.pts[0],FP.pts[FP.pts.length-1],t0,t0+h*3600e3);
   return {D, h, burn, res:rs.min, resTxt:rs.txt, trip:h*burn, need:(h+rs.min/60)*burn}; }
 // check one loading: take-off, landing, zero fuel, and the burn line between them
-function wbCheck(P,vals,o={}){ const env=wbPoly(P.env), lenv=wbPoly(P.lenv), pf=wbPlanFuel(P), F=wbFuelTot(P,vals), why=[];
+const WBPC=new Map(), wbPolyC=t=>{ t=String(t||''); let v=WBPC.get(t); if(!v){ if(WBPC.size>50) WBPC.clear(); v=wbPoly(t); WBPC.set(t,v); } return v; };
+let WBPF=null; function wbPlanFuelC(P){ const k=P.id+'|'+(FP?(FP.rev||0)+':'+FP.pts.length+':'+FP.i:'-')+'|'+ls.get('pcGs',0)+'|'+ls.get('pcBurn',0)+'|'+ls.get('pcRes',null)+'|'+JSON.stringify(ls.get('pcWind',null));
+  if(WBPF&&WBPF.k===k&&Date.now()-WBPF.t<2000) return WBPF.v; WBPF={k, t:Date.now(), v:wbPlanFuel(P)}; return WBPF.v; }
+/* o.fast: only ok is wanted (the fuel and fix searches run this hundreds of times): no messages are written (number formatting was
+   most of the 1.6 s it took to open W&B on a phone, 26 Nov 2026, Michael: "clicking weight and balance causes a long pause") */
+function wbCheck(P,vals,o={}){ const fast=!!o.fast, env=wbPolyC(P.env), lenv=wbPolyC(P.lenv), pf=wbPlanFuelC(P), F=wbFuelTot(P,vals), why=[], no=f=>{ why.push(fast? 1 : f()); };
   const to=wbSum(P,vals), zf=wbSum(P,wbBurnScale(P,vals,0));
   const ldF= pf&&F>0? Math.max(0,F-pf.trip) : null, ld= ldF!=null? wbSum(P,wbBurnScale(P,vals,ldF/F)) : null;
   const okP=p=>wbIn(env,p.a,p.w)&&(lenv.length<3||wbIn(lenv,p.l,p.w));
-  if(to.w>P.maxW+1e-6) why.push(`take-off weight ${wbFmtW(P,to.w)} is over the maximum ${wbFmtW(P,P.maxW)}`);
+  if(to.w>P.maxW+1e-6) no(()=>`take-off weight ${wbFmtW(P,to.w)} is over the maximum ${wbFmtW(P,P.maxW)}`);
   for(const [nm,p] of [['take-off',to],['landing',ld],['zero fuel',zf]]){ if(!p) continue;
-    if(!wbIn(env,p.a,p.w)) why.push(`${nm} CG ${wbFmtA(P,p.a)} at ${wbFmtW(P,p.w)} is outside the envelope`);
-    else if(lenv.length>=3&&!wbIn(lenv,p.l,p.w)) why.push(`${nm} lateral CG ${wbFmtA(P,p.l)} is outside the lateral limits`); }
-  if(F>0&&!why.length) for(let i=1;i<20;i++){ const p=wbSum(P,wbBurnScale(P,vals,i/20)); if(!okP(p)){ why.push(`the CG leaves the envelope as fuel burns (at ${Math.round(F*i/20)} ${WB_U[P.u].f} left)`); break; } }
+    if(!wbIn(env,p.a,p.w)) no(()=>`${nm} CG ${wbFmtA(P,p.a)} at ${wbFmtW(P,p.w)} is outside the envelope`);
+    else if(lenv.length>=3&&!wbIn(lenv,p.l,p.w)) no(()=>`${nm} lateral CG ${wbFmtA(P,p.l)} is outside the lateral limits`); }
+  if(F>0&&!why.length) for(let i=1;i<20;i++){ const p=wbSum(P,wbBurnScale(P,vals,i/20)); if(!okP(p)){ no(()=>`the CG leaves the envelope as fuel burns (at ${Math.round(F*i/20)} ${WB_U[P.u].f} left)`); break; } }
   if(P.minFront>0&&!o.noFront){ const sts=P.st.map((s,k)=>({s,k})).filter(x=>x.s.k==='seat'), a0=sts.length?Math.min(...sts.map(x=>x.s.a)):null, fr=sts.filter(x=>x.s.a===a0).reduce((t,x)=>t+(+vals[x.k]||0),0);   // the front row: seats at the most forward arm
-    if(sts.length&&fr<P.minFront) why.push(`front seats ${Math.round(fr)} ${WB_U[P.u].w}: the minimum is ${P.minFront} ${WB_U[P.u].w}`); }
-  P.st.forEach((s,k)=>{ if(s.k==='fixed') return; const v=+vals[k]||0; if(s.max>0&&v>s.max+1e-6) why.push(`${s.n}: ${v} is over its ${s.k==='fuel'?'capacity':'limit'} ${s.max} ${s.k==='fuel'?WB_U[P.u].f:WB_U[P.u].w}`); });
+    if(sts.length&&fr<P.minFront) no(()=>`front seats ${Math.round(fr)} ${WB_U[P.u].w}: the minimum is ${P.minFront} ${WB_U[P.u].w}`); }
+  P.st.forEach((s,k)=>{ if(s.k==='fixed') return; const v=+vals[k]||0; if(s.max>0&&v>s.max+1e-6) no(()=>`${s.n}: ${v} is over its ${s.k==='fuel'?'capacity':'limit'} ${s.max} ${s.k==='fuel'?WB_U[P.u].f:WB_U[P.u].w}`); });
   return {ok:!why.length, why, to, ld, zf, ldF, F, pf}; }
 const wbFmtW=(P,w)=>Math.round(w).toLocaleString('en-AU')+' '+WB_U[P.u].w;
 const wbFmtA=(P,a)=>(WB_U[P.u].ad?a.toFixed(1):Math.round(a).toLocaleString('en-AU'))+' '+WB_U[P.u].a;
 // the most fuel you can carry with these people and bags: every point and the burn line inside the limits
 function wbMaxFuel(P,vals){ const cap=wbFuelCap(P), step=P.u==='lb'?0.5:1; if(!cap) return null;
-  for(let f=cap;f>=0;f-=step){ const v=wbFuelSet(P,vals,f), r=wbCheck(P,v,{noFront:1}); if(r.ok) return f; } return -1; }
+  for(let f=cap;f>=0;f-=step){ const v=wbFuelSet(P,vals,f), r=wbCheck(P,v,{noFront:1,fast:1}); if(r.ok) return f; } return -1; }
 // smallest changes that make the loading fit: less fuel, move / leave out bags, swap passengers, add weight on the other side;
 // if one change isn't enough, the same with only the plan's fuel (+ final reserve, reserveFuel); last, how much to offload
 function wbFixes(P,vals){ const out=[], U=WB_U[P.u], F=wbFuelTot(P,vals), pf=wbPlanFuel(P), stepW=P.u==='lb'?2:1;
   { const sts=P.st.map((s,k)=>({s,k})).filter(x=>x.s.k==='seat'), a0=sts.length?Math.min(...sts.map(x=>x.s.a)):null, fr=sts.filter(x=>x.s.a===a0).reduce((t,x)=>t+(+vals[x.k]||0),0);
     if(P.minFront>0&&sts.length&&fr<P.minFront) out.push({cost:-1, planOk:true, txt:`Front seats need ${Math.ceil(P.minFront-fr)} ${U.w} more (minimum ${P.minFront} ${U.w}): a front passenger, or ballast as the Flight Manual allows`});
-    if(wbCheck(P,vals,{noFront:1}).ok) return out; }   // only the front-seat minimum is short
+    if(wbCheck(P,vals,{noFront:1,fast:1}).ok) return out; }   // only the front-seat minimum is short
   const mf=wbMaxFuel(P,vals);
   if(mf!=null&&mf>=0&&F>mf){ const less=F-mf; out.push({cost:less*(P.dens||U.dens), planOk:!pf||mf>=pf.need, txt:`Carry ${Math.ceil(less)} ${U.f} less fuel (at most ${Math.floor(mf)} ${U.f})`+(pf? (mf>=pf.need? `: still enough for the plan plus ${pf.res} min reserve (${Math.ceil(pf.need)} ${U.f})` : ` <span class="w">: not enough for the plan plus ${pf.res} min reserve (${Math.ceil(pf.need)} ${U.f})</span>`) : '')}); }
   const ix=P.st.map((s,k)=>({s,k})), bags=ix.filter(x=>x.s.k==='bag'), seats=ix.filter(x=>x.s.k==='seat'), pax=seats.filter(x=>!/pilot|^p1\b/i.test(x.s.n));
   const single=(v,pre)=>{ const r=[];
     for(const A of bags){ const have=+v[A.k]||0; if(!have) continue;
       for(const B of bags){ if(A===B) continue; const room=B.s.max>0? B.s.max-(+v[B.k]||0) : Infinity;
-        for(let m=stepW;m<=Math.min(have,room);m+=stepW){ const w=v.slice(); w[A.k]=have-m; w[B.k]=(+w[B.k]||0)+m; if(wbCheck(P,w,{noFront:1}).ok){ r.push({cost:m*0.5, txt:pre+`move ${m} ${U.w} of bags from ${esc(A.s.n)} to ${esc(B.s.n)}`}); break; } } }
-      for(let m=stepW;m<=have;m+=stepW){ const w=v.slice(); w[A.k]=have-m; if(wbCheck(P,w,{noFront:1}).ok){ r.push({cost:m, txt:pre+`leave ${m} ${U.w} of bags out of ${esc(A.s.n)}`}); break; } } }
+        for(let m=stepW;m<=Math.min(have,room);m+=stepW){ const w=v.slice(); w[A.k]=have-m; w[B.k]=(+w[B.k]||0)+m; if(wbCheck(P,w,{noFront:1,fast:1}).ok){ r.push({cost:m*0.5, txt:pre+`move ${m} ${U.w} of bags from ${esc(A.s.n)} to ${esc(B.s.n)}`}); break; } } }
+      for(let m=stepW;m<=have;m+=stepW){ const w=v.slice(); w[A.k]=have-m; if(wbCheck(P,w,{noFront:1,fast:1}).ok){ r.push({cost:m, txt:pre+`leave ${m} ${U.w} of bags out of ${esc(A.s.n)}`}); break; } } }
     for(let i=0;i<pax.length;i++) for(let j=i+1;j<pax.length;j++){ const a=pax[i], b=pax[j], va=+v[a.k]||0, vb=+v[b.k]||0; if(va===vb) continue;   // passengers only: the pilot stays in the pilot's seat
-      if(a.s.max>0&&vb>a.s.max||b.s.max>0&&va>b.s.max) continue; const w=v.slice(); w[a.k]=vb; w[b.k]=va; if(wbCheck(P,w,{noFront:1}).ok) r.push({cost:0.1, txt:pre+`swap ${esc(a.s.n)} (${va} ${U.w}) and ${esc(b.s.n)} (${vb} ${U.w})`}); }
+      if(a.s.max>0&&vb>a.s.max||b.s.max>0&&va>b.s.max) continue; const w=v.slice(); w[a.k]=vb; w[b.k]=va; if(wbCheck(P,w,{noFront:1,fast:1}).ok) r.push({cost:0.1, txt:pre+`swap ${esc(a.s.n)} (${va} ${U.w}) and ${esc(b.s.n)} (${vb} ${U.w})`}); }
     for(const A of [...pax,...bags]){ const room=A.s.max>0? A.s.max-(+v[A.k]||0) : 100; if(room<=0) continue;   // weight on the other side (a passenger, bags, or ballast as the POH allows)
-      for(let m=stepW;m<=room;m+=stepW){ const w=v.slice(); w[A.k]=(+w[A.k]||0)+m; if(wbCheck(P,w,{noFront:1}).ok){ r.push({cost:m*1.5, txt:pre+`add ${m} ${U.w} in ${esc(A.s.n)} (passenger, bags or ballast as the POH allows)`}); break; } } }
+      for(let m=stepW;m<=room;m+=stepW){ const w=v.slice(); w[A.k]=(+w[A.k]||0)+m; if(wbCheck(P,w,{noFront:1,fast:1}).ok){ r.push({cost:m*1.5, txt:pre+`add ${m} ${U.w} in ${esc(A.s.n)} (passenger, bags or ballast as the POH allows)`}); break; } } }
     return r; };
   const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
   out.push(...single(vals,'').map(f=>({...f,planOk:true,txt:cap(f.txt)})));
   if(!out.some(f=>f.planOk)&&pf&&F>pf.need){ const v=wbFuelSet(P,vals,pf.need);   // only the fuel the plan needs, then one more change
-    if(wbCheck(P,v,{noFront:1}).ok) out.push({cost:0,txt:`Carry only the plan fuel plus ${pf.res} min reserve, ${Math.ceil(pf.need)} ${U.f}`});
+    if(wbCheck(P,v,{noFront:1,fast:1}).ok) out.push({cost:0,txt:`Carry only the plan fuel plus ${pf.res} min reserve, ${Math.ceil(pf.need)} ${U.f}`});
     else out.push(...single(v,`Carry ${Math.ceil(pf.need)} ${U.f} (plan + ${pf.res} min) and `).map(f=>({...f,planOk:true,cost:f.cost+1000}))); }
   if(!out.some(f=>f.planOk)){ const v= pf&&F>pf.need? wbFuelSet(P,vals,pf.need) : vals, r=wbSum(P,v), over=r.w-P.maxW;
     out.push({cost:9e9, txt: over>0? `<span class="w">Too heavy by ${Math.ceil(over)} ${U.w}${v!==vals?` even with only the plan fuel (${Math.ceil(pf.need)} ${U.f})`:''}: offload people or bags</span>` : `<span class="w">The CG is outside the envelope with this load: rearrange or offload people or bags</span>`}); }
   return out.sort((x,y)=>(y.planOk?1:0)-(x.planOk?1:0)||x.cost-y.cost).slice(0,4); }
 // how much more a station can take with everything else as loaded: every point and the burn line inside the limits
 // (fuel in L/USG). Adding weight at one station moves the CG along a straight line, so the allowed amounts are one range: bisect.
-function wbRoom(P,vals,k){ const s=P.st[k], ok=v=>wbCheck(P,v,{noFront:1}).ok; if(!ok(vals)) return null;
+function wbRoom(P,vals,k){ const s=P.st[k], ok=v=>wbCheck(P,v,{noFront:1,fast:1}).ok; if(!ok(vals)) return null;
   const cur=+vals[k]||0, per=s.k==='fuel'? (P.dens||WB_U[P.u].dens) : 1, tw=wbSum(P,vals).w;
   let hi=Math.max(0,(P.maxW-tw)/per); if(s.max>0) hi=Math.min(hi,s.max-cur); if(hi<=0) return 0;
   const at=m=>{ const v=vals.slice(); v[k]=cur+m; return v; };
@@ -5622,7 +5629,7 @@ function render0(){
     st.ctafHold={i:herePk.a.i,la,lo}; }
   const here=herePk.a; st.ntHere=here;
   // the card and radio calls are for another aerodrome than this tile's: say which, and why (selected by you / the plan's)
-  srcChip($('sCtafSrc'), st.pin? {t:(pick.a===here?'SELECTED':'CARD '+pick.a.i)+' ✕', c:'pin', tip:`${pick.a.i} is selected: the aerodrome card and radio calls are for it instead of the closest aerodrome. Tap to go back to automatic.`}
+  srcChip($('sCtafSrc'), st.pin? {t:(pick.a===here?'SELECTED':'CARD '+pick.a.i+' '+callName(pick.a.n,pick.a.i))+' ✕', c:'pin', tip:`${pick.a.i} is selected: the aerodrome card and radio calls are for it instead of the closest aerodrome. Tap to go back to automatic.`}
     : fpWhy&&pick.a!==here? {t:'CARD '+pick.a.i, c:'fp', tip:`The aerodrome card and radio calls are for ${pick.a.i}: ${fpWhy}`} : null);
   { const r=ctafTile(here,herePk,'s'); st.ctafFar=!!r.CI.far; st.twrTile=r.open? {a:here,tp:r.tp} : null; st.hereCtaf=r.CI.f; st.ctafTileAd= r.CI.far||!r.CI.f? null : here;
     if(nearPk.a!==here&&twrOpenNow(nearPk.a)&&nearPk.d<=10){ const r2=twrPick(nearPk.a,nearPk), ts2=twrStatus(nearPk.a); renderCtl(nearPk.a,r2,true,ts2); st.ctlAd=nearPk.a; }   // a towered field you're near but not in: its ATIS / TWR row still shows

@@ -135,7 +135,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);
 .ad-id{font:700 40px/1 var(--f-label);letter-spacing:.02em}
 /* scrolled down the card: the stuck header shrinks to one line (code, name, distance, bearing, arrow); tap it to go back up */
 .ad-head.cx{padding:6px 12px;gap:8px;align-items:center;cursor:pointer}
-.ad-head.cx .ad-mode,.ad-head.cx #adFac,.ad-head.cx #adElev{display:none}
+.ad-head.cx .ad-mode,.ad-head.cx #adFac,.ad-head.cx #adArr,.ad-head.cx #adElev{display:none}   /* Arrival too: in the one-line header it squeezed the name out (26 Nov 2026, YOLA) */
 .ad-head.cx>div:first-child{display:flex;align-items:baseline;gap:8px;min-width:0}
 .ad-head.cx .ad-id{font-size:22px;flex:none}
 .ad-head.cx .ad-name{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
@@ -1189,7 +1189,7 @@ window.__SIZES={"data.json": 2142137, "data-next.json": 2151055, "urban.json": 1
     try{ const x = urb ? JSON.parse(urb) : []; window.__DATA.urb = Array.isArray(x) ? x : x.urb||[]; window.__DATA.sal = Array.isArray(x) ? [] : x.sal||[]; }catch(e){ window.__DATA.urb=[]; window.__DATA.sal=[]; }
     window.__DATA.meta.eff=pick[0]; window.__DATA.meta.next=S.find(s=>s[0]>pick[0])||null;
     step('a','App code'); msg.textContent='Starting…';
-    const s=document.createElement('script'); s.src='app.js?v=8c962a4372';
+    const s=document.createElement('script'); s.src='app.js?v=e6988c5889';
     s.onload=()=>done('a');
     s.onerror=()=>fail('a','Could not load the app code (app.js). Open the app once with signal so it can be stored for offline use.');
     document.body.appendChild(s);
